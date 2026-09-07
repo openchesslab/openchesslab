@@ -1,6 +1,7 @@
 defmodule Chess.BoardTest do
   use ExUnit.Case
 
+  alias Chess.Square
   alias Chess.Board
 
   describe "empty/0" do
@@ -14,62 +15,75 @@ defmodule Chess.BoardTest do
 
   describe "get/2" do
     test "returns nil for an empty square" do
+      square = Square.from_algebraic("e4")
+
       board = Board.empty()
 
-      assert Board.get(board, 28) == nil
+      assert Board.get(board, square) == nil
     end
 
     test "returns the piece on a square" do
+      square = Square.from_algebraic("e4")
+
       board =
         Board.empty()
-        |> Board.put(28, {:white, :pawn})
+        |> Board.put(square, {:white, :pawn})
 
-      assert Board.get(board, 28) == {:white, :pawn}
+      assert Board.get(board, square) == {:white, :pawn}
     end
   end
 
   describe "put/3" do
     test "does not mutate the original board" do
+      square = Square.from_algebraic("e4")
       board = Board.empty()
-      new_board = Board.put(board, 28, {:white, :pawn})
+      new_board = Board.put(board, square, {:white, :pawn})
 
-      assert Board.get(board, 28) == nil
-      assert Board.get(new_board, 28) == {:white, :pawn}
+      assert Board.get(board, square) == nil
+      assert Board.get(new_board, square) == {:white, :pawn}
     end
 
     test "replaces an existing piece" do
+      square = Square.from_algebraic("e4")
+
       board =
         Board.empty()
-        |> Board.put(28, {:white, :pawn})
-        |> Board.put(28, {:black, :knight})
+        |> Board.put(square, {:white, :pawn})
+        |> Board.put(square, {:black, :knight})
 
-      assert Board.get(board, 28) == {:black, :knight}
+      assert Board.get(board, square) == {:black, :knight}
     end
   end
 
   describe "remove/2" do
     test "removes a piece" do
+      square = Square.from_algebraic("e4")
+
       board =
         Board.empty()
-        |> Board.put(28, {:white, :pawn})
-        |> Board.remove(28)
+        |> Board.put(square, {:white, :pawn})
+        |> Board.remove(square)
 
-      assert Board.get(board, 28) == nil
+      assert Board.get(board, square) == nil
     end
   end
 
   describe "pieces/1" do
     test "returns all pieces with their squares" do
+      e1_square = Square.from_algebraic("e1")
+      e4_square = Square.from_algebraic("e4")
+      e8_square = Square.from_algebraic("e8")
+
       board =
         Board.empty()
-        |> Board.put(4, {:white, :king})
-        |> Board.put(28, {:white, :pawn})
-        |> Board.put(60, {:black, :king})
+        |> Board.put(e1_square, {:white, :king})
+        |> Board.put(e4_square, {:white, :pawn})
+        |> Board.put(e8_square, {:black, :king})
 
       assert Enum.sort(Board.pieces(board)) == [
-               {4, {:white, :king}},
-               {28, {:white, :pawn}},
-               {60, {:black, :king}}
+               {e1_square, {:white, :king}},
+               {e4_square, {:white, :pawn}},
+               {e8_square, {:black, :king}}
              ]
     end
   end

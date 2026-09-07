@@ -26,8 +26,8 @@ defmodule Chess.PositionKeyTest do
       position = Position.starting_position()
 
       changed_position =
-        Position.put_piece(
-          position,
+        position
+        |> Position.put_piece(
           Chess.Square.from_algebraic("e4"),
           {:white, :pawn}
         )

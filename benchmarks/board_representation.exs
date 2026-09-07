@@ -1,7 +1,24 @@
-alias Chess.Board
-alias Chess.Square
 alias Chess.Position
+alias Chess.PositionCanonicalizer
 alias Chess.PositionCodec
+alias Chess.PositionHash
+alias Chess.PositionProperties
+
+import Bitwise
+
+defmodule BenchmarkHelpers do
+  import Bitwise
+
+  def popcount(value) do
+    popcount(value, 0)
+  end
+
+  defp popcount(0, count), do: count
+
+  defp popcount(value, count) do
+    popcount(value &&& value - 1, count + 1)
+  end
+end
 
 starting_position = Position.starting_position()
 
@@ -36,28 +53,58 @@ realistic_position =
     en_passant: nil
   )
 
-starting_encoded = PositionCodec.encode(starting_position)
-realistic_encoded = PositionCodec.encode(realistic_position)
+starting_bitboard = Chess.Bitboard.from_position(starting_position)
+realistic_bitboard = Chess.Bitboard.from_position(realistic_position)
 
 Benchee.run(
   %{
-    "start: SHA-256" => fn ->
-      :crypto.hash(:sha256, starting_encoded)
+    "start: occupied from position" => fn ->
+      PositionProperties.occupied(starting_position)
     end,
-    "start: BLAKE2b" => fn ->
-      :crypto.hash(:blake2b, starting_encoded)
+    "start: occupied from bitboard" => fn ->
+      PositionProperties.occupied(starting_bitboard)
     end,
-    "start: BLAKE2s" => fn ->
-      :crypto.hash(:blake2s, starting_encoded)
+    "realistic: occupied from position" => fn ->
+      PositionProperties.occupied(realistic_position)
     end,
-    "realistic: SHA-256" => fn ->
-      :crypto.hash(:sha256, realistic_encoded)
+    "realistic: occupied from bitboard" => fn ->
+      PositionProperties.occupied(realistic_bitboard)
     end,
-    "realistic: BLAKE2b" => fn ->
-      :crypto.hash(:blake2b, realistic_encoded)
+    "start: position encode" => fn ->
+      PositionCodec.encode(starting_position)
     end,
-    "realistic: BLAKE2s" => fn ->
-      :crypto.hash(:blake2s, realistic_encoded)
+    "start: canonical encode" => fn ->
+      PositionCanonicalizer.encode(starting_position)
+    end,
+    "start: position hash" => fn ->
+      PositionHash.hash(starting_position)
+    end,
+    "realistic: position encode" => fn ->
+      PositionCodec.encode(realistic_position)
+    end,
+    "realistic: canonical encode" => fn ->
+      PositionCanonicalizer.encode(realistic_position)
+    end,
+    "realistic: position hash" => fn ->
+      PositionHash.hash(realistic_position)
+    end,
+    "start: material" => fn ->
+      PositionProperties.material(starting_position)
+    end,
+    "realistic: material" => fn ->
+      PositionProperties.material(realistic_position)
+    end,
+    "start: material from position" => fn ->
+      PositionProperties.material(starting_position)
+    end,
+    "start: material from bitboard" => fn ->
+      PositionProperties.material(starting_bitboard)
+    end,
+    "realistic: material from position" => fn ->
+      PositionProperties.material(realistic_position)
+    end,
+    "realistic: material from bitboard" => fn ->
+      PositionProperties.material(realistic_bitboard)
     end
   },
   time: 5,

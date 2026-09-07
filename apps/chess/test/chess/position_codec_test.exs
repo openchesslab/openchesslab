@@ -1,6 +1,7 @@
 defmodule Chess.PositionCodecTest do
   use ExUnit.Case
 
+  alias Chess.Square
   alias Chess.Position
   alias Chess.PositionCodec
 
@@ -42,23 +43,27 @@ defmodule Chess.PositionCodecTest do
     end
 
     test "different en passant squares produce different encoding" do
+      square = Square.from_algebraic("e3")
+
       without_en_passant = Position.new()
 
       with_en_passant =
-        Position.new(en_passant: 20)
+        Position.new(en_passant: square)
 
       refute PositionCodec.encode(without_en_passant) ==
                PositionCodec.encode(with_en_passant)
     end
 
     test "different pieces produce different encoding" do
+      square = Square.from_algebraic("e4")
+
       white_pawn =
         Position.new()
-        |> Position.put_piece(28, {:white, :pawn})
+        |> Position.put_piece(square, {:white, :pawn})
 
       black_pawn =
         Position.new()
-        |> Position.put_piece(28, {:black, :pawn})
+        |> Position.put_piece(square, {:black, :pawn})
 
       refute PositionCodec.encode(white_pawn) ==
                PositionCodec.encode(black_pawn)

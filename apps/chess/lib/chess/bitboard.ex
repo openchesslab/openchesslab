@@ -57,6 +57,55 @@ defmodule Chess.Bitboard do
     }
   end
 
+  @spec from_position(Chess.Position.t()) :: t()
+  def from_position(%Chess.Position{board: board}) do
+    board
+    |> Chess.Board.pieces()
+    |> Enum.reduce(empty(), &put_piece/2)
+  end
+
+  defp put_piece({square, {color, piece_type}}, board) do
+    mask = Bitwise.bsl(1, square)
+
+    case {color, piece_type} do
+      {:white, :pawn} ->
+        %{board | white_pawns: Bitwise.bor(board.white_pawns, mask)}
+
+      {:white, :knight} ->
+        %{board | white_knights: Bitwise.bor(board.white_knights, mask)}
+
+      {:white, :bishop} ->
+        %{board | white_bishops: Bitwise.bor(board.white_bishops, mask)}
+
+      {:white, :rook} ->
+        %{board | white_rooks: Bitwise.bor(board.white_rooks, mask)}
+
+      {:white, :queen} ->
+        %{board | white_queens: Bitwise.bor(board.white_queens, mask)}
+
+      {:white, :king} ->
+        %{board | white_king: Bitwise.bor(board.white_king, mask)}
+
+      {:black, :pawn} ->
+        %{board | black_pawns: Bitwise.bor(board.black_pawns, mask)}
+
+      {:black, :knight} ->
+        %{board | black_knights: Bitwise.bor(board.black_knights, mask)}
+
+      {:black, :bishop} ->
+        %{board | black_bishops: Bitwise.bor(board.black_bishops, mask)}
+
+      {:black, :rook} ->
+        %{board | black_rooks: Bitwise.bor(board.black_rooks, mask)}
+
+      {:black, :queen} ->
+        %{board | black_queens: Bitwise.bor(board.black_queens, mask)}
+
+      {:black, :king} ->
+        %{board | black_king: Bitwise.bor(board.black_king, mask)}
+    end
+  end
+
   @spec get(t(), Chess.Square.t()) :: piece() | nil
   def get(board, square) when square in 0..63 do
     mask = 1 <<< square
