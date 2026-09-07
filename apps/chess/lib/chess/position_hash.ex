@@ -6,12 +6,19 @@ defmodule Chess.PositionHash do
   alias Chess.Position
   alias Chess.PositionCodec
 
+  @algorithm :sha256
+
   @type t :: <<_::256>>
 
   @spec hash(Position.t()) :: t()
   def hash(%Position{} = position) do
     position
     |> PositionCodec.encode()
-    |> then(&:crypto.hash(:sha256, &1))
+    |> hash()
+  end
+
+  @spec hash(binary()) :: t()
+  def hash(data) when is_binary(data) do
+    :crypto.hash(@algorithm, data)
   end
 end

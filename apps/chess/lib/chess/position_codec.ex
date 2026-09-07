@@ -5,32 +5,15 @@ defmodule Chess.PositionCodec do
 
   alias Chess.Position
 
-  @spec encode(Position.t()) :: binary()
   def encode(%Position{} = position) do
-    <<
-      encode_board(position.board)::binary,
-      encode_side_to_move(position.side_to_move)::8,
-      encode_castling_rights(position.castling_rights)::8,
-      encode_en_passant(position.en_passant)::8
-    >>
-  end
+    board =
+      position.board
+      |> Tuple.to_list()
+      |> Enum.map(&encode_piece/1)
+      |> IO.iodata_to_binary()
 
-  defp encode_board(board) do
-    board
-    |> Chess.Board.pieces()
-    |> encode_pieces()
-  end
-
-  defp encode_pieces(pieces) do
-    Enum.reduce(0..63, <<>>, fn square, binary ->
-      piece =
-        case List.keyfind(pieces, square, 0) do
-          nil -> 0
-          {_square, piece} -> encode_piece(piece)
-        end
-
-      <<binary::binary, piece::8>>
-    end)
+    <<board::binary, encode_side_to_move(position.side_to_move),
+      encode_castling_rights(position.castling_rights), encode_en_passant(position.en_passant)>>
   end
 
   defp encode_piece(nil), do: 0

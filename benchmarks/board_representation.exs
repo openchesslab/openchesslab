@@ -1,183 +1,66 @@
-alias Chess.Bitboard
 alias Chess.Board
-alias Chess.MapBoard
+alias Chess.Square
+alias Chess.Position
+alias Chess.PositionCodec
 
-import Bitwise
+starting_position = Position.starting_position()
 
-defmodule BenchmarkHelpers do
-  import Bitwise
+realistic_position =
+  Position.new(
+    board:
+      Chess.Board.empty()
+      |> Chess.Board.put(Chess.Square.from_algebraic("g1"), {:white, :king})
+      |> Chess.Board.put(Chess.Square.from_algebraic("c1"), {:white, :queen})
+      |> Chess.Board.put(Chess.Square.from_algebraic("a1"), {:white, :rook})
+      |> Chess.Board.put(Chess.Square.from_algebraic("f1"), {:white, :bishop})
+      |> Chess.Board.put(Chess.Square.from_algebraic("c3"), {:white, :knight})
+      |> Chess.Board.put(Chess.Square.from_algebraic("a2"), {:white, :pawn})
+      |> Chess.Board.put(Chess.Square.from_algebraic("b3"), {:white, :pawn})
+      |> Chess.Board.put(Chess.Square.from_algebraic("d4"), {:white, :pawn})
+      |> Chess.Board.put(Chess.Square.from_algebraic("f3"), {:white, :pawn})
+      |> Chess.Board.put(Chess.Square.from_algebraic("g2"), {:white, :pawn})
+      |> Chess.Board.put(Chess.Square.from_algebraic("h2"), {:white, :pawn})
+      |> Chess.Board.put(Chess.Square.from_algebraic("g8"), {:black, :king})
+      |> Chess.Board.put(Chess.Square.from_algebraic("c8"), {:black, :queen})
+      |> Chess.Board.put(Chess.Square.from_algebraic("a8"), {:black, :rook})
+      |> Chess.Board.put(Chess.Square.from_algebraic("f8"), {:black, :bishop})
+      |> Chess.Board.put(Chess.Square.from_algebraic("c6"), {:black, :knight})
+      |> Chess.Board.put(Chess.Square.from_algebraic("a7"), {:black, :pawn})
+      |> Chess.Board.put(Chess.Square.from_algebraic("b6"), {:black, :pawn})
+      |> Chess.Board.put(Chess.Square.from_algebraic("d5"), {:black, :pawn})
+      |> Chess.Board.put(Chess.Square.from_algebraic("f6"), {:black, :pawn})
+      |> Chess.Board.put(Chess.Square.from_algebraic("g7"), {:black, :pawn})
+      |> Chess.Board.put(Chess.Square.from_algebraic("h7"), {:black, :pawn}),
+    side_to_move: :white,
+    castling_rights: MapSet.new([:white_kingside, :black_kingside]),
+    en_passant: nil
+  )
 
-  def popcount(value) do
-    popcount(value, 0)
-  end
-
-  defp popcount(0, count), do: count
-
-  defp popcount(value, count) do
-    popcount(value &&& value - 1, count + 1)
-  end
-end
-
-pieces = [
-  {0, {:white, :rook}},
-  {1, {:white, :knight}},
-  {2, {:white, :bishop}},
-  {3, {:white, :queen}},
-  {4, {:white, :king}},
-  {5, {:white, :bishop}},
-  {6, {:white, :knight}},
-  {7, {:white, :rook}},
-  {8, {:white, :pawn}},
-  {9, {:white, :pawn}},
-  {10, {:white, :pawn}},
-  {11, {:white, :pawn}},
-  {12, {:white, :pawn}},
-  {13, {:white, :pawn}},
-  {14, {:white, :pawn}},
-  {15, {:white, :pawn}},
-  {48, {:black, :pawn}},
-  {49, {:black, :pawn}},
-  {50, {:black, :pawn}},
-  {51, {:black, :pawn}},
-  {52, {:black, :pawn}},
-  {53, {:black, :pawn}},
-  {54, {:black, :pawn}},
-  {55, {:black, :pawn}},
-  {56, {:black, :rook}},
-  {57, {:black, :knight}},
-  {58, {:black, :bishop}},
-  {59, {:black, :queen}},
-  {60, {:black, :king}},
-  {61, {:black, :bishop}},
-  {62, {:black, :knight}},
-  {63, {:black, :rook}}
-]
-
-tuple_board =
-  Enum.reduce(pieces, Board.empty(), fn {square, piece}, board ->
-    Board.put(board, square, piece)
-  end)
-
-map_board =
-  Enum.reduce(pieces, MapBoard.empty(), fn {square, piece}, board ->
-    MapBoard.put(board, square, piece)
-  end)
-
-bitboard =
-  Enum.reduce(pieces, Bitboard.empty(), fn {square, piece}, board ->
-    Bitboard.put(board, square, piece)
-  end)
-
-e_file_mask =
-  Enum.reduce(0..7, 0, fn rank, mask ->
-    bor(mask, 1 <<< (rank * 8 + 4))
-  end)
-
-tuple_occupied = fn ->
-  tuple_board
-  |> Board.pieces()
-  |> Enum.map(&elem(&1, 0))
-end
-
-map_occupied = fn ->
-  map_board
-  |> MapBoard.pieces()
-  |> Enum.map(&elem(&1, 0))
-end
-
-bitboard_occupied = fn ->
-  Bitboard.occupied(bitboard)
-end
-
-tuple_white_occupied = fn ->
-  tuple_board
-  |> Board.pieces()
-  |> Enum.filter(fn {_square, {color, _piece}} -> color == :white end)
-  |> Enum.map(&elem(&1, 0))
-end
-
-map_white_occupied = fn ->
-  map_board
-  |> MapBoard.pieces()
-  |> Enum.filter(fn {_square, {color, _piece}} -> color == :white end)
-  |> Enum.map(&elem(&1, 0))
-end
-
-bitboard_white_occupied = fn ->
-  Bitboard.white_pieces(bitboard)
-end
-
-tuple_material = fn ->
-  tuple_board
-  |> Board.pieces()
-  |> Enum.frequencies_by(fn {_square, piece} -> piece end)
-end
-
-map_material = fn ->
-  map_board
-  |> MapBoard.pieces()
-  |> Enum.frequencies_by(fn {_square, piece} -> piece end)
-end
-
-bitboard_material = fn ->
-  %{
-    white_pawns: BenchmarkHelpers.popcount(bitboard.white_pawns),
-    white_knights: BenchmarkHelpers.popcount(bitboard.white_knights),
-    white_bishops: BenchmarkHelpers.popcount(bitboard.white_bishops),
-    white_rooks: BenchmarkHelpers.popcount(bitboard.white_rooks),
-    white_queens: BenchmarkHelpers.popcount(bitboard.white_queens),
-    black_pawns: BenchmarkHelpers.popcount(bitboard.black_pawns),
-    black_knights: BenchmarkHelpers.popcount(bitboard.black_knights),
-    black_bishops: BenchmarkHelpers.popcount(bitboard.black_bishops),
-    black_rooks: BenchmarkHelpers.popcount(bitboard.black_rooks),
-    black_queens: BenchmarkHelpers.popcount(bitboard.black_queens)
-  }
-end
-
-tuple_open_file = fn ->
-  tuple_board
-  |> Board.pieces()
-  |> Enum.all?(fn
-    {square, {_color, :pawn}} ->
-      band(e_file_mask, 1 <<< square) == 0
-
-    {_square, _piece} ->
-      true
-  end)
-end
-
-map_open_file = fn ->
-  map_board
-  |> MapBoard.pieces()
-  |> Enum.all?(fn
-    {square, {_color, :pawn}} ->
-      band(e_file_mask, 1 <<< square) == 0
-
-    {_square, _piece} ->
-      true
-  end)
-end
-
-bitboard_open_file = fn ->
-  pawns = bor(bitboard.white_pawns, bitboard.black_pawns)
-  band(pawns, e_file_mask) == 0
-end
+starting_encoded = PositionCodec.encode(starting_position)
+realistic_encoded = PositionCodec.encode(realistic_position)
 
 Benchee.run(
   %{
-    "tuple occupied" => tuple_occupied,
-    "map occupied" => map_occupied,
-    "bitboard occupied" => bitboard_occupied,
-    "tuple white occupied" => tuple_white_occupied,
-    "map white occupied" => map_white_occupied,
-    "bitboard white occupied" => bitboard_white_occupied,
-    "tuple material" => tuple_material,
-    "map material" => map_material,
-    "bitboard material" => bitboard_material,
-    "tuple open e-file" => tuple_open_file,
-    "map open e-file" => map_open_file,
-    "bitboard open e-file" => bitboard_open_file
+    "start: SHA-256" => fn ->
+      :crypto.hash(:sha256, starting_encoded)
+    end,
+    "start: BLAKE2b" => fn ->
+      :crypto.hash(:blake2b, starting_encoded)
+    end,
+    "start: BLAKE2s" => fn ->
+      :crypto.hash(:blake2s, starting_encoded)
+    end,
+    "realistic: SHA-256" => fn ->
+      :crypto.hash(:sha256, realistic_encoded)
+    end,
+    "realistic: BLAKE2b" => fn ->
+      :crypto.hash(:blake2b, realistic_encoded)
+    end,
+    "realistic: BLAKE2s" => fn ->
+      :crypto.hash(:blake2s, realistic_encoded)
+    end
   },
   time: 5,
-  memory_time: 2
+  memory_time: 2,
+  print: [fast_warning: false]
 )

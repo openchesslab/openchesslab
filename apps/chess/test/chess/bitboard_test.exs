@@ -88,4 +88,35 @@ defmodule Chess.BitboardTest do
       assert board.white_pawns == 1 <<< 28
     end
   end
+
+  describe "swap_colors/1" do
+    test "swaps piece colors without changing squares" do
+      board =
+        Bitboard.empty()
+        |> Bitboard.put(0, {:white, :rook})
+        |> Bitboard.put(28, {:white, :pawn})
+        |> Bitboard.put(60, {:black, :king})
+
+      transformed = Bitboard.swap_colors(board)
+
+      assert Bitboard.get(transformed, 0) == {:black, :rook}
+      assert Bitboard.get(transformed, 28) == {:black, :pawn}
+      assert Bitboard.get(transformed, 60) == {:white, :king}
+    end
+
+    test "swapping colors twice returns the original board" do
+      board =
+        Bitboard.empty()
+        |> Bitboard.put(0, {:white, :rook})
+        |> Bitboard.put(28, {:white, :pawn})
+        |> Bitboard.put(60, {:black, :king})
+
+      transformed =
+        board
+        |> Bitboard.swap_colors()
+        |> Bitboard.swap_colors()
+
+      assert transformed == board
+    end
+  end
 end

@@ -126,6 +126,24 @@ defmodule Chess.Bitboard do
     popcount(bitboard)
   end
 
+  @spec swap_colors(t()) :: t()
+  def swap_colors(board) do
+    %__MODULE__{
+      white_pawns: board.black_pawns,
+      white_knights: board.black_knights,
+      white_bishops: board.black_bishops,
+      white_rooks: board.black_rooks,
+      white_queens: board.black_queens,
+      white_king: board.black_king,
+      black_pawns: board.white_pawns,
+      black_knights: board.white_knights,
+      black_bishops: board.white_bishops,
+      black_rooks: board.white_rooks,
+      black_queens: board.white_queens,
+      black_king: board.white_king
+    }
+  end
+
   defp popcount(value) do
     popcount(value, 0)
   end
