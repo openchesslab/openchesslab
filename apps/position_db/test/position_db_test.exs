@@ -130,4 +130,94 @@ defmodule PositionDBTest do
     assert PositionDB.find_by_property(db, :open_files, :e) ==
              MapSet.new([id_1, id_2])
   end
+
+  test "queries positions using multiple properties" do
+    position_1 =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("a4"),
+        {:white, :pawn}
+      )
+
+    position_2 =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("b4"),
+        {:white, :pawn}
+      )
+
+    position_3 =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("d4"),
+        {:white, :pawn}
+      )
+
+    db =
+      PositionDB.new(
+        key_function: &PositionKey.exact/1,
+        properties: [
+          {:open_files, &PositionProperties.open_files/1}
+        ]
+      )
+
+    {db, id_1} = PositionDB.put(db, position_1)
+    {db, id_2} = PositionDB.put(db, position_2)
+    {db, _id_3} = PositionDB.put(db, position_3)
+
+    query =
+      {:and,
+       [
+         {:property, :open_files, :e},
+         {:property, :open_files, :d}
+       ]}
+
+    assert PositionDB.query(db, query) ==
+             MapSet.new([id_1, id_2])
+  end
+
+  test "queries positions using OR" do
+    position_1 =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("a4"),
+        {:white, :pawn}
+      )
+
+    position_2 =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("b4"),
+        {:white, :pawn}
+      )
+
+    position_3 =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("d4"),
+        {:white, :pawn}
+      )
+
+    db =
+      PositionDB.new(
+        key_function: &PositionKey.exact/1,
+        properties: [
+          {:open_files, &PositionProperties.open_files/1}
+        ]
+      )
+
+    {db, id_1} = PositionDB.put(db, position_1)
+    {db, id_2} = PositionDB.put(db, position_2)
+    {db, id_3} = PositionDB.put(db, position_3)
+
+    query =
+      {:or,
+       [
+         {:property, :open_files, :e},
+         {:property, :open_files, :d}
+       ]}
+
+    assert PositionDB.query(db, query) ==
+             MapSet.new([id_1, id_2, id_3])
+  end
 end
