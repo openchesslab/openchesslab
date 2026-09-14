@@ -3,6 +3,7 @@ defmodule PositionDB do
   Database for chess positions.
   """
 
+  alias PositionDB.QueryResult
   alias PositionDB.QueryEngine
   alias PositionDB.PropertyIndex
   alias PositionDB.PositionIndexer
@@ -60,7 +61,7 @@ defmodule PositionDB do
     )
   end
 
-  @spec query(t(), PositionDB.Query.t()) :: MapSet.t(position_id())
+  @spec query(t(), PositionDB.Query.t()) :: QueryResult.t()
   def query(%__MODULE__{} = db, query) do
     QueryEngine.execute(
       db.indexer.index,

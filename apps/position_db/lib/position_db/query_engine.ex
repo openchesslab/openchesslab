@@ -3,6 +3,7 @@ defmodule PositionDB.QueryEngine do
   Builds and executes position query plans.
   """
 
+  alias PositionDB.QueryResult
   alias PositionDB.And
   alias PositionDB.Empty
   alias PositionDB.Not
@@ -17,11 +18,11 @@ defmodule PositionDB.QueryEngine do
           PropertyIndex.t(),
           PositionStore.t(),
           PositionDB.Query.t()
-        ) :: MapSet.t()
+        ) :: QueryResult.t()
   def execute(index, store, query) do
     index
     |> build_executor(store, query)
-    |> collect()
+    |> QueryResult.new()
   end
 
   @spec build_executor(
@@ -68,23 +69,5 @@ defmodule PositionDB.QueryEngine do
 
   defp build_or([first | rest]) do
     Enum.reduce(rest, first, &Or.new(&2, &1))
-  end
-
-  @spec collect(QueryExecutor.t()) :: MapSet.t()
-  defp collect(executor) do
-    executor
-    |> collect_ids([])
-    |> MapSet.new()
-  end
-
-  @spec collect_ids(QueryExecutor.t(), [non_neg_integer()]) :: [non_neg_integer()]
-  defp collect_ids(executor, ids) do
-    case QueryExecutor.next(executor) do
-      {:ok, position_id, executor} ->
-        collect_ids(executor, [position_id | ids])
-
-      :done ->
-        ids
-    end
   end
 end

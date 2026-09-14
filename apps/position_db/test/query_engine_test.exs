@@ -2,8 +2,8 @@ defmodule PositionDB.QueryEngineTest do
   use ExUnit.Case, async: true
 
   alias PositionDB.PositionStore
-  alias PositionDB.QueryEngine
   alias PositionDB.PropertyIndex
+  alias PositionDB.QueryEngine
 
   test "property query returns matching positions" do
     store = PositionStore.new(& &1)
@@ -15,8 +15,9 @@ defmodule PositionDB.QueryEngineTest do
 
     query = {:property, :open_files, :e}
 
-    assert QueryEngine.execute(index, store, query) ==
-             MapSet.new([1, 2])
+    result = QueryEngine.execute(index, store, query)
+
+    assert Enum.to_list(result) == [1, 2]
   end
 
   test "and query returns intersection" do
@@ -36,8 +37,31 @@ defmodule PositionDB.QueryEngineTest do
          {:property, :open_files, :d}
        ]}
 
-    assert QueryEngine.execute(index, store, query) ==
-             MapSet.new([2])
+    result = QueryEngine.execute(index, store, query)
+
+    assert Enum.to_list(result) == [2]
+  end
+
+  test "or query returns union" do
+    store = PositionStore.new(& &1)
+
+    index =
+      PropertyIndex.new()
+      |> PropertyIndex.add({:open_files, :e}, 1)
+      |> PropertyIndex.add({:open_files, :e}, 2)
+      |> PropertyIndex.add({:open_files, :d}, 2)
+      |> PropertyIndex.add({:open_files, :d}, 3)
+
+    query =
+      {:or,
+       [
+         {:property, :open_files, :e},
+         {:property, :open_files, :d}
+       ]}
+
+    result = QueryEngine.execute(index, store, query)
+
+    assert Enum.to_list(result) == [1, 2, 3]
   end
 
   test "and query with multiple properties" do
@@ -62,38 +86,16 @@ defmodule PositionDB.QueryEngineTest do
          {:property, :open_files, :c}
        ]}
 
-    assert QueryEngine.execute(index, store, query) ==
-             MapSet.new([3])
-  end
+    result = QueryEngine.execute(index, store, query)
 
-  test "or query returns union" do
-    store = PositionStore.new(& &1)
-
-    index =
-      PropertyIndex.new()
-      |> PropertyIndex.add({:open_files, :e}, 1)
-      |> PropertyIndex.add({:open_files, :e}, 2)
-      |> PropertyIndex.add({:open_files, :d}, 2)
-      |> PropertyIndex.add({:open_files, :d}, 3)
-
-    query =
-      {:or,
-       [
-         {:property, :open_files, :e},
-         {:property, :open_files, :d}
-       ]}
-
-    assert QueryEngine.execute(index, store, query) ==
-             MapSet.new([1, 2, 3])
+    assert Enum.to_list(result) == [3]
   end
 
   test "not query returns positions outside the child result" do
-    store = PositionStore.new(& &1)
-
-    {store, 1} = PositionStore.put(store, :position_1)
-    {store, 2} = PositionStore.put(store, :position_2)
-    {store, 3} = PositionStore.put(store, :position_3)
-    {store, 4} = PositionStore.put(store, :position_4)
+    {store, _} = PositionStore.put(PositionStore.new(& &1), :position_1)
+    {store, _} = PositionStore.put(store, :position_2)
+    {store, _} = PositionStore.put(store, :position_3)
+    {store, _} = PositionStore.put(store, :position_4)
 
     index =
       PropertyIndex.new()
@@ -103,17 +105,16 @@ defmodule PositionDB.QueryEngineTest do
     query =
       {:not, {:property, :selected, true}}
 
-    assert QueryEngine.execute(index, store, query) ==
-             MapSet.new([1, 3])
+    result = QueryEngine.execute(index, store, query)
+
+    assert Enum.to_list(result) == [1, 3]
   end
 
   test "not can be combined with and" do
-    store = PositionStore.new(& &1)
-
-    {store, 1} = PositionStore.put(store, :position_1)
-    {store, 2} = PositionStore.put(store, :position_2)
-    {store, 3} = PositionStore.put(store, :position_3)
-    {store, 4} = PositionStore.put(store, :position_4)
+    {store, _} = PositionStore.put(PositionStore.new(& &1), :position_1)
+    {store, _} = PositionStore.put(store, :position_2)
+    {store, _} = PositionStore.put(store, :position_3)
+    {store, _} = PositionStore.put(store, :position_4)
 
     index =
       PropertyIndex.new()
@@ -130,7 +131,8 @@ defmodule PositionDB.QueryEngineTest do
           {:property, :b, true}
         ]}}
 
-    assert QueryEngine.execute(index, store, query) ==
-             MapSet.new([1, 3, 4])
+    result = QueryEngine.execute(index, store, query)
+
+    assert Enum.to_list(result) == [1, 3, 4]
   end
 end

@@ -172,8 +172,9 @@ defmodule PositionDBTest do
          {:property, :open_files, :d}
        ]}
 
-    assert PositionDB.query(db, query) ==
-             MapSet.new([id_1, id_2])
+    result = PositionDB.query(db, query)
+
+    assert Enum.to_list(result) == [id_1, id_2]
   end
 
   test "queries positions using OR" do
@@ -217,7 +218,8 @@ defmodule PositionDBTest do
          {:property, :open_files, :d}
        ]}
 
-    assert PositionDB.query(db, query) ==
-             MapSet.new([id_1, id_2, id_3])
+    result = PositionDB.query(db, query)
+
+    assert Enum.to_list(result) == [id_1, id_2, id_3]
   end
 end
