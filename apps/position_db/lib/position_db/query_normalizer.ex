@@ -4,26 +4,31 @@ defmodule PositionDB.QueryNormalizer do
     do_normalize(query)
   end
 
+  defp do_normalize(true), do: true
+  defp do_normalize(false), do: false
+
   defp do_normalize({:property, _property, _value} = query) do
     query
   end
 
   defp do_normalize({:not, query}) do
-    {:not, do_normalize(query)}
+    query
+    |> do_normalize()
+    |> normalize_not()
   end
 
   defp do_normalize({:and, queries}) do
     queries
     |> Enum.flat_map(&normalize_and/1)
     |> Enum.uniq()
-    |> normalize_group(:and)
+    |> normalize_and_result()
   end
 
   defp do_normalize({:or, queries}) do
     queries
     |> Enum.flat_map(&normalize_or/1)
     |> Enum.uniq()
-    |> normalize_group(:or)
+    |> normalize_or_result()
   end
 
   defp normalize_and(query) do
@@ -40,9 +45,36 @@ defmodule PositionDB.QueryNormalizer do
     end
   end
 
-  defp normalize_group([query], _operator), do: query
+  defp normalize_and_result(queries) do
+    cond do
+      false in queries ->
+        false
 
-  defp normalize_group(queries, operator) do
-    {operator, queries}
+      true ->
+        queries
+        |> Enum.reject(&(&1 == true))
+        |> collapse_group(:and, true)
+    end
   end
+
+  defp normalize_or_result(queries) do
+    cond do
+      true in queries ->
+        true
+
+      true ->
+        queries
+        |> Enum.reject(&(&1 == false))
+        |> collapse_group(:or, false)
+    end
+  end
+
+  defp normalize_not(true), do: false
+  defp normalize_not(false), do: true
+  defp normalize_not({:not, query}), do: query
+  defp normalize_not(query), do: {:not, query}
+
+  defp collapse_group([], _operator, identity), do: identity
+  defp collapse_group([query], _operator, _identity), do: query
+  defp collapse_group(queries, operator, _identity), do: {operator, queries}
 end

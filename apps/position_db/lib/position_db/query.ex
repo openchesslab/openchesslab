@@ -4,7 +4,9 @@ defmodule PositionDB.Query do
   """
 
   @type t ::
-          {:property, atom(), term()}
+          true
+          | false
+          | {:property, atom(), term()}
           | {:and, [t()]}
           | {:or, [t()]}
           | {:not, t()}
