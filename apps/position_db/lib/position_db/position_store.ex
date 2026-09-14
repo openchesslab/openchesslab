@@ -13,6 +13,11 @@ defmodule PositionDB.PositionStore do
           key_function: (term() -> key())
         }
 
+  @type scan_state :: %{
+          store: t(),
+          next_id: position_id()
+        }
+
   defstruct positions: %{},
             exact_index: %{},
             next_id: 1,
@@ -75,5 +80,24 @@ defmodule PositionDB.PositionStore do
         {:ok, position_id}
       end
     end)
+  end
+
+  @spec scan(t()) :: scan_state()
+  def scan(%__MODULE__{} = store) do
+    %{
+      store: store,
+      next_id: 1
+    }
+  end
+
+  @spec scan_next(scan_state()) ::
+          {:ok, position_id(), scan_state()}
+          | :done
+  def scan_next(%{store: store, next_id: position_id} = state) do
+    if position_id < store.next_id do
+      {:ok, position_id, %{state | next_id: position_id + 1}}
+    else
+      :done
+    end
   end
 end

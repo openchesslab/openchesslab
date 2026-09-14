@@ -41,4 +41,27 @@ defmodule PositionDB.PositionStoreTest do
     assert PositionStore.find(store, :position_a) == {:ok, position_id}
     assert PositionStore.find(store, :position_b) == :not_found
   end
+
+  test "scans position IDs in ascending order" do
+    store = PositionStore.new(& &1)
+
+    {store, 1} = PositionStore.put(store, :position_1)
+    {store, 2} = PositionStore.put(store, :position_2)
+    {store, 3} = PositionStore.put(store, :position_3)
+
+    state = PositionStore.scan(store)
+
+    assert {:ok, 1, state} = PositionStore.scan_next(state)
+    assert {:ok, 2, state} = PositionStore.scan_next(state)
+    assert {:ok, 3, state} = PositionStore.scan_next(state)
+    assert :done = PositionStore.scan_next(state)
+  end
+
+  test "scans an empty store" do
+    store = PositionStore.new(& &1)
+
+    state = PositionStore.scan(store)
+
+    assert :done = PositionStore.scan_next(state)
+  end
 end

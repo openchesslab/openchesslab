@@ -62,6 +62,10 @@ defmodule PositionDB do
 
   @spec query(t(), PositionDB.Query.t()) :: MapSet.t(position_id())
   def query(%__MODULE__{} = db, query) do
-    QueryEngine.execute(db.indexer.index, query)
+    QueryEngine.execute(
+      db.indexer.index,
+      db.store,
+      query
+    )
   end
 end

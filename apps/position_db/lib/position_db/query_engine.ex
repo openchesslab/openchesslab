@@ -5,32 +5,50 @@ defmodule PositionDB.QueryEngine do
 
   alias PositionDB.And
   alias PositionDB.Empty
+  alias PositionDB.Not
   alias PositionDB.Or
+  alias PositionDB.PositionStore
   alias PositionDB.PropertyIndex
   alias PositionDB.PropertyIndexScan
   alias PositionDB.QueryExecutor
+  alias PositionDB.UniverseScan
 
-  @spec execute(PropertyIndex.t(), PositionDB.Query.t()) :: MapSet.t()
-  def execute(index, query) do
+  @spec execute(
+          PropertyIndex.t(),
+          PositionStore.t(),
+          PositionDB.Query.t()
+        ) :: MapSet.t()
+  def execute(index, store, query) do
     index
-    |> build_executor(query)
+    |> build_executor(store, query)
     |> collect()
   end
 
-  @spec build_executor(PropertyIndex.t(), PositionDB.Query.t()) :: QueryExecutor.t()
-  defp build_executor(index, {:property, property, value}) do
+  @spec build_executor(
+          PropertyIndex.t(),
+          PositionStore.t(),
+          PositionDB.Query.t()
+        ) :: QueryExecutor.t()
+  defp build_executor(index, _store, {:property, property, value}) do
     PropertyIndexScan.new(index, {property, value})
   end
 
-  defp build_executor(index, {:and, queries}) do
+  defp build_executor(index, store, {:not, query}) do
+    universe = UniverseScan.new(store)
+    child = build_executor(index, store, query)
+
+    Not.new(universe, child)
+  end
+
+  defp build_executor(index, store, {:and, queries}) do
     queries
-    |> Enum.map(&build_executor(index, &1))
+    |> Enum.map(&build_executor(index, store, &1))
     |> build_and()
   end
 
-  defp build_executor(index, {:or, queries}) do
+  defp build_executor(index, store, {:or, queries}) do
     queries
-    |> Enum.map(&build_executor(index, &1))
+    |> Enum.map(&build_executor(index, store, &1))
     |> build_or()
   end
 
