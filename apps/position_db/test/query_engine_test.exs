@@ -35,6 +35,30 @@ defmodule PositionDB.QueryEngineTest do
              MapSet.new([2])
   end
 
+  test "and query with multiple properties" do
+    index =
+      PropertyIndex.new()
+      |> PropertyIndex.add({:open_files, :e}, 1)
+      |> PropertyIndex.add({:open_files, :e}, 2)
+      |> PropertyIndex.add({:open_files, :e}, 3)
+      |> PropertyIndex.add({:open_files, :d}, 2)
+      |> PropertyIndex.add({:open_files, :d}, 3)
+      |> PropertyIndex.add({:open_files, :d}, 4)
+      |> PropertyIndex.add({:open_files, :c}, 3)
+      |> PropertyIndex.add({:open_files, :c}, 4)
+
+    query =
+      {:and,
+       [
+         {:property, :open_files, :e},
+         {:property, :open_files, :d},
+         {:property, :open_files, :c}
+       ]}
+
+    assert QueryEngine.execute(index, query) ==
+             MapSet.new([3])
+  end
+
   test "or query returns union" do
     index =
       PropertyIndex.new()
