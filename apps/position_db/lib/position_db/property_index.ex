@@ -24,4 +24,11 @@ defmodule PositionDB.PropertyIndex do
   def lookup(index, property) do
     Map.get(index, property, MapSet.new())
   end
+
+  @spec cardinality(t(), property()) :: non_neg_integer()
+  def cardinality(index, property) do
+    index
+    |> lookup(property)
+    |> MapSet.size()
+  end
 end

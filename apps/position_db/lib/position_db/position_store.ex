@@ -100,4 +100,9 @@ defmodule PositionDB.PositionStore do
       :done
     end
   end
+
+  @spec cardinality(t()) :: non_neg_integer()
+  def cardinality(%__MODULE__{positions: positions}) do
+    map_size(positions)
+  end
 end

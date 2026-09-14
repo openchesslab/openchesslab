@@ -3,6 +3,7 @@ defmodule PositionDB.QueryEngine do
   Builds and executes position query plans.
   """
 
+  alias PositionDB.QueryPlanner
   alias PositionDB.QueryResult
   alias PositionDB.And
   alias PositionDB.Empty
@@ -20,9 +21,10 @@ defmodule PositionDB.QueryEngine do
           PositionDB.Query.t()
         ) :: QueryResult.t()
   def execute(index, store, query) do
-    index
-    |> build_executor(store, query)
-    |> QueryResult.new()
+    planned_query = QueryPlanner.plan(index, store, query)
+    executor = build_executor(index, store, planned_query)
+
+    QueryResult.new(executor)
   end
 
   @spec build_executor(

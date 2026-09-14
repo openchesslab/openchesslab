@@ -64,4 +64,24 @@ defmodule PositionDB.PositionStoreTest do
 
     assert :done = PositionStore.scan_next(state)
   end
+
+  test "returns the number of stored positions" do
+    store = PositionStore.new(& &1)
+
+    assert PositionStore.cardinality(store) == 0
+
+    {store, _} = PositionStore.put(store, :position_1)
+    {store, _} = PositionStore.put(store, :position_2)
+
+    assert PositionStore.cardinality(store) == 2
+  end
+
+  test "counts unique positions" do
+    store = PositionStore.new(& &1)
+
+    {store, _} = PositionStore.put(store, :position)
+    {store, _} = PositionStore.put(store, :position)
+
+    assert PositionStore.cardinality(store) == 1
+  end
 end

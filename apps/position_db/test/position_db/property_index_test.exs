@@ -110,4 +110,20 @@ defmodule PositionDB.PropertyIndexTest do
     assert PropertyIndex.lookup(indexer.index, {:property, :b}) ==
              MapSet.new([2])
   end
+
+  test "returns the number of position IDs for a property" do
+    index =
+      PropertyIndex.new()
+      |> PropertyIndex.add({:open_files, :e}, 1)
+      |> PropertyIndex.add({:open_files, :e}, 2)
+      |> PropertyIndex.add({:open_files, :e}, 3)
+
+    assert PropertyIndex.cardinality(index, {:open_files, :e}) == 3
+  end
+
+  test "returns zero for an unknown property" do
+    index = PropertyIndex.new()
+
+    assert PropertyIndex.cardinality(index, {:open_files, :e}) == 0
+  end
 end
