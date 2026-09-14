@@ -1,0 +1,10 @@
+{
+    "elixirLS.dialyzerEnabled": true,
+    "elixirLS.fetchDeps": true,
+    "elixirLS.mixTarget": "host",
+    "elixirLS.mixEnv": "test",
+    "files.associations": {
+        "*.ex": "elixir",
+        "*.exs": "elixir"
+    }
+}

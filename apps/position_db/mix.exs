@@ -10,6 +10,7 @@ defmodule PositionDb.MixProject do
       deps_path: "../../deps",
       lockfile: "../../mix.lock",
       elixir: "~> 1.20",
+      elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps()
     ]
@@ -26,4 +27,7 @@ defmodule PositionDb.MixProject do
   defp deps do
     []
   end
+
+  defp elixirc_paths(:test), do: ["lib", "test"]
+  defp elixirc_paths(_), do: ["lib"]
 end
