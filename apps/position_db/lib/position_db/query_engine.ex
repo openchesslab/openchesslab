@@ -13,15 +13,12 @@ defmodule PositionDB.QueryEngine do
   alias PositionDB.PropertyIndex
   alias PositionDB.PropertyIndexScan
   alias PositionDB.QueryExecutor
+  alias PositionDB.QueryNormalizer
   alias PositionDB.UniverseScan
 
-  @spec execute(
-          PropertyIndex.t(),
-          PositionStore.t(),
-          PositionDB.Query.t()
-        ) :: QueryResult.t()
   def execute(index, store, query) do
-    planned_query = QueryPlanner.plan(index, store, query)
+    normalized_query = QueryNormalizer.normalize(query)
+    planned_query = QueryPlanner.plan(index, store, normalized_query)
     executor = build_executor(index, store, planned_query)
 
     QueryResult.new(executor)
