@@ -2,6 +2,8 @@ defmodule PositionDB.QueryPlanner do
   alias PositionDB.PositionStore
   alias PositionDB.PropertyIndex
 
+  @type cardinality :: {:exact, non_neg_integer()} | {:upper_bound, non_neg_integer()}
+
   @spec plan(
           PropertyIndex.t(),
           PositionStore.t(),
@@ -21,7 +23,10 @@ defmodule PositionDB.QueryPlanner do
   defp do_plan(index, store, {:and, queries}) do
     queries
     |> Enum.map(&do_plan(index, store, &1))
-    |> Enum.sort_by(&cardinality(index, store, &1))
+    |> Enum.sort_by(fn query ->
+      cardinality(index, store, query)
+      |> upper_bound()
+    end)
     |> then(&{:and, &1})
   end
 
@@ -34,33 +39,50 @@ defmodule PositionDB.QueryPlanner do
   end
 
   defp cardinality(_index, store, true) do
-    PositionStore.cardinality(store)
+    {:exact, PositionStore.cardinality(store)}
   end
 
   defp cardinality(_index, _store, false) do
-    0
+    {:exact, 0}
   end
 
   defp cardinality(index, _store, {:property, property, value}) do
-    PropertyIndex.cardinality(index, {property, value})
+    {:exact, PropertyIndex.cardinality(index, {property, value})}
   end
 
   defp cardinality(index, store, {:and, queries}) do
-    queries
-    |> Enum.map(&cardinality(index, store, &1))
-    |> Enum.min(fn -> PositionStore.cardinality(store) end)
+    upper_bound =
+      queries
+      |> Enum.map(&cardinality(index, store, &1))
+      |> Enum.map(&upper_bound/1)
+      |> Enum.min(fn -> PositionStore.cardinality(store) end)
+
+    {:upper_bound, upper_bound}
   end
 
   defp cardinality(index, store, {:or, queries}) do
     universe = PositionStore.cardinality(store)
 
-    queries
-    |> Enum.map(&cardinality(index, store, &1))
-    |> Enum.sum()
-    |> min(universe)
+    upper_bound =
+      queries
+      |> Enum.map(&cardinality(index, store, &1))
+      |> Enum.map(&upper_bound/1)
+      |> Enum.sum()
+      |> min(universe)
+
+    {:upper_bound, upper_bound}
   end
 
-  defp cardinality(_index, store, {:not, _query}) do
-    PositionStore.cardinality(store)
+  defp cardinality(index, store, {:not, query}) do
+    case cardinality(index, store, query) do
+      {:exact, value} ->
+        {:exact, PositionStore.cardinality(store) - value}
+
+      {:upper_bound, _value} ->
+        {:upper_bound, PositionStore.cardinality(store)}
+    end
   end
+
+  defp upper_bound({:exact, value}), do: value
+  defp upper_bound({:upper_bound, value}), do: value
 end
