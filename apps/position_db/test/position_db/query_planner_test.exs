@@ -5,6 +5,13 @@ defmodule PositionDB.QueryPlannerTest do
   alias PositionDB.PropertyIndex
   alias PositionDB.QueryPlanner
 
+  defp store_with_ids(ids) do
+    Enum.reduce(ids, PositionStore.new(& &1), fn id, store ->
+      {store, _position_id} = PositionStore.put(store, id)
+      store
+    end)
+  end
+
   describe "plan/3" do
     test "orders AND conditions by ascending cardinality" do
       index =
@@ -130,5 +137,77 @@ defmodule PositionDB.QueryPlannerTest do
     store = PositionStore.new(& &1)
 
     assert QueryPlanner.plan(index, store, false) == false
+  end
+
+  test "orders AND using cardinality of a nested OR" do
+    index =
+      PropertyIndex.new()
+      |> PropertyIndex.add({:open_files, :e}, 1)
+      |> PropertyIndex.add({:open_files, :d}, 1)
+      |> PropertyIndex.add({:open_files, :d}, 2)
+      |> PropertyIndex.add({:open_files, :c}, 1)
+      |> PropertyIndex.add({:open_files, :c}, 2)
+      |> PropertyIndex.add({:open_files, :c}, 3)
+      |> PropertyIndex.add({:open_files, :c}, 4)
+
+    store = store_with_ids([1, 2, 3, 4])
+
+    query =
+      {:and,
+       [
+         {:or,
+          [
+            {:property, :open_files, :e},
+            {:property, :open_files, :d}
+          ]},
+         {:property, :open_files, :c}
+       ]}
+
+    assert QueryPlanner.plan(index, store, query) ==
+             {:and,
+              [
+                {:or,
+                 [
+                   {:property, :open_files, :e},
+                   {:property, :open_files, :d}
+                 ]},
+                {:property, :open_files, :c}
+              ]}
+  end
+
+  test "orders AND using cardinality of a nested AND" do
+    index =
+      PropertyIndex.new()
+      |> PropertyIndex.add({:open_files, :e}, 1)
+      |> PropertyIndex.add({:open_files, :d}, 1)
+      |> PropertyIndex.add({:open_files, :d}, 2)
+      |> PropertyIndex.add({:open_files, :c}, 1)
+      |> PropertyIndex.add({:open_files, :c}, 2)
+      |> PropertyIndex.add({:open_files, :c}, 3)
+      |> PropertyIndex.add({:open_files, :c}, 4)
+
+    store = store_with_ids([1, 2, 3, 4])
+
+    query =
+      {:and,
+       [
+         {:and,
+          [
+            {:property, :open_files, :e},
+            {:property, :open_files, :d}
+          ]},
+         {:property, :open_files, :c}
+       ]}
+
+    assert QueryPlanner.plan(index, store, query) ==
+             {:and,
+              [
+                {:and,
+                 [
+                   {:property, :open_files, :e},
+                   {:property, :open_files, :d}
+                 ]},
+                {:property, :open_files, :c}
+              ]}
   end
 end

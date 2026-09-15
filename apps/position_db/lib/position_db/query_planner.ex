@@ -33,11 +33,34 @@ defmodule PositionDB.QueryPlanner do
     {:not, do_plan(index, store, query)}
   end
 
+  defp cardinality(_index, store, true) do
+    PositionStore.cardinality(store)
+  end
+
+  defp cardinality(_index, _store, false) do
+    0
+  end
+
   defp cardinality(index, _store, {:property, property, value}) do
     PropertyIndex.cardinality(index, {property, value})
   end
 
-  defp cardinality(_index, store, _query) do
+  defp cardinality(index, store, {:and, queries}) do
+    queries
+    |> Enum.map(&cardinality(index, store, &1))
+    |> Enum.min(fn -> PositionStore.cardinality(store) end)
+  end
+
+  defp cardinality(index, store, {:or, queries}) do
+    universe = PositionStore.cardinality(store)
+
+    queries
+    |> Enum.map(&cardinality(index, store, &1))
+    |> Enum.sum()
+    |> min(universe)
+  end
+
+  defp cardinality(_index, store, {:not, _query}) do
     PositionStore.cardinality(store)
   end
 end
