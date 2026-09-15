@@ -11,6 +11,8 @@ defmodule PositionDB.QueryNormalizer do
     query
   end
 
+  defp do_normalize({:equivalent, _position} = query), do: query
+
   defp do_normalize({:not, query}) do
     query
     |> do_normalize()

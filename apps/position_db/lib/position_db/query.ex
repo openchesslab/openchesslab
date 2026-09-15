@@ -7,6 +7,7 @@ defmodule PositionDB.Query do
           true
           | false
           | {:property, atom(), term()}
+          | {:equivalent, term()}
           | {:and, [t()]}
           | {:or, [t()]}
           | {:not, t()}

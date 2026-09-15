@@ -272,4 +272,11 @@ defmodule PositionDB.QueryNormalizerTest do
 
     assert QueryNormalizer.normalize(query) == false
   end
+
+  test "leaves equivalent queries unchanged" do
+    position = :position
+    query = {:equivalent, position}
+
+    assert QueryNormalizer.normalize(query) == query
+  end
 end

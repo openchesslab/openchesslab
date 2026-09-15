@@ -12,117 +12,125 @@ defmodule PositionDB.QueryPlannerTest do
     end)
   end
 
-  describe "plan/3" do
-    test "orders AND conditions by ascending cardinality" do
-      index =
-        PropertyIndex.new()
-        |> PropertyIndex.add({:open_files, :a}, 1)
-        |> PropertyIndex.add({:open_files, :a}, 2)
-        |> PropertyIndex.add({:open_files, :a}, 3)
-        |> PropertyIndex.add({:open_files, :d}, 1)
-        |> PropertyIndex.add({:open_files, :d}, 2)
-        |> PropertyIndex.add({:open_files, :e}, 1)
+  test "orders AND conditions by ascending cardinality" do
+    index =
+      PropertyIndex.new()
+      |> PropertyIndex.add({:open_files, :a}, 1)
+      |> PropertyIndex.add({:open_files, :a}, 2)
+      |> PropertyIndex.add({:open_files, :a}, 3)
+      |> PropertyIndex.add({:open_files, :d}, 1)
+      |> PropertyIndex.add({:open_files, :d}, 2)
+      |> PropertyIndex.add({:open_files, :e}, 1)
 
-      store = PositionStore.new(& &1)
+    store = PositionStore.new(& &1)
 
-      query =
-        {:and,
-         [
-           {:property, :open_files, :a},
-           {:property, :open_files, :d},
-           {:property, :open_files, :e}
-         ]}
+    query =
+      {:and,
+       [
+         {:property, :open_files, :a},
+         {:property, :open_files, :d},
+         {:property, :open_files, :e}
+       ]}
 
-      assert QueryPlanner.plan(index, store, query) ==
-               {:and,
-                [
-                  {:property, :open_files, :e},
-                  {:property, :open_files, :d},
-                  {:property, :open_files, :a}
-                ]}
-    end
+    assert QueryPlanner.plan(index, store, query) ==
+             {:and,
+              [
+                {:property, :open_files, :e},
+                {:property, :open_files, :d},
+                {:property, :open_files, :a}
+              ]}
+  end
 
-    test "preserves OR order" do
-      index = PropertyIndex.new()
-      store = PositionStore.new(& &1)
+  test "preserves OR order" do
+    index = PropertyIndex.new()
+    store = PositionStore.new(& &1)
 
-      query =
-        {:or,
-         [
-           {:property, :open_files, :a},
-           {:property, :open_files, :e},
-           {:property, :open_files, :d}
-         ]}
+    query =
+      {:or,
+       [
+         {:property, :open_files, :a},
+         {:property, :open_files, :e},
+         {:property, :open_files, :d}
+       ]}
 
-      assert QueryPlanner.plan(index, store, query) == query
-    end
+    assert QueryPlanner.plan(index, store, query) == query
+  end
 
-    test "plans nested AND expressions recursively" do
-      index =
-        PropertyIndex.new()
-        |> PropertyIndex.add({:open_files, :a}, 1)
-        |> PropertyIndex.add({:open_files, :a}, 2)
-        |> PropertyIndex.add({:open_files, :e}, 1)
+  test "plans nested AND expressions recursively" do
+    index =
+      PropertyIndex.new()
+      |> PropertyIndex.add({:open_files, :a}, 1)
+      |> PropertyIndex.add({:open_files, :a}, 2)
+      |> PropertyIndex.add({:open_files, :e}, 1)
 
-      store = PositionStore.new(& &1)
+    store = PositionStore.new(& &1)
 
-      query =
-        {:or,
-         [
-           {:and,
-            [
-              {:property, :open_files, :a},
-              {:property, :open_files, :e}
-            ]},
-           {:property, :open_files, :d}
-         ]}
-
-      assert QueryPlanner.plan(index, store, query) ==
-               {:or,
-                [
-                  {:and,
-                   [
-                     {:property, :open_files, :e},
-                     {:property, :open_files, :a}
-                   ]},
-                  {:property, :open_files, :d}
-                ]}
-    end
-
-    test "plans NOT recursively" do
-      index =
-        PropertyIndex.new()
-        |> PropertyIndex.add({:open_files, :a}, 1)
-        |> PropertyIndex.add({:open_files, :e}, 1)
-        |> PropertyIndex.add({:open_files, :e}, 2)
-
-      store = PositionStore.new(& &1)
-
-      query =
-        {:not,
+    query =
+      {:or,
+       [
          {:and,
           [
             {:property, :open_files, :a},
             {:property, :open_files, :e}
-          ]}}
+          ]},
+         {:property, :open_files, :d}
+       ]}
 
-      assert QueryPlanner.plan(index, store, query) ==
-               {:not,
+    assert QueryPlanner.plan(index, store, query) ==
+             {:or,
+              [
                 {:and,
                  [
-                   {:property, :open_files, :a},
-                   {:property, :open_files, :e}
-                 ]}}
-    end
+                   {:property, :open_files, :e},
+                   {:property, :open_files, :a}
+                 ]},
+                {:property, :open_files, :d}
+              ]}
+  end
 
-    test "leaves property queries unchanged" do
-      index = PropertyIndex.new()
-      store = PositionStore.new(& &1)
+  test "plans NOT recursively" do
+    index =
+      PropertyIndex.new()
+      |> PropertyIndex.add({:open_files, :a}, 1)
+      |> PropertyIndex.add({:open_files, :e}, 1)
+      |> PropertyIndex.add({:open_files, :e}, 2)
 
-      query = {:property, :open_files, :e}
+    store = PositionStore.new(& &1)
 
-      assert QueryPlanner.plan(index, store, query) == query
-    end
+    query =
+      {:not,
+       {:and,
+        [
+          {:property, :open_files, :a},
+          {:property, :open_files, :e}
+        ]}}
+
+    assert QueryPlanner.plan(index, store, query) ==
+             {:not,
+              {:and,
+               [
+                 {:property, :open_files, :a},
+                 {:property, :open_files, :e}
+               ]}}
+  end
+
+  test "leaves property queries unchanged" do
+    index = PropertyIndex.new()
+    store = PositionStore.new(& &1)
+
+    query = {:property, :open_files, :e}
+
+    assert QueryPlanner.plan(index, store, query) == query
+  end
+
+  test "leaves equivalent queries unchanged" do
+    position = :position
+    query = {:equivalent, position}
+
+    index = PropertyIndex.new()
+    store = PositionStore.new(& &1)
+
+    assert QueryPlanner.plan(index, store, query) == query
   end
 
   test "leaves true unchanged" do
@@ -340,6 +348,44 @@ defmodule PositionDB.QueryPlannerTest do
               [
                 {:not, {:not, {:property, :open_files, :e}}},
                 {:property, :open_files, :c}
+              ]}
+  end
+
+  test "orders equivalent queries by candidate cardinality" do
+    store = PositionStore.new(& &1)
+
+    {store, id_1} = PositionStore.put(store, :candidate_1)
+    {store, id_2} = PositionStore.put(store, :candidate_2)
+
+    equivalence_index =
+      PositionDB.EquivalenceIndex.new()
+      |> PositionDB.EquivalenceIndex.add(:small, id_1)
+      |> PositionDB.EquivalenceIndex.add(:large, id_1)
+      |> PositionDB.EquivalenceIndex.add(:large, id_2)
+
+    query =
+      {:and,
+       [
+         {:equivalent, :large},
+         {:equivalent, :small}
+       ]}
+
+    planned =
+      QueryPlanner.plan(
+        PropertyIndex.new(),
+        store,
+        query,
+        %{
+          equivalence_index: equivalence_index,
+          equivalence_function: fn position -> position end
+        }
+      )
+
+    assert planned ==
+             {:and,
+              [
+                {:equivalent, :small},
+                {:equivalent, :large}
               ]}
   end
 end

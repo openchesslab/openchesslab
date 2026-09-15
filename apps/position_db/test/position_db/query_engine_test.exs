@@ -417,4 +417,49 @@ defmodule PositionDB.QueryEngineTest do
 
     assert Enum.to_list(result) == [1, 2, 3]
   end
+
+  test "executes equivalent query through the full pipeline" do
+    position = :position
+    swapped_position = :swapped_position
+    unrelated_position = :unrelated_position
+
+    store = PositionStore.new(& &1)
+
+    {store, id_1} = PositionStore.put(store, position)
+    {store, id_2} = PositionStore.put(store, swapped_position)
+    {store, id_3} = PositionStore.put(store, unrelated_position)
+
+    equivalence_index =
+      PositionDB.EquivalenceIndex.new()
+      |> PositionDB.EquivalenceIndex.add(:equivalent, id_1)
+      |> PositionDB.EquivalenceIndex.add(:equivalent, id_2)
+      |> PositionDB.EquivalenceIndex.add(:unrelated, id_3)
+
+    matcher = fn
+      :position, :position -> true
+      :position, :swapped_position -> true
+      _, _ -> false
+    end
+
+    query = {:equivalent, position}
+
+    result =
+      QueryEngine.execute(
+        PropertyIndex.new(),
+        store,
+        query,
+        %{
+          equivalence_index: equivalence_index,
+          equivalence_function: fn
+            :position -> :equivalent
+            :swapped_position -> :equivalent
+            :unrelated_position -> :unrelated
+          end,
+          matcher: matcher
+        }
+      )
+
+    assert Enum.to_list(result) == [id_1, id_2]
+    refute id_3 in Enum.to_list(result)
+  end
 end
