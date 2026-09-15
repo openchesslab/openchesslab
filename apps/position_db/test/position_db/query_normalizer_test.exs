@@ -214,4 +214,62 @@ defmodule PositionDB.QueryNormalizerTest do
     assert QueryNormalizer.normalize(query) ==
              {:property, :open_files, :e}
   end
+
+  test "AND of a query and its negation becomes false" do
+    query =
+      {:and,
+       [
+         {:property, :open_files, :e},
+         {:not, {:property, :open_files, :e}}
+       ]}
+
+    assert QueryNormalizer.normalize(query) == false
+  end
+
+  test "AND of a negation and its query becomes false" do
+    query =
+      {:and,
+       [
+         {:not, {:property, :open_files, :e}},
+         {:property, :open_files, :e}
+       ]}
+
+    assert QueryNormalizer.normalize(query) == false
+  end
+
+  test "OR of a query and its negation becomes true" do
+    query =
+      {:or,
+       [
+         {:property, :open_files, :e},
+         {:not, {:property, :open_files, :e}}
+       ]}
+
+    assert QueryNormalizer.normalize(query) == true
+  end
+
+  test "OR of a negation and its query becomes true" do
+    query =
+      {:or,
+       [
+         {:not, {:property, :open_files, :e}},
+         {:property, :open_files, :e}
+       ]}
+
+    assert QueryNormalizer.normalize(query) == true
+  end
+
+  test "detects complements after normalization" do
+    query =
+      {:and,
+       [
+         {:and,
+          [
+            {:property, :open_files, :e}
+          ]},
+         {:not, {:property, :open_files, :e}}
+       ]}
+
+    assert QueryNormalizer.normalize(query) == false
+  end
 end

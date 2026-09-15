@@ -50,6 +50,9 @@ defmodule PositionDB.QueryNormalizer do
       false in queries ->
         false
 
+      has_complement?(queries) ->
+        false
+
       true ->
         queries
         |> Enum.reject(&(&1 == true))
@@ -60,6 +63,9 @@ defmodule PositionDB.QueryNormalizer do
   defp normalize_or_result(queries) do
     cond do
       true in queries ->
+        true
+
+      has_complement?(queries) ->
         true
 
       true ->
@@ -77,4 +83,14 @@ defmodule PositionDB.QueryNormalizer do
   defp collapse_group([], _operator, identity), do: identity
   defp collapse_group([query], _operator, _identity), do: query
   defp collapse_group(queries, operator, _identity), do: {operator, queries}
+
+  defp has_complement?(queries) do
+    Enum.any?(queries, fn query ->
+      Enum.any?(queries, &complement?(query, &1))
+    end)
+  end
+
+  defp complement?(left, {:not, right}), do: left == right
+  defp complement?({:not, left}, right), do: left == right
+  defp complement?(_, _), do: false
 end
