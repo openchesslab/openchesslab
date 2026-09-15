@@ -403,4 +403,40 @@ defmodule PositionDBTest do
     assert PositionDB.find_equivalent_candidates(db, swapped) ==
              MapSet.new([id_1, id_2])
   end
+
+  test "queries through the PositionDB facade" do
+    position =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("a4"),
+        {:white, :pawn}
+      )
+
+    swapped =
+      PositionTransform.swap_colors(position)
+
+    db =
+      PositionDB.new(
+        key_function: &PositionKey.exact/1,
+        equivalence_function: &PositionCanonicalizer.encode/1,
+        matcher: fn query, candidate ->
+          query == candidate ||
+            PositionTransform.swap_colors(query) == candidate
+        end,
+        properties: [
+          {:open_files, &PositionProperties.open_files/1}
+        ]
+      )
+
+    {db, id_1} = PositionDB.put(db, position)
+    {db, id_2} = PositionDB.put(db, swapped)
+
+    result =
+      PositionDB.query(
+        db,
+        {:equivalent, position}
+      )
+
+    assert Enum.to_list(result) == [id_1, id_2]
+  end
 end
