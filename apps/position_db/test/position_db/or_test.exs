@@ -6,6 +6,16 @@ defmodule PositionDB.OrTest do
   alias PositionDB.PropertyIndexScan
   alias PositionDB.QueryExecutor
 
+  defp drain(executor) do
+    case QueryExecutor.next(executor) do
+      {:ok, _position_id, next_executor} ->
+        drain(next_executor)
+
+      :done ->
+        :ok
+    end
+  end
+
   test "returns IDs from both executors without duplicates" do
     index =
       PropertyIndex.new()
@@ -39,5 +49,60 @@ defmodule PositionDB.OrTest do
     assert {:ok, 1, executor} = QueryExecutor.next(executor)
     assert {:ok, 2, executor} = QueryExecutor.next(executor)
     assert :done = QueryExecutor.next(executor)
+  end
+
+  test "OR operand order does not change execution cost" do
+    {:ok, counter} =
+      Agent.start_link(fn ->
+        %{
+          small: 0,
+          large: 0
+        }
+      end)
+
+    small =
+      QueryExecutor.new(
+        CountingExecutor,
+        {self(), :small, counter, [1]}
+      )
+
+    large =
+      QueryExecutor.new(
+        CountingExecutor,
+        {self(), :large, counter, Enum.to_list(1..1000)}
+      )
+
+    executor = Or.new(small, large)
+
+    drain(executor)
+
+    first_order_counts = Agent.get(counter, & &1)
+
+    Agent.update(counter, fn _ ->
+      %{
+        small: 0,
+        large: 0
+      }
+    end)
+
+    small =
+      QueryExecutor.new(
+        CountingExecutor,
+        {self(), :small, counter, [1]}
+      )
+
+    large =
+      QueryExecutor.new(
+        CountingExecutor,
+        {self(), :large, counter, Enum.to_list(1..1000)}
+      )
+
+    executor = Or.new(large, small)
+
+    drain(executor)
+
+    second_order_counts = Agent.get(counter, & &1)
+
+    assert first_order_counts == second_order_counts
   end
 end

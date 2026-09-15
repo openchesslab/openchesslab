@@ -91,4 +91,44 @@ defmodule PositionDB.NotTest do
     assert_receive {:next_called, :universe}
     refute_receive {:next_called, :child}
   end
+
+  test "equal cardinality does not imply equal execution cost" do
+    {:ok, counter} =
+      Agent.start_link(fn ->
+        %{
+          property: 0,
+          universe: 0,
+          child: 0
+        }
+      end)
+
+    property =
+      QueryExecutor.new(
+        CountingExecutor,
+        {self(), :property, counter, [1000]}
+      )
+
+    universe =
+      QueryExecutor.new(
+        CountingExecutor,
+        {self(), :universe, counter, Enum.to_list(1..1000)}
+      )
+
+    child =
+      QueryExecutor.new(
+        CountingExecutor,
+        {self(), :child, counter, Enum.to_list(1..999)}
+      )
+
+    not_executor = Not.new(universe, child)
+
+    assert {:ok, 1000, _} = QueryExecutor.next(property)
+    assert {:ok, 1000, _} = QueryExecutor.next(not_executor)
+
+    assert Agent.get(counter, & &1) == %{
+             property: 1,
+             universe: 1000,
+             child: 999
+           }
+  end
 end

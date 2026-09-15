@@ -367,4 +367,51 @@ defmodule PositionDB.QueryPlannerTest do
                Query.equivalent(:large)
              ])
   end
+
+  test "orders equivalent queries before larger property queries" do
+    store =
+      store_with_ids([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+
+    index =
+      PropertyIndex.new()
+      |> PropertyIndex.add({:open_files, :large}, 1)
+      |> PropertyIndex.add({:open_files, :large}, 2)
+      |> PropertyIndex.add({:open_files, :large}, 3)
+      |> PropertyIndex.add({:open_files, :large}, 4)
+      |> PropertyIndex.add({:open_files, :large}, 5)
+      |> PropertyIndex.add({:open_files, :large}, 6)
+      |> PropertyIndex.add({:open_files, :large}, 7)
+      |> PropertyIndex.add({:open_files, :large}, 8)
+      |> PropertyIndex.add({:open_files, :large}, 9)
+      |> PropertyIndex.add({:open_files, :large}, 10)
+
+    equivalence_index =
+      PositionDB.EquivalenceIndex.new()
+      |> PositionDB.EquivalenceIndex.add(:small, 1)
+      |> PositionDB.EquivalenceIndex.add(:small, 2)
+      |> PositionDB.EquivalenceIndex.add(:small, 3)
+
+    query =
+      Query.all([
+        Query.property(:open_files, :large),
+        Query.equivalent(:small)
+      ])
+
+    planned =
+      QueryPlanner.plan(
+        index,
+        store,
+        query,
+        %{
+          equivalence_index: equivalence_index,
+          equivalence_function: fn position -> position end
+        }
+      )
+
+    assert planned ==
+             Query.all([
+               Query.equivalent(:small),
+               Query.property(:open_files, :large)
+             ])
+  end
 end

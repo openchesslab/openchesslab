@@ -612,4 +612,90 @@ defmodule PositionDB.QueryEngineTest do
 
     assert Enum.to_list(result) == [2, 4]
   end
+
+  test "executes a normalized and planned AND query end-to-end" do
+    index =
+      PropertyIndex.new()
+      |> PropertyIndex.add({:open_files, :a}, 1)
+      |> PropertyIndex.add({:open_files, :a}, 2)
+      |> PropertyIndex.add({:open_files, :a}, 3)
+      |> PropertyIndex.add({:open_files, :e}, 2)
+      |> PropertyIndex.add({:open_files, :e}, 3)
+
+    store = store_with_ids([1, 2, 3, 4])
+
+    query =
+      Query.all([
+        Query.property(:open_files, :a),
+        Query.property(:open_files, :e)
+      ])
+
+    result =
+      QueryEngine.execute(
+        index,
+        store,
+        query,
+        equivalence_context()
+      )
+
+    assert Enum.to_list(result) == [2, 3]
+  end
+
+  test "executes an OR query end-to-end" do
+    index =
+      PropertyIndex.new()
+      |> PropertyIndex.add({:open_files, :a}, 1)
+      |> PropertyIndex.add({:open_files, :a}, 2)
+      |> PropertyIndex.add({:open_files, :e}, 3)
+      |> PropertyIndex.add({:open_files, :e}, 4)
+
+    store = store_with_ids([1, 2, 3, 4, 5])
+
+    query =
+      Query.any([
+        Query.property(:open_files, :a),
+        Query.property(:open_files, :e)
+      ])
+
+    result =
+      QueryEngine.execute(
+        index,
+        store,
+        query,
+        equivalence_context()
+      )
+
+    assert Enum.to_list(result) == [1, 2, 3, 4]
+  end
+
+  test "executes a nested AND OR NOT query end-to-end" do
+    index =
+      PropertyIndex.new()
+      |> PropertyIndex.add({:open_files, :a}, 1)
+      |> PropertyIndex.add({:open_files, :a}, 2)
+      |> PropertyIndex.add({:open_files, :e}, 2)
+      |> PropertyIndex.add({:open_files, :e}, 3)
+      |> PropertyIndex.add({:open_files, :d}, 4)
+
+    store = store_with_ids([1, 2, 3, 4, 5])
+
+    query =
+      Query.all([
+        Query.any([
+          Query.property(:open_files, :a),
+          Query.property(:open_files, :e)
+        ]),
+        Query.negate(Query.property(:open_files, :d))
+      ])
+
+    result =
+      QueryEngine.execute(
+        index,
+        store,
+        query,
+        equivalence_context()
+      )
+
+    assert Enum.to_list(result) == [1, 2, 3]
+  end
 end
