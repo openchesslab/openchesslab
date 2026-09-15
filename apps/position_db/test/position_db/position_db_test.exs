@@ -8,7 +8,21 @@ defmodule PositionDBTest do
   alias Chess.PositionTransform
   alias Chess.Square
 
+  alias PositionDB
   alias PositionDB.Query
+
+  defp new_db do
+    PositionDB.new(
+      key_function: & &1,
+      properties: [
+        {:open_files, & &1.open_files}
+      ],
+      equivalence_function: & &1.open_files,
+      matcher: fn left, right ->
+        left.open_files == right.open_files
+      end
+    )
+  end
 
   test "stores and indexes a chess position" do
     position =
@@ -430,5 +444,102 @@ defmodule PositionDBTest do
       )
 
     assert Enum.to_list(result) == [id_1, id_2]
+  end
+
+  test "put and get return the stored position" do
+    db = new_db()
+    position = %{id: :position_1, open_files: [:a, :e]}
+
+    {db, position_id} = PositionDB.put(db, position)
+
+    assert PositionDB.get(db, position_id) == {:ok, position}
+  end
+
+  test "find returns the ID of an existing exact position" do
+    db = new_db()
+    position = %{id: :position_1, open_files: [:a, :e]}
+
+    {db, position_id} = PositionDB.put(db, position)
+
+    assert PositionDB.find(db, position) == {:ok, position_id}
+  end
+
+  test "find returns not_found for an unknown position" do
+    db = new_db()
+
+    position = %{id: :position_1, open_files: [:a, :e]}
+
+    assert PositionDB.find(db, position) == :not_found
+  end
+
+  test "exact identity is separate from equivalence" do
+    db = new_db()
+
+    position_1 = %{id: :position_1, open_files: [:a, :e]}
+    position_2 = %{id: :position_2, open_files: [:a, :e]}
+
+    {db, id_1} = PositionDB.put(db, position_1)
+    {db, id_2} = PositionDB.put(db, position_2)
+
+    assert id_1 != id_2
+
+    assert PositionDB.find(db, position_1) == {:ok, id_1}
+    assert PositionDB.find(db, position_2) == {:ok, id_2}
+
+    assert Enum.to_list(
+             PositionDB.query(
+               db,
+               Query.equivalent(position_1)
+             )
+           ) == [id_1, id_2]
+  end
+
+  test "put updates property and equivalence indexes" do
+    db = new_db()
+
+    position = %{id: :position_1, open_files: [:a, :e]}
+
+    {db, position_id} = PositionDB.put(db, position)
+
+    assert Enum.to_list(
+             PositionDB.query(
+               db,
+               Query.property(:open_files, :a)
+             )
+           ) == [position_id]
+
+    assert Enum.to_list(
+             PositionDB.query(
+               db,
+               Query.equivalent(position)
+             )
+           ) == [position_id]
+  end
+
+  test "match_all returns all stored position IDs" do
+    db = new_db()
+
+    positions = [
+      %{id: :position_1, open_files: [:a]},
+      %{id: :position_2, open_files: [:e]},
+      %{id: :position_3, open_files: [:a, :e]}
+    ]
+
+    {ids, db} =
+      Enum.map_reduce(
+        positions,
+        db,
+        fn position, db ->
+          {db, position_id} = PositionDB.put(db, position)
+          {position_id, db}
+        end
+      )
+
+    assert Enum.to_list(
+             PositionDB.query(
+               db,
+               Query.match_all()
+             )
+           ) == ids
   end
 end
