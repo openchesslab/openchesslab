@@ -1,281 +1,256 @@
 defmodule PositionDB.QueryNormalizerTest do
   use ExUnit.Case, async: true
 
+  alias PositionDB.Query
   alias PositionDB.QueryNormalizer
 
   describe "normalize/1" do
     test "leaves property queries unchanged" do
-      query = {:property, :open_files, :e}
+      query = Query.property(:open_files, :e)
 
       assert QueryNormalizer.normalize(query) == query
     end
 
     test "normalizes NOT recursively" do
       query =
-        {:not,
-         {:and,
-          [
-            {:property, :open_files, :e}
-          ]}}
+        Query.negate(
+          Query.all([
+            Query.property(:open_files, :e)
+          ])
+        )
 
       assert QueryNormalizer.normalize(query) ==
-               {:not, {:property, :open_files, :e}}
+               Query.negate(Query.property(:open_files, :e))
     end
 
     test "flattens nested AND expressions" do
       query =
-        {:and,
-         [
-           {:property, :open_files, :a},
-           {:and,
-            [
-              {:property, :open_files, :b},
-              {:and,
-               [
-                 {:property, :open_files, :c}
-               ]}
-            ]}
-         ]}
+        Query.all([
+          Query.property(:open_files, :a),
+          Query.all([
+            Query.property(:open_files, :b),
+            Query.all([
+              Query.property(:open_files, :c)
+            ])
+          ])
+        ])
 
       assert QueryNormalizer.normalize(query) ==
-               {:and,
-                [
-                  {:property, :open_files, :a},
-                  {:property, :open_files, :b},
-                  {:property, :open_files, :c}
-                ]}
+               Query.all([
+                 Query.property(:open_files, :a),
+                 Query.property(:open_files, :b),
+                 Query.property(:open_files, :c)
+               ])
     end
 
     test "flattens nested OR expressions" do
       query =
-        {:or,
-         [
-           {:property, :open_files, :a},
-           {:or,
-            [
-              {:property, :open_files, :b},
-              {:or,
-               [
-                 {:property, :open_files, :c}
-               ]}
-            ]}
-         ]}
+        Query.any([
+          Query.property(:open_files, :a),
+          Query.any([
+            Query.property(:open_files, :b),
+            Query.any([
+              Query.property(:open_files, :c)
+            ])
+          ])
+        ])
 
       assert QueryNormalizer.normalize(query) ==
-               {:or,
-                [
-                  {:property, :open_files, :a},
-                  {:property, :open_files, :b},
-                  {:property, :open_files, :c}
-                ]}
+               Query.any([
+                 Query.property(:open_files, :a),
+                 Query.property(:open_files, :b),
+                 Query.property(:open_files, :c)
+               ])
     end
 
     test "reduces single-element AND" do
       query =
-        {:and,
-         [
-           {:property, :open_files, :e}
-         ]}
+        Query.all([
+          Query.property(:open_files, :e)
+        ])
 
       assert QueryNormalizer.normalize(query) ==
-               {:property, :open_files, :e}
+               Query.property(:open_files, :e)
     end
 
     test "reduces single-element OR" do
       query =
-        {:or,
-         [
-           {:property, :open_files, :e}
-         ]}
+        Query.any([
+          Query.property(:open_files, :e)
+        ])
 
       assert QueryNormalizer.normalize(query) ==
-               {:property, :open_files, :e}
+               Query.property(:open_files, :e)
     end
 
     test "removes duplicate AND expressions" do
       query =
-        {:and,
-         [
-           {:property, :open_files, :e},
-           {:property, :open_files, :d},
-           {:property, :open_files, :e}
-         ]}
+        Query.all([
+          Query.property(:open_files, :e),
+          Query.property(:open_files, :d),
+          Query.property(:open_files, :e)
+        ])
 
       assert QueryNormalizer.normalize(query) ==
-               {:and,
-                [
-                  {:property, :open_files, :e},
-                  {:property, :open_files, :d}
-                ]}
+               Query.all([
+                 Query.property(:open_files, :e),
+                 Query.property(:open_files, :d)
+               ])
     end
 
     test "removes duplicate OR expressions" do
       query =
-        {:or,
-         [
-           {:property, :open_files, :e},
-           {:property, :open_files, :d},
-           {:property, :open_files, :e}
-         ]}
+        Query.any([
+          Query.property(:open_files, :e),
+          Query.property(:open_files, :d),
+          Query.property(:open_files, :e)
+        ])
 
       assert QueryNormalizer.normalize(query) ==
-               {:or,
-                [
-                  {:property, :open_files, :e},
-                  {:property, :open_files, :d}
-                ]}
+               Query.any([
+                 Query.property(:open_files, :e),
+                 Query.property(:open_files, :d)
+               ])
     end
   end
 
   test "normalizes empty AND to TRUE" do
-    assert QueryNormalizer.normalize({:and, []}) == true
+    assert QueryNormalizer.normalize(Query.all([])) == Query.match_all()
   end
 
   test "normalizes empty OR to FALSE" do
-    assert QueryNormalizer.normalize({:or, []}) == false
+    assert QueryNormalizer.normalize(Query.any([])) == Query.match_none()
   end
 
   test "removes TRUE from AND" do
     query =
-      {:and,
-       [
-         {:property, :open_files, :e},
-         true
-       ]}
+      Query.all([
+        Query.property(:open_files, :e),
+        Query.match_all()
+      ])
 
     assert QueryNormalizer.normalize(query) ==
-             {:property, :open_files, :e}
+             Query.property(:open_files, :e)
   end
 
   test "removes FALSE from OR" do
     query =
-      {:or,
-       [
-         {:property, :open_files, :e},
-         false
-       ]}
+      Query.any([
+        Query.property(:open_files, :e),
+        Query.match_none()
+      ])
 
     assert QueryNormalizer.normalize(query) ==
-             {:property, :open_files, :e}
+             Query.property(:open_files, :e)
   end
 
   test "reduces AND containing FALSE to FALSE" do
     query =
-      {:and,
-       [
-         {:property, :open_files, :e},
-         false,
-         {:property, :open_files, :d}
-       ]}
+      Query.all([
+        Query.property(:open_files, :e),
+        Query.match_none(),
+        Query.property(:open_files, :e)
+      ])
 
-    assert QueryNormalizer.normalize(query) == false
+    assert QueryNormalizer.normalize(query) == Query.match_none()
   end
 
   test "reduces OR containing TRUE to TRUE" do
     query =
-      {:or,
-       [
-         {:property, :open_files, :e},
-         true,
-         {:property, :open_files, :d}
-       ]}
+      Query.any([
+        Query.property(:open_files, :e),
+        Query.match_all(),
+        Query.property(:open_files, :e)
+      ])
 
-    assert QueryNormalizer.normalize(query) == true
+    assert QueryNormalizer.normalize(query) == Query.match_all()
   end
 
   test "negates TRUE to FALSE" do
-    assert QueryNormalizer.normalize({:not, true}) == false
+    assert QueryNormalizer.normalize(Query.negate(Query.match_all())) == Query.match_none()
   end
 
   test "negates FALSE to TRUE" do
-    assert QueryNormalizer.normalize({:not, false}) == true
+    assert QueryNormalizer.normalize(Query.negate(Query.match_none())) == Query.match_all()
   end
 
   test "eliminates double negation" do
     query =
-      {:not, {:not, {:property, :open_files, :e}}}
+      Query.negate(Query.negate(Query.property(:open_files, :e)))
 
     assert QueryNormalizer.normalize(query) ==
-             {:property, :open_files, :e}
+             Query.property(:open_files, :e)
   end
 
   test "normalizes nested boolean expressions" do
     query =
-      {:and,
-       [
-         true,
-         {:and,
-          [
-            {:property, :open_files, :e},
-            {:not, false}
-          ]}
-       ]}
+      Query.all([
+        Query.match_all(),
+        Query.all([
+          Query.property(:open_files, :e),
+          Query.negate(Query.match_none())
+        ])
+      ])
 
     assert QueryNormalizer.normalize(query) ==
-             {:property, :open_files, :e}
+             Query.property(:open_files, :e)
   end
 
   test "AND of a query and its negation becomes false" do
     query =
-      {:and,
-       [
-         {:property, :open_files, :e},
-         {:not, {:property, :open_files, :e}}
-       ]}
+      Query.all([
+        Query.property(:open_files, :e),
+        Query.negate(Query.property(:open_files, :e))
+      ])
 
-    assert QueryNormalizer.normalize(query) == false
+    assert QueryNormalizer.normalize(query) == Query.match_none()
   end
 
   test "AND of a negation and its query becomes false" do
     query =
-      {:and,
-       [
-         {:not, {:property, :open_files, :e}},
-         {:property, :open_files, :e}
-       ]}
+      Query.all([
+        Query.negate(Query.property(:open_files, :e)),
+        Query.property(:open_files, :e)
+      ])
 
-    assert QueryNormalizer.normalize(query) == false
+    assert QueryNormalizer.normalize(query) == Query.match_none()
   end
 
   test "OR of a query and its negation becomes true" do
     query =
-      {:or,
-       [
-         {:property, :open_files, :e},
-         {:not, {:property, :open_files, :e}}
-       ]}
+      Query.any([
+        Query.property(:open_files, :e),
+        Query.negate(Query.property(:open_files, :e))
+      ])
 
-    assert QueryNormalizer.normalize(query) == true
+    assert QueryNormalizer.normalize(query) == Query.match_all()
   end
 
   test "OR of a negation and its query becomes true" do
     query =
-      {:or,
-       [
-         {:not, {:property, :open_files, :e}},
-         {:property, :open_files, :e}
-       ]}
+      Query.any([
+        Query.negate(Query.property(:open_files, :e)),
+        Query.property(:open_files, :e)
+      ])
 
-    assert QueryNormalizer.normalize(query) == true
+    assert QueryNormalizer.normalize(query) == Query.match_all()
   end
 
   test "detects complements after normalization" do
     query =
-      {:and,
-       [
-         {:and,
-          [
-            {:property, :open_files, :e}
-          ]},
-         {:not, {:property, :open_files, :e}}
-       ]}
+      Query.all([
+        Query.all([
+          Query.property(:open_files, :e)
+        ]),
+        Query.negate(Query.property(:open_files, :e))
+      ])
 
-    assert QueryNormalizer.normalize(query) == false
+    assert QueryNormalizer.normalize(query) == Query.match_none()
   end
 
   test "leaves equivalent queries unchanged" do
     position = :position
-    query = {:equivalent, position}
+    query = Query.equivalent(position)
 
     assert QueryNormalizer.normalize(query) == query
   end

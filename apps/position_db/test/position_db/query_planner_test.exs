@@ -1,6 +1,7 @@
 defmodule PositionDB.QueryPlannerTest do
   use ExUnit.Case, async: true
 
+  alias PositionDB.Query
   alias PositionDB.PositionStore
   alias PositionDB.PropertyIndex
   alias PositionDB.QueryPlanner
@@ -25,20 +26,18 @@ defmodule PositionDB.QueryPlannerTest do
     store = PositionStore.new(& &1)
 
     query =
-      {:and,
-       [
-         {:property, :open_files, :a},
-         {:property, :open_files, :d},
-         {:property, :open_files, :e}
-       ]}
+      Query.all([
+        Query.property(:open_files, :a),
+        Query.property(:open_files, :d),
+        Query.property(:open_files, :e)
+      ])
 
     assert QueryPlanner.plan(index, store, query) ==
-             {:and,
-              [
-                {:property, :open_files, :e},
-                {:property, :open_files, :d},
-                {:property, :open_files, :a}
-              ]}
+             Query.all([
+               Query.property(:open_files, :e),
+               Query.property(:open_files, :d),
+               Query.property(:open_files, :a)
+             ])
   end
 
   test "preserves OR order" do
@@ -46,12 +45,11 @@ defmodule PositionDB.QueryPlannerTest do
     store = PositionStore.new(& &1)
 
     query =
-      {:or,
-       [
-         {:property, :open_files, :a},
-         {:property, :open_files, :e},
-         {:property, :open_files, :d}
-       ]}
+      Query.any([
+        Query.property(:open_files, :a),
+        Query.property(:open_files, :e),
+        Query.property(:open_files, :d)
+      ])
 
     assert QueryPlanner.plan(index, store, query) == query
   end
@@ -66,26 +64,22 @@ defmodule PositionDB.QueryPlannerTest do
     store = PositionStore.new(& &1)
 
     query =
-      {:or,
-       [
-         {:and,
-          [
-            {:property, :open_files, :a},
-            {:property, :open_files, :e}
-          ]},
-         {:property, :open_files, :d}
-       ]}
+      Query.any([
+        Query.all([
+          Query.property(:open_files, :a),
+          Query.property(:open_files, :e)
+        ]),
+        Query.property(:open_files, :d)
+      ])
 
     assert QueryPlanner.plan(index, store, query) ==
-             {:or,
-              [
-                {:and,
-                 [
-                   {:property, :open_files, :e},
-                   {:property, :open_files, :a}
-                 ]},
-                {:property, :open_files, :d}
-              ]}
+             Query.any([
+               Query.all([
+                 Query.property(:open_files, :e),
+                 Query.property(:open_files, :a)
+               ]),
+               Query.property(:open_files, :d)
+             ])
   end
 
   test "plans NOT recursively" do
@@ -98,34 +92,34 @@ defmodule PositionDB.QueryPlannerTest do
     store = PositionStore.new(& &1)
 
     query =
-      {:not,
-       {:and,
-        [
-          {:property, :open_files, :a},
-          {:property, :open_files, :e}
-        ]}}
+      Query.negate(
+        Query.all([
+          Query.property(:open_files, :a),
+          Query.property(:open_files, :e)
+        ])
+      )
 
     assert QueryPlanner.plan(index, store, query) ==
-             {:not,
-              {:and,
-               [
-                 {:property, :open_files, :a},
-                 {:property, :open_files, :e}
-               ]}}
+             Query.negate(
+               Query.all([
+                 Query.property(:open_files, :a),
+                 Query.property(:open_files, :e)
+               ])
+             )
   end
 
   test "leaves property queries unchanged" do
     index = PropertyIndex.new()
     store = PositionStore.new(& &1)
 
-    query = {:property, :open_files, :e}
+    query = Query.property(:open_files, :e)
 
     assert QueryPlanner.plan(index, store, query) == query
   end
 
   test "leaves equivalent queries unchanged" do
     position = :position
-    query = {:equivalent, position}
+    query = Query.equivalent(position)
 
     index = PropertyIndex.new()
     store = PositionStore.new(& &1)
@@ -161,26 +155,22 @@ defmodule PositionDB.QueryPlannerTest do
     store = store_with_ids([1, 2, 3, 4])
 
     query =
-      {:and,
-       [
-         {:or,
-          [
-            {:property, :open_files, :e},
-            {:property, :open_files, :d}
-          ]},
-         {:property, :open_files, :c}
-       ]}
+      Query.all([
+        Query.any([
+          Query.property(:open_files, :e),
+          Query.property(:open_files, :d)
+        ]),
+        Query.property(:open_files, :c)
+      ])
 
     assert QueryPlanner.plan(index, store, query) ==
-             {:and,
-              [
-                {:or,
-                 [
-                   {:property, :open_files, :e},
-                   {:property, :open_files, :d}
-                 ]},
-                {:property, :open_files, :c}
-              ]}
+             Query.all([
+               Query.any([
+                 Query.property(:open_files, :e),
+                 Query.property(:open_files, :d)
+               ]),
+               Query.property(:open_files, :c)
+             ])
   end
 
   test "orders AND using cardinality of a nested AND" do
@@ -197,26 +187,22 @@ defmodule PositionDB.QueryPlannerTest do
     store = store_with_ids([1, 2, 3, 4])
 
     query =
-      {:and,
-       [
-         {:and,
-          [
-            {:property, :open_files, :e},
-            {:property, :open_files, :d}
-          ]},
-         {:property, :open_files, :c}
-       ]}
+      Query.all([
+        Query.all([
+          Query.property(:open_files, :e),
+          Query.property(:open_files, :d)
+        ]),
+        Query.property(:open_files, :c)
+      ])
 
     assert QueryPlanner.plan(index, store, query) ==
-             {:and,
-              [
-                {:and,
-                 [
-                   {:property, :open_files, :e},
-                   {:property, :open_files, :d}
-                 ]},
-                {:property, :open_files, :c}
-              ]}
+             Query.all([
+               Query.all([
+                 Query.property(:open_files, :e),
+                 Query.property(:open_files, :d)
+               ]),
+               Query.property(:open_files, :c)
+             ])
   end
 
   test "orders AND by exact cardinality of NOT" do
@@ -236,18 +222,16 @@ defmodule PositionDB.QueryPlannerTest do
     #
     # Therefore NOT e must be planned before c.
     query =
-      {:and,
-       [
-         {:property, :open_files, :c},
-         {:not, {:property, :open_files, :e}}
-       ]}
+      Query.all([
+        Query.property(:open_files, :c),
+        Query.negate(Query.property(:open_files, :e))
+      ])
 
     assert QueryPlanner.plan(index, store, query) ==
-             {:and,
-              [
-                {:not, {:property, :open_files, :e}},
-                {:property, :open_files, :c}
-              ]}
+             Query.all([
+               Query.negate(Query.property(:open_files, :e)),
+               Query.property(:open_files, :c)
+             ])
   end
 
   test "orders NOT of nested AND conservatively" do
@@ -270,16 +254,15 @@ defmodule PositionDB.QueryPlannerTest do
     #
     # Both have the same upper bound, so the original order is preserved.
     query =
-      {:and,
-       [
-         {:not,
-          {:and,
-           [
-             {:property, :open_files, :e},
-             {:property, :open_files, :d}
-           ]}},
-         {:property, :open_files, :c}
-       ]}
+      Query.all([
+        Query.negate(
+          Query.all([
+            Query.property(:open_files, :e),
+            Query.property(:open_files, :d)
+          ])
+        ),
+        Query.property(:open_files, :c)
+      ])
 
     assert QueryPlanner.plan(index, store, query) == query
   end
@@ -303,17 +286,17 @@ defmodule PositionDB.QueryPlannerTest do
     # c has exactly 4 positions
     #
     # Both have the same upper bound, so the original order is preserved.
+
     query =
-      {:and,
-       [
-         {:not,
-          {:or,
-           [
-             {:property, :open_files, :e},
-             {:property, :open_files, :d}
-           ]}},
-         {:property, :open_files, :c}
-       ]}
+      Query.all([
+        Query.negate(
+          Query.any([
+            Query.property(:open_files, :e),
+            Query.property(:open_files, :d)
+          ])
+        ),
+        Query.property(:open_files, :c)
+      ])
 
     assert QueryPlanner.plan(index, store, query) == query
   end
@@ -337,18 +320,16 @@ defmodule PositionDB.QueryPlannerTest do
     #
     # Therefore NOT NOT e must be planned before c.
     query =
-      {:and,
-       [
-         {:property, :open_files, :c},
-         {:not, {:not, {:property, :open_files, :e}}}
-       ]}
+      Query.all([
+        Query.property(:open_files, :c),
+        Query.negate(Query.negate(Query.property(:open_files, :e)))
+      ])
 
     assert QueryPlanner.plan(index, store, query) ==
-             {:and,
-              [
-                {:not, {:not, {:property, :open_files, :e}}},
-                {:property, :open_files, :c}
-              ]}
+             Query.all([
+               Query.negate(Query.negate(Query.property(:open_files, :e))),
+               Query.property(:open_files, :c)
+             ])
   end
 
   test "orders equivalent queries by candidate cardinality" do
@@ -364,11 +345,10 @@ defmodule PositionDB.QueryPlannerTest do
       |> PositionDB.EquivalenceIndex.add(:large, id_2)
 
     query =
-      {:and,
-       [
-         {:equivalent, :large},
-         {:equivalent, :small}
-       ]}
+      Query.all([
+        Query.equivalent(:large),
+        Query.equivalent(:small)
+      ])
 
     planned =
       QueryPlanner.plan(
@@ -382,10 +362,9 @@ defmodule PositionDB.QueryPlannerTest do
       )
 
     assert planned ==
-             {:and,
-              [
-                {:equivalent, :small},
-                {:equivalent, :large}
-              ]}
+             Query.all([
+               Query.equivalent(:small),
+               Query.equivalent(:large)
+             ])
   end
 end

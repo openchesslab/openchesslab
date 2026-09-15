@@ -1,6 +1,7 @@
 defmodule PositionDB.QueryEngineTest do
   use ExUnit.Case, async: true
 
+  alias PositionDB.Query
   alias PositionDB.PositionStore
   alias PositionDB.PropertyIndex
   alias PositionDB.QueryEngine
@@ -20,7 +21,7 @@ defmodule PositionDB.QueryEngineTest do
       |> PropertyIndex.add({:open_files, :e}, 1)
       |> PropertyIndex.add({:open_files, :e}, 2)
 
-    query = {:property, :open_files, :e}
+    query = Query.property(:open_files, :e)
 
     result = QueryEngine.execute(index, store, query)
 
@@ -38,11 +39,10 @@ defmodule PositionDB.QueryEngineTest do
       |> PropertyIndex.add({:open_files, :d}, 3)
 
     query =
-      {:and,
-       [
-         {:property, :open_files, :e},
-         {:property, :open_files, :d}
-       ]}
+      Query.all([
+        Query.property(:open_files, :e),
+        Query.property(:open_files, :d)
+      ])
 
     result = QueryEngine.execute(index, store, query)
 
@@ -60,11 +60,10 @@ defmodule PositionDB.QueryEngineTest do
       |> PropertyIndex.add({:open_files, :d}, 3)
 
     query =
-      {:or,
-       [
-         {:property, :open_files, :e},
-         {:property, :open_files, :d}
-       ]}
+      Query.any([
+        Query.property(:open_files, :e),
+        Query.property(:open_files, :d)
+      ])
 
     result = QueryEngine.execute(index, store, query)
 
@@ -86,12 +85,11 @@ defmodule PositionDB.QueryEngineTest do
       |> PropertyIndex.add({:open_files, :c}, 4)
 
     query =
-      {:and,
-       [
-         {:property, :open_files, :e},
-         {:property, :open_files, :d},
-         {:property, :open_files, :c}
-       ]}
+      Query.all([
+        Query.property(:open_files, :e),
+        Query.property(:open_files, :d),
+        Query.property(:open_files, :c)
+      ])
 
     result = QueryEngine.execute(index, store, query)
 
@@ -109,8 +107,7 @@ defmodule PositionDB.QueryEngineTest do
       |> PropertyIndex.add({:selected, true}, 2)
       |> PropertyIndex.add({:selected, true}, 4)
 
-    query =
-      {:not, {:property, :selected, true}}
+    query = Query.negate(Query.property(:selected, true))
 
     result = QueryEngine.execute(index, store, query)
 
@@ -131,12 +128,12 @@ defmodule PositionDB.QueryEngineTest do
       |> PropertyIndex.add({:b, true}, 3)
 
     query =
-      {:not,
-       {:and,
-        [
-          {:property, :a, true},
-          {:property, :b, true}
-        ]}}
+      Query.negate(
+        Query.all([
+          Query.property(:a, true),
+          Query.property(:b, true)
+        ])
+      )
 
     result = QueryEngine.execute(index, store, query)
 
@@ -153,11 +150,10 @@ defmodule PositionDB.QueryEngineTest do
     store = PositionStore.new(& &1)
 
     query =
-      {:and,
-       [
-         {:property, :open_files, :a},
-         {:property, :open_files, :e}
-       ]}
+      Query.all([
+        Query.property(:open_files, :a),
+        Query.property(:open_files, :e)
+      ])
 
     result = QueryEngine.execute(index, store, query)
 
@@ -176,15 +172,13 @@ defmodule PositionDB.QueryEngineTest do
     store = PositionStore.new(& &1)
 
     query =
-      {:and,
-       [
-         {:property, :open_files, :a},
-         {:and,
-          [
-            {:property, :open_files, :b},
-            {:property, :open_files, :d}
-          ]}
-       ]}
+      Query.all([
+        Query.property(:open_files, :a),
+        Query.all([
+          Query.property(:open_files, :b),
+          Query.property(:open_files, :d)
+        ])
+      ])
 
     result = QueryEngine.execute(index, store, query)
 
@@ -199,7 +193,7 @@ defmodule PositionDB.QueryEngineTest do
 
     index = PropertyIndex.new()
 
-    result = QueryEngine.execute(index, store, true)
+    result = QueryEngine.execute(index, store, Query.match_all())
 
     assert Enum.to_list(result) == [id_1, id_2]
   end
@@ -212,7 +206,7 @@ defmodule PositionDB.QueryEngineTest do
 
     index = PropertyIndex.new()
 
-    result = QueryEngine.execute(index, store, false)
+    result = QueryEngine.execute(index, store, Query.match_none())
 
     assert Enum.to_list(result) == []
   end
@@ -225,7 +219,7 @@ defmodule PositionDB.QueryEngineTest do
 
     index = PropertyIndex.new()
 
-    result = QueryEngine.execute(index, store, {:and, []})
+    result = QueryEngine.execute(index, store, Query.all([]))
 
     assert Enum.to_list(result) == [id_1, id_2]
   end
@@ -238,7 +232,7 @@ defmodule PositionDB.QueryEngineTest do
 
     index = PropertyIndex.new()
 
-    result = QueryEngine.execute(index, store, {:or, []})
+    result = QueryEngine.execute(index, store, Query.any([]))
 
     assert Enum.to_list(result) == []
   end
@@ -266,12 +260,11 @@ defmodule PositionDB.QueryEngineTest do
     # The query is deliberately specified in the opposite order.
     # The planner should reorder it to e, d, c before execution.
     query =
-      {:and,
-       [
-         {:property, :open_files, :c},
-         {:property, :open_files, :d},
-         {:property, :open_files, :e}
-       ]}
+      Query.all([
+        Query.property(:open_files, :c),
+        Query.property(:open_files, :d),
+        Query.property(:open_files, :e)
+      ])
 
     result = QueryEngine.execute(index, store, query)
 
@@ -289,11 +282,10 @@ defmodule PositionDB.QueryEngineTest do
     store = store_with_ids([1, 2, 3, 4])
 
     query =
-      {:or,
-       [
-         {:property, :open_files, :e},
-         {:property, :open_files, :d}
-       ]}
+      Query.any([
+        Query.property(:open_files, :e),
+        Query.property(:open_files, :d)
+      ])
 
     result = QueryEngine.execute(index, store, query)
 
@@ -308,7 +300,7 @@ defmodule PositionDB.QueryEngineTest do
 
     store = store_with_ids([1, 2, 3, 4])
 
-    query = {:not, {:property, :open_files, :e}}
+    query = Query.negate(Query.property(:open_files, :e))
 
     result = QueryEngine.execute(index, store, query)
 
@@ -327,11 +319,10 @@ defmodule PositionDB.QueryEngineTest do
     store = store_with_ids([1, 2, 3, 4])
 
     query =
-      {:and,
-       [
-         {:property, :open_files, :c},
-         {:not, {:property, :open_files, :e}}
-       ]}
+      Query.all([
+        Query.property(:open_files, :c),
+        Query.negate(Query.property(:open_files, :e))
+      ])
 
     result = QueryEngine.execute(index, store, query)
 
@@ -346,11 +337,10 @@ defmodule PositionDB.QueryEngineTest do
     store = store_with_ids([1, 2, 3])
 
     query =
-      {:and,
-       [
-         {:property, :open_files, :e},
-         true
-       ]}
+      Query.all([
+        Query.property(:open_files, :e),
+        Query.match_all()
+      ])
 
     result = QueryEngine.execute(index, store, query)
 
@@ -365,11 +355,10 @@ defmodule PositionDB.QueryEngineTest do
     store = store_with_ids([1, 2, 3])
 
     query =
-      {:or,
-       [
-         {:property, :open_files, :e},
-         false
-       ]}
+      Query.any([
+        Query.property(:open_files, :e),
+        Query.match_none()
+      ])
 
     result = QueryEngine.execute(index, store, query)
 
@@ -383,14 +372,13 @@ defmodule PositionDB.QueryEngineTest do
 
     store = store_with_ids([1, 2, 3])
 
-    property = {:property, :open_files, :e}
+    property = Query.property(:open_files, :e)
 
     query =
-      {:and,
-       [
-         property,
-         {:not, property}
-       ]}
+      Query.all([
+        property,
+        Query.negate(property)
+      ])
 
     result = QueryEngine.execute(index, store, query)
 
@@ -404,14 +392,13 @@ defmodule PositionDB.QueryEngineTest do
 
     store = store_with_ids([1, 2, 3])
 
-    property = {:property, :open_files, :e}
+    property = Query.property(:open_files, :e)
 
     query =
-      {:or,
-       [
-         property,
-         {:not, property}
-       ]}
+      Query.any([
+        property,
+        Query.negate(property)
+      ])
 
     result = QueryEngine.execute(index, store, query)
 
@@ -441,7 +428,7 @@ defmodule PositionDB.QueryEngineTest do
       _, _ -> false
     end
 
-    query = {:equivalent, position}
+    query = Query.equivalent(position)
 
     result =
       QueryEngine.execute(

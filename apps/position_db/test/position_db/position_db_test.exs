@@ -1,6 +1,7 @@
 defmodule PositionDBTest do
   use ExUnit.Case, async: true
 
+  alias PositionDB.Query
   alias Chess.PositionTransform
   alias Chess.PositionCanonicalizer
   alias Chess.Position
@@ -181,11 +182,10 @@ defmodule PositionDBTest do
     {db, _id_3} = PositionDB.put(db, position_3)
 
     query =
-      {:and,
-       [
-         {:property, :open_files, :e},
-         {:property, :open_files, :d}
-       ]}
+      Query.all([
+        Query.property(:open_files, :e),
+        Query.property(:open_files, :d)
+      ])
 
     result = PositionDB.query(db, query)
 
@@ -227,11 +227,10 @@ defmodule PositionDBTest do
     {db, id_3} = PositionDB.put(db, position_3)
 
     query =
-      {:or,
-       [
-         {:property, :open_files, :e},
-         {:property, :open_files, :d}
-       ]}
+      Query.any([
+        Query.property(:open_files, :e),
+        Query.property(:open_files, :d)
+      ])
 
     result = PositionDB.query(db, query)
 
@@ -264,8 +263,7 @@ defmodule PositionDBTest do
     {db, _id_1} = PositionDB.put(db, position_1)
     {db, id_2} = PositionDB.put(db, position_2)
 
-    query =
-      {:not, {:property, :open_files, :e}}
+    query = Query.negate(Query.property(:open_files, :e))
 
     result = PositionDB.query(db, query)
 
@@ -291,11 +289,10 @@ defmodule PositionDBTest do
     {db, position_id} = PositionDB.put(db, position)
 
     query =
-      {:and,
-       [
-         {:property, :open_files, :e},
-         true
-       ]}
+      Query.all([
+        Query.property(:open_files, :e),
+        Query.match_all()
+      ])
 
     result = PositionDB.query(db, query)
 
@@ -321,11 +318,10 @@ defmodule PositionDBTest do
     {db, position_id} = PositionDB.put(db, position)
 
     query =
-      {:or,
-       [
-         {:property, :open_files, :e},
-         false
-       ]}
+      Query.any([
+        Query.property(:open_files, :e),
+        Query.match_none()
+      ])
 
     result = PositionDB.query(db, query)
 
@@ -434,7 +430,7 @@ defmodule PositionDBTest do
     result =
       PositionDB.query(
         db,
-        {:equivalent, position}
+        Query.equivalent(position)
       )
 
     assert Enum.to_list(result) == [id_1, id_2]
