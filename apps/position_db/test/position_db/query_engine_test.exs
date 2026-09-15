@@ -583,4 +583,33 @@ defmodule PositionDB.QueryEngineTest do
 
     assert Enum.to_list(result) == [id_1, id_2]
   end
+
+  test "executes AND conditions in planned cardinality order" do
+    index =
+      PropertyIndex.new()
+      |> PropertyIndex.add({:open_files, :large}, 1)
+      |> PropertyIndex.add({:open_files, :large}, 2)
+      |> PropertyIndex.add({:open_files, :large}, 3)
+      |> PropertyIndex.add({:open_files, :large}, 4)
+      |> PropertyIndex.add({:open_files, :small}, 2)
+      |> PropertyIndex.add({:open_files, :small}, 4)
+
+    store = store_with_ids([1, 2, 3, 4])
+
+    query =
+      Query.all([
+        Query.property(:open_files, :large),
+        Query.property(:open_files, :small)
+      ])
+
+    result =
+      QueryEngine.execute(
+        index,
+        store,
+        query,
+        equivalence_context()
+      )
+
+    assert Enum.to_list(result) == [2, 4]
+  end
 end
