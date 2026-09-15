@@ -1,5 +1,5 @@
 defmodule PositionDB do
-  alias PositionDB.EquivalenceIndex
+  alias PositionDB.EquivalenceContext
   alias PositionDB.PositionIndexer
   alias PositionDB.PositionStore
   alias PositionDB.QueryEngine
@@ -11,36 +11,39 @@ defmodule PositionDB do
   @type t :: %__MODULE__{
           store: PositionStore.t(),
           indexer: PositionIndexer.t(),
-          equivalence_index: EquivalenceIndex.t(),
-          equivalence_function: (term() -> term()),
-          matcher: matcher()
+          equivalence: EquivalenceContext.t()
         }
 
   defstruct [
     :store,
     :indexer,
-    :equivalence_index,
-    :equivalence_function,
-    :matcher
+    :equivalence
   ]
 
   def new(options) do
     key_function = Keyword.fetch!(options, :key_function)
     properties = Keyword.fetch!(options, :properties)
-    equivalence_function = Keyword.get(options, :equivalence_function, key_function)
-    matcher = Keyword.get(options, :matcher, &(&1 == &2))
+
+    equivalence_function =
+      Keyword.get(options, :equivalence_function, key_function)
+
+    matcher =
+      Keyword.get(options, :matcher, &(&1 == &2))
 
     %__MODULE__{
       store: PositionStore.new(key_function),
       indexer: PositionIndexer.new(properties),
-      equivalence_index: EquivalenceIndex.new(),
-      equivalence_function: equivalence_function,
-      matcher: matcher
+      equivalence:
+        EquivalenceContext.new(
+          equivalence_function,
+          matcher
+        )
     }
   end
 
   def put(db, position) do
-    {store, position_id} = PositionStore.put(db.store, position)
+    {store, position_id} =
+      PositionStore.put(db.store, position)
 
     indexer =
       PositionIndexer.index(
@@ -49,12 +52,10 @@ defmodule PositionDB do
         position
       )
 
-    equivalence_key = db.equivalence_function.(position)
-
-    equivalence_index =
-      EquivalenceIndex.add(
-        db.equivalence_index,
-        equivalence_key,
+    equivalence =
+      EquivalenceContext.add(
+        db.equivalence,
+        position,
         position_id
       )
 
@@ -63,26 +64,26 @@ defmodule PositionDB do
         db
         | store: store,
           indexer: indexer,
-          equivalence_index: equivalence_index
+          equivalence: equivalence
       },
       position_id
     }
   end
 
-  def get(db, position_id), do: PositionStore.get(db.store, position_id)
+  def get(db, position_id) do
+    PositionStore.get(db.store, position_id)
+  end
 
-  def find(db, position), do: PositionStore.find(db.store, position)
+  def find(db, position) do
+    PositionStore.find(db.store, position)
+  end
 
   def query(db, query) do
     QueryEngine.execute(
       db.indexer.index,
       db.store,
       query,
-      %{
-        equivalence_index: db.equivalence_index,
-        equivalence_function: db.equivalence_function,
-        matcher: db.matcher
-      }
+      db.equivalence
     )
   end
 end

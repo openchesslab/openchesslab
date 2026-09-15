@@ -5,6 +5,7 @@ defmodule PositionDB.QueryEngine do
 
   alias PositionDB.And
   alias PositionDB.Empty
+  alias PositionDB.EquivalenceContext
   alias PositionDB.EquivalenceScan
   alias PositionDB.Not
   alias PositionDB.Or
@@ -17,36 +18,25 @@ defmodule PositionDB.QueryEngine do
   alias PositionDB.QueryResult
   alias PositionDB.UniverseScan
 
-  @type options :: %{
-          optional(:equivalence_index) => PositionDB.EquivalenceIndex.t(),
-          optional(:equivalence_function) => (term() -> term()),
-          optional(:matcher) => (term(), term() -> boolean())
-        }
-
-  @spec execute(
-          PropertyIndex.t(),
-          PositionStore.t(),
-          PositionDB.Query.t()
-        ) :: QueryResult.t()
-  def execute(index, store, query) do
-    execute(index, store, query, %{})
-  end
-
   @spec execute(
           PropertyIndex.t(),
           PositionStore.t(),
           PositionDB.Query.t(),
-          options()
+          EquivalenceContext.t()
         ) :: QueryResult.t()
-  def execute(index, store, query, options) do
-    normalized_query = QueryNormalizer.normalize(query)
+  def execute(index, store, query, equivalence) do
+    normalized_query =
+      QueryNormalizer.normalize(query)
 
     planned_query =
       QueryPlanner.plan(
         index,
         store,
         normalized_query,
-        planner_options(options)
+        %{
+          equivalence_index: equivalence.index,
+          equivalence_function: equivalence.key_function
+        }
       )
 
     executor =
@@ -54,7 +44,7 @@ defmodule PositionDB.QueryEngine do
         index,
         store,
         planned_query,
-        options
+        equivalence
       )
 
     QueryResult.new(executor)
@@ -64,14 +54,14 @@ defmodule PositionDB.QueryEngine do
           PropertyIndex.t(),
           PositionStore.t(),
           PositionDB.Query.t(),
-          options()
+          EquivalenceContext.t()
         ) :: QueryExecutor.t()
 
-  defp build_executor(_index, store, true, _options) do
+  defp build_executor(_index, store, true, _equivalence) do
     UniverseScan.new(store)
   end
 
-  defp build_executor(_index, _store, false, _options) do
+  defp build_executor(_index, _store, false, _equivalence) do
     Empty.new()
   end
 
@@ -79,46 +69,81 @@ defmodule PositionDB.QueryEngine do
          index,
          _store,
          {:property, property, value},
-         _options
+         _equivalence
        ) do
-    PropertyIndexScan.new(index, {property, value})
+    PropertyIndexScan.new(
+      index,
+      {property, value}
+    )
   end
 
   defp build_executor(
          _index,
          store,
          {:equivalent, position},
-         %{
-           equivalence_index: equivalence_index,
-           equivalence_function: equivalence_function,
-           matcher: matcher
-         }
+         equivalence
        ) do
     EquivalenceScan.new(
-      equivalence_index,
+      equivalence.index,
       store,
-      equivalence_function,
-      matcher,
+      equivalence.key_function,
+      equivalence.matcher,
       position
     )
   end
 
-  defp build_executor(index, store, {:not, query}, options) do
+  defp build_executor(
+         index,
+         store,
+         {:not, query},
+         equivalence
+       ) do
     universe = UniverseScan.new(store)
-    child = build_executor(index, store, query, options)
+
+    child =
+      build_executor(
+        index,
+        store,
+        query,
+        equivalence
+      )
 
     Not.new(universe, child)
   end
 
-  defp build_executor(index, store, {:and, queries}, options) do
+  defp build_executor(
+         index,
+         store,
+         {:and, queries},
+         equivalence
+       ) do
     queries
-    |> Enum.map(&build_executor(index, store, &1, options))
+    |> Enum.map(
+      &build_executor(
+        index,
+        store,
+        &1,
+        equivalence
+      )
+    )
     |> build_and()
   end
 
-  defp build_executor(index, store, {:or, queries}, options) do
+  defp build_executor(
+         index,
+         store,
+         {:or, queries},
+         equivalence
+       ) do
     queries
-    |> Enum.map(&build_executor(index, store, &1, options))
+    |> Enum.map(
+      &build_executor(
+        index,
+        store,
+        &1,
+        equivalence
+      )
+    )
     |> build_or()
   end
 
@@ -138,12 +163,5 @@ defmodule PositionDB.QueryEngine do
 
   defp build_or([first | rest]) do
     Enum.reduce(rest, first, &Or.new(&2, &1))
-  end
-
-  defp planner_options(options) do
-    Map.take(options, [
-      :equivalence_index,
-      :equivalence_function
-    ])
   end
 end

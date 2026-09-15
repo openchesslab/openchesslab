@@ -1,6 +1,8 @@
 defmodule PositionDB.QueryEngineTest do
   use ExUnit.Case, async: true
 
+  alias PositionDB.EquivalenceContext
+  alias PositionDB.EquivalenceIndex
   alias PositionDB.Query
   alias PositionDB.PositionStore
   alias PositionDB.PropertyIndex
@@ -13,6 +15,10 @@ defmodule PositionDB.QueryEngineTest do
     end)
   end
 
+  defp equivalence_context do
+    EquivalenceContext.new(& &1, &(&1 == &2))
+  end
+
   test "property query returns matching positions" do
     store = PositionStore.new(& &1)
 
@@ -23,7 +29,13 @@ defmodule PositionDB.QueryEngineTest do
 
     query = Query.property(:open_files, :e)
 
-    result = QueryEngine.execute(index, store, query)
+    result =
+      QueryEngine.execute(
+        index,
+        store,
+        query,
+        equivalence_context()
+      )
 
     assert Enum.to_list(result) == [1, 2]
   end
@@ -44,7 +56,13 @@ defmodule PositionDB.QueryEngineTest do
         Query.property(:open_files, :d)
       ])
 
-    result = QueryEngine.execute(index, store, query)
+    result =
+      QueryEngine.execute(
+        index,
+        store,
+        query,
+        equivalence_context()
+      )
 
     assert Enum.to_list(result) == [2]
   end
@@ -65,7 +83,13 @@ defmodule PositionDB.QueryEngineTest do
         Query.property(:open_files, :d)
       ])
 
-    result = QueryEngine.execute(index, store, query)
+    result =
+      QueryEngine.execute(
+        index,
+        store,
+        query,
+        equivalence_context()
+      )
 
     assert Enum.to_list(result) == [1, 2, 3]
   end
@@ -91,13 +115,24 @@ defmodule PositionDB.QueryEngineTest do
         Query.property(:open_files, :c)
       ])
 
-    result = QueryEngine.execute(index, store, query)
+    result =
+      QueryEngine.execute(
+        index,
+        store,
+        query,
+        equivalence_context()
+      )
 
     assert Enum.to_list(result) == [3]
   end
 
   test "not query returns positions outside the child result" do
-    {store, _} = PositionStore.put(PositionStore.new(& &1), :position_1)
+    {store, _} =
+      PositionStore.put(
+        PositionStore.new(& &1),
+        :position_1
+      )
+
     {store, _} = PositionStore.put(store, :position_2)
     {store, _} = PositionStore.put(store, :position_3)
     {store, _} = PositionStore.put(store, :position_4)
@@ -109,13 +144,24 @@ defmodule PositionDB.QueryEngineTest do
 
     query = Query.negate(Query.property(:selected, true))
 
-    result = QueryEngine.execute(index, store, query)
+    result =
+      QueryEngine.execute(
+        index,
+        store,
+        query,
+        equivalence_context()
+      )
 
     assert Enum.to_list(result) == [1, 3]
   end
 
   test "not can be combined with and" do
-    {store, _} = PositionStore.put(PositionStore.new(& &1), :position_1)
+    {store, _} =
+      PositionStore.put(
+        PositionStore.new(& &1),
+        :position_1
+      )
+
     {store, _} = PositionStore.put(store, :position_2)
     {store, _} = PositionStore.put(store, :position_3)
     {store, _} = PositionStore.put(store, :position_4)
@@ -135,7 +181,13 @@ defmodule PositionDB.QueryEngineTest do
         ])
       )
 
-    result = QueryEngine.execute(index, store, query)
+    result =
+      QueryEngine.execute(
+        index,
+        store,
+        query,
+        equivalence_context()
+      )
 
     assert Enum.to_list(result) == [1, 3, 4]
   end
@@ -155,7 +207,13 @@ defmodule PositionDB.QueryEngineTest do
         Query.property(:open_files, :e)
       ])
 
-    result = QueryEngine.execute(index, store, query)
+    result =
+      QueryEngine.execute(
+        index,
+        store,
+        query,
+        equivalence_context()
+      )
 
     assert Enum.to_list(result) == [1]
   end
@@ -180,7 +238,13 @@ defmodule PositionDB.QueryEngineTest do
         ])
       ])
 
-    result = QueryEngine.execute(index, store, query)
+    result =
+      QueryEngine.execute(
+        index,
+        store,
+        query,
+        equivalence_context()
+      )
 
     assert Enum.to_list(result) == [1]
   end
@@ -193,7 +257,13 @@ defmodule PositionDB.QueryEngineTest do
 
     index = PropertyIndex.new()
 
-    result = QueryEngine.execute(index, store, Query.match_all())
+    result =
+      QueryEngine.execute(
+        index,
+        store,
+        Query.match_all(),
+        equivalence_context()
+      )
 
     assert Enum.to_list(result) == [id_1, id_2]
   end
@@ -206,7 +276,13 @@ defmodule PositionDB.QueryEngineTest do
 
     index = PropertyIndex.new()
 
-    result = QueryEngine.execute(index, store, Query.match_none())
+    result =
+      QueryEngine.execute(
+        index,
+        store,
+        Query.match_none(),
+        equivalence_context()
+      )
 
     assert Enum.to_list(result) == []
   end
@@ -219,7 +295,13 @@ defmodule PositionDB.QueryEngineTest do
 
     index = PropertyIndex.new()
 
-    result = QueryEngine.execute(index, store, Query.all([]))
+    result =
+      QueryEngine.execute(
+        index,
+        store,
+        Query.all([]),
+        equivalence_context()
+      )
 
     assert Enum.to_list(result) == [id_1, id_2]
   end
@@ -232,7 +314,13 @@ defmodule PositionDB.QueryEngineTest do
 
     index = PropertyIndex.new()
 
-    result = QueryEngine.execute(index, store, Query.any([]))
+    result =
+      QueryEngine.execute(
+        index,
+        store,
+        Query.any([]),
+        equivalence_context()
+      )
 
     assert Enum.to_list(result) == []
   end
@@ -255,10 +343,6 @@ defmodule PositionDB.QueryEngineTest do
     {store, _id_3} = PositionStore.put(store, :position_3)
     {store, _id_4} = PositionStore.put(store, :position_4)
 
-    # e = 1, d = 2, c = 4
-    #
-    # The query is deliberately specified in the opposite order.
-    # The planner should reorder it to e, d, c before execution.
     query =
       Query.all([
         Query.property(:open_files, :c),
@@ -266,7 +350,13 @@ defmodule PositionDB.QueryEngineTest do
         Query.property(:open_files, :e)
       ])
 
-    result = QueryEngine.execute(index, store, query)
+    result =
+      QueryEngine.execute(
+        index,
+        store,
+        query,
+        equivalence_context()
+      )
 
     assert Enum.to_list(result) == [1]
   end
@@ -287,7 +377,13 @@ defmodule PositionDB.QueryEngineTest do
         Query.property(:open_files, :d)
       ])
 
-    result = QueryEngine.execute(index, store, query)
+    result =
+      QueryEngine.execute(
+        index,
+        store,
+        query,
+        equivalence_context()
+      )
 
     assert Enum.to_list(result) == [1, 2, 3]
   end
@@ -302,7 +398,13 @@ defmodule PositionDB.QueryEngineTest do
 
     query = Query.negate(Query.property(:open_files, :e))
 
-    result = QueryEngine.execute(index, store, query)
+    result =
+      QueryEngine.execute(
+        index,
+        store,
+        query,
+        equivalence_context()
+      )
 
     assert Enum.to_list(result) == [1, 3]
   end
@@ -324,7 +426,13 @@ defmodule PositionDB.QueryEngineTest do
         Query.negate(Query.property(:open_files, :e))
       ])
 
-    result = QueryEngine.execute(index, store, query)
+    result =
+      QueryEngine.execute(
+        index,
+        store,
+        query,
+        equivalence_context()
+      )
 
     assert Enum.to_list(result) == [1, 3, 4]
   end
@@ -342,7 +450,13 @@ defmodule PositionDB.QueryEngineTest do
         Query.match_all()
       ])
 
-    result = QueryEngine.execute(index, store, query)
+    result =
+      QueryEngine.execute(
+        index,
+        store,
+        query,
+        equivalence_context()
+      )
 
     assert Enum.to_list(result) == [2]
   end
@@ -360,7 +474,13 @@ defmodule PositionDB.QueryEngineTest do
         Query.match_none()
       ])
 
-    result = QueryEngine.execute(index, store, query)
+    result =
+      QueryEngine.execute(
+        index,
+        store,
+        query,
+        equivalence_context()
+      )
 
     assert Enum.to_list(result) == [2]
   end
@@ -380,7 +500,13 @@ defmodule PositionDB.QueryEngineTest do
         Query.negate(property)
       ])
 
-    result = QueryEngine.execute(index, store, query)
+    result =
+      QueryEngine.execute(
+        index,
+        store,
+        query,
+        equivalence_context()
+      )
 
     assert Enum.to_list(result) == []
   end
@@ -400,7 +526,13 @@ defmodule PositionDB.QueryEngineTest do
         Query.negate(property)
       ])
 
-    result = QueryEngine.execute(index, store, query)
+    result =
+      QueryEngine.execute(
+        index,
+        store,
+        query,
+        equivalence_context()
+      )
 
     assert Enum.to_list(result) == [1, 2, 3]
   end
@@ -417,16 +549,27 @@ defmodule PositionDB.QueryEngineTest do
     {store, id_3} = PositionStore.put(store, unrelated_position)
 
     equivalence_index =
-      PositionDB.EquivalenceIndex.new()
-      |> PositionDB.EquivalenceIndex.add(:equivalent, id_1)
-      |> PositionDB.EquivalenceIndex.add(:equivalent, id_2)
-      |> PositionDB.EquivalenceIndex.add(:unrelated, id_3)
+      EquivalenceIndex.new()
+      |> EquivalenceIndex.add(:equivalent, id_1)
+      |> EquivalenceIndex.add(:equivalent, id_2)
+      |> EquivalenceIndex.add(:unrelated, id_3)
 
     matcher = fn
       :position, :position -> true
       :position, :swapped_position -> true
       _, _ -> false
     end
+
+    equivalence =
+      %EquivalenceContext{
+        index: equivalence_index,
+        key_function: fn
+          :position -> :equivalent
+          :swapped_position -> :equivalent
+          :unrelated_position -> :unrelated
+        end,
+        matcher: matcher
+      }
 
     query = Query.equivalent(position)
 
@@ -435,18 +578,9 @@ defmodule PositionDB.QueryEngineTest do
         PropertyIndex.new(),
         store,
         query,
-        %{
-          equivalence_index: equivalence_index,
-          equivalence_function: fn
-            :position -> :equivalent
-            :swapped_position -> :equivalent
-            :unrelated_position -> :unrelated
-          end,
-          matcher: matcher
-        }
+        equivalence
       )
 
     assert Enum.to_list(result) == [id_1, id_2]
-    refute id_3 in Enum.to_list(result)
   end
 end
