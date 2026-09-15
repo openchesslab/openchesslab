@@ -1,15 +1,14 @@
 defmodule PositionDBTest do
   use ExUnit.Case, async: true
 
-  alias PositionDB.Query
-  alias Chess.PositionTransform
-  alias Chess.PositionCanonicalizer
   alias Chess.Position
+  alias Chess.PositionCanonicalizer
   alias Chess.PositionKey
   alias Chess.PositionProperties
+  alias Chess.PositionTransform
   alias Chess.Square
 
-  alias PositionDB.PropertyIndex
+  alias PositionDB.Query
 
   test "stores and indexes a chess position" do
     position =
@@ -32,10 +31,13 @@ defmodule PositionDBTest do
     assert PositionDB.get(db, position_id) == {:ok, position}
     assert PositionDB.find(db, position) == {:ok, position_id}
 
-    assert PropertyIndex.lookup(
-             db.indexer.index,
-             {:open_files, :e}
-           ) == MapSet.new([position_id])
+    result =
+      PositionDB.query(
+        db,
+        Query.property(:open_files, :e)
+      )
+
+    assert Enum.to_list(result) == [position_id]
   end
 
   test "stores an identical position only once" do
@@ -59,13 +61,13 @@ defmodule PositionDBTest do
 
     assert id_1 == id_2
 
-    assert PositionDB.find_by_property(db, :open_files, :e) ==
-             MapSet.new([id_1])
+    result =
+      PositionDB.query(
+        db,
+        Query.property(:open_files, :e)
+      )
 
-    query =
-      {:property, :open_files, :e}
-
-    assert Enum.to_list(PositionDB.query(db, query)) == [id_1]
+    assert Enum.to_list(result) == [id_1]
   end
 
   test "different positions get different ids" do
@@ -92,7 +94,7 @@ defmodule PositionDBTest do
     assert id_1 != id_2
   end
 
-  test "finds positions by property" do
+  test "queries positions by property" do
     position =
       Position.new()
       |> Position.put_piece(
@@ -110,14 +112,22 @@ defmodule PositionDBTest do
 
     {db, position_id} = PositionDB.put(db, position)
 
-    assert PositionDB.find_by_property(db, :open_files, :e) ==
-             MapSet.new([position_id])
+    assert Enum.to_list(
+             PositionDB.query(
+               db,
+               Query.property(:open_files, :e)
+             )
+           ) == [position_id]
 
-    assert PositionDB.find_by_property(db, :open_files, :a) ==
-             MapSet.new()
+    assert Enum.to_list(
+             PositionDB.query(
+               db,
+               Query.property(:open_files, :a)
+             )
+           ) == []
   end
 
-  test "finds multiple positions by property" do
+  test "queries multiple positions by property" do
     position_1 =
       Position.new()
       |> Position.put_piece(
@@ -143,11 +153,16 @@ defmodule PositionDBTest do
     {db, id_1} = PositionDB.put(db, position_1)
     {db, id_2} = PositionDB.put(db, position_2)
 
-    assert PositionDB.find_by_property(db, :open_files, :e) ==
-             MapSet.new([id_1, id_2])
+    result =
+      PositionDB.query(
+        db,
+        Query.property(:open_files, :e)
+      )
+
+    assert Enum.to_list(result) == [id_1, id_2]
   end
 
-  test "queries positions using multiple properties" do
+  test "queries positions using AND" do
     position_1 =
       Position.new()
       |> Position.put_piece(
@@ -328,7 +343,7 @@ defmodule PositionDBTest do
     assert Enum.to_list(result) == [position_id]
   end
 
-  test "finds color-equivalent positions" do
+  test "queries equivalent positions through the facade" do
     position =
       Position.new()
       |> Position.put_piece(
@@ -341,75 +356,6 @@ defmodule PositionDBTest do
       )
 
     swapped = PositionTransform.swap_colors(position)
-
-    matcher = fn query, candidate ->
-      query == candidate ||
-        PositionTransform.swap_colors(query) == candidate
-    end
-
-    db =
-      PositionDB.new(
-        key_function: &PositionKey.exact/1,
-        equivalence_function: &PositionCanonicalizer.encode/1,
-        matcher: matcher,
-        properties: [
-          {:open_files, &PositionProperties.open_files/1}
-        ]
-      )
-
-    {db, id_1} = PositionDB.put(db, position)
-    {db, id_2} = PositionDB.put(db, swapped)
-
-    assert id_1 != id_2
-
-    assert PositionDB.find_equivalent(db, position) ==
-             MapSet.new([id_1, id_2])
-
-    assert PositionDB.find_equivalent(db, swapped) ==
-             MapSet.new([id_1, id_2])
-  end
-
-  test "finds positions with the same equivalence key" do
-    position =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:white, :pawn}
-      )
-
-    swapped = PositionTransform.swap_colors(position)
-
-    db =
-      PositionDB.new(
-        key_function: &PositionKey.exact/1,
-        equivalence_function: &PositionCanonicalizer.encode/1,
-        properties: [
-          {:open_files, &PositionProperties.open_files/1}
-        ]
-      )
-
-    {db, id_1} = PositionDB.put(db, position)
-    {db, id_2} = PositionDB.put(db, swapped)
-
-    assert id_1 != id_2
-
-    assert PositionDB.find_equivalent_candidates(db, position) ==
-             MapSet.new([id_1, id_2])
-
-    assert PositionDB.find_equivalent_candidates(db, swapped) ==
-             MapSet.new([id_1, id_2])
-  end
-
-  test "queries through the PositionDB facade" do
-    position =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:white, :pawn}
-      )
-
-    swapped =
-      PositionTransform.swap_colors(position)
 
     db =
       PositionDB.new(
@@ -436,42 +382,7 @@ defmodule PositionDBTest do
     assert Enum.to_list(result) == [id_1, id_2]
   end
 
-  test "queries a property through the PositionDB facade" do
-    position_1 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:white, :pawn}
-      )
-
-    position_2 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("e4"),
-        {:white, :pawn}
-      )
-
-    db =
-      PositionDB.new(
-        key_function: &PositionKey.exact/1,
-        properties: [
-          {:open_files, &PositionProperties.open_files/1}
-        ]
-      )
-
-    {db, id_1} = PositionDB.put(db, position_1)
-    {db, _id_2} = PositionDB.put(db, position_2)
-
-    result =
-      PositionDB.query(
-        db,
-        Query.property(:open_files, :e)
-      )
-
-    assert Enum.to_list(result) == [id_1]
-  end
-
-  test "queries equivalent positions through the PositionDB facade" do
+  test "combines property and equivalent queries through the facade" do
     position =
       Position.new()
       |> Position.put_piece(
@@ -483,48 +394,7 @@ defmodule PositionDBTest do
         {:black, :queen}
       )
 
-    swapped =
-      PositionTransform.swap_colors(position)
-
-    db =
-      PositionDB.new(
-        key_function: &PositionKey.exact/1,
-        equivalence_function: &PositionCanonicalizer.encode/1,
-        matcher: fn query, candidate ->
-          query == candidate ||
-            PositionTransform.swap_colors(query) == candidate
-        end,
-        properties: [
-          {:open_files, &PositionProperties.open_files/1}
-        ]
-      )
-
-    {db, id_1} = PositionDB.put(db, position)
-    {db, id_2} = PositionDB.put(db, swapped)
-
-    result =
-      PositionDB.query(
-        db,
-        Query.equivalent(position)
-      )
-
-    assert Enum.to_list(result) == [id_1, id_2]
-  end
-
-  test "combines property and equivalent queries through the PositionDB facade" do
-    position =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:white, :pawn}
-      )
-      |> Position.put_piece(
-        Square.from_algebraic("e7"),
-        {:black, :queen}
-      )
-
-    swapped =
-      PositionTransform.swap_colors(position)
+    swapped = PositionTransform.swap_colors(position)
 
     other =
       Position.new()
