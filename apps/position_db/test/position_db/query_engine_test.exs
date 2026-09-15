@@ -183,4 +183,56 @@ defmodule PositionDB.QueryEngineTest do
 
     assert Enum.to_list(result) == [1]
   end
+
+  test "executes true as the universe" do
+    store = PositionStore.new(& &1)
+
+    {store, id_1} = PositionStore.put(store, :position_1)
+    {store, id_2} = PositionStore.put(store, :position_2)
+
+    index = PropertyIndex.new()
+
+    result = QueryEngine.execute(index, store, true)
+
+    assert Enum.to_list(result) == [id_1, id_2]
+  end
+
+  test "executes false as an empty result" do
+    store = PositionStore.new(& &1)
+
+    {store, _id_1} = PositionStore.put(store, :position_1)
+    {store, _id_2} = PositionStore.put(store, :position_2)
+
+    index = PropertyIndex.new()
+
+    result = QueryEngine.execute(index, store, false)
+
+    assert Enum.to_list(result) == []
+  end
+
+  test "executes an empty AND as the universe" do
+    store = PositionStore.new(& &1)
+
+    {store, id_1} = PositionStore.put(store, :position_1)
+    {store, id_2} = PositionStore.put(store, :position_2)
+
+    index = PropertyIndex.new()
+
+    result = QueryEngine.execute(index, store, {:and, []})
+
+    assert Enum.to_list(result) == [id_1, id_2]
+  end
+
+  test "executes an empty OR as an empty result" do
+    store = PositionStore.new(& &1)
+
+    {store, _id_1} = PositionStore.put(store, :position_1)
+    {store, _id_2} = PositionStore.put(store, :position_2)
+
+    index = PropertyIndex.new()
+
+    result = QueryEngine.execute(index, store, {:or, []})
+
+    assert Enum.to_list(result) == []
+  end
 end

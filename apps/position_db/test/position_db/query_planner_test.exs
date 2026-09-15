@@ -117,4 +117,18 @@ defmodule PositionDB.QueryPlannerTest do
       assert QueryPlanner.plan(index, store, query) == query
     end
   end
+
+  test "leaves true unchanged" do
+    index = PropertyIndex.new()
+    store = PositionStore.new(& &1)
+
+    assert QueryPlanner.plan(index, store, true) == true
+  end
+
+  test "leaves false unchanged" do
+    index = PropertyIndex.new()
+    store = PositionStore.new(& &1)
+
+    assert QueryPlanner.plan(index, store, false) == false
+  end
 end

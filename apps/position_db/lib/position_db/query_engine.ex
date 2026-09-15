@@ -29,6 +29,15 @@ defmodule PositionDB.QueryEngine do
           PositionStore.t(),
           PositionDB.Query.t()
         ) :: QueryExecutor.t()
+
+  defp build_executor(_index, store, true) do
+    UniverseScan.new(store)
+  end
+
+  defp build_executor(_index, _store, false) do
+    Empty.new()
+  end
+
   defp build_executor(index, _store, {:property, property, value}) do
     PropertyIndexScan.new(index, {property, value})
   end

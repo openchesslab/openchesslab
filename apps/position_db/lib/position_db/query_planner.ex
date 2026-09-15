@@ -11,6 +11,9 @@ defmodule PositionDB.QueryPlanner do
     do_plan(index, store, query)
   end
 
+  defp do_plan(_index, _store, true), do: true
+  defp do_plan(_index, _store, false), do: false
+
   defp do_plan(_index, _store, {:property, _property, _value} = query) do
     query
   end
