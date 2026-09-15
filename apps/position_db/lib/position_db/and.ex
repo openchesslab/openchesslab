@@ -32,15 +32,15 @@ defmodule PositionDB.And do
     )
   end
 
-  @spec next(t()) ::
-          {:ok, position_id(), t()}
-          | :done
   def next(%__MODULE__{} = state) do
     state
     |> load_left()
-    |> load_right()
+    |> maybe_load_right()
     |> find_match()
   end
+
+  defp maybe_load_right(%__MODULE__{left: :done} = state), do: state
+  defp maybe_load_right(state), do: load_right(state)
 
   defp load_left(%__MODULE__{left: :done} = state) do
     state

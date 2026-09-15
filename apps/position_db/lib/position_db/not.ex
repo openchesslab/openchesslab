@@ -32,15 +32,15 @@ defmodule PositionDB.Not do
     )
   end
 
-  @spec next(t()) ::
-          {:ok, position_id(), t()}
-          | :done
   def next(%__MODULE__{} = state) do
     state
     |> load_universe()
-    |> load_child()
+    |> maybe_load_child()
     |> find_next()
   end
+
+  defp maybe_load_child(%__MODULE__{universe: :done} = state), do: state
+  defp maybe_load_child(state), do: load_child(state)
 
   defp load_universe(%__MODULE__{universe: :done} = state) do
     state

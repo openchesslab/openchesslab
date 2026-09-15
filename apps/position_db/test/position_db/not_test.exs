@@ -71,4 +71,24 @@ defmodule PositionDB.NotTest do
 
     assert :done = QueryExecutor.next(executor)
   end
+
+  test "does not evaluate the child when the universe is empty" do
+    universe =
+      QueryExecutor.new(
+        TrackingExecutor,
+        {self(), :universe, :done}
+      )
+
+    child =
+      QueryExecutor.new(
+        TrackingExecutor,
+        {self(), :child, {:ok, 1, :next}}
+      )
+
+    executor = Not.new(universe, child)
+
+    assert QueryExecutor.next(executor) == :done
+    assert_receive {:next_called, :universe}
+    refute_receive {:next_called, :child}
+  end
 end

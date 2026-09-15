@@ -36,7 +36,12 @@ defmodule PositionDBTest do
   end
 
   test "stores an identical position only once" do
-    position = Position.starting_position()
+    position =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("a4"),
+        {:white, :pawn}
+      )
 
     db =
       PositionDB.new(
@@ -47,9 +52,17 @@ defmodule PositionDBTest do
       )
 
     {db, id_1} = PositionDB.put(db, position)
-    {_db, id_2} = PositionDB.put(db, position)
+    {db, id_2} = PositionDB.put(db, position)
 
     assert id_1 == id_2
+
+    assert PositionDB.find_by_property(db, :open_files, :e) ==
+             MapSet.new([id_1])
+
+    query =
+      {:property, :open_files, :e}
+
+    assert Enum.to_list(PositionDB.query(db, query)) == [id_1]
   end
 
   test "different positions get different ids" do
@@ -221,5 +234,99 @@ defmodule PositionDBTest do
     result = PositionDB.query(db, query)
 
     assert Enum.to_list(result) == [id_1, id_2, id_3]
+  end
+
+  test "queries positions using NOT" do
+    position_1 =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("a4"),
+        {:white, :pawn}
+      )
+
+    position_2 =
+      position_1
+      |> Position.put_piece(
+        Square.from_algebraic("e4"),
+        {:white, :pawn}
+      )
+
+    db =
+      PositionDB.new(
+        key_function: &PositionKey.exact/1,
+        properties: [
+          {:open_files, &PositionProperties.open_files/1}
+        ]
+      )
+
+    {db, _id_1} = PositionDB.put(db, position_1)
+    {db, id_2} = PositionDB.put(db, position_2)
+
+    query =
+      {:not, {:property, :open_files, :e}}
+
+    result = PositionDB.query(db, query)
+
+    assert Enum.to_list(result) == [id_2]
+  end
+
+  test "queries positions using AND with true" do
+    position =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("a4"),
+        {:white, :pawn}
+      )
+
+    db =
+      PositionDB.new(
+        key_function: &PositionKey.exact/1,
+        properties: [
+          {:open_files, &PositionProperties.open_files/1}
+        ]
+      )
+
+    {db, position_id} = PositionDB.put(db, position)
+
+    query =
+      {:and,
+       [
+         {:property, :open_files, :e},
+         true
+       ]}
+
+    result = PositionDB.query(db, query)
+
+    assert Enum.to_list(result) == [position_id]
+  end
+
+  test "queries positions using OR with false" do
+    position =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("a4"),
+        {:white, :pawn}
+      )
+
+    db =
+      PositionDB.new(
+        key_function: &PositionKey.exact/1,
+        properties: [
+          {:open_files, &PositionProperties.open_files/1}
+        ]
+      )
+
+    {db, position_id} = PositionDB.put(db, position)
+
+    query =
+      {:or,
+       [
+         {:property, :open_files, :e},
+         false
+       ]}
+
+    result = PositionDB.query(db, query)
+
+    assert Enum.to_list(result) == [position_id]
   end
 end

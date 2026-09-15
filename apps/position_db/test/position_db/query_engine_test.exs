@@ -5,6 +5,13 @@ defmodule PositionDB.QueryEngineTest do
   alias PositionDB.PropertyIndex
   alias PositionDB.QueryEngine
 
+  defp store_with_ids(ids) do
+    Enum.reduce(ids, PositionStore.new(& &1), fn id, store ->
+      {store, _position_id} = PositionStore.put(store, id)
+      store
+    end)
+  end
+
   test "property query returns matching positions" do
     store = PositionStore.new(& &1)
 
@@ -234,5 +241,180 @@ defmodule PositionDB.QueryEngineTest do
     result = QueryEngine.execute(index, store, {:or, []})
 
     assert Enum.to_list(result) == []
+  end
+
+  test "executes AND query using planner-selected order" do
+    index =
+      PropertyIndex.new()
+      |> PropertyIndex.add({:open_files, :e}, 1)
+      |> PropertyIndex.add({:open_files, :d}, 1)
+      |> PropertyIndex.add({:open_files, :d}, 2)
+      |> PropertyIndex.add({:open_files, :c}, 1)
+      |> PropertyIndex.add({:open_files, :c}, 2)
+      |> PropertyIndex.add({:open_files, :c}, 3)
+      |> PropertyIndex.add({:open_files, :c}, 4)
+
+    store = PositionStore.new(& &1)
+
+    {store, _id_1} = PositionStore.put(store, :position_1)
+    {store, _id_2} = PositionStore.put(store, :position_2)
+    {store, _id_3} = PositionStore.put(store, :position_3)
+    {store, _id_4} = PositionStore.put(store, :position_4)
+
+    # e = 1, d = 2, c = 4
+    #
+    # The query is deliberately specified in the opposite order.
+    # The planner should reorder it to e, d, c before execution.
+    query =
+      {:and,
+       [
+         {:property, :open_files, :c},
+         {:property, :open_files, :d},
+         {:property, :open_files, :e}
+       ]}
+
+    result = QueryEngine.execute(index, store, query)
+
+    assert Enum.to_list(result) == [1]
+  end
+
+  test "executes OR query through the full pipeline" do
+    index =
+      PropertyIndex.new()
+      |> PropertyIndex.add({:open_files, :e}, 1)
+      |> PropertyIndex.add({:open_files, :e}, 2)
+      |> PropertyIndex.add({:open_files, :d}, 2)
+      |> PropertyIndex.add({:open_files, :d}, 3)
+
+    store = store_with_ids([1, 2, 3, 4])
+
+    query =
+      {:or,
+       [
+         {:property, :open_files, :e},
+         {:property, :open_files, :d}
+       ]}
+
+    result = QueryEngine.execute(index, store, query)
+
+    assert Enum.to_list(result) == [1, 2, 3]
+  end
+
+  test "executes NOT query through the full pipeline" do
+    index =
+      PropertyIndex.new()
+      |> PropertyIndex.add({:open_files, :e}, 2)
+      |> PropertyIndex.add({:open_files, :e}, 4)
+
+    store = store_with_ids([1, 2, 3, 4])
+
+    query = {:not, {:property, :open_files, :e}}
+
+    result = QueryEngine.execute(index, store, query)
+
+    assert Enum.to_list(result) == [1, 3]
+  end
+
+  test "executes AND with NOT through the full pipeline" do
+    index =
+      PropertyIndex.new()
+      |> PropertyIndex.add({:open_files, :e}, 2)
+      |> PropertyIndex.add({:open_files, :c}, 1)
+      |> PropertyIndex.add({:open_files, :c}, 2)
+      |> PropertyIndex.add({:open_files, :c}, 3)
+      |> PropertyIndex.add({:open_files, :c}, 4)
+
+    store = store_with_ids([1, 2, 3, 4])
+
+    query =
+      {:and,
+       [
+         {:property, :open_files, :c},
+         {:not, {:property, :open_files, :e}}
+       ]}
+
+    result = QueryEngine.execute(index, store, query)
+
+    assert Enum.to_list(result) == [1, 3, 4]
+  end
+
+  test "executes AND with true through the full pipeline" do
+    index =
+      PropertyIndex.new()
+      |> PropertyIndex.add({:open_files, :e}, 2)
+
+    store = store_with_ids([1, 2, 3])
+
+    query =
+      {:and,
+       [
+         {:property, :open_files, :e},
+         true
+       ]}
+
+    result = QueryEngine.execute(index, store, query)
+
+    assert Enum.to_list(result) == [2]
+  end
+
+  test "executes OR with false through the full pipeline" do
+    index =
+      PropertyIndex.new()
+      |> PropertyIndex.add({:open_files, :e}, 2)
+
+    store = store_with_ids([1, 2, 3])
+
+    query =
+      {:or,
+       [
+         {:property, :open_files, :e},
+         false
+       ]}
+
+    result = QueryEngine.execute(index, store, query)
+
+    assert Enum.to_list(result) == [2]
+  end
+
+  test "executes AND with complementary queries through the full pipeline" do
+    index =
+      PropertyIndex.new()
+      |> PropertyIndex.add({:open_files, :e}, 2)
+
+    store = store_with_ids([1, 2, 3])
+
+    property = {:property, :open_files, :e}
+
+    query =
+      {:and,
+       [
+         property,
+         {:not, property}
+       ]}
+
+    result = QueryEngine.execute(index, store, query)
+
+    assert Enum.to_list(result) == []
+  end
+
+  test "executes OR with complementary queries through the full pipeline" do
+    index =
+      PropertyIndex.new()
+      |> PropertyIndex.add({:open_files, :e}, 2)
+
+    store = store_with_ids([1, 2, 3])
+
+    property = {:property, :open_files, :e}
+
+    query =
+      {:or,
+       [
+         property,
+         {:not, property}
+       ]}
+
+    result = QueryEngine.execute(index, store, query)
+
+    assert Enum.to_list(result) == [1, 2, 3]
   end
 end

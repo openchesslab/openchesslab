@@ -1,6 +1,7 @@
 defmodule PositionDB.AndTest do
   use ExUnit.Case, async: true
 
+  alias PositionDB.Empty
   alias PositionDB.And
   alias PositionDB.PropertyIndex
   alias PositionDB.PropertyIndexScan
@@ -61,5 +62,55 @@ defmodule PositionDB.AndTest do
     assert {:ok, 3, executor} = QueryExecutor.next(executor)
     assert {:ok, 7, executor} = QueryExecutor.next(executor)
     assert :done = QueryExecutor.next(executor)
+  end
+
+  test "stops immediately when the left input is empty" do
+    index =
+      PropertyIndex.new()
+      |> PropertyIndex.add({:open_files, :e}, 1)
+      |> PropertyIndex.add({:open_files, :d}, 2)
+
+    left = Empty.new()
+    right = PropertyIndexScan.new(index, {:open_files, :e})
+
+    executor = And.new(left, right)
+
+    assert QueryExecutor.next(executor) == :done
+  end
+
+  test "stops immediately when the right input is empty" do
+    index =
+      PropertyIndex.new()
+      |> PropertyIndex.add({:open_files, :e}, 1)
+      |> PropertyIndex.add({:open_files, :d}, 2)
+
+    left = PropertyIndexScan.new(index, {:open_files, :e})
+    right = Empty.new()
+
+    executor = And.new(left, right)
+
+    assert QueryExecutor.next(executor) == :done
+  end
+
+  describe "next/1" do
+    test "does not evaluate the right input when the left input is done" do
+      left =
+        QueryExecutor.new(
+          TrackingExecutor,
+          {self(), :left, :done}
+        )
+
+      right =
+        QueryExecutor.new(
+          TrackingExecutor,
+          {self(), :right, {:ok, 1, :next}}
+        )
+
+      executor = And.new(left, right)
+
+      assert QueryExecutor.next(executor) == :done
+      assert_receive {:next_called, :left}
+      refute_receive {:next_called, :right}
+    end
   end
 end
