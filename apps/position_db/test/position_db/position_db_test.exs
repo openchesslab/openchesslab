@@ -1,6 +1,8 @@
 defmodule PositionDBTest do
   use ExUnit.Case, async: true
 
+  alias Chess.PositionTransform
+  alias Chess.PositionCanonicalizer
   alias Chess.Position
   alias Chess.PositionKey
   alias Chess.PositionProperties
@@ -328,5 +330,77 @@ defmodule PositionDBTest do
     result = PositionDB.query(db, query)
 
     assert Enum.to_list(result) == [position_id]
+  end
+
+  test "finds color-equivalent positions" do
+    position =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("a4"),
+        {:white, :pawn}
+      )
+      |> Position.put_piece(
+        Square.from_algebraic("e7"),
+        {:black, :queen}
+      )
+
+    swapped = PositionTransform.swap_colors(position)
+
+    matcher = fn query, candidate ->
+      query == candidate ||
+        PositionTransform.swap_colors(query) == candidate
+    end
+
+    db =
+      PositionDB.new(
+        key_function: &PositionKey.exact/1,
+        equivalence_function: &PositionCanonicalizer.encode/1,
+        matcher: matcher,
+        properties: [
+          {:open_files, &PositionProperties.open_files/1}
+        ]
+      )
+
+    {db, id_1} = PositionDB.put(db, position)
+    {db, id_2} = PositionDB.put(db, swapped)
+
+    assert id_1 != id_2
+
+    assert PositionDB.find_equivalent(db, position) ==
+             MapSet.new([id_1, id_2])
+
+    assert PositionDB.find_equivalent(db, swapped) ==
+             MapSet.new([id_1, id_2])
+  end
+
+  test "finds positions with the same equivalence key" do
+    position =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("a4"),
+        {:white, :pawn}
+      )
+
+    swapped = PositionTransform.swap_colors(position)
+
+    db =
+      PositionDB.new(
+        key_function: &PositionKey.exact/1,
+        equivalence_function: &PositionCanonicalizer.encode/1,
+        properties: [
+          {:open_files, &PositionProperties.open_files/1}
+        ]
+      )
+
+    {db, id_1} = PositionDB.put(db, position)
+    {db, id_2} = PositionDB.put(db, swapped)
+
+    assert id_1 != id_2
+
+    assert PositionDB.find_equivalent_candidates(db, position) ==
+             MapSet.new([id_1, id_2])
+
+    assert PositionDB.find_equivalent_candidates(db, swapped) ==
+             MapSet.new([id_1, id_2])
   end
 end

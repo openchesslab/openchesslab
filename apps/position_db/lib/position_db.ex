@@ -1,36 +1,46 @@
 defmodule PositionDB do
-  @moduledoc """
-  Database for chess positions.
-  """
-
-  alias PositionDB.QueryResult
-  alias PositionDB.QueryEngine
-  alias PositionDB.PropertyIndex
+  alias PositionDB.EquivalenceIndex
   alias PositionDB.PositionIndexer
   alias PositionDB.PositionStore
+  alias PositionDB.PropertyIndex
+  alias PositionDB.QueryEngine
 
   @type position_id :: non_neg_integer()
 
+  @type matcher :: (term(), term() -> boolean())
+
   @type t :: %__MODULE__{
           store: PositionStore.t(),
-          indexer: PositionIndexer.t()
+          indexer: PositionIndexer.t(),
+          equivalence_index: EquivalenceIndex.t(),
+          equivalence_function: (term() -> term()),
+          matcher: matcher()
         }
 
-  defstruct [:store, :indexer]
+  defstruct [
+    :store,
+    :indexer,
+    :equivalence_index,
+    :equivalence_function,
+    :matcher
+  ]
 
-  @spec new(
-          key_function: (term() -> term()),
-          properties: [{atom(), (term() -> [term()])}]
-        ) :: t()
-  def new(key_function: key_function, properties: properties) do
+  def new(options) do
+    key_function = Keyword.fetch!(options, :key_function)
+    properties = Keyword.fetch!(options, :properties)
+    equivalence_function = Keyword.get(options, :equivalence_function, key_function)
+    matcher = Keyword.get(options, :matcher, &(&1 == &2))
+
     %__MODULE__{
       store: PositionStore.new(key_function),
-      indexer: PositionIndexer.new(properties)
+      indexer: PositionIndexer.new(properties),
+      equivalence_index: EquivalenceIndex.new(),
+      equivalence_function: equivalence_function,
+      matcher: matcher
     }
   end
 
-  @spec put(t(), term()) :: {t(), position_id()}
-  def put(%__MODULE__{} = db, position) do
+  def put(db, position) do
     {store, position_id} = PositionStore.put(db.store, position)
 
     indexer =
@@ -40,33 +50,58 @@ defmodule PositionDB do
         position
       )
 
-    {%{db | store: store, indexer: indexer}, position_id}
+    equivalence_key = db.equivalence_function.(position)
+
+    equivalence_index =
+      EquivalenceIndex.add(
+        db.equivalence_index,
+        equivalence_key,
+        position_id
+      )
+
+    {
+      %{
+        db
+        | store: store,
+          indexer: indexer,
+          equivalence_index: equivalence_index
+      },
+      position_id
+    }
   end
 
-  @spec get(t(), position_id()) :: {:ok, term()} | :not_found
-  def get(%__MODULE__{} = db, position_id) do
-    PositionStore.get(db.store, position_id)
+  def get(db, position_id), do: PositionStore.get(db.store, position_id)
+
+  def find(db, position), do: PositionStore.find(db.store, position)
+
+  def find_by_property(db, property, value) do
+    PropertyIndex.lookup(db.indexer.index, {property, value})
   end
 
-  @spec find(t(), term()) :: {:ok, position_id()} | :not_found
-  def find(%__MODULE__{} = db, position) do
-    PositionStore.find(db.store, position)
+  def find_equivalent_candidates(db, position) do
+    position
+    |> db.equivalence_function.()
+    |> then(&EquivalenceIndex.lookup(db.equivalence_index, &1))
   end
 
-  @spec find_by_property(t(), atom(), term()) :: MapSet.t(position_id())
-  def find_by_property(%__MODULE__{} = db, property, value) do
-    PropertyIndex.lookup(
-      db.indexer.index,
-      {property, value}
-    )
+  @spec find_equivalent(t(), term()) :: MapSet.t(position_id())
+  def find_equivalent(db, position) do
+    candidate_ids = find_equivalent_candidates(db, position)
+
+    candidate_ids
+    |> Enum.filter(fn position_id ->
+      case PositionStore.get(db.store, position_id) do
+        {:ok, candidate} ->
+          db.matcher.(position, candidate)
+
+        :not_found ->
+          false
+      end
+    end)
+    |> MapSet.new()
   end
 
-  @spec query(t(), PositionDB.Query.t()) :: QueryResult.t()
-  def query(%__MODULE__{} = db, query) do
-    QueryEngine.execute(
-      db.indexer.index,
-      db.store,
-      query
-    )
+  def query(db, query) do
+    QueryEngine.execute(db.indexer.index, db.store, query)
   end
 end
