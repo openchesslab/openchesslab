@@ -166,4 +166,396 @@ defmodule PositionDB.PositionDbChessTest do
              )
            ) == [id_1]
   end
+
+  test "queries a real Chess.Position using any of multiple properties" do
+    position_1 =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("a4"),
+        {:white, :pawn}
+      )
+
+    position_2 =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("e4"),
+        {:white, :pawn}
+      )
+
+    db = new_db()
+
+    {db, id_1} = PositionDB.put(db, position_1)
+    {db, id_2} = PositionDB.put(db, position_2)
+
+    assert Enum.to_list(
+             PositionDB.query(
+               db,
+               Query.any([
+                 Query.property(:open_files, :e),
+                 Query.property(:open_files, :a)
+               ])
+             )
+           ) == [id_1, id_2]
+  end
+
+  test "queries a real Chess.Position using a negated property" do
+    position_1 =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("a4"),
+        {:white, :pawn}
+      )
+
+    position_2 =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("e4"),
+        {:white, :pawn}
+      )
+
+    db = new_db()
+
+    {db, _id_1} = PositionDB.put(db, position_1)
+    {db, id_2} = PositionDB.put(db, position_2)
+
+    assert Enum.to_list(
+             PositionDB.query(
+               db,
+               Query.negate(Query.property(:open_files, :e))
+             )
+           ) == [id_2]
+  end
+
+  test "queries a real Chess.Position using nested boolean expressions" do
+    position_1 =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("a4"),
+        {:white, :pawn}
+      )
+      |> Position.put_piece(
+        Square.from_algebraic("b4"),
+        {:black, :pawn}
+      )
+
+    position_2 =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("a4"),
+        {:white, :pawn}
+      )
+
+    position_3 =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("a4"),
+        {:white, :pawn}
+      )
+      |> Position.put_piece(
+        Square.from_algebraic("e4"),
+        {:black, :pawn}
+      )
+
+    db = new_db()
+
+    {db, id_1} = PositionDB.put(db, position_1)
+    {db, _id_2} = PositionDB.put(db, position_2)
+    {db, id_3} = PositionDB.put(db, position_3)
+
+    material_1 = PositionProperties.material(position_1)
+
+    query =
+      Query.any([
+        Query.all([
+          Query.property(:open_files, :e),
+          Query.property(:material, material_1)
+        ]),
+        Query.negate(Query.property(:open_files, :e))
+      ])
+
+    assert Enum.to_list(PositionDB.query(db, query)) == [id_1, id_3]
+  end
+
+  test "queries a real Chess.Position using a negated compound query" do
+    position_1 =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("a4"),
+        {:white, :pawn}
+      )
+
+    position_2 =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("e4"),
+        {:white, :pawn}
+      )
+
+    position_3 =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("a4"),
+        {:white, :pawn}
+      )
+      |> Position.put_piece(
+        Square.from_algebraic("e4"),
+        {:black, :pawn}
+      )
+
+    db = new_db()
+
+    {db, _id_1} = PositionDB.put(db, position_1)
+    {db, _id_2} = PositionDB.put(db, position_2)
+    {db, id_3} = PositionDB.put(db, position_3)
+
+    query =
+      Query.negate(
+        Query.any([
+          Query.property(:open_files, :a),
+          Query.property(:open_files, :e)
+        ])
+      )
+
+    assert Enum.to_list(PositionDB.query(db, query)) == [id_3]
+  end
+
+  test "match_none and match_all combine correctly with property queries" do
+    position_1 =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("a4"),
+        {:white, :pawn}
+      )
+
+    position_2 =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("e4"),
+        {:white, :pawn}
+      )
+
+    db = new_db()
+
+    {db, id_1} = PositionDB.put(db, position_1)
+    {db, id_2} = PositionDB.put(db, position_2)
+
+    open_e = Query.property(:open_files, :e)
+
+    assert Enum.to_list(
+             PositionDB.query(
+               db,
+               Query.all([Query.match_all(), open_e])
+             )
+           ) == [id_1]
+
+    assert Enum.to_list(
+             PositionDB.query(
+               db,
+               Query.all([Query.match_none(), open_e])
+             )
+           ) == []
+
+    assert Enum.to_list(
+             PositionDB.query(
+               db,
+               Query.any([Query.match_none(), open_e])
+             )
+           ) == [id_1]
+
+    assert MapSet.new(PositionDB.query(db, Query.any([Query.match_all(), open_e]))) ==
+             MapSet.new([id_1, id_2])
+  end
+
+  test "negating match_all and match_none produces the expected result" do
+    position =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("a4"),
+        {:white, :pawn}
+      )
+
+    db = new_db()
+
+    {db, position_id} = PositionDB.put(db, position)
+
+    assert Enum.to_list(
+             PositionDB.query(
+               db,
+               Query.negate(Query.match_all())
+             )
+           ) == []
+
+    assert Enum.to_list(
+             PositionDB.query(
+               db,
+               Query.negate(Query.match_none())
+             )
+           ) == [position_id]
+  end
+
+  test "query results are returned in ascending position ID order" do
+    position_1 =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("a4"),
+        {:white, :pawn}
+      )
+
+    position_2 =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("e4"),
+        {:white, :pawn}
+      )
+
+    position_3 =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("a4"),
+        {:white, :pawn}
+      )
+      |> Position.put_piece(
+        Square.from_algebraic("e4"),
+        {:black, :pawn}
+      )
+
+    db = new_db()
+
+    {db, id_1} = PositionDB.put(db, position_1)
+    {db, id_2} = PositionDB.put(db, position_2)
+    {db, _id_3} = PositionDB.put(db, position_3)
+
+    query =
+      Query.any([
+        Query.property(:open_files, :a),
+        Query.property(:open_files, :e)
+      ])
+
+    assert MapSet.new(PositionDB.query(db, query)) == MapSet.new([id_1, id_2])
+  end
+
+  test "query results remain in ascending position ID order with overlapping matches" do
+    position_1 =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("e4"),
+        {:black, :pawn}
+      )
+
+    position_2 =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("b4"),
+        {:white, :knight}
+      )
+
+    position_3 =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("a4"),
+        {:black, :pawn}
+      )
+
+    position_4 =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("a4"),
+        {:white, :pawn}
+      )
+      |> Position.put_piece(
+        Square.from_algebraic("e4"),
+        {:black, :pawn}
+      )
+
+    db = new_db()
+
+    {db, id_1} = PositionDB.put(db, position_1)
+    {db, id_2} = PositionDB.put(db, position_2)
+    {db, id_3} = PositionDB.put(db, position_3)
+    {db, _id_4} = PositionDB.put(db, position_4)
+
+    query =
+      Query.any([
+        Query.property(:open_files, :a),
+        Query.property(:open_files, :e)
+      ])
+
+    assert MapSet.new(PositionDB.query(db, query)) ==
+             MapSet.new([id_1, id_2, id_3])
+  end
+
+  test "deletes a position from the database and all indexes" do
+    position =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("a4"),
+        {:white, :pawn}
+      )
+
+    db = new_db()
+
+    {db, position_id} = PositionDB.put(db, position)
+
+    db = PositionDB.delete(db, position_id)
+
+    assert PositionDB.get(db, position_id) == :not_found
+    assert PositionDB.find(db, position) == :not_found
+
+    assert Enum.to_list(
+             PositionDB.query(
+               db,
+               Query.property(:open_files, :e)
+             )
+           ) == []
+
+    assert Enum.to_list(
+             PositionDB.query(
+               db,
+               Query.equivalent(position)
+             )
+           ) == []
+  end
+
+  test "deleting a position does not affect other positions or their indexes" do
+    position_1 =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("e4"),
+        {:white, :pawn}
+      )
+
+    position_2 =
+      Position.new()
+      |> Position.put_piece(
+        Square.from_algebraic("a4"),
+        {:white, :pawn}
+      )
+
+    db = new_db()
+
+    {db, id_1} = PositionDB.put(db, position_1)
+    {db, id_2} = PositionDB.put(db, position_2)
+
+    db = PositionDB.delete(db, id_1)
+
+    assert PositionDB.get(db, id_1) == :not_found
+    assert PositionDB.find(db, position_1) == :not_found
+
+    assert PositionDB.get(db, id_2) == {:ok, position_2}
+    assert PositionDB.find(db, position_2) == {:ok, id_2}
+
+    assert Enum.to_list(
+             PositionDB.query(
+               db,
+               Query.property(:open_files, :e)
+             )
+           ) == [id_2]
+
+    assert Enum.to_list(
+             PositionDB.query(
+               db,
+               Query.equivalent(position_2)
+             )
+           ) == [id_2]
+  end
 end

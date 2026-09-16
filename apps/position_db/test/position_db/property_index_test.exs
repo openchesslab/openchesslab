@@ -142,4 +142,89 @@ defmodule PositionDB.PropertyIndexTest do
              {:material, %{white: 1, black: 1}}
            ) == MapSet.new([1])
   end
+
+  test "deletes a position ID from a property" do
+    index =
+      PropertyIndex.new()
+      |> PropertyIndex.add({:open_files, :e}, 1)
+      |> PropertyIndex.add({:open_files, :e}, 2)
+
+    index = PropertyIndex.delete(index, {:open_files, :e}, 1)
+
+    assert PropertyIndex.lookup(index, {:open_files, :e}) ==
+             MapSet.new([2])
+  end
+
+  test "removes a property when its last position ID is deleted" do
+    index =
+      PropertyIndex.new()
+      |> PropertyIndex.add({:open_files, :e}, 1)
+
+    index = PropertyIndex.delete(index, {:open_files, :e}, 1)
+
+    assert PropertyIndex.lookup(index, {:open_files, :e}) ==
+             MapSet.new()
+
+    assert PropertyIndex.cardinality(index, {:open_files, :e}) == 0
+  end
+
+  test "deleting an unknown position ID does not affect a property" do
+    index =
+      PropertyIndex.new()
+      |> PropertyIndex.add({:open_files, :e}, 1)
+
+    index = PropertyIndex.delete(index, {:open_files, :e}, 2)
+
+    assert PropertyIndex.lookup(index, {:open_files, :e}) ==
+             MapSet.new([1])
+  end
+
+  test "deletes a position from all property indexes" do
+    indexer =
+      PositionIndexer.new([
+        {:open_files, fn _position -> [:a, :e] end},
+        {:material, fn _position -> %{white: 1, black: 1} end}
+      ])
+
+    indexer = PositionIndexer.index(indexer, 1, :position)
+
+    indexer = PositionIndexer.delete(indexer, 1, :position)
+
+    assert PropertyIndex.lookup(
+             indexer.index,
+             {:open_files, :a}
+           ) == MapSet.new()
+
+    assert PropertyIndex.lookup(
+             indexer.index,
+             {:open_files, :e}
+           ) == MapSet.new()
+
+    assert PropertyIndex.lookup(
+             indexer.index,
+             {:material, %{white: 1, black: 1}}
+           ) == MapSet.new()
+  end
+
+  test "deleting a position does not affect other positions" do
+    indexer =
+      PositionIndexer.new([
+        {:open_files, fn position -> position end}
+      ])
+
+    indexer = PositionIndexer.index(indexer, 1, :a)
+    indexer = PositionIndexer.index(indexer, 2, :b)
+
+    indexer = PositionIndexer.delete(indexer, 1, :a)
+
+    assert PropertyIndex.lookup(
+             indexer.index,
+             {:open_files, :a}
+           ) == MapSet.new()
+
+    assert PropertyIndex.lookup(
+             indexer.index,
+             {:open_files, :b}
+           ) == MapSet.new([2])
+  end
 end

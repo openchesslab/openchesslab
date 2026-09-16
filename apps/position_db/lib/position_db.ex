@@ -70,6 +70,27 @@ defmodule PositionDB do
     }
   end
 
+  @spec delete(t(), position_id()) :: t()
+  def delete(%__MODULE__{} = db, position_id) do
+    case PositionStore.get(db.store, position_id) do
+      :not_found ->
+        db
+
+      {:ok, position} ->
+        %{
+          db
+          | store: PositionStore.delete(db.store, position_id),
+            indexer: PositionIndexer.delete(db.indexer, position_id, position),
+            equivalence:
+              EquivalenceContext.delete(
+                db.equivalence,
+                position,
+                position_id
+              )
+        }
+    end
+  end
+
   def get(db, position_id) do
     PositionStore.get(db.store, position_id)
   end

@@ -84,4 +84,41 @@ defmodule PositionDB.PositionStoreTest do
 
     assert PositionStore.cardinality(store) == 1
   end
+
+  test "deletes a position" do
+    store = PositionStore.new(& &1)
+
+    {store, position_id} = PositionStore.put(store, :position)
+
+    store = PositionStore.delete(store, position_id)
+
+    assert PositionStore.get(store, position_id) == :not_found
+    assert PositionStore.find(store, :position) == :not_found
+  end
+
+  test "deleting a position does not affect other positions" do
+    store = PositionStore.new(& &1)
+
+    {store, position_id_1} = PositionStore.put(store, :position_1)
+    {store, position_id_2} = PositionStore.put(store, :position_2)
+
+    store = PositionStore.delete(store, position_id_1)
+
+    assert PositionStore.get(store, position_id_1) == :not_found
+    assert PositionStore.find(store, :position_1) == :not_found
+
+    assert PositionStore.get(store, position_id_2) == {:ok, :position_2}
+    assert PositionStore.find(store, :position_2) == {:ok, position_id_2}
+  end
+
+  test "deleting an unknown position ID leaves the store unchanged" do
+    store = PositionStore.new(& &1)
+
+    {store, position_id} = PositionStore.put(store, :position)
+
+    store_after_delete = PositionStore.delete(store, 999)
+
+    assert PositionStore.get(store_after_delete, position_id) == {:ok, :position}
+    assert PositionStore.find(store_after_delete, :position) == {:ok, position_id}
+  end
 end

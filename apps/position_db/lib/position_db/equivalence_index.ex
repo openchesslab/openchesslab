@@ -20,6 +20,23 @@ defmodule PositionDB.EquivalenceIndex do
     )
   end
 
+  @spec delete(t(), equivalence_key(), position_id()) :: t()
+  def delete(index, key, position_id) do
+    case Map.get(index, key) do
+      nil ->
+        index
+
+      positions ->
+        positions = MapSet.delete(positions, position_id)
+
+        if MapSet.size(positions) == 0 do
+          Map.delete(index, key)
+        else
+          Map.put(index, key, positions)
+        end
+    end
+  end
+
   @spec lookup(t(), equivalence_key()) :: MapSet.t(position_id())
   def lookup(index, key) do
     Map.get(index, key, MapSet.new())

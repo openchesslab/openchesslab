@@ -39,4 +39,19 @@ defmodule PositionDB.EquivalenceContext do
           )
     }
   end
+
+  @spec delete(t(), term(), non_neg_integer()) :: t()
+  def delete(context, position, position_id) do
+    key = context.key_function.(position)
+
+    %{
+      context
+      | index:
+          EquivalenceIndex.delete(
+            context.index,
+            key,
+            position_id
+          )
+    }
+  end
 end
