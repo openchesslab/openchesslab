@@ -6,7 +6,7 @@ defmodule PositionDB.PositionIndexer do
   alias PositionDB.PropertyIndex
 
   @type position_id :: term()
-  @type property :: {atom(), (term() -> [term()])}
+  @type property :: {atom(), (term() -> term())}
 
   @type t :: %__MODULE__{
           properties: [property()],
@@ -27,7 +27,11 @@ defmodule PositionDB.PositionIndexer do
   def index(%__MODULE__{} = indexer, position_id, position) do
     index =
       Enum.reduce(indexer.properties, indexer.index, fn {name, property}, index ->
-        values = property.(position)
+        values =
+          case property.(position) do
+            values when is_list(values) -> values
+            value -> [value]
+          end
 
         Enum.reduce(values, index, fn value, index ->
           PropertyIndex.add(index, {name, value}, position_id)

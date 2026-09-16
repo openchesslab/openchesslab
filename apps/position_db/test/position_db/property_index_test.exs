@@ -126,4 +126,20 @@ defmodule PositionDB.PropertyIndexTest do
 
     assert PropertyIndex.cardinality(index, {:open_files, :e}) == 0
   end
+
+  test "indexes a scalar property value as one value" do
+    property = fn _position -> %{white: 1, black: 1} end
+
+    indexer =
+      PositionIndexer.new([
+        {:material, property}
+      ])
+
+    indexer = PositionIndexer.index(indexer, 1, :position)
+
+    assert PropertyIndex.lookup(
+             indexer.index,
+             {:material, %{white: 1, black: 1}}
+           ) == MapSet.new([1])
+  end
 end
