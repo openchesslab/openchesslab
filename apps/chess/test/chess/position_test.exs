@@ -324,6 +324,26 @@ defmodule Chess.PositionTest do
       refute Position.in_check?(position, :white)
       assert Position.legal_moves(position) == []
     end
+
+    test "legal_moves/1 generates moves for all piece types" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("a1"), {:white, :rook})
+        |> Position.put_piece(square("c1"), {:white, :bishop})
+        |> Position.put_piece(square("b1"), {:white, :knight})
+        |> Position.put_piece(square("d1"), {:white, :queen})
+        |> Position.put_piece(square("e2"), {:white, :pawn})
+
+      moves = Position.legal_moves(position)
+
+      assert Move.new(square("a1"), square("a2")) in moves
+      assert Move.new(square("b1"), square("c3")) in moves
+      assert Move.new(square("c1"), square("d2")) in moves
+      assert Move.new(square("d1"), square("d2")) in moves
+      assert Move.new(square("e2"), square("e3")) in moves
+      assert Move.new(square("e1"), square("f1")) in moves
+    end
   end
 
   test "checkmate?/2 returns true for checkmate" do
