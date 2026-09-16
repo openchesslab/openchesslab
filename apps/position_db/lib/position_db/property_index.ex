@@ -20,23 +20,6 @@ defmodule PositionDB.PropertyIndex do
     )
   end
 
-  @spec delete(t(), property(), position_id()) :: t()
-  def delete(index, property, position_id) do
-    case Map.get(index, property) do
-      nil ->
-        index
-
-      positions ->
-        positions = MapSet.delete(positions, position_id)
-
-        if MapSet.size(positions) == 0 do
-          Map.delete(index, property)
-        else
-          Map.put(index, property, positions)
-        end
-    end
-  end
-
   @spec lookup(t(), property()) :: MapSet.t(position_id())
   def lookup(index, property) do
     Map.get(index, property, MapSet.new())

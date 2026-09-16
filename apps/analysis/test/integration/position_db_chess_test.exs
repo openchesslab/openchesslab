@@ -35,7 +35,7 @@ defmodule PositionDB.PositionDbChessTest do
 
     db = new_db()
 
-    {db, position_id} = PositionDB.put(db, position)
+    {db, position_id} = PositionDB.append(db, position)
 
     assert PositionDB.get(db, position_id) == {:ok, position}
     assert PositionDB.find(db, position) == {:ok, position_id}
@@ -57,8 +57,8 @@ defmodule PositionDB.PositionDbChessTest do
 
     db = new_db()
 
-    {db, id_1} = PositionDB.put(db, position)
-    {db, id_2} = PositionDB.put(db, swapped)
+    {db, id_1} = PositionDB.append(db, position)
+    {db, id_2} = PositionDB.append(db, swapped)
 
     assert id_1 != id_2
 
@@ -90,8 +90,8 @@ defmodule PositionDB.PositionDbChessTest do
 
     db = new_db()
 
-    {db, id_1} = PositionDB.put(db, position_1)
-    {db, _id_2} = PositionDB.put(db, position_2)
+    {db, id_1} = PositionDB.append(db, position_1)
+    {db, _id_2} = PositionDB.append(db, position_2)
 
     assert :e in PositionProperties.open_files(position_1)
     assert :a in PositionProperties.open_files(position_2)
@@ -136,9 +136,9 @@ defmodule PositionDB.PositionDbChessTest do
 
     db = new_db()
 
-    {db, id_1} = PositionDB.put(db, position_1)
-    {db, id_2} = PositionDB.put(db, position_2)
-    {db, id_3} = PositionDB.put(db, position_3)
+    {db, id_1} = PositionDB.append(db, position_1)
+    {db, id_2} = PositionDB.append(db, position_2)
+    {db, id_3} = PositionDB.append(db, position_3)
 
     material_1 = PositionProperties.material(position_1)
 
@@ -184,8 +184,8 @@ defmodule PositionDB.PositionDbChessTest do
 
     db = new_db()
 
-    {db, id_1} = PositionDB.put(db, position_1)
-    {db, id_2} = PositionDB.put(db, position_2)
+    {db, id_1} = PositionDB.append(db, position_1)
+    {db, id_2} = PositionDB.append(db, position_2)
 
     assert Enum.to_list(
              PositionDB.query(
@@ -215,8 +215,8 @@ defmodule PositionDB.PositionDbChessTest do
 
     db = new_db()
 
-    {db, _id_1} = PositionDB.put(db, position_1)
-    {db, id_2} = PositionDB.put(db, position_2)
+    {db, _id_1} = PositionDB.append(db, position_1)
+    {db, id_2} = PositionDB.append(db, position_2)
 
     assert Enum.to_list(
              PositionDB.query(
@@ -258,9 +258,9 @@ defmodule PositionDB.PositionDbChessTest do
 
     db = new_db()
 
-    {db, id_1} = PositionDB.put(db, position_1)
-    {db, _id_2} = PositionDB.put(db, position_2)
-    {db, id_3} = PositionDB.put(db, position_3)
+    {db, id_1} = PositionDB.append(db, position_1)
+    {db, _id_2} = PositionDB.append(db, position_2)
+    {db, id_3} = PositionDB.append(db, position_3)
 
     material_1 = PositionProperties.material(position_1)
 
@@ -304,9 +304,9 @@ defmodule PositionDB.PositionDbChessTest do
 
     db = new_db()
 
-    {db, _id_1} = PositionDB.put(db, position_1)
-    {db, _id_2} = PositionDB.put(db, position_2)
-    {db, id_3} = PositionDB.put(db, position_3)
+    {db, _id_1} = PositionDB.append(db, position_1)
+    {db, _id_2} = PositionDB.append(db, position_2)
+    {db, id_3} = PositionDB.append(db, position_3)
 
     query =
       Query.negate(
@@ -336,8 +336,8 @@ defmodule PositionDB.PositionDbChessTest do
 
     db = new_db()
 
-    {db, id_1} = PositionDB.put(db, position_1)
-    {db, id_2} = PositionDB.put(db, position_2)
+    {db, id_1} = PositionDB.append(db, position_1)
+    {db, id_2} = PositionDB.append(db, position_2)
 
     open_e = Query.property(:open_files, :e)
 
@@ -376,7 +376,7 @@ defmodule PositionDB.PositionDbChessTest do
 
     db = new_db()
 
-    {db, position_id} = PositionDB.put(db, position)
+    {db, position_id} = PositionDB.append(db, position)
 
     assert Enum.to_list(
              PositionDB.query(
@@ -421,9 +421,9 @@ defmodule PositionDB.PositionDbChessTest do
 
     db = new_db()
 
-    {db, id_1} = PositionDB.put(db, position_1)
-    {db, id_2} = PositionDB.put(db, position_2)
-    {db, _id_3} = PositionDB.put(db, position_3)
+    {db, id_1} = PositionDB.append(db, position_1)
+    {db, id_2} = PositionDB.append(db, position_2)
+    {db, _id_3} = PositionDB.append(db, position_3)
 
     query =
       Query.any([
@@ -469,10 +469,10 @@ defmodule PositionDB.PositionDbChessTest do
 
     db = new_db()
 
-    {db, id_1} = PositionDB.put(db, position_1)
-    {db, id_2} = PositionDB.put(db, position_2)
-    {db, id_3} = PositionDB.put(db, position_3)
-    {db, _id_4} = PositionDB.put(db, position_4)
+    {db, id_1} = PositionDB.append(db, position_1)
+    {db, id_2} = PositionDB.append(db, position_2)
+    {db, id_3} = PositionDB.append(db, position_3)
+    {db, _id_4} = PositionDB.append(db, position_4)
 
     query =
       Query.any([
@@ -482,80 +482,5 @@ defmodule PositionDB.PositionDbChessTest do
 
     assert MapSet.new(PositionDB.query(db, query)) ==
              MapSet.new([id_1, id_2, id_3])
-  end
-
-  test "deletes a position from the database and all indexes" do
-    position =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:white, :pawn}
-      )
-
-    db = new_db()
-
-    {db, position_id} = PositionDB.put(db, position)
-
-    db = PositionDB.delete(db, position_id)
-
-    assert PositionDB.get(db, position_id) == :not_found
-    assert PositionDB.find(db, position) == :not_found
-
-    assert Enum.to_list(
-             PositionDB.query(
-               db,
-               Query.property(:open_files, :e)
-             )
-           ) == []
-
-    assert Enum.to_list(
-             PositionDB.query(
-               db,
-               Query.equivalent(position)
-             )
-           ) == []
-  end
-
-  test "deleting a position does not affect other positions or their indexes" do
-    position_1 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("e4"),
-        {:white, :pawn}
-      )
-
-    position_2 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:white, :pawn}
-      )
-
-    db = new_db()
-
-    {db, id_1} = PositionDB.put(db, position_1)
-    {db, id_2} = PositionDB.put(db, position_2)
-
-    db = PositionDB.delete(db, id_1)
-
-    assert PositionDB.get(db, id_1) == :not_found
-    assert PositionDB.find(db, position_1) == :not_found
-
-    assert PositionDB.get(db, id_2) == {:ok, position_2}
-    assert PositionDB.find(db, position_2) == {:ok, id_2}
-
-    assert Enum.to_list(
-             PositionDB.query(
-               db,
-               Query.property(:open_files, :e)
-             )
-           ) == [id_2]
-
-    assert Enum.to_list(
-             PositionDB.query(
-               db,
-               Query.equivalent(position_2)
-             )
-           ) == [id_2]
   end
 end

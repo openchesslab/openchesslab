@@ -40,7 +40,7 @@ defmodule PositionDBTest do
         ]
       )
 
-    {db, position_id} = PositionDB.put(db, position)
+    {db, position_id} = PositionDB.append(db, position)
 
     assert PositionDB.get(db, position_id) == {:ok, position}
     assert PositionDB.find(db, position) == {:ok, position_id}
@@ -70,8 +70,8 @@ defmodule PositionDBTest do
         ]
       )
 
-    {db, id_1} = PositionDB.put(db, position)
-    {db, id_2} = PositionDB.put(db, position)
+    {db, id_1} = PositionDB.append(db, position)
+    {db, id_2} = PositionDB.append(db, position)
 
     assert id_1 == id_2
 
@@ -102,8 +102,8 @@ defmodule PositionDBTest do
         ]
       )
 
-    {db, id_1} = PositionDB.put(db, position_1)
-    {_db, id_2} = PositionDB.put(db, position_2)
+    {db, id_1} = PositionDB.append(db, position_1)
+    {_db, id_2} = PositionDB.append(db, position_2)
 
     assert id_1 != id_2
   end
@@ -124,7 +124,7 @@ defmodule PositionDBTest do
         ]
       )
 
-    {db, position_id} = PositionDB.put(db, position)
+    {db, position_id} = PositionDB.append(db, position)
 
     assert Enum.to_list(
              PositionDB.query(
@@ -164,8 +164,8 @@ defmodule PositionDBTest do
         ]
       )
 
-    {db, id_1} = PositionDB.put(db, position_1)
-    {db, id_2} = PositionDB.put(db, position_2)
+    {db, id_1} = PositionDB.append(db, position_1)
+    {db, id_2} = PositionDB.append(db, position_2)
 
     result =
       PositionDB.query(
@@ -206,9 +206,9 @@ defmodule PositionDBTest do
         ]
       )
 
-    {db, id_1} = PositionDB.put(db, position_1)
-    {db, id_2} = PositionDB.put(db, position_2)
-    {db, _id_3} = PositionDB.put(db, position_3)
+    {db, id_1} = PositionDB.append(db, position_1)
+    {db, id_2} = PositionDB.append(db, position_2)
+    {db, _id_3} = PositionDB.append(db, position_3)
 
     query =
       Query.all([
@@ -251,9 +251,9 @@ defmodule PositionDBTest do
         ]
       )
 
-    {db, id_1} = PositionDB.put(db, position_1)
-    {db, id_2} = PositionDB.put(db, position_2)
-    {db, id_3} = PositionDB.put(db, position_3)
+    {db, id_1} = PositionDB.append(db, position_1)
+    {db, id_2} = PositionDB.append(db, position_2)
+    {db, id_3} = PositionDB.append(db, position_3)
 
     query =
       Query.any([
@@ -289,8 +289,8 @@ defmodule PositionDBTest do
         ]
       )
 
-    {db, _id_1} = PositionDB.put(db, position_1)
-    {db, id_2} = PositionDB.put(db, position_2)
+    {db, _id_1} = PositionDB.append(db, position_1)
+    {db, id_2} = PositionDB.append(db, position_2)
 
     query = Query.negate(Query.property(:open_files, :e))
 
@@ -315,7 +315,7 @@ defmodule PositionDBTest do
         ]
       )
 
-    {db, position_id} = PositionDB.put(db, position)
+    {db, position_id} = PositionDB.append(db, position)
 
     query =
       Query.all([
@@ -344,7 +344,7 @@ defmodule PositionDBTest do
         ]
       )
 
-    {db, position_id} = PositionDB.put(db, position)
+    {db, position_id} = PositionDB.append(db, position)
 
     query =
       Query.any([
@@ -384,8 +384,8 @@ defmodule PositionDBTest do
         ]
       )
 
-    {db, id_1} = PositionDB.put(db, position)
-    {db, id_2} = PositionDB.put(db, swapped)
+    {db, id_1} = PositionDB.append(db, position)
+    {db, id_2} = PositionDB.append(db, swapped)
 
     result =
       PositionDB.query(
@@ -430,9 +430,9 @@ defmodule PositionDBTest do
         ]
       )
 
-    {db, id_1} = PositionDB.put(db, position)
-    {db, id_2} = PositionDB.put(db, swapped)
-    {db, _id_3} = PositionDB.put(db, other)
+    {db, id_1} = PositionDB.append(db, position)
+    {db, id_2} = PositionDB.append(db, swapped)
+    {db, _id_3} = PositionDB.append(db, other)
 
     result =
       PositionDB.query(
@@ -450,7 +450,7 @@ defmodule PositionDBTest do
     db = new_db()
     position = %{id: :position_1, open_files: [:a, :e]}
 
-    {db, position_id} = PositionDB.put(db, position)
+    {db, position_id} = PositionDB.append(db, position)
 
     assert PositionDB.get(db, position_id) == {:ok, position}
   end
@@ -459,7 +459,7 @@ defmodule PositionDBTest do
     db = new_db()
     position = %{id: :position_1, open_files: [:a, :e]}
 
-    {db, position_id} = PositionDB.put(db, position)
+    {db, position_id} = PositionDB.append(db, position)
 
     assert PositionDB.find(db, position) == {:ok, position_id}
   end
@@ -478,8 +478,8 @@ defmodule PositionDBTest do
     position_1 = %{id: :position_1, open_files: [:a, :e]}
     position_2 = %{id: :position_2, open_files: [:a, :e]}
 
-    {db, id_1} = PositionDB.put(db, position_1)
-    {db, id_2} = PositionDB.put(db, position_2)
+    {db, id_1} = PositionDB.append(db, position_1)
+    {db, id_2} = PositionDB.append(db, position_2)
 
     assert id_1 != id_2
 
@@ -499,7 +499,7 @@ defmodule PositionDBTest do
 
     position = %{id: :position_1, open_files: [:a, :e]}
 
-    {db, position_id} = PositionDB.put(db, position)
+    {db, position_id} = PositionDB.append(db, position)
 
     assert Enum.to_list(
              PositionDB.query(
@@ -530,7 +530,7 @@ defmodule PositionDBTest do
         positions,
         db,
         fn position, db ->
-          {db, position_id} = PositionDB.put(db, position)
+          {db, position_id} = PositionDB.append(db, position)
           {position_id, db}
         end
       )

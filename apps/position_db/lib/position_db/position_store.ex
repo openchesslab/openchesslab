@@ -58,28 +58,6 @@ defmodule PositionDB.PositionStore do
     end
   end
 
-  @spec delete(t(), position_id()) :: t()
-  def delete(%__MODULE__{} = store, position_id) do
-    case Map.pop(store.positions, position_id) do
-      {nil, _positions} ->
-        store
-
-      {position, positions} ->
-        key = store.key_function.(position)
-        exact_index = Map.get(store.exact_index, key, MapSet.new())
-        exact_index = MapSet.delete(exact_index, position_id)
-
-        exact_index =
-          if MapSet.size(exact_index) == 0 do
-            Map.delete(store.exact_index, key)
-          else
-            Map.put(store.exact_index, key, exact_index)
-          end
-
-        %{store | positions: positions, exact_index: exact_index}
-    end
-  end
-
   @spec get(t(), position_id()) :: {:ok, term()} | :not_found
   def get(%__MODULE__{} = store, position_id) do
     case Map.fetch(store.positions, position_id) do

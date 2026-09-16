@@ -40,26 +40,4 @@ defmodule PositionDB.PositionIndexer do
 
     %{indexer | index: index}
   end
-
-  @spec delete(t(), position_id(), term()) :: t()
-  def delete(%__MODULE__{} = indexer, position_id, position) do
-    index =
-      Enum.reduce(indexer.properties, indexer.index, fn {name, property}, index ->
-        values =
-          case property.(position) do
-            values when is_list(values) -> values
-            value -> [value]
-          end
-
-        Enum.reduce(values, index, fn value, index ->
-          PropertyIndex.delete(
-            index,
-            {name, value},
-            position_id
-          )
-        end)
-      end)
-
-    %{indexer | index: index}
-  end
 end
