@@ -92,7 +92,6 @@ defmodule Chess.Position do
     Chess.Board.pieces(board)
   end
 
-  @spec apply_move(t(), Move.t()) :: {:ok, t()} | {:error, :illegal_move}
   def apply_move(
         %__MODULE__{side_to_move: side} = position,
         %Move{from: from, to: to, promotion: promotion}
@@ -100,6 +99,12 @@ defmodule Chess.Position do
     case piece_at(position, from) do
       {^side, :pawn} ->
         apply_pawn_move(position, side, from, to, promotion)
+
+      {^side, :king} ->
+        apply_king_move(position, side, from, to, promotion)
+
+      {^side, :rook} ->
+        apply_rook_move(position, side, from, to, promotion)
 
       _ ->
         {:error, :illegal_move}
@@ -170,6 +175,71 @@ defmodule Chess.Position do
       _ ->
         {:error, :illegal_move}
     end
+  end
+
+  defp apply_king_move(position, color, from, to, nil) do
+    file_distance = abs(rem(to, 8) - rem(from, 8))
+    rank_distance = abs(div(to, 8) - div(from, 8))
+
+    if file_distance <= 1 and rank_distance <= 1 and
+         file_distance + rank_distance > 0 do
+      case piece_at(position, to) do
+        {^color, _piece} ->
+          {:error, :illegal_move}
+
+        _ ->
+          move_piece(position, from, to, color, opposite_color(color))
+      end
+    else
+      {:error, :illegal_move}
+    end
+  end
+
+  defp apply_king_move(_position, _color, _from, _to, _promotion) do
+    {:error, :illegal_move}
+  end
+
+  defp apply_rook_move(position, color, from, to, nil) do
+    same_file = rem(from, 8) == rem(to, 8)
+    same_rank = div(from, 8) == div(to, 8)
+
+    if same_file or same_rank do
+      if path_clear?(position, from, to) do
+        case piece_at(position, to) do
+          {^color, _piece} ->
+            {:error, :illegal_move}
+
+          _ ->
+            move_piece(position, from, to, color, opposite_color(color))
+        end
+      else
+        {:error, :illegal_move}
+      end
+    else
+      {:error, :illegal_move}
+    end
+  end
+
+  defp apply_rook_move(_position, _color, _from, _to, _promotion) do
+    {:error, :illegal_move}
+  end
+
+  defp path_clear?(position, from, to) do
+    step = movement_step(from, to)
+
+    Stream.iterate(from + step, &(&1 + step))
+    |> Enum.take_while(&(&1 != to))
+    |> Enum.all?(fn square ->
+      piece_at(position, square) == nil
+    end)
+  end
+
+  defp movement_step(from, to) when rem(from, 8) == rem(to, 8) do
+    if to > from, do: 8, else: -8
+  end
+
+  defp movement_step(from, to) when div(from, 8) == div(to, 8) do
+    if to > from, do: 1, else: -1
   end
 
   defp move_pawn(position, from, to, color, next_side, promotion) do
@@ -312,6 +382,25 @@ defmodule Chess.Position do
 
     left == {enemy_color, :pawn} or right == {enemy_color, :pawn}
   end
+
+  defp move_piece(position, from, to, _color, next_side) do
+    piece = piece_at(position, from)
+
+    position =
+      position
+      |> remove_piece(from)
+      |> put_piece(to, piece)
+
+    {:ok,
+     %{
+       position
+       | side_to_move: next_side,
+         en_passant: nil
+     }}
+  end
+
+  defp opposite_color(:white), do: :black
+  defp opposite_color(:black), do: :white
 
   defp place_back_rank(board, color, rank_start) do
     pieces = [

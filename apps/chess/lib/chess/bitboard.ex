@@ -193,6 +193,160 @@ defmodule Chess.Bitboard do
     }
   end
 
+  def rook_attacks(board, square) when square in 0..63 do
+    board
+    |> ray_attacks(square, 8)
+    |> bor(ray_attacks(board, square, -8))
+    |> bor(ray_attacks(board, square, 1))
+    |> bor(ray_attacks(board, square, -1))
+  end
+
+  def bishop_attacks(board, square) when square in 0..63 do
+    ray_attacks(board, square, 9) |||
+      ray_attacks(board, square, 7) |||
+      ray_attacks(board, square, -7) |||
+      ray_attacks(board, square, -9)
+  end
+
+  def queen_attacks(board, square) when square in 0..63 do
+    rook_attacks(board, square) ||| bishop_attacks(board, square)
+  end
+
+  def king_attacks(square) when square in 0..63 do
+    file = rem(square, 8)
+    rank = div(square, 8)
+
+    for file_offset <- -1..1,
+        rank_offset <- -1..1,
+        file_offset != 0 or rank_offset != 0,
+        target_file = file + file_offset,
+        target_rank = rank + rank_offset,
+        target_file in 0..7,
+        target_rank in 0..7,
+        reduce: 0 do
+      attacks ->
+        target = target_rank * 8 + target_file
+        attacks ||| 1 <<< target
+    end
+  end
+
+  def knight_attacks(square) when square in 0..63 do
+    file = rem(square, 8)
+    rank = div(square, 8)
+
+    offsets = [
+      {-2, -1},
+      {-2, 1},
+      {-1, -2},
+      {-1, 2},
+      {1, -2},
+      {1, 2},
+      {2, -1},
+      {2, 1}
+    ]
+
+    Enum.reduce(offsets, 0, fn {file_offset, rank_offset}, attacks ->
+      target_file = file + file_offset
+      target_rank = rank + rank_offset
+
+      if target_file in 0..7 and target_rank in 0..7 do
+        target = target_rank * 8 + target_file
+        attacks ||| 1 <<< target
+      else
+        attacks
+      end
+    end)
+  end
+
+  def pawn_attacks(:white, square) when square in 0..63 do
+    pawn_attacks_for_direction(square, 1)
+  end
+
+  def pawn_attacks(:black, square) when square in 0..63 do
+    pawn_attacks_for_direction(square, -1)
+  end
+
+  defp pawn_attacks_for_direction(square, rank_direction) do
+    file = rem(square, 8)
+    rank = div(square, 8)
+
+    target_rank = rank + rank_direction
+
+    if target_rank in 0..7 do
+      attacks =
+        if file > 0 do
+          1 <<< (target_rank * 8 + file - 1)
+        else
+          0
+        end
+
+      attacks |||
+        if file < 7 do
+          1 <<< (target_rank * 8 + file + 1)
+        else
+          0
+        end
+    else
+      0
+    end
+  end
+
+  defp ray_attacks(board, square, step) do
+    ray_attacks(board, square, step, 0)
+  end
+
+  defp ray_attacks(board, square, step, attacks) do
+    next = square + step
+
+    if valid_ray_square?(square, next, step) do
+      attacks = bor(attacks, 1 <<< next)
+
+      if occupied_square?(board, next) do
+        attacks
+      else
+        ray_attacks(board, next, step, attacks)
+      end
+    else
+      attacks
+    end
+  end
+
+  defp valid_ray_square?(_from, to, step) when step in [8, -8] do
+    to in 0..63
+  end
+
+  defp valid_ray_square?(from, to, 1) do
+    to in 0..63 and rem(to, 8) == rem(from, 8) + 1
+  end
+
+  defp valid_ray_square?(from, to, -1) do
+    to in 0..63 and rem(to, 8) == rem(from, 8) - 1
+  end
+
+  defp valid_ray_square?(from, to, 9) do
+    to in 0..63 and
+      rem(to, 8) == rem(from, 8) + 1
+  end
+
+  defp valid_ray_square?(from, to, 7) do
+    to in 0..63 and
+      rem(to, 8) == rem(from, 8) - 1
+  end
+
+  defp valid_ray_square?(from, to, -7) do
+    to in 0..63 and
+      rem(to, 8) == rem(from, 8) + 1
+  end
+
+  defp valid_ray_square?(from, to, -9) do
+    to in 0..63 and
+      rem(to, 8) == rem(from, 8) - 1
+  end
+
+  defp occupied_square?(board, square) do
+    (occupied(board) &&& 1 <<< square) != 0
+  end
+
   defp popcount(value) do
     popcount(value, 0)
   end

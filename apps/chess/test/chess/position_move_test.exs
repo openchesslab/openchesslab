@@ -510,5 +510,271 @@ defmodule Chess.PositionMoveTest do
     end
   end
 
+  describe "king moves" do
+    test "king can move one square horizontally" do
+      position =
+        Position.new(
+          board:
+            Chess.Board.empty()
+            |> Chess.Board.put(square("e4"), {:white, :king}),
+          side_to_move: :white
+        )
+
+      move = Move.new(square("e4"), square("f4"))
+
+      assert {:ok, next_position} = Position.apply_move(position, move)
+
+      assert Position.piece_at(next_position, square("e4")) == nil
+      assert Position.piece_at(next_position, square("f4")) == {:white, :king}
+      assert next_position.side_to_move == :black
+    end
+
+    test "king can move one square vertically" do
+      position =
+        Position.new(
+          board:
+            Chess.Board.empty()
+            |> Chess.Board.put(square("e4"), {:white, :king}),
+          side_to_move: :white
+        )
+
+      move = Move.new(square("e4"), square("e5"))
+
+      assert {:ok, next_position} = Position.apply_move(position, move)
+
+      assert Position.piece_at(next_position, square("e5")) == {:white, :king}
+    end
+
+    test "king can move one square diagonally" do
+      position =
+        Position.new(
+          board:
+            Chess.Board.empty()
+            |> Chess.Board.put(square("e4"), {:white, :king}),
+          side_to_move: :white
+        )
+
+      move = Move.new(square("e4"), square("f5"))
+
+      assert {:ok, next_position} = Position.apply_move(position, move)
+
+      assert Position.piece_at(next_position, square("f5")) == {:white, :king}
+    end
+
+    test "king cannot move more than one square" do
+      position =
+        Position.new(
+          board:
+            Chess.Board.empty()
+            |> Chess.Board.put(square("e4"), {:white, :king}),
+          side_to_move: :white
+        )
+
+      move = Move.new(square("e4"), square("e6"))
+
+      assert {:error, :illegal_move} =
+               Position.apply_move(position, move)
+    end
+
+    test "king can capture an opposing piece" do
+      position =
+        Position.new(
+          board:
+            Chess.Board.empty()
+            |> Chess.Board.put(square("e4"), {:white, :king})
+            |> Chess.Board.put(square("f5"), {:black, :knight}),
+          side_to_move: :white
+        )
+
+      move = Move.new(square("e4"), square("f5"))
+
+      assert {:ok, next_position} = Position.apply_move(position, move)
+
+      assert Position.piece_at(next_position, square("e4")) == nil
+      assert Position.piece_at(next_position, square("f5")) == {:white, :king}
+    end
+
+    test "king cannot move onto a friendly piece" do
+      position =
+        Position.new(
+          board:
+            Chess.Board.empty()
+            |> Chess.Board.put(square("e4"), {:white, :king})
+            |> Chess.Board.put(square("f5"), {:white, :knight}),
+          side_to_move: :white
+        )
+
+      move = Move.new(square("e4"), square("f5"))
+
+      assert {:error, :illegal_move} =
+               Position.apply_move(position, move)
+    end
+
+    test "king cannot move with a promotion" do
+      position =
+        Position.new(
+          board:
+            Chess.Board.empty()
+            |> Chess.Board.put(square("e4"), {:white, :king}),
+          side_to_move: :white
+        )
+
+      move = Move.new(square("e4"), square("e5"), :queen)
+
+      assert {:error, :illegal_move} =
+               Position.apply_move(position, move)
+    end
+  end
+
+  describe "rook moves" do
+    test "rook can move horizontally" do
+      position =
+        Position.new(
+          board:
+            Chess.Board.empty()
+            |> Chess.Board.put(square("d4"), {:white, :rook}),
+          side_to_move: :white
+        )
+
+      move = Move.new(square("d4"), square("h4"))
+
+      assert {:ok, next_position} = Position.apply_move(position, move)
+
+      assert Position.piece_at(next_position, square("d4")) == nil
+      assert Position.piece_at(next_position, square("h4")) == {:white, :rook}
+      assert next_position.side_to_move == :black
+    end
+
+    test "rook can move vertically" do
+      position =
+        Position.new(
+          board:
+            Chess.Board.empty()
+            |> Chess.Board.put(square("d4"), {:white, :rook}),
+          side_to_move: :white
+        )
+
+      move = Move.new(square("d4"), square("d8"))
+
+      assert {:ok, next_position} = Position.apply_move(position, move)
+
+      assert Position.piece_at(next_position, square("d8")) == {:white, :rook}
+    end
+
+    test "rook cannot move diagonally" do
+      position =
+        Position.new(
+          board:
+            Chess.Board.empty()
+            |> Chess.Board.put(square("d4"), {:white, :rook}),
+          side_to_move: :white
+        )
+
+      move = Move.new(square("d4"), square("e5"))
+
+      assert {:error, :illegal_move} =
+               Position.apply_move(position, move)
+    end
+
+    test "rook can capture an opposing piece" do
+      position =
+        Position.new(
+          board:
+            Chess.Board.empty()
+            |> Chess.Board.put(square("d4"), {:white, :rook})
+            |> Chess.Board.put(square("d7"), {:black, :knight}),
+          side_to_move: :white
+        )
+
+      move = Move.new(square("d4"), square("d7"))
+
+      assert {:ok, next_position} = Position.apply_move(position, move)
+
+      assert Position.piece_at(next_position, square("d4")) == nil
+      assert Position.piece_at(next_position, square("d7")) == {:white, :rook}
+    end
+
+    test "rook cannot move onto a friendly piece" do
+      position =
+        Position.new(
+          board:
+            Chess.Board.empty()
+            |> Chess.Board.put(square("d4"), {:white, :rook})
+            |> Chess.Board.put(square("d7"), {:white, :knight}),
+          side_to_move: :white
+        )
+
+      move = Move.new(square("d4"), square("d7"))
+
+      assert {:error, :illegal_move} =
+               Position.apply_move(position, move)
+    end
+
+    test "rook cannot jump over a piece" do
+      position =
+        Position.new(
+          board:
+            Chess.Board.empty()
+            |> Chess.Board.put(square("d4"), {:white, :rook})
+            |> Chess.Board.put(square("d6"), {:white, :pawn}),
+          side_to_move: :white
+        )
+
+      move = Move.new(square("d4"), square("d8"))
+
+      assert {:error, :illegal_move} =
+               Position.apply_move(position, move)
+    end
+
+    test "rook can capture the first opposing piece in its path" do
+      position =
+        Position.new(
+          board:
+            Chess.Board.empty()
+            |> Chess.Board.put(square("d4"), {:white, :rook})
+            |> Chess.Board.put(square("d6"), {:black, :pawn}),
+          side_to_move: :white
+        )
+
+      move = Move.new(square("d4"), square("d6"))
+
+      assert {:ok, next_position} = Position.apply_move(position, move)
+
+      assert Position.piece_at(next_position, square("d4")) == nil
+      assert Position.piece_at(next_position, square("d6")) == {:white, :rook}
+    end
+
+    test "rook cannot move beyond an opposing piece" do
+      position =
+        Position.new(
+          board:
+            Chess.Board.empty()
+            |> Chess.Board.put(square("d4"), {:white, :rook})
+            |> Chess.Board.put(square("d6"), {:black, :pawn}),
+          side_to_move: :white
+        )
+
+      move = Move.new(square("d4"), square("d8"))
+
+      assert {:error, :illegal_move} =
+               Position.apply_move(position, move)
+    end
+
+    test "rook cannot move with a promotion" do
+      position =
+        Position.new(
+          board:
+            Chess.Board.empty()
+            |> Chess.Board.put(square("d4"), {:white, :rook}),
+          side_to_move: :white
+        )
+
+      move = Move.new(square("d4"), square("d8"), :queen)
+
+      assert {:error, :illegal_move} =
+               Position.apply_move(position, move)
+    end
+  end
+
   defp square(algebraic), do: Square.from_algebraic(algebraic)
 end
