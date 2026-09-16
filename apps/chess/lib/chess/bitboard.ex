@@ -193,6 +193,39 @@ defmodule Chess.Bitboard do
     }
   end
 
+  def attacked?(board, color, square)
+      when color in [:white, :black] and square in 0..63 do
+    Enum.any?(pieces(board), fn {from, {piece_color, piece_type}} ->
+      piece_color == color and
+        attack_bitboard(board, from, piece_type, color)
+        |> then(&((&1 &&& 1 <<< square) != 0))
+    end)
+  end
+
+  defp attack_bitboard(_board, square, :pawn, color) do
+    pawn_attacks(color, square)
+  end
+
+  defp attack_bitboard(_board, square, :knight, _color) do
+    knight_attacks(square)
+  end
+
+  defp attack_bitboard(_board, square, :king, _color) do
+    king_attacks(square)
+  end
+
+  defp attack_bitboard(board, square, :bishop, _color) do
+    bishop_attacks(board, square)
+  end
+
+  defp attack_bitboard(board, square, :rook, _color) do
+    rook_attacks(board, square)
+  end
+
+  defp attack_bitboard(board, square, :queen, _color) do
+    queen_attacks(board, square)
+  end
+
   def rook_attacks(board, square) when square in 0..63 do
     board
     |> ray_attacks(square, 8)

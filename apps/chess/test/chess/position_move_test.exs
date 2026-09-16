@@ -624,6 +624,40 @@ defmodule Chess.PositionMoveTest do
       assert {:error, :illegal_move} =
                Position.apply_move(position, move)
     end
+
+    test "king cannot move to an attacked square" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :rook})
+
+      assert {:error, :illegal_move} =
+               Position.apply_move(position, Move.new(square("e1"), square("e2")))
+    end
+
+    test "king can move to a square that is not attacked" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("a8"), {:black, :rook})
+
+      assert {:ok, _position} =
+               Position.apply_move(position, Move.new(square("e1"), square("e2")))
+    end
+
+    test "king cannot capture onto an attacked square" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e2"), {:black, :pawn})
+        |> Position.put_piece(square("e3"), {:black, :rook})
+
+      assert {:error, :illegal_move} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("e1"), square("e2"))
+               )
+    end
   end
 
   describe "rook moves" do
@@ -773,6 +807,682 @@ defmodule Chess.PositionMoveTest do
 
       assert {:error, :illegal_move} =
                Position.apply_move(position, move)
+    end
+  end
+
+  describe "bishop moves" do
+    test "can move diagonally" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("c1"), {:white, :bishop})
+
+      assert {:ok, new_position} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("c1"), square("h6"))
+               )
+
+      assert Position.piece_at(new_position, square("c1")) == nil
+      assert Position.piece_at(new_position, square("h6")) == {:white, :bishop}
+    end
+
+    test "cannot move straight" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("c1"), {:white, :bishop})
+
+      assert {:error, :illegal_move} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("c1"), square("c4"))
+               )
+    end
+
+    test "cannot move through a piece" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("c1"), {:white, :bishop})
+        |> Position.put_piece(square("d2"), {:white, :pawn})
+
+      assert {:error, :illegal_move} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("c1"), square("e3"))
+               )
+    end
+
+    test "cannot capture own piece" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("c1"), {:white, :bishop})
+        |> Position.put_piece(square("h6"), {:white, :pawn})
+
+      assert {:error, :illegal_move} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("c1"), square("h6"))
+               )
+    end
+
+    test "can capture opponent piece" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("c1"), {:white, :bishop})
+        |> Position.put_piece(square("h6"), {:black, :rook})
+
+      assert {:ok, new_position} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("c1"), square("h6"))
+               )
+
+      assert Position.piece_at(new_position, square("h6")) == {:white, :bishop}
+    end
+  end
+
+  test "cannot make a move that leaves own king in check" do
+    position =
+      Position.new()
+      |> Position.put_piece(square("e1"), {:white, :king})
+      |> Position.put_piece(square("e2"), {:white, :rook})
+      |> Position.put_piece(square("e8"), {:black, :rook})
+
+    assert {:error, :illegal_move} =
+             Position.apply_move(
+               position,
+               Move.new(square("e2"), square("d2"))
+             )
+  end
+
+  test "can make a move when own king remains safe" do
+    position =
+      Position.new()
+      |> Position.put_piece(square("e1"), {:white, :king})
+      |> Position.put_piece(square("e2"), {:white, :rook})
+      |> Position.put_piece(square("a8"), {:black, :rook})
+
+    assert {:ok, _position} =
+             Position.apply_move(
+               position,
+               Move.new(square("e2"), square("d2"))
+             )
+  end
+
+  describe "knight moves" do
+    test "can move in an L-shape" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("b1"), {:white, :knight})
+
+      assert {:ok, new_position} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("b1"), square("c3"))
+               )
+
+      assert Position.piece_at(new_position, square("b1")) == nil
+      assert Position.piece_at(new_position, square("c3")) == {:white, :knight}
+    end
+
+    test "can jump over pieces" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("b1"), {:white, :knight})
+        |> Position.put_piece(square("b2"), {:white, :pawn})
+        |> Position.put_piece(square("c2"), {:white, :pawn})
+
+      assert {:ok, new_position} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("b1"), square("c3"))
+               )
+
+      assert Position.piece_at(new_position, square("c3")) == {:white, :knight}
+    end
+
+    test "cannot move like a bishop" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("b1"), {:white, :knight})
+
+      assert {:error, :illegal_move} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("b1"), square("d3"))
+               )
+    end
+
+    test "cannot capture own piece" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("b1"), {:white, :knight})
+        |> Position.put_piece(square("c3"), {:white, :pawn})
+
+      assert {:error, :illegal_move} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("b1"), square("c3"))
+               )
+    end
+
+    test "can capture opponent piece" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("b1"), {:white, :knight})
+        |> Position.put_piece(square("c3"), {:black, :rook})
+
+      assert {:ok, new_position} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("b1"), square("c3"))
+               )
+
+      assert Position.piece_at(new_position, square("c3")) == {:white, :knight}
+    end
+  end
+
+  describe "queen moves" do
+    test "can move horizontally" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("d1"), {:white, :queen})
+
+      assert {:ok, new_position} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("d1"), square("h1"))
+               )
+
+      assert Position.piece_at(new_position, square("d1")) == nil
+      assert Position.piece_at(new_position, square("h1")) == {:white, :queen}
+    end
+
+    test "can move vertically" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("d1"), {:white, :queen})
+
+      assert {:ok, new_position} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("d1"), square("d8"))
+               )
+
+      assert Position.piece_at(new_position, square("d1")) == nil
+      assert Position.piece_at(new_position, square("d8")) == {:white, :queen}
+    end
+
+    test "can move diagonally" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("d1"), {:white, :queen})
+
+      assert {:ok, new_position} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("d1"), square("h5"))
+               )
+
+      assert Position.piece_at(new_position, square("d1")) == nil
+      assert Position.piece_at(new_position, square("h5")) == {:white, :queen}
+    end
+
+    test "cannot move through a piece" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("d1"), {:white, :queen})
+        |> Position.put_piece(square("d4"), {:white, :pawn})
+
+      assert {:error, :illegal_move} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("d1"), square("d8"))
+               )
+    end
+
+    test "cannot make a knight move" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("d1"), {:white, :queen})
+
+      assert {:error, :illegal_move} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("d1"), square("e3"))
+               )
+    end
+
+    test "cannot capture own piece" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("d1"), {:white, :queen})
+        |> Position.put_piece(square("h5"), {:white, :pawn})
+
+      assert {:error, :illegal_move} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("d1"), square("h5"))
+               )
+    end
+
+    test "can capture opponent piece" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("d1"), {:white, :queen})
+        |> Position.put_piece(square("h5"), {:black, :rook})
+
+      assert {:ok, new_position} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("d1"), square("h5"))
+               )
+
+      assert Position.piece_at(new_position, square("h5")) == {:white, :queen}
+    end
+  end
+
+  describe "castling" do
+    test "can castle kingside" do
+      position =
+        Position.new(castling_rights: MapSet.new([:white_kingside]))
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("h1"), {:white, :rook})
+
+      assert {:ok, new_position} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("e1"), square("g1"))
+               )
+
+      assert Position.piece_at(new_position, square("e1")) == nil
+      assert Position.piece_at(new_position, square("g1")) == {:white, :king}
+      assert Position.piece_at(new_position, square("h1")) == nil
+      assert Position.piece_at(new_position, square("f1")) == {:white, :rook}
+      refute MapSet.member?(new_position.castling_rights, :white_kingside)
+    end
+
+    test "can castle queenside" do
+      position =
+        Position.new(castling_rights: MapSet.new([:white_queenside]))
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("a1"), {:white, :rook})
+
+      assert {:ok, new_position} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("e1"), square("c1"))
+               )
+
+      assert Position.piece_at(new_position, square("e1")) == nil
+      assert Position.piece_at(new_position, square("c1")) == {:white, :king}
+      assert Position.piece_at(new_position, square("a1")) == nil
+      assert Position.piece_at(new_position, square("d1")) == {:white, :rook}
+      refute MapSet.member?(new_position.castling_rights, :white_queenside)
+    end
+
+    test "cannot castle without the castling right" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("h1"), {:white, :rook})
+
+      assert {:error, :illegal_move} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("e1"), square("g1"))
+               )
+    end
+
+    test "cannot castle when a square between king and rook is occupied" do
+      position =
+        Position.new(castling_rights: MapSet.new([:white_kingside]))
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("f1"), {:white, :bishop})
+        |> Position.put_piece(square("h1"), {:white, :rook})
+
+      assert {:error, :illegal_move} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("e1"), square("g1"))
+               )
+    end
+
+    test "cannot castle while in check" do
+      position =
+        Position.new(castling_rights: MapSet.new([:white_kingside]))
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("h1"), {:white, :rook})
+        |> Position.put_piece(square("e8"), {:black, :rook})
+
+      assert {:error, :illegal_move} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("e1"), square("g1"))
+               )
+    end
+
+    test "cannot castle through an attacked square" do
+      position =
+        Position.new(castling_rights: MapSet.new([:white_kingside]))
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("h1"), {:white, :rook})
+        |> Position.put_piece(square("f8"), {:black, :rook})
+
+      assert {:error, :illegal_move} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("e1"), square("g1"))
+               )
+    end
+
+    test "cannot castle onto an attacked square" do
+      position =
+        Position.new(castling_rights: MapSet.new([:white_kingside]))
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("h1"), {:white, :rook})
+        |> Position.put_piece(square("g8"), {:black, :rook})
+
+      assert {:error, :illegal_move} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("e1"), square("g1"))
+               )
+    end
+
+    test "king loses both castling rights when it moves" do
+      position =
+        Position.new(castling_rights: MapSet.new([:white_kingside, :white_queenside]))
+        |> Position.put_piece(square("e1"), {:white, :king})
+
+      assert {:ok, new_position} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("e1"), square("e2"))
+               )
+
+      refute MapSet.member?(new_position.castling_rights, :white_kingside)
+      refute MapSet.member?(new_position.castling_rights, :white_queenside)
+    end
+
+    test "rook loses kingside castling right when it moves" do
+      position =
+        Position.new(castling_rights: MapSet.new([:white_kingside]))
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("h1"), {:white, :rook})
+
+      assert {:ok, new_position} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("h1"), square("g1"))
+               )
+
+      refute MapSet.member?(new_position.castling_rights, :white_kingside)
+    end
+
+    test "loses white kingside castling right when the h1 rook is captured" do
+      position =
+        Position.new(
+          side_to_move: :black,
+          castling_rights: MapSet.new([:white_kingside])
+        )
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("h1"), {:white, :rook})
+        |> Position.put_piece(square("h8"), {:black, :rook})
+
+      assert {:ok, new_position} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("h8"), square("h1"))
+               )
+
+      refute MapSet.member?(new_position.castling_rights, :white_kingside)
+    end
+
+    test "loses white queenside castling right when the a1 rook is captured" do
+      position =
+        Position.new(
+          side_to_move: :black,
+          castling_rights: MapSet.new([:white_queenside])
+        )
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("a1"), {:white, :rook})
+        |> Position.put_piece(square("a8"), {:black, :rook})
+
+      assert {:ok, new_position} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("a8"), square("a1"))
+               )
+
+      refute MapSet.member?(new_position.castling_rights, :white_queenside)
+    end
+
+    test "loses black kingside castling right when the h8 rook is captured" do
+      position =
+        Position.new(
+          side_to_move: :white,
+          castling_rights: MapSet.new([:black_kingside])
+        )
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("h8"), {:black, :rook})
+        |> Position.put_piece(square("h1"), {:white, :rook})
+
+      assert {:ok, new_position} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("h1"), square("h8"))
+               )
+
+      refute MapSet.member?(new_position.castling_rights, :black_kingside)
+    end
+
+    test "loses black queenside castling right when the a8 rook is captured" do
+      position =
+        Position.new(
+          side_to_move: :white,
+          castling_rights: MapSet.new([:black_queenside])
+        )
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("a8"), {:black, :rook})
+        |> Position.put_piece(square("a1"), {:white, :rook})
+
+      assert {:ok, new_position} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("a1"), square("a8"))
+               )
+
+      refute MapSet.member?(new_position.castling_rights, :black_queenside)
+    end
+
+    test "black can castle kingside" do
+      position =
+        Position.new(
+          side_to_move: :black,
+          castling_rights: MapSet.new([:black_kingside])
+        )
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("h8"), {:black, :rook})
+
+      assert {:ok, new_position} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("e8"), square("g8"))
+               )
+
+      assert Position.piece_at(new_position, square("e8")) == nil
+      assert Position.piece_at(new_position, square("g8")) == {:black, :king}
+      assert Position.piece_at(new_position, square("h8")) == nil
+      assert Position.piece_at(new_position, square("f8")) == {:black, :rook}
+
+      refute MapSet.member?(new_position.castling_rights, :black_kingside)
+    end
+
+    test "black can castle queenside" do
+      position =
+        Position.new(
+          side_to_move: :black,
+          castling_rights: MapSet.new([:black_queenside])
+        )
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("a8"), {:black, :rook})
+
+      assert {:ok, new_position} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("e8"), square("c8"))
+               )
+
+      assert Position.piece_at(new_position, square("e8")) == nil
+      assert Position.piece_at(new_position, square("c8")) == {:black, :king}
+      assert Position.piece_at(new_position, square("a8")) == nil
+      assert Position.piece_at(new_position, square("d8")) == {:black, :rook}
+
+      refute MapSet.member?(new_position.castling_rights, :black_queenside)
+    end
+
+    test "black cannot castle while in check" do
+      position =
+        Position.new(
+          side_to_move: :black,
+          castling_rights: MapSet.new([:black_kingside])
+        )
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("h8"), {:black, :rook})
+        |> Position.put_piece(square("e1"), {:white, :rook})
+
+      assert {:error, :illegal_move} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("e8"), square("g8"))
+               )
+    end
+
+    test "black cannot castle through an attacked square" do
+      position =
+        Position.new(
+          side_to_move: :black,
+          castling_rights: MapSet.new([:black_kingside])
+        )
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("h8"), {:black, :rook})
+        |> Position.put_piece(square("f1"), {:white, :rook})
+
+      assert {:error, :illegal_move} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("e8"), square("g8"))
+               )
+    end
+
+    test "black cannot castle onto an attacked square" do
+      position =
+        Position.new(
+          side_to_move: :black,
+          castling_rights: MapSet.new([:black_kingside])
+        )
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("h8"), {:black, :rook})
+        |> Position.put_piece(square("g1"), {:white, :rook})
+
+      assert {:error, :illegal_move} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("e8"), square("g8"))
+               )
+    end
+
+    test "black cannot castle when a square between king and rook is occupied" do
+      position =
+        Position.new(
+          side_to_move: :black,
+          castling_rights: MapSet.new([:black_kingside])
+        )
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("f8"), {:black, :bishop})
+        |> Position.put_piece(square("h8"), {:black, :rook})
+
+      assert {:error, :illegal_move} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("e8"), square("g8"))
+               )
+    end
+
+    test "moving the queenside rook preserves the kingside castling right" do
+      position =
+        Position.new(castling_rights: MapSet.new([:white_kingside, :white_queenside]))
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("a1"), {:white, :rook})
+
+      assert {:ok, new_position} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("a1"), square("a2"))
+               )
+
+      refute MapSet.member?(new_position.castling_rights, :white_queenside)
+      assert MapSet.member?(new_position.castling_rights, :white_kingside)
+    end
+
+    test "capturing the queenside rook preserves the kingside castling right" do
+      position =
+        Position.new(
+          side_to_move: :black,
+          castling_rights: MapSet.new([:white_kingside, :white_queenside])
+        )
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("a1"), {:white, :rook})
+        |> Position.put_piece(square("a8"), {:black, :rook})
+
+      assert {:ok, new_position} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("a8"), square("a1"))
+               )
+
+      refute MapSet.member?(new_position.castling_rights, :white_queenside)
+      assert MapSet.member?(new_position.castling_rights, :white_kingside)
+    end
+
+    test "moving a rook that is not on its original square preserves castling rights" do
+      position =
+        Position.new(castling_rights: MapSet.new([:white_kingside, :white_queenside]))
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("d2"), {:white, :rook})
+
+      assert {:ok, new_position} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("d2"), square("d3"))
+               )
+
+      assert MapSet.equal?(
+               new_position.castling_rights,
+               MapSet.new([:white_kingside, :white_queenside])
+             )
+    end
+
+    test "capturing a rook that is not on its original square preserves castling rights" do
+      position =
+        Position.new(
+          side_to_move: :black,
+          castling_rights: MapSet.new([:white_kingside, :white_queenside])
+        )
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("d2"), {:white, :rook})
+        |> Position.put_piece(square("d8"), {:black, :rook})
+
+      assert {:ok, new_position} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("d8"), square("d2"))
+               )
+
+      assert MapSet.equal?(
+               new_position.castling_rights,
+               MapSet.new([:white_kingside, :white_queenside])
+             )
     end
   end
 

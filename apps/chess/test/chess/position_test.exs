@@ -1,7 +1,10 @@
 defmodule Chess.PositionTest do
   use ExUnit.Case
 
+  alias Chess.Move
   alias Chess.Position
+
+  defp square(algebraic), do: Chess.Square.from_algebraic(algebraic)
 
   describe "new/0" do
     test "creates an empty position" do
@@ -152,5 +155,208 @@ defmodule Chess.PositionTest do
 
       assert position.en_passant == nil
     end
+  end
+
+  describe "in_check?/2" do
+    test "white is in check when its king is attacked" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :rook})
+
+      assert Position.in_check?(position, :white)
+    end
+
+    test "white is not in check when its king is not attacked" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("a8"), {:black, :rook})
+
+      refute Position.in_check?(position, :white)
+    end
+
+    test "black is in check when its king is attacked" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("e1"), {:white, :rook})
+
+      assert Position.in_check?(position, :black)
+    end
+
+    test "a blocker can prevent check" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :rook})
+        |> Position.put_piece(square("e4"), {:white, :pawn})
+
+      refute Position.in_check?(position, :white)
+    end
+  end
+
+  describe "legal_moves/1" do
+    test "starting position has 20 legal moves" do
+      position = Position.starting_position()
+
+      moves = Position.legal_moves(position)
+
+      assert length(moves) == 20
+    end
+
+    test "legal_moves/1 includes all promotion choices" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e7"), {:white, :pawn})
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), nil)
+
+      moves = Position.legal_moves(position)
+
+      assert Enum.sort(Enum.filter(moves, &(&1.from == square("e7") and &1.to == square("e8")))) ==
+               Enum.sort([
+                 Move.new(square("e7"), square("e8"), :queen),
+                 Move.new(square("e7"), square("e8"), :rook),
+                 Move.new(square("e7"), square("e8"), :bishop),
+                 Move.new(square("e7"), square("e8"), :knight)
+               ])
+    end
+
+    test "legal_moves/1 includes all promotion choices for a capture" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e7"), {:white, :pawn})
+        |> Position.put_piece(square("d8"), {:black, :rook})
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :king})
+
+      moves = Position.legal_moves(position)
+
+      assert Enum.sort(Enum.filter(moves, &(&1.from == square("e7") and &1.to == square("d8")))) ==
+               Enum.sort([
+                 Move.new(square("e7"), square("d8"), :queen),
+                 Move.new(square("e7"), square("d8"), :rook),
+                 Move.new(square("e7"), square("d8"), :bishop),
+                 Move.new(square("e7"), square("d8"), :knight)
+               ])
+    end
+
+    test "legal_moves/1 includes an en passant capture" do
+      position =
+        Position.new(
+          side_to_move: :white,
+          en_passant: square("d6")
+        )
+        |> Position.put_piece(square("e5"), {:white, :pawn})
+        |> Position.put_piece(square("d5"), {:black, :pawn})
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :king})
+
+      moves = Position.legal_moves(position)
+
+      assert Move.new(square("e5"), square("d6")) in moves
+    end
+
+    test "legal_moves/1 includes castling" do
+      position =
+        Position.new(castling_rights: MapSet.new([:white_kingside]))
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("h1"), {:white, :rook})
+
+      moves = Position.legal_moves(position)
+
+      assert Move.new(square("e1"), square("g1")) in moves
+    end
+
+    test "legal_moves/1 excludes moves that leave the king in check" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e2"), {:white, :rook})
+        |> Position.put_piece(square("e8"), {:black, :rook})
+
+      moves = Position.legal_moves(position)
+
+      refute Move.new(square("e2"), square("f2")) in moves
+      refute Move.new(square("e2"), square("d2")) in moves
+    end
+
+    test "checkmate has no legal moves" do
+      position =
+        Position.starting_position()
+
+      {:ok, position} =
+        Position.apply_move(
+          position,
+          Move.new(square("f2"), square("f3"))
+        )
+
+      {:ok, position} =
+        Position.apply_move(
+          position,
+          Move.new(square("e7"), square("e5"))
+        )
+
+      {:ok, position} =
+        Position.apply_move(
+          position,
+          Move.new(square("g2"), square("g4"))
+        )
+
+      {:ok, position} =
+        Position.apply_move(
+          position,
+          Move.new(square("d8"), square("h4"))
+        )
+
+      assert Position.in_check?(position, :white)
+      assert Position.legal_moves(position) == []
+    end
+
+    test "stalemate has no legal moves" do
+      position =
+        Position.new(side_to_move: :white)
+        |> Position.put_piece(square("h1"), {:white, :king})
+        |> Position.put_piece(square("f2"), {:black, :king})
+        |> Position.put_piece(square("g3"), {:black, :queen})
+
+      refute Position.in_check?(position, :white)
+      assert Position.legal_moves(position) == []
+    end
+  end
+
+  test "checkmate?/2 returns true for checkmate" do
+    position =
+      Position.starting_position()
+      |> then(fn position ->
+        {:ok, position} =
+          Position.apply_move(position, Move.new(square("f2"), square("f3")))
+
+        {:ok, position} =
+          Position.apply_move(position, Move.new(square("e7"), square("e5")))
+
+        {:ok, position} =
+          Position.apply_move(position, Move.new(square("g2"), square("g4")))
+
+        {:ok, position} =
+          Position.apply_move(position, Move.new(square("d8"), square("h4")))
+
+        position
+      end)
+
+    assert Position.checkmate?(position, :white)
+    refute Position.stalemate?(position, :white)
+  end
+
+  test "stalemate?/2 returns true for stalemate" do
+    position =
+      Position.new(side_to_move: :white)
+      |> Position.put_piece(square("h1"), {:white, :king})
+      |> Position.put_piece(square("f2"), {:black, :king})
+      |> Position.put_piece(square("g3"), {:black, :queen})
+
+    assert Position.stalemate?(position, :white)
+    refute Position.checkmate?(position, :white)
   end
 end

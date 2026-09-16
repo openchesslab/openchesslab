@@ -660,4 +660,88 @@ defmodule Chess.BitboardTest do
       assert Bitboard.pawn_attacks(:black, square("d1")) == 0
     end
   end
+
+  describe "attacked?/3" do
+    test "detects a pawn attack" do
+      board =
+        Bitboard.empty()
+        |> put_piece("d4", {:white, :pawn})
+
+      assert Bitboard.attacked?(board, :white, square("e5"))
+      refute Bitboard.attacked?(board, :black, square("e5"))
+    end
+
+    test "detects a knight attack" do
+      board =
+        Bitboard.empty()
+        |> put_piece("d4", {:white, :knight})
+
+      assert Bitboard.attacked?(board, :white, square("e6"))
+      refute Bitboard.attacked?(board, :white, square("e5"))
+    end
+
+    test "detects a king attack" do
+      board =
+        Bitboard.empty()
+        |> put_piece("d4", {:black, :king})
+
+      assert Bitboard.attacked?(board, :black, square("e5"))
+      refute Bitboard.attacked?(board, :black, square("f6"))
+    end
+
+    test "detects a rook attack" do
+      board =
+        Bitboard.empty()
+        |> put_piece("d4", {:white, :rook})
+
+      assert Bitboard.attacked?(board, :white, square("d7"))
+      refute Bitboard.attacked?(board, :white, square("e7"))
+    end
+
+    test "detects a bishop attack" do
+      board =
+        Bitboard.empty()
+        |> put_piece("d4", {:black, :bishop})
+
+      assert Bitboard.attacked?(board, :black, square("g7"))
+      refute Bitboard.attacked?(board, :black, square("g6"))
+    end
+
+    test "detects a queen attack" do
+      board =
+        Bitboard.empty()
+        |> put_piece("d4", {:white, :queen})
+
+      assert Bitboard.attacked?(board, :white, square("d8"))
+      assert Bitboard.attacked?(board, :white, square("h8"))
+      refute Bitboard.attacked?(board, :white, square("e7"))
+    end
+
+    test "respects blockers for sliding pieces" do
+      board =
+        Bitboard.empty()
+        |> put_piece("d4", {:white, :rook})
+        |> put_piece("d6", {:white, :pawn})
+
+      assert Bitboard.attacked?(board, :white, square("d5"))
+      assert Bitboard.attacked?(board, :white, square("d6"))
+      refute Bitboard.attacked?(board, :white, square("d7"))
+    end
+
+    test "does not consider attacks from the opposite color" do
+      board =
+        Bitboard.empty()
+        |> put_piece("d4", {:black, :rook})
+
+      refute Bitboard.attacked?(board, :white, square("d7"))
+      assert Bitboard.attacked?(board, :black, square("d7"))
+    end
+
+    test "an empty board has no attacks" do
+      board = Bitboard.empty()
+
+      refute Bitboard.attacked?(board, :white, square("d4"))
+      refute Bitboard.attacked?(board, :black, square("d4"))
+    end
+  end
 end

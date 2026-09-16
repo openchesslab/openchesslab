@@ -12,6 +12,8 @@ defmodule Chess.Position do
   Halfmove and fullmove counters are not part of position identity.
   """
 
+  alias Chess.Board
+  alias Chess.Bitboard
   alias Chess.Move
 
   @type castling_right ::
@@ -96,24 +98,110 @@ defmodule Chess.Position do
         %__MODULE__{side_to_move: side} = position,
         %Move{from: from, to: to, promotion: promotion}
       ) do
-    case piece_at(position, from) do
-      {^side, :pawn} ->
-        apply_pawn_move(position, side, from, to, promotion)
+    result =
+      case piece_at(position, from) do
+        {^side, :pawn} ->
+          apply_pawn_move(position, side, from, to, promotion)
 
-      {^side, :king} ->
-        apply_king_move(position, side, from, to, promotion)
+        {^side, :king} ->
+          apply_king_move(position, side, from, to, promotion)
 
-      {^side, :rook} ->
-        apply_rook_move(position, side, from, to, promotion)
+        {^side, :rook} ->
+          apply_rook_move(position, side, from, to, promotion)
 
-      _ ->
-        {:error, :illegal_move}
+        {^side, :bishop} ->
+          apply_bishop_move(position, side, from, to, promotion)
+
+        {^side, :knight} ->
+          apply_knight_move(position, side, from, to, promotion)
+
+        {^side, :queen} ->
+          apply_queen_move(position, side, from, to, promotion)
+
+        _ ->
+          {:error, :illegal_move}
+      end
+
+    case result do
+      {:ok, new_position} ->
+        if in_check?(new_position, side) do
+          {:error, :illegal_move}
+        else
+          {:ok, new_position}
+        end
+
+      error ->
+        error
     end
   end
 
   def apply_move(_position, _move) do
     {:error, :illegal_move}
   end
+
+  def in_check?(position, color) when color in [:white, :black] do
+    king_square =
+      position.board
+      |> Board.pieces()
+      |> Enum.find_value(fn
+        {square, {^color, :king}} -> square
+        _ -> nil
+      end)
+
+    case king_square do
+      nil ->
+        false
+
+      square ->
+        position
+        |> Bitboard.from_position()
+        |> Bitboard.attacked?(opposite_color(color), square)
+    end
+  end
+
+  def legal_moves(position) do
+    position
+    |> pieces()
+    |> Enum.flat_map(fn
+      {from, {color, _piece_type} = piece} when color == position.side_to_move ->
+        candidate_moves(from, piece)
+
+      _ ->
+        []
+    end)
+    |> Enum.filter(fn move ->
+      match?({:ok, _}, apply_move(position, move))
+    end)
+  end
+
+  def checkmate?(position, color) do
+    in_check?(position, color) and
+      legal_moves(%{position | side_to_move: color}) == []
+  end
+
+  def stalemate?(position, color) do
+    not in_check?(position, color) and
+      legal_moves(%{position | side_to_move: color}) == []
+  end
+
+  defp candidate_moves(from, piece) do
+    if promotion_move?(piece, from) do
+      for to <- 0..63,
+          to != from,
+          promotion <- [:queen, :rook, :bishop, :knight] do
+        Move.new(from, to, promotion)
+      end
+    else
+      for to <- 0..63,
+          to != from do
+        Move.new(from, to)
+      end
+    end
+  end
+
+  defp promotion_move?({:white, :pawn}, square), do: square in 48..55
+  defp promotion_move?({:black, :pawn}, square), do: square in 8..15
+  defp promotion_move?(_piece, _square), do: false
 
   defp apply_pawn_move(position, :white, from, to, promotion) do
     case {to - from, piece_at(position, to)} do
@@ -178,6 +266,18 @@ defmodule Chess.Position do
   end
 
   defp apply_king_move(position, color, from, to, nil) do
+    if abs(to - from) == 2 do
+      apply_castling_move(position, color, from, to)
+    else
+      apply_normal_king_move(position, color, from, to)
+    end
+  end
+
+  defp apply_king_move(_position, _color, _from, _to, _promotion) do
+    {:error, :illegal_move}
+  end
+
+  defp apply_normal_king_move(position, color, from, to) do
     file_distance = abs(rem(to, 8) - rem(from, 8))
     rank_distance = abs(div(to, 8) - div(from, 8))
 
@@ -188,15 +288,108 @@ defmodule Chess.Position do
           {:error, :illegal_move}
 
         _ ->
-          move_piece(position, from, to, color, opposite_color(color))
+          move_piece(
+            position,
+            from,
+            to,
+            color,
+            opposite_color(color)
+          )
       end
     else
       {:error, :illegal_move}
     end
   end
 
-  defp apply_king_move(_position, _color, _from, _to, _promotion) do
+  defp apply_castling_move(position, :white, 4, 6) do
+    castle(position, :white, :white_kingside, 7, 5, 6)
+  end
+
+  defp apply_castling_move(position, :white, 4, 2) do
+    castle(position, :white, :white_queenside, 0, 3, 2)
+  end
+
+  defp apply_castling_move(position, :black, 60, 62) do
+    castle(position, :black, :black_kingside, 63, 61, 62)
+  end
+
+  defp apply_castling_move(position, :black, 60, 58) do
+    castle(position, :black, :black_queenside, 56, 59, 58)
+  end
+
+  defp apply_castling_move(_position, _color, _from, _to) do
     {:error, :illegal_move}
+  end
+
+  defp castle(position, color, right, rook_from, rook_to, king_to) do
+    opponent = opposite_color(color)
+    king_from = if color == :white, do: 4, else: 60
+
+    with true <- MapSet.member?(position.castling_rights, right),
+         {^color, :king} <- piece_at(position, king_from),
+         {^color, :rook} <- piece_at(position, rook_from),
+         true <- castling_path_clear?(position, right),
+         false <- in_check?(position, color),
+         false <- attacked?(position, opponent, castling_cross_square(color)),
+         false <- attacked?(position, opponent, king_to) do
+      position =
+        position
+        |> remove_piece(king_from)
+        |> remove_piece(rook_from)
+        |> put_piece(king_to, {color, :king})
+        |> put_piece(rook_to, {color, :rook})
+
+      {:ok,
+       %{
+         position
+         | side_to_move: opponent,
+           en_passant: nil,
+           castling_rights:
+             MapSet.delete(
+               position.castling_rights,
+               right
+             )
+       }}
+    else
+      _ ->
+        {:error, :illegal_move}
+    end
+  end
+
+  defp castling_path_clear?(position, :white_kingside) do
+    piece_at(position, 5) == nil and
+      piece_at(position, 6) == nil
+  end
+
+  defp castling_path_clear?(position, :white_queenside) do
+    piece_at(position, 1) == nil and
+      piece_at(position, 2) == nil and
+      piece_at(position, 3) == nil
+  end
+
+  defp castling_path_clear?(position, :black_kingside) do
+    piece_at(position, 61) == nil and
+      piece_at(position, 62) == nil
+  end
+
+  defp castling_path_clear?(position, :black_queenside) do
+    piece_at(position, 57) == nil and
+      piece_at(position, 58) == nil and
+      piece_at(position, 59) == nil
+  end
+
+  defp castling_cross_square(:white) do
+    5
+  end
+
+  defp castling_cross_square(:black) do
+    61
+  end
+
+  defp attacked?(position, color, square) do
+    position
+    |> Bitboard.from_position()
+    |> Bitboard.attacked?(color, square)
   end
 
   defp apply_rook_move(position, color, from, to, nil) do
@@ -209,7 +402,10 @@ defmodule Chess.Position do
           {^color, _piece} ->
             {:error, :illegal_move}
 
-          _ ->
+          {_, _piece} ->
+            capture_piece(position, from, to, opposite_color(color))
+
+          nil ->
             move_piece(position, from, to, color, opposite_color(color))
         end
       else
@@ -221,6 +417,104 @@ defmodule Chess.Position do
   end
 
   defp apply_rook_move(_position, _color, _from, _to, _promotion) do
+    {:error, :illegal_move}
+  end
+
+  defp apply_bishop_move(position, color, from, to, nil) do
+    file_distance = abs(rem(to, 8) - rem(from, 8))
+    rank_distance = abs(div(to, 8) - div(from, 8))
+
+    if file_distance == rank_distance and file_distance > 0 do
+      if path_clear?(position, from, to) do
+        case piece_at(position, to) do
+          {^color, _piece} ->
+            {:error, :illegal_move}
+
+          _ ->
+            move_piece(
+              position,
+              from,
+              to,
+              color,
+              opposite_color(color)
+            )
+        end
+      else
+        {:error, :illegal_move}
+      end
+    else
+      {:error, :illegal_move}
+    end
+  end
+
+  defp apply_bishop_move(_position, _color, _from, _to, _promotion) do
+    {:error, :illegal_move}
+  end
+
+  defp apply_knight_move(position, color, from, to, nil) do
+    file_distance = abs(rem(to, 8) - rem(from, 8))
+    rank_distance = abs(div(to, 8) - div(from, 8))
+
+    valid_move =
+      (file_distance == 1 and rank_distance == 2) or
+        (file_distance == 2 and rank_distance == 1)
+
+    if valid_move do
+      case piece_at(position, to) do
+        {^color, _piece} ->
+          {:error, :illegal_move}
+
+        _ ->
+          move_piece(
+            position,
+            from,
+            to,
+            color,
+            opposite_color(color)
+          )
+      end
+    else
+      {:error, :illegal_move}
+    end
+  end
+
+  defp apply_knight_move(_position, _color, _from, _to, _promotion) do
+    {:error, :illegal_move}
+  end
+
+  defp apply_queen_move(position, color, from, to, nil) do
+    file_distance = abs(rem(to, 8) - rem(from, 8))
+    rank_distance = abs(div(to, 8) - div(from, 8))
+
+    valid_move =
+      file_distance == 0 or
+        rank_distance == 0 or
+        file_distance == rank_distance
+
+    if valid_move and file_distance + rank_distance > 0 do
+      if path_clear?(position, from, to) do
+        case piece_at(position, to) do
+          {^color, _piece} ->
+            {:error, :illegal_move}
+
+          _ ->
+            move_piece(
+              position,
+              from,
+              to,
+              color,
+              opposite_color(color)
+            )
+        end
+      else
+        {:error, :illegal_move}
+      end
+    else
+      {:error, :illegal_move}
+    end
+  end
+
+  defp apply_queen_move(_position, _color, _from, _to, _promotion) do
     {:error, :illegal_move}
   end
 
@@ -240,6 +534,18 @@ defmodule Chess.Position do
 
   defp movement_step(from, to) when div(from, 8) == div(to, 8) do
     if to > from, do: 1, else: -1
+  end
+
+  defp movement_step(from, to) do
+    file_from = rem(from, 8)
+    file_to = rem(to, 8)
+
+    cond do
+      to > from and file_to > file_from -> 9
+      to > from -> 7
+      file_to > file_from -> -7
+      true -> -9
+    end
   end
 
   defp move_pawn(position, from, to, color, next_side, promotion) do
@@ -280,11 +586,13 @@ defmodule Chess.Position do
 
   defp capture_piece(position, from, to, next_side) do
     piece = piece_at(position, from)
+    captured_piece = piece_at(position, to)
 
     position =
       position
       |> remove_piece(from)
       |> put_piece(to, piece)
+      |> update_castling_rights_for_capture(to, captured_piece)
 
     {:ok,
      %{
@@ -292,6 +600,42 @@ defmodule Chess.Position do
        | side_to_move: next_side,
          en_passant: nil
      }}
+  end
+
+  defp update_castling_rights_for_capture(
+         position,
+         7,
+         {:white, :rook}
+       ) do
+    remove_castling_right(position, :white_kingside)
+  end
+
+  defp update_castling_rights_for_capture(
+         position,
+         0,
+         {:white, :rook}
+       ) do
+    remove_castling_right(position, :white_queenside)
+  end
+
+  defp update_castling_rights_for_capture(
+         position,
+         63,
+         {:black, :rook}
+       ) do
+    remove_castling_right(position, :black_kingside)
+  end
+
+  defp update_castling_rights_for_capture(
+         position,
+         56,
+         {:black, :rook}
+       ) do
+    remove_castling_right(position, :black_queenside)
+  end
+
+  defp update_castling_rights_for_capture(position, _square, _piece) do
+    position
   end
 
   defp promotion_required?(:white, to), do: to in 56..63
@@ -383,13 +727,14 @@ defmodule Chess.Position do
     left == {enemy_color, :pawn} or right == {enemy_color, :pawn}
   end
 
-  defp move_piece(position, from, to, _color, next_side) do
+  defp move_piece(position, from, to, color, next_side) do
     piece = piece_at(position, from)
 
     position =
       position
       |> remove_piece(from)
       |> put_piece(to, piece)
+      |> update_castling_rights_for_move(color, piece, from)
 
     {:ok,
      %{
@@ -397,6 +742,72 @@ defmodule Chess.Position do
        | side_to_move: next_side,
          en_passant: nil
      }}
+  end
+
+  defp update_castling_rights_for_move(
+         position,
+         :white,
+         {:white, :king},
+         _from
+       ) do
+    position
+    |> remove_castling_right(:white_kingside)
+    |> remove_castling_right(:white_queenside)
+  end
+
+  defp update_castling_rights_for_move(
+         position,
+         :black,
+         {:black, :king},
+         _from
+       ) do
+    position
+    |> remove_castling_right(:black_kingside)
+    |> remove_castling_right(:black_queenside)
+  end
+
+  defp update_castling_rights_for_move(
+         position,
+         :white,
+         {:white, :rook},
+         7
+       ) do
+    remove_castling_right(position, :white_kingside)
+  end
+
+  defp update_castling_rights_for_move(
+         position,
+         :white,
+         {:white, :rook},
+         0
+       ) do
+    remove_castling_right(position, :white_queenside)
+  end
+
+  defp update_castling_rights_for_move(
+         position,
+         :black,
+         {:black, :rook},
+         63
+       ) do
+    remove_castling_right(position, :black_kingside)
+  end
+
+  defp update_castling_rights_for_move(
+         position,
+         :black,
+         {:black, :rook},
+         56
+       ) do
+    remove_castling_right(position, :black_queenside)
+  end
+
+  defp update_castling_rights_for_move(position, _color, _piece, _from) do
+    position
+  end
+
+  defp remove_castling_right(position, right) do
+    %{position | castling_rights: MapSet.delete(position.castling_rights, right)}
   end
 
   defp opposite_color(:white), do: :black
