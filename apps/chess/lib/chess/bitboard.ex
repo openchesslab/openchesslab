@@ -262,7 +262,14 @@ defmodule Chess.Bitboard do
       king_attacks(square)
 
     rook_attack =
-      ray_attacked?(board, occupied, square, [8, -8, 1, -1], color, [:rook, :queen])
+      ray_attacked?(
+        board,
+        occupied,
+        square,
+        [8, -8, 1, -1],
+        color,
+        [:rook, :queen]
+      )
 
     bishop_attack =
       ray_attacked?(
@@ -313,7 +320,14 @@ defmodule Chess.Bitboard do
               band(color_queens(board, color), mask) != 0
         end
       else
-        first_piece_on_ray(board, occupied, next, step, color, piece_types)
+        first_piece_on_ray(
+          board,
+          occupied,
+          next,
+          step,
+          color,
+          piece_types
+        )
       end
     else
       false
@@ -334,24 +348,38 @@ defmodule Chess.Bitboard do
 
   @spec rook_attacks(t(), Chess.Square.t()) :: non_neg_integer()
   def rook_attacks(board, square) when square in 0..63 do
-    board
-    |> ray_attacks(square, 8)
-    |> bor(ray_attacks(board, square, -8))
-    |> bor(ray_attacks(board, square, 1))
-    |> bor(ray_attacks(board, square, -1))
+    occupied = occupied(board)
+
+    rook_attacks_from_occupied(occupied, square)
+  end
+
+  defp rook_attacks_from_occupied(occupied, square) do
+    ray_attacks(occupied, square, 8) |||
+      ray_attacks(occupied, square, -8) |||
+      ray_attacks(occupied, square, 1) |||
+      ray_attacks(occupied, square, -1)
   end
 
   @spec bishop_attacks(t(), Chess.Square.t()) :: non_neg_integer()
   def bishop_attacks(board, square) when square in 0..63 do
-    ray_attacks(board, square, 9) |||
-      ray_attacks(board, square, 7) |||
-      ray_attacks(board, square, -7) |||
-      ray_attacks(board, square, -9)
+    occupied = occupied(board)
+
+    bishop_attacks_from_occupied(occupied, square)
+  end
+
+  defp bishop_attacks_from_occupied(occupied, square) do
+    ray_attacks(occupied, square, 9) |||
+      ray_attacks(occupied, square, 7) |||
+      ray_attacks(occupied, square, -7) |||
+      ray_attacks(occupied, square, -9)
   end
 
   @spec queen_attacks(t(), Chess.Square.t()) :: non_neg_integer()
   def queen_attacks(board, square) when square in 0..63 do
-    rook_attacks(board, square) ||| bishop_attacks(board, square)
+    occupied = occupied(board)
+
+    rook_attacks_from_occupied(occupied, square) |||
+      bishop_attacks_from_occupied(occupied, square)
   end
 
   @spec king_attacks(Chess.Square.t()) :: non_neg_integer()
@@ -485,20 +513,20 @@ defmodule Chess.Bitboard do
   defp friendly_pieces(board, :white), do: white_pieces(board)
   defp friendly_pieces(board, :black), do: black_pieces(board)
 
-  defp ray_attacks(board, square, step) do
-    ray_attacks(board, square, step, 0)
+  defp ray_attacks(occupied, square, step) do
+    ray_attacks(occupied, square, step, 0)
   end
 
-  defp ray_attacks(board, square, step, attacks) do
+  defp ray_attacks(occupied, square, step, attacks) do
     next = square + step
 
     if valid_ray_square?(square, next, step) do
       attacks = bor(attacks, 1 <<< next)
 
-      if occupied_square?(board, next) do
+      if (occupied &&& 1 <<< next) != 0 do
         attacks
       else
-        ray_attacks(board, next, step, attacks)
+        ray_attacks(occupied, next, step, attacks)
       end
     else
       attacks
@@ -518,101 +546,72 @@ defmodule Chess.Bitboard do
   end
 
   defp valid_ray_square?(from, to, 9) do
-    to in 0..63 and
-      rem(to, 8) == rem(from, 8) + 1
+    to in 0..63 and rem(to, 8) == rem(from, 8) + 1
   end
 
   defp valid_ray_square?(from, to, 7) do
-    to in 0..63 and
-      rem(to, 8) == rem(from, 8) - 1
+    to in 0..63 and rem(to, 8) == rem(from, 8) - 1
   end
 
   defp valid_ray_square?(from, to, -7) do
-    to in 0..63 and
-      rem(to, 8) == rem(from, 8) + 1
+    to in 0..63 and rem(to, 8) == rem(from, 8) + 1
   end
 
   defp valid_ray_square?(from, to, -9) do
-    to in 0..63 and
-      rem(to, 8) == rem(from, 8) - 1
+    to in 0..63 and rem(to, 8) == rem(from, 8) - 1
   end
 
-  defp occupied_square?(board, square) do
-    (occupied(board) &&& 1 <<< square) != 0
+  defp put_piece({square, piece}, board) do
+    put(board, square, piece)
   end
 
-  defp popcount(value) do
-    popcount(value, 0)
+  defp set_piece(board, square, :white, :pawn) do
+    %{board | white_pawns: bor(board.white_pawns, 1 <<< square)}
   end
 
-  defp popcount(0, count), do: count
-
-  defp popcount(value, count) do
-    popcount(value &&& value - 1, count + 1)
+  defp set_piece(board, square, :white, :knight) do
+    %{board | white_knights: bor(board.white_knights, 1 <<< square)}
   end
 
-  defp put_piece({square, {color, piece_type}}, board) do
-    mask = 1 <<< square
-
-    case {color, piece_type} do
-      {:white, :pawn} ->
-        %{board | white_pawns: bor(board.white_pawns, mask)}
-
-      {:white, :knight} ->
-        %{board | white_knights: bor(board.white_knights, mask)}
-
-      {:white, :bishop} ->
-        %{board | white_bishops: bor(board.white_bishops, mask)}
-
-      {:white, :rook} ->
-        %{board | white_rooks: bor(board.white_rooks, mask)}
-
-      {:white, :queen} ->
-        %{board | white_queens: bor(board.white_queens, mask)}
-
-      {:white, :king} ->
-        %{board | white_king: bor(board.white_king, mask)}
-
-      {:black, :pawn} ->
-        %{board | black_pawns: bor(board.black_pawns, mask)}
-
-      {:black, :knight} ->
-        %{board | black_knights: bor(board.black_knights, mask)}
-
-      {:black, :bishop} ->
-        %{board | black_bishops: bor(board.black_bishops, mask)}
-
-      {:black, :rook} ->
-        %{board | black_rooks: bor(board.black_rooks, mask)}
-
-      {:black, :queen} ->
-        %{board | black_queens: bor(board.black_queens, mask)}
-
-      {:black, :king} ->
-        %{board | black_king: bor(board.black_king, mask)}
-    end
+  defp set_piece(board, square, :white, :bishop) do
+    %{board | white_bishops: bor(board.white_bishops, 1 <<< square)}
   end
 
-  defp set_piece(board, square, color, type) do
-    field = field_for(color, type)
-    mask = 1 <<< square
-
-    Map.update!(board, field, &bor(&1, mask))
+  defp set_piece(board, square, :white, :rook) do
+    %{board | white_rooks: bor(board.white_rooks, 1 <<< square)}
   end
 
-  defp field_for(:white, :pawn), do: :white_pawns
-  defp field_for(:white, :knight), do: :white_knights
-  defp field_for(:white, :bishop), do: :white_bishops
-  defp field_for(:white, :rook), do: :white_rooks
-  defp field_for(:white, :queen), do: :white_queens
-  defp field_for(:white, :king), do: :white_king
+  defp set_piece(board, square, :white, :queen) do
+    %{board | white_queens: bor(board.white_queens, 1 <<< square)}
+  end
 
-  defp field_for(:black, :pawn), do: :black_pawns
-  defp field_for(:black, :knight), do: :black_knights
-  defp field_for(:black, :bishop), do: :black_bishops
-  defp field_for(:black, :rook), do: :black_rooks
-  defp field_for(:black, :queen), do: :black_queens
-  defp field_for(:black, :king), do: :black_king
+  defp set_piece(board, square, :white, :king) do
+    %{board | white_king: bor(board.white_king, 1 <<< square)}
+  end
+
+  defp set_piece(board, square, :black, :pawn) do
+    %{board | black_pawns: bor(board.black_pawns, 1 <<< square)}
+  end
+
+  defp set_piece(board, square, :black, :knight) do
+    %{board | black_knights: bor(board.black_knights, 1 <<< square)}
+  end
+
+  defp set_piece(board, square, :black, :bishop) do
+    %{board | black_bishops: bor(board.black_bishops, 1 <<< square)}
+  end
+
+  defp set_piece(board, square, :black, :rook) do
+    %{board | black_rooks: bor(board.black_rooks, 1 <<< square)}
+  end
+
+  defp set_piece(board, square, :black, :queen) do
+    %{board | black_queens: bor(board.black_queens, 1 <<< square)}
+  end
+
+  defp set_piece(board, square, :black, :king) do
+    %{board | black_king: bor(board.black_king, 1 <<< square)}
+  end
 
   defp piece_fields do
     [
@@ -629,5 +628,17 @@ defmodule Chess.Bitboard do
       {:black, :queen, :black_queens},
       {:black, :king, :black_king}
     ]
+  end
+
+  defp popcount(0), do: 0
+
+  defp popcount(value) do
+    popcount(value, 0)
+  end
+
+  defp popcount(0, count), do: count
+
+  defp popcount(value, count) do
+    popcount(value &&& value - 1, count + 1)
   end
 end
