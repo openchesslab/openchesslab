@@ -11,6 +11,11 @@ defmodule Chess.Bitboard do
 
   @type pseudo_move :: {Chess.Square.t(), non_neg_integer()}
 
+  @king_attacks Chess.Bitboard.AttackTables.king_attacks()
+  @knight_attacks Chess.Bitboard.AttackTables.knight_attacks()
+  @white_pawn_attacks Chess.Bitboard.AttackTables.pawn_attacks(1)
+  @black_pawn_attacks Chess.Bitboard.AttackTables.pawn_attacks(-1)
+
   @type t :: %__MODULE__{
           white_pawns: non_neg_integer(),
           white_knights: non_neg_integer(),
@@ -200,6 +205,7 @@ defmodule Chess.Bitboard do
         }
       end)
     end)
+    |> Enum.sort_by(&elem(&1, 0))
   end
 
   defp color_piece_bitboards(board, :white) do
@@ -327,58 +333,21 @@ defmodule Chess.Bitboard do
 
   @spec king_attacks(Chess.Square.t()) :: non_neg_integer()
   def king_attacks(square) when square in 0..63 do
-    file = rem(square, 8)
-    rank = div(square, 8)
-
-    for file_offset <- -1..1,
-        rank_offset <- -1..1,
-        file_offset != 0 or rank_offset != 0,
-        target_file = file + file_offset,
-        target_rank = rank + rank_offset,
-        target_file in 0..7,
-        target_rank in 0..7,
-        reduce: 0 do
-      attacks ->
-        target = target_rank * 8 + target_file
-        attacks ||| 1 <<< target
-    end
+    elem(@king_attacks, square)
   end
 
   @spec knight_attacks(Chess.Square.t()) :: non_neg_integer()
   def knight_attacks(square) when square in 0..63 do
-    file = rem(square, 8)
-    rank = div(square, 8)
-
-    offsets = [
-      {-2, -1},
-      {-2, 1},
-      {-1, -2},
-      {-1, 2},
-      {1, -2},
-      {1, 2},
-      {2, -1},
-      {2, 1}
-    ]
-
-    Enum.reduce(offsets, 0, fn {file_offset, rank_offset}, attacks ->
-      target_file = file + file_offset
-      target_rank = rank + rank_offset
-
-      if target_file in 0..7 and target_rank in 0..7 do
-        target = target_rank * 8 + target_file
-        attacks ||| 1 <<< target
-      else
-        attacks
-      end
-    end)
+    elem(@knight_attacks, square)
   end
 
+  @spec pawn_attacks(color(), Chess.Square.t()) :: non_neg_integer()
   def pawn_attacks(:white, square) when square in 0..63 do
-    pawn_attacks_for_direction(square, 1)
+    elem(@white_pawn_attacks, square)
   end
 
   def pawn_attacks(:black, square) when square in 0..63 do
-    pawn_attacks_for_direction(square, -1)
+    elem(@black_pawn_attacks, square)
   end
 
   defp pseudo_moves_for_piece(
@@ -492,31 +461,6 @@ defmodule Chess.Bitboard do
 
   defp friendly_pieces(board, :white), do: white_pieces(board)
   defp friendly_pieces(board, :black), do: black_pieces(board)
-
-  defp pawn_attacks_for_direction(square, rank_direction) do
-    file = rem(square, 8)
-    rank = div(square, 8)
-
-    target_rank = rank + rank_direction
-
-    if target_rank in 0..7 do
-      attacks =
-        if file > 0 do
-          1 <<< (target_rank * 8 + file - 1)
-        else
-          0
-        end
-
-      attacks |||
-        if file < 7 do
-          1 <<< (target_rank * 8 + file + 1)
-        else
-          0
-        end
-    else
-      0
-    end
-  end
 
   defp ray_attacks(board, square, step) do
     ray_attacks(board, square, step, 0)
