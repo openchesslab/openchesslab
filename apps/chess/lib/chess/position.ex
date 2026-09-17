@@ -161,10 +161,12 @@ defmodule Chess.Position do
 
   def legal_moves(position) do
     bitboard = Bitboard.from_position(position)
+    side = position.side_to_move
+    king_square = king_square(position, side)
 
     pseudo_moves =
       bitboard
-      |> Bitboard.pseudo_moves(position.side_to_move)
+      |> Bitboard.pseudo_moves(side)
       |> Enum.flat_map(fn {from, destinations} ->
         piece = piece_at(position, from)
 
@@ -178,17 +180,66 @@ defmodule Chess.Position do
             end
 
           for promotion_piece <- promotion do
-            Move.new(from, to, promotion_piece)
+            move = Move.new(from, to, promotion_piece)
+
+            if legal_pseudo_move?(
+                 bitboard,
+                 side,
+                 king_square,
+                 move,
+                 piece
+               ) do
+              move
+            else
+              nil
+            end
           end
         end
         |> List.flatten()
+        |> Enum.reject(&is_nil/1)
       end)
 
-    special_moves = special_candidate_moves(position)
+    special_moves =
+      position
+      |> special_candidate_moves()
+      |> Enum.filter(fn move ->
+        match?({:ok, _}, apply_move(position, move))
+      end)
 
-    (pseudo_moves ++ special_moves)
-    |> Enum.filter(fn move ->
-      match?({:ok, _}, apply_move(position, move))
+    pseudo_moves ++ special_moves
+  end
+
+  defp legal_pseudo_move?(
+         bitboard,
+         side,
+         king_square,
+         move,
+         piece
+       ) do
+    next_bitboard = Bitboard.after_move(bitboard, move, piece)
+
+    king_square =
+      case piece do
+        {^side, :king} ->
+          move.to
+
+        _ ->
+          king_square
+      end
+
+    not Bitboard.attacked?(
+      next_bitboard,
+      opposite_color(side),
+      king_square
+    )
+  end
+
+  defp king_square(position, color) do
+    position.board
+    |> Board.pieces()
+    |> Enum.find_value(fn
+      {square, {^color, :king}} -> square
+      _ -> nil
     end)
   end
 

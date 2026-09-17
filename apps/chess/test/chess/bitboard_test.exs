@@ -1167,4 +1167,61 @@ defmodule Chess.BitboardTest do
       assert Bitboard.pseudo_moves(board, :white) == []
     end
   end
+
+  describe "after_move/3" do
+    test "moves a piece to an empty square" do
+      board =
+        Bitboard.empty()
+        |> put_piece("e2", {:white, :pawn})
+
+      move = Chess.Move.new(square("e2"), square("e4"))
+
+      updated = Bitboard.after_move(board, move, {:white, :pawn})
+
+      assert Bitboard.get(updated, square("e2")) == nil
+      assert Bitboard.get(updated, square("e4")) == {:white, :pawn}
+    end
+
+    test "captures a piece on the destination square" do
+      board =
+        Bitboard.empty()
+        |> put_piece("e4", {:white, :bishop})
+        |> put_piece("h7", {:black, :pawn})
+
+      move = Chess.Move.new(square("e4"), square("h7"))
+
+      updated = Bitboard.after_move(board, move, {:white, :bishop})
+
+      assert Bitboard.get(updated, square("e4")) == nil
+      assert Bitboard.get(updated, square("h7")) == {:white, :bishop}
+    end
+
+    test "promotes a pawn" do
+      board =
+        Bitboard.empty()
+        |> put_piece("e7", {:white, :pawn})
+
+      move = Chess.Move.new(square("e7"), square("e8"), :queen)
+
+      updated = Bitboard.after_move(board, move, {:white, :pawn})
+
+      assert Bitboard.get(updated, square("e7")) == nil
+      assert Bitboard.get(updated, square("e8")) == {:white, :queen}
+    end
+
+    test "does not modify the original board" do
+      board =
+        Bitboard.empty()
+        |> put_piece("e2", {:white, :pawn})
+
+      move = Chess.Move.new(square("e2"), square("e4"))
+
+      updated = Bitboard.after_move(board, move, {:white, :pawn})
+
+      assert Bitboard.get(board, square("e2")) == {:white, :pawn}
+      assert Bitboard.get(board, square("e4")) == nil
+      assert Bitboard.get(updated, square("e2")) == nil
+      assert Bitboard.get(updated, square("e4")) == {:white, :pawn}
+    end
+  end
 end

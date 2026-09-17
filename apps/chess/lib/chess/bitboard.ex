@@ -153,6 +153,31 @@ defmodule Chess.Bitboard do
     }
   end
 
+  @spec after_move(t(), Chess.Move.t(), piece()) :: t()
+  def after_move(
+        board,
+        %Chess.Move{from: from, to: to, promotion: promotion},
+        {color, :pawn}
+      ) do
+    piece_type = promotion || :pawn
+
+    board
+    |> remove(from)
+    |> remove(to)
+    |> set_piece(to, color, piece_type)
+  end
+
+  def after_move(
+        board,
+        %Chess.Move{from: from, to: to},
+        {color, piece_type}
+      ) do
+    board
+    |> remove(from)
+    |> remove(to)
+    |> set_piece(to, color, piece_type)
+  end
+
   @spec pseudo_moves(t(), color()) :: [pseudo_move()]
   def pseudo_moves(board, color) when color in [:white, :black] do
     friendly = friendly_pieces(board, color)
