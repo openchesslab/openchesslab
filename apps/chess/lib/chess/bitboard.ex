@@ -183,22 +183,52 @@ defmodule Chess.Bitboard do
     friendly = friendly_pieces(board, color)
 
     board
-    |> pieces()
-    |> Enum.filter(fn {_square, {piece_color, _piece_type}} ->
-      piece_color == color
-    end)
-    |> Enum.map(fn {square, {_piece_color, piece_type}} ->
-      {
-        square,
-        pseudo_moves_for_piece(
-          board,
+    |> color_piece_bitboards(color)
+    |> Enum.flat_map(fn {piece_type, bitboard} ->
+      bitboard
+      |> piece_squares()
+      |> Enum.map(fn square ->
+        {
           square,
-          piece_type,
-          color,
-          friendly
-        )
-      }
+          pseudo_moves_for_piece(
+            board,
+            square,
+            piece_type,
+            color,
+            friendly
+          )
+        }
+      end)
     end)
+  end
+
+  defp color_piece_bitboards(board, :white) do
+    [
+      {:pawn, board.white_pawns},
+      {:knight, board.white_knights},
+      {:bishop, board.white_bishops},
+      {:rook, board.white_rooks},
+      {:queen, board.white_queens},
+      {:king, board.white_king}
+    ]
+  end
+
+  defp color_piece_bitboards(board, :black) do
+    [
+      {:pawn, board.black_pawns},
+      {:knight, board.black_knights},
+      {:bishop, board.black_bishops},
+      {:rook, board.black_rooks},
+      {:queen, board.black_queens},
+      {:king, board.black_king}
+    ]
+  end
+
+  defp piece_squares(bitboard) do
+    for square <- 0..63,
+        (bitboard &&& 1 <<< square) != 0 do
+      square
+    end
   end
 
   @spec attacked?(t(), color(), Chess.Square.t()) :: boolean()
@@ -343,7 +373,6 @@ defmodule Chess.Bitboard do
     end)
   end
 
-  @spec pawn_attacks(color(), Chess.Square.t()) :: non_neg_integer()
   def pawn_attacks(:white, square) when square in 0..63 do
     pawn_attacks_for_direction(square, 1)
   end

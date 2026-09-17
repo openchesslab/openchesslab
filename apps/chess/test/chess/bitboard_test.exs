@@ -1166,6 +1166,29 @@ defmodule Chess.BitboardTest do
 
       assert Bitboard.pseudo_moves(board, :white) == []
     end
+
+    test "returns moves for all piece types of the requested color" do
+      board =
+        Bitboard.empty()
+        |> put_piece("a1", {:white, :rook})
+        |> put_piece("b1", {:white, :knight})
+        |> put_piece("c1", {:white, :bishop})
+        |> put_piece("d1", {:white, :queen})
+        |> put_piece("e1", {:white, :king})
+        |> put_piece("a2", {:white, :pawn})
+        |> put_piece("h8", {:black, :queen})
+
+      moves = Bitboard.pseudo_moves(board, :white)
+
+      assert Enum.map(moves, &elem(&1, 0)) == [
+               square("a1"),
+               square("b1"),
+               square("c1"),
+               square("d1"),
+               square("e1"),
+               square("a2")
+             ]
+    end
   end
 
   describe "after_move/3" do
