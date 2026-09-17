@@ -204,12 +204,74 @@ defmodule Chess.Bitboard do
   @spec attacked?(t(), color(), Chess.Square.t()) :: boolean()
   def attacked?(board, color, square)
       when color in [:white, :black] and square in 0..63 do
-    Enum.any?(pieces(board), fn {from, {piece_color, piece_type}} ->
-      piece_color == color and
-        attack_bitboard(board, from, piece_type, color)
-        |> then(&((&1 &&& 1 <<< square) != 0))
+    occupied = occupied(board)
+
+    pawn_attackers =
+      pawn_attacks(opposite_color(color), square)
+
+    knight_attackers =
+      knight_attacks(square)
+
+    king_attackers =
+      king_attacks(square)
+
+    rook_attack =
+      ray_attacked?(board, occupied, square, [8, -8, 1, -1], color, [:rook, :queen])
+
+    bishop_attack =
+      ray_attacked?(
+        board,
+        occupied,
+        square,
+        [9, 7, -7, -9],
+        color,
+        [:bishop, :queen]
+      )
+
+    (pawn_attackers &&& color_pawns(board, color)) != 0 or
+      (knight_attackers &&& color_knights(board, color)) != 0 or
+      (king_attackers &&& color_king(board, color)) != 0 or
+      rook_attack or
+      bishop_attack
+  end
+
+  defp color_pawns(board, :white), do: board.white_pawns
+  defp color_pawns(board, :black), do: board.black_pawns
+
+  defp color_knights(board, :white), do: board.white_knights
+  defp color_knights(board, :black), do: board.black_knights
+
+  defp color_king(board, :white), do: board.white_king
+  defp color_king(board, :black), do: board.black_king
+
+  defp ray_attacked?(board, occupied, square, steps, color, piece_types) do
+    Enum.any?(steps, fn step ->
+      first_piece_on_ray(board, occupied, square, step, color, piece_types)
     end)
   end
+
+  defp first_piece_on_ray(board, occupied, square, step, color, piece_types) do
+    next = square + step
+
+    if valid_ray_square?(square, next, step) do
+      if (occupied &&& 1 <<< next) != 0 do
+        case get(board, next) do
+          {^color, piece_type} ->
+            piece_type in piece_types
+
+          _ ->
+            false
+        end
+      else
+        first_piece_on_ray(board, occupied, next, step, color, piece_types)
+      end
+    else
+      false
+    end
+  end
+
+  defp opposite_color(:white), do: :black
+  defp opposite_color(:black), do: :white
 
   @spec rook_attacks(t(), Chess.Square.t()) :: non_neg_integer()
   def rook_attacks(board, square) when square in 0..63 do
@@ -401,30 +463,6 @@ defmodule Chess.Bitboard do
 
   defp friendly_pieces(board, :white), do: white_pieces(board)
   defp friendly_pieces(board, :black), do: black_pieces(board)
-
-  defp attack_bitboard(_board, square, :pawn, color) do
-    pawn_attacks(color, square)
-  end
-
-  defp attack_bitboard(_board, square, :knight, _color) do
-    knight_attacks(square)
-  end
-
-  defp attack_bitboard(_board, square, :king, _color) do
-    king_attacks(square)
-  end
-
-  defp attack_bitboard(board, square, :bishop, _color) do
-    bishop_attacks(board, square)
-  end
-
-  defp attack_bitboard(board, square, :rook, _color) do
-    rook_attacks(board, square)
-  end
-
-  defp attack_bitboard(board, square, :queen, _color) do
-    queen_attacks(board, square)
-  end
 
   defp pawn_attacks_for_direction(square, rank_direction) do
     file = rem(square, 8)
