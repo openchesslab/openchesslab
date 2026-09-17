@@ -9,6 +9,8 @@ defmodule Chess.Bitboard do
   @type color :: Chess.Board.color()
   @type piece :: Chess.Board.piece()
 
+  @type pseudo_move :: {Chess.Square.t(), non_neg_integer()}
+
   @type t :: %__MODULE__{
           white_pawns: non_neg_integer(),
           white_knights: non_neg_integer(),
@@ -62,48 +64,6 @@ defmodule Chess.Bitboard do
     board
     |> Chess.Board.pieces()
     |> Enum.reduce(empty(), &put_piece/2)
-  end
-
-  defp put_piece({square, {color, piece_type}}, board) do
-    mask = Bitwise.bsl(1, square)
-
-    case {color, piece_type} do
-      {:white, :pawn} ->
-        %{board | white_pawns: Bitwise.bor(board.white_pawns, mask)}
-
-      {:white, :knight} ->
-        %{board | white_knights: Bitwise.bor(board.white_knights, mask)}
-
-      {:white, :bishop} ->
-        %{board | white_bishops: Bitwise.bor(board.white_bishops, mask)}
-
-      {:white, :rook} ->
-        %{board | white_rooks: Bitwise.bor(board.white_rooks, mask)}
-
-      {:white, :queen} ->
-        %{board | white_queens: Bitwise.bor(board.white_queens, mask)}
-
-      {:white, :king} ->
-        %{board | white_king: Bitwise.bor(board.white_king, mask)}
-
-      {:black, :pawn} ->
-        %{board | black_pawns: Bitwise.bor(board.black_pawns, mask)}
-
-      {:black, :knight} ->
-        %{board | black_knights: Bitwise.bor(board.black_knights, mask)}
-
-      {:black, :bishop} ->
-        %{board | black_bishops: Bitwise.bor(board.black_bishops, mask)}
-
-      {:black, :rook} ->
-        %{board | black_rooks: Bitwise.bor(board.black_rooks, mask)}
-
-      {:black, :queen} ->
-        %{board | black_queens: Bitwise.bor(board.black_queens, mask)}
-
-      {:black, :king} ->
-        %{board | black_king: Bitwise.bor(board.black_king, mask)}
-    end
   end
 
   @spec get(t(), Chess.Square.t()) :: piece() | nil
@@ -193,6 +153,30 @@ defmodule Chess.Bitboard do
     }
   end
 
+  @spec pseudo_moves(t(), color()) :: [pseudo_move()]
+  def pseudo_moves(board, color) when color in [:white, :black] do
+    friendly = friendly_pieces(board, color)
+
+    board
+    |> pieces()
+    |> Enum.filter(fn {_square, {piece_color, _piece_type}} ->
+      piece_color == color
+    end)
+    |> Enum.map(fn {square, {_piece_color, piece_type}} ->
+      {
+        square,
+        pseudo_moves_for_piece(
+          board,
+          square,
+          piece_type,
+          color,
+          friendly
+        )
+      }
+    end)
+  end
+
+  @spec attacked?(t(), color(), Chess.Square.t()) :: boolean()
   def attacked?(board, color, square)
       when color in [:white, :black] and square in 0..63 do
     Enum.any?(pieces(board), fn {from, {piece_color, piece_type}} ->
@@ -202,30 +186,7 @@ defmodule Chess.Bitboard do
     end)
   end
 
-  defp attack_bitboard(_board, square, :pawn, color) do
-    pawn_attacks(color, square)
-  end
-
-  defp attack_bitboard(_board, square, :knight, _color) do
-    knight_attacks(square)
-  end
-
-  defp attack_bitboard(_board, square, :king, _color) do
-    king_attacks(square)
-  end
-
-  defp attack_bitboard(board, square, :bishop, _color) do
-    bishop_attacks(board, square)
-  end
-
-  defp attack_bitboard(board, square, :rook, _color) do
-    rook_attacks(board, square)
-  end
-
-  defp attack_bitboard(board, square, :queen, _color) do
-    queen_attacks(board, square)
-  end
-
+  @spec rook_attacks(t(), Chess.Square.t()) :: non_neg_integer()
   def rook_attacks(board, square) when square in 0..63 do
     board
     |> ray_attacks(square, 8)
@@ -234,6 +195,7 @@ defmodule Chess.Bitboard do
     |> bor(ray_attacks(board, square, -1))
   end
 
+  @spec bishop_attacks(t(), Chess.Square.t()) :: non_neg_integer()
   def bishop_attacks(board, square) when square in 0..63 do
     ray_attacks(board, square, 9) |||
       ray_attacks(board, square, 7) |||
@@ -241,10 +203,12 @@ defmodule Chess.Bitboard do
       ray_attacks(board, square, -9)
   end
 
+  @spec queen_attacks(t(), Chess.Square.t()) :: non_neg_integer()
   def queen_attacks(board, square) when square in 0..63 do
     rook_attacks(board, square) ||| bishop_attacks(board, square)
   end
 
+  @spec king_attacks(Chess.Square.t()) :: non_neg_integer()
   def king_attacks(square) when square in 0..63 do
     file = rem(square, 8)
     rank = div(square, 8)
@@ -263,6 +227,7 @@ defmodule Chess.Bitboard do
     end
   end
 
+  @spec knight_attacks(Chess.Square.t()) :: non_neg_integer()
   def knight_attacks(square) when square in 0..63 do
     file = rem(square, 8)
     rank = div(square, 8)
@@ -291,12 +256,149 @@ defmodule Chess.Bitboard do
     end)
   end
 
+  @spec pawn_attacks(color(), Chess.Square.t()) :: non_neg_integer()
   def pawn_attacks(:white, square) when square in 0..63 do
     pawn_attacks_for_direction(square, 1)
   end
 
   def pawn_attacks(:black, square) when square in 0..63 do
     pawn_attacks_for_direction(square, -1)
+  end
+
+  defp pseudo_moves_for_piece(
+         board,
+         square,
+         :pawn,
+         color,
+         friendly
+       ) do
+    pawn_pseudo_moves(board, square, color, friendly)
+  end
+
+  defp pseudo_moves_for_piece(
+         _board,
+         square,
+         :knight,
+         _color,
+         friendly
+       ) do
+    knight_attacks(square)
+    |> band(bnot(friendly))
+  end
+
+  defp pseudo_moves_for_piece(
+         board,
+         square,
+         :bishop,
+         _color,
+         friendly
+       ) do
+    bishop_attacks(board, square)
+    |> band(bnot(friendly))
+  end
+
+  defp pseudo_moves_for_piece(
+         board,
+         square,
+         :rook,
+         _color,
+         friendly
+       ) do
+    rook_attacks(board, square)
+    |> band(bnot(friendly))
+  end
+
+  defp pseudo_moves_for_piece(
+         board,
+         square,
+         :queen,
+         _color,
+         friendly
+       ) do
+    queen_attacks(board, square)
+    |> band(bnot(friendly))
+  end
+
+  defp pseudo_moves_for_piece(
+         _board,
+         square,
+         :king,
+         _color,
+         friendly
+       ) do
+    king_attacks(square)
+    |> band(bnot(friendly))
+  end
+
+  defp pawn_pseudo_moves(board, square, color, friendly) do
+    occupied = occupied(board)
+    enemy = band(occupied, bnot(friendly))
+
+    direction =
+      case color do
+        :white -> 8
+        :black -> -8
+      end
+
+    one_step = square + direction
+
+    push =
+      if one_step in 0..63 and
+           (occupied &&& 1 <<< one_step) == 0 do
+        1 <<< one_step
+      else
+        0
+      end
+
+    double_push =
+      if push != 0 and pawn_on_starting_rank?(square, color) do
+        two_step = square + 2 * direction
+
+        if two_step in 0..63 and
+             (occupied &&& 1 <<< two_step) == 0 do
+          1 <<< two_step
+        else
+          0
+        end
+      else
+        0
+      end
+
+    captures =
+      pawn_attacks(color, square)
+      |> band(enemy)
+
+    push ||| double_push ||| captures
+  end
+
+  defp pawn_on_starting_rank?(square, :white), do: square in 8..15
+  defp pawn_on_starting_rank?(square, :black), do: square in 48..55
+
+  defp friendly_pieces(board, :white), do: white_pieces(board)
+  defp friendly_pieces(board, :black), do: black_pieces(board)
+
+  defp attack_bitboard(_board, square, :pawn, color) do
+    pawn_attacks(color, square)
+  end
+
+  defp attack_bitboard(_board, square, :knight, _color) do
+    knight_attacks(square)
+  end
+
+  defp attack_bitboard(_board, square, :king, _color) do
+    king_attacks(square)
+  end
+
+  defp attack_bitboard(board, square, :bishop, _color) do
+    bishop_attacks(board, square)
+  end
+
+  defp attack_bitboard(board, square, :rook, _color) do
+    rook_attacks(board, square)
+  end
+
+  defp attack_bitboard(board, square, :queen, _color) do
+    queen_attacks(board, square)
   end
 
   defp pawn_attacks_for_direction(square, rank_direction) do
@@ -388,6 +490,48 @@ defmodule Chess.Bitboard do
 
   defp popcount(value, count) do
     popcount(value &&& value - 1, count + 1)
+  end
+
+  defp put_piece({square, {color, piece_type}}, board) do
+    mask = 1 <<< square
+
+    case {color, piece_type} do
+      {:white, :pawn} ->
+        %{board | white_pawns: bor(board.white_pawns, mask)}
+
+      {:white, :knight} ->
+        %{board | white_knights: bor(board.white_knights, mask)}
+
+      {:white, :bishop} ->
+        %{board | white_bishops: bor(board.white_bishops, mask)}
+
+      {:white, :rook} ->
+        %{board | white_rooks: bor(board.white_rooks, mask)}
+
+      {:white, :queen} ->
+        %{board | white_queens: bor(board.white_queens, mask)}
+
+      {:white, :king} ->
+        %{board | white_king: bor(board.white_king, mask)}
+
+      {:black, :pawn} ->
+        %{board | black_pawns: bor(board.black_pawns, mask)}
+
+      {:black, :knight} ->
+        %{board | black_knights: bor(board.black_knights, mask)}
+
+      {:black, :bishop} ->
+        %{board | black_bishops: bor(board.black_bishops, mask)}
+
+      {:black, :rook} ->
+        %{board | black_rooks: bor(board.black_rooks, mask)}
+
+      {:black, :queen} ->
+        %{board | black_queens: bor(board.black_queens, mask)}
+
+      {:black, :king} ->
+        %{board | black_king: bor(board.black_king, mask)}
+    end
   end
 
   defp set_piece(board, square, color, type) do

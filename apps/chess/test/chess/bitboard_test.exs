@@ -13,6 +13,12 @@ defmodule Chess.BitboardTest do
     end)
   end
 
+  defp destinations(moves, from_algebraic) do
+    moves
+    |> Enum.into(%{})
+    |> Map.fetch!(square(from_algebraic))
+  end
+
   defp square(algebraic), do: Chess.Square.from_algebraic(algebraic)
 
   defp put_piece(board, square, piece) do
@@ -742,6 +748,423 @@ defmodule Chess.BitboardTest do
 
       refute Bitboard.attacked?(board, :white, square("d4"))
       refute Bitboard.attacked?(board, :black, square("d4"))
+    end
+  end
+
+  describe "pseudo_moves/2" do
+    test "bishop does not move through a friendly piece" do
+      board =
+        Bitboard.empty()
+        |> put_piece("d4", {:white, :bishop})
+        |> put_piece("e5", {:white, :pawn})
+
+      moves = Bitboard.pseudo_moves(board, :white)
+
+      assert destinations(moves, "d4") ==
+               bitboard_for([
+                 "a1",
+                 "b2",
+                 "c3",
+                 "e3",
+                 "f2",
+                 "g1",
+                 "c5",
+                 "b6",
+                 "a7"
+               ])
+    end
+
+    test "rook does not move through a friendly piece" do
+      board =
+        Bitboard.empty()
+        |> put_piece("d5", {:white, :rook})
+        |> put_piece("f5", {:white, :pawn})
+
+      moves = Bitboard.pseudo_moves(board, :white)
+
+      assert destinations(moves, "d5") ==
+               bitboard_for([
+                 "a5",
+                 "b5",
+                 "c5",
+                 "e5",
+                 "d1",
+                 "d2",
+                 "d3",
+                 "d4",
+                 "d6",
+                 "d7",
+                 "d8"
+               ])
+    end
+
+    test "queen includes the blocker when it is an enemy piece, then stops" do
+      board =
+        Bitboard.empty()
+        |> put_piece("d4", {:white, :queen})
+        |> put_piece("f4", {:black, :pawn})
+
+      moves = Bitboard.pseudo_moves(board, :white)
+
+      assert Enum.into(moves, %{}) == %{
+               square("d4") =>
+                 bitboard_for([
+                   "a4",
+                   "b4",
+                   "c4",
+                   "e4",
+                   "f4",
+                   "d1",
+                   "d2",
+                   "d3",
+                   "d5",
+                   "d6",
+                   "d7",
+                   "d8",
+                   "a1",
+                   "b2",
+                   "c3",
+                   "e3",
+                   "f2",
+                   "g1",
+                   "a7",
+                   "b6",
+                   "c5",
+                   "e5",
+                   "f6",
+                   "g7",
+                   "h8"
+                 ])
+             }
+    end
+
+    test "pawn moves one square forward" do
+      board =
+        Bitboard.empty()
+        |> put_piece("e4", {:white, :pawn})
+
+      moves = Bitboard.pseudo_moves(board, :white)
+
+      assert destinations(moves, "e4") ==
+               bitboard_for(["e5"])
+    end
+
+    test "pawn moves two squares from the starting rank" do
+      board =
+        Bitboard.empty()
+        |> put_piece("e2", {:white, :pawn})
+
+      moves = Bitboard.pseudo_moves(board, :white)
+
+      assert destinations(moves, "e2") ==
+               bitboard_for(["e3", "e4"])
+    end
+
+    test "white pawn cannot make a double move from a non-starting rank" do
+      board =
+        Bitboard.empty()
+        |> put_piece("e3", {:white, :pawn})
+
+      moves = Bitboard.pseudo_moves(board, :white)
+
+      assert destinations(moves, "e3") ==
+               bitboard_for(["e4"])
+    end
+
+    test "black pawn cannot make a double move from a non-starting rank" do
+      board =
+        Bitboard.empty()
+        |> put_piece("e6", {:black, :pawn})
+
+      moves = Bitboard.pseudo_moves(board, :black)
+
+      assert destinations(moves, "e6") ==
+               bitboard_for(["e5"])
+    end
+
+    test "pawn cannot move forward through an occupied square" do
+      board =
+        Bitboard.empty()
+        |> put_piece("e2", {:white, :pawn})
+        |> put_piece("e3", {:black, :knight})
+
+      moves = Bitboard.pseudo_moves(board, :white)
+
+      assert destinations(moves, "e2") == 0
+    end
+
+    test "pawn cannot make a double move when the intermediate square is occupied" do
+      board =
+        Bitboard.empty()
+        |> put_piece("e2", {:white, :pawn})
+        |> put_piece("e3", {:black, :knight})
+
+      moves = Bitboard.pseudo_moves(board, :white)
+
+      assert destinations(moves, "e2") == 0
+    end
+
+    test "pawn captures diagonally" do
+      board =
+        Bitboard.empty()
+        |> put_piece("e4", {:white, :pawn})
+        |> put_piece("d5", {:black, :bishop})
+        |> put_piece("f5", {:black, :knight})
+
+      moves = Bitboard.pseudo_moves(board, :white)
+
+      assert destinations(moves, "e4") ==
+               bitboard_for(["e5", "d5", "f5"])
+    end
+
+    test "pawn cannot capture a friendly piece" do
+      board =
+        Bitboard.empty()
+        |> put_piece("e4", {:white, :pawn})
+        |> put_piece("d5", {:white, :bishop})
+        |> put_piece("f5", {:white, :knight})
+
+      moves = Bitboard.pseudo_moves(board, :white)
+
+      assert destinations(moves, "e4") ==
+               bitboard_for(["e5"])
+    end
+
+    test "pawn cannot move diagonally to an empty square" do
+      board =
+        Bitboard.empty()
+        |> put_piece("e4", {:white, :pawn})
+
+      moves = Bitboard.pseudo_moves(board, :white)
+
+      assert destinations(moves, "e4") ==
+               bitboard_for(["e5"])
+    end
+
+    test "white pawn on a-file only attacks towards b-file" do
+      board =
+        Bitboard.empty()
+        |> put_piece("a4", {:white, :pawn})
+
+      moves = Bitboard.pseudo_moves(board, :white)
+
+      assert destinations(moves, "a4") ==
+               bitboard_for(["a5"])
+    end
+
+    test "white pawn on h-file only attacks towards g-file" do
+      board =
+        Bitboard.empty()
+        |> put_piece("h4", {:white, :pawn})
+
+      moves = Bitboard.pseudo_moves(board, :white)
+
+      assert destinations(moves, "h4") ==
+               bitboard_for(["h5"])
+    end
+
+    test "black pawn on a-file only attacks towards b-file" do
+      board =
+        Bitboard.empty()
+        |> put_piece("a5", {:black, :pawn})
+
+      moves = Bitboard.pseudo_moves(board, :black)
+
+      assert destinations(moves, "a5") ==
+               bitboard_for(["a4"])
+    end
+
+    test "black pawn on h-file only attacks towards g-file" do
+      board =
+        Bitboard.empty()
+        |> put_piece("h5", {:black, :pawn})
+
+      moves = Bitboard.pseudo_moves(board, :black)
+
+      assert destinations(moves, "h5") ==
+               bitboard_for(["h4"])
+    end
+
+    test "black pawn moves towards rank one" do
+      board =
+        Bitboard.empty()
+        |> put_piece("e7", {:black, :pawn})
+
+      moves = Bitboard.pseudo_moves(board, :black)
+
+      assert destinations(moves, "e7") ==
+               bitboard_for(["e6", "e5"])
+    end
+
+    test "knight cannot move to a friendly occupied square" do
+      board =
+        Bitboard.empty()
+        |> put_piece("d4", {:white, :knight})
+        |> put_piece("e6", {:white, :pawn})
+
+      moves = Bitboard.pseudo_moves(board, :white)
+
+      assert destinations(moves, "d4") ==
+               bitboard_for([
+                 "b3",
+                 "b5",
+                 "c2",
+                 "c6",
+                 "e2",
+                 "f3",
+                 "f5"
+               ])
+    end
+
+    test "knight can capture an enemy piece" do
+      board =
+        Bitboard.empty()
+        |> put_piece("d4", {:white, :knight})
+        |> put_piece("e6", {:black, :pawn})
+
+      moves = Bitboard.pseudo_moves(board, :white)
+
+      assert destinations(moves, "d4") ==
+               bitboard_for([
+                 "b3",
+                 "b5",
+                 "c2",
+                 "c6",
+                 "e2",
+                 "e6",
+                 "f3",
+                 "f5"
+               ])
+    end
+
+    test "king cannot move to a friendly occupied square" do
+      board =
+        Bitboard.empty()
+        |> put_piece("d4", {:white, :king})
+        |> put_piece("e5", {:white, :pawn})
+
+      moves = Bitboard.pseudo_moves(board, :white)
+
+      assert destinations(moves, "d4") ==
+               bitboard_for([
+                 "c3",
+                 "d3",
+                 "e3",
+                 "c4",
+                 "e4",
+                 "c5",
+                 "d5"
+               ])
+    end
+
+    test "king can capture an enemy piece" do
+      board =
+        Bitboard.empty()
+        |> put_piece("d4", {:white, :king})
+        |> put_piece("e5", {:black, :pawn})
+
+      moves = Bitboard.pseudo_moves(board, :white)
+
+      assert destinations(moves, "d4") ==
+               bitboard_for([
+                 "c3",
+                 "d3",
+                 "e3",
+                 "c4",
+                 "e4",
+                 "c5",
+                 "d5",
+                 "e5"
+               ])
+    end
+
+    test "does not include friendly occupied squares" do
+      board =
+        Bitboard.empty()
+        |> put_piece("d4", {:white, :rook})
+        |> put_piece("d6", {:white, :pawn})
+        |> put_piece("f4", {:white, :pawn})
+
+      moves = Bitboard.pseudo_moves(board, :white)
+      attacks = Map.fetch!(Enum.into(moves, %{}), square("d4"))
+
+      refute attacks_contains?(attacks, "d6")
+      refute attacks_contains?(attacks, "f4")
+      assert attacks_contains?(attacks, "d5")
+      assert attacks_contains?(attacks, "e4")
+    end
+
+    test "includes enemy pieces as capture destinations" do
+      board =
+        Bitboard.empty()
+        |> put_piece("d4", {:white, :rook})
+        |> put_piece("d6", {:black, :pawn})
+        |> put_piece("f4", {:black, :pawn})
+
+      moves = Bitboard.pseudo_moves(board, :white)
+      attacks = Map.fetch!(Enum.into(moves, %{}), square("d4"))
+
+      assert attacks_contains?(attacks, "d6")
+      assert attacks_contains?(attacks, "f4")
+      refute attacks_contains?(attacks, "d7")
+      refute attacks_contains?(attacks, "g4")
+    end
+
+    test "generates white pawn pushes and captures" do
+      board =
+        Bitboard.empty()
+        |> put_piece("e2", {:white, :pawn})
+        |> put_piece("d3", {:black, :knight})
+        |> put_piece("f3", {:black, :bishop})
+
+      moves = Bitboard.pseudo_moves(board, :white)
+      attacks = Map.fetch!(Enum.into(moves, %{}), square("e2"))
+
+      assert attacks == bitboard_for(["e3", "e4", "d3", "f3"])
+    end
+
+    test "generates black pawn pushes and captures" do
+      board =
+        Bitboard.empty()
+        |> put_piece("e7", {:black, :pawn})
+        |> put_piece("d6", {:white, :knight})
+        |> put_piece("f6", {:white, :bishop})
+
+      moves = Bitboard.pseudo_moves(board, :black)
+      attacks = Map.fetch!(Enum.into(moves, %{}), square("e7"))
+
+      assert attacks == bitboard_for(["e6", "e5", "d6", "f6"])
+    end
+
+    test "pawn cannot move through or onto an occupied square" do
+      board =
+        Bitboard.empty()
+        |> put_piece("e2", {:white, :pawn})
+        |> put_piece("e3", {:black, :pawn})
+
+      moves = Bitboard.pseudo_moves(board, :white)
+      attacks = Map.fetch!(Enum.into(moves, %{}), square("e2"))
+
+      assert attacks == 0
+    end
+
+    test "returns only pieces of the requested color" do
+      board =
+        Bitboard.empty()
+        |> put_piece("e4", {:white, :rook})
+        |> put_piece("e5", {:black, :rook})
+
+      moves = Bitboard.pseudo_moves(board, :white)
+
+      assert Enum.map(moves, &elem(&1, 0)) == [square("e4")]
+    end
+
+    test "returns an empty list when the color has no pieces" do
+      board =
+        Bitboard.empty()
+        |> put_piece("e4", {:black, :rook})
+
+      assert Bitboard.pseudo_moves(board, :white) == []
     end
   end
 end
