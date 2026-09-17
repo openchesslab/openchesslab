@@ -424,6 +424,36 @@ defmodule Chess.PositionMoveTest do
       assert position.en_passant == nil
     end
 
+    test "e5 d5 creates an en passant opportunity" do
+      position = Position.starting_position()
+
+      assert {:ok, position} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("e2"), square("e4"))
+               )
+
+      assert {:ok, position} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("a7"), square("a6"))
+               )
+
+      assert {:ok, position} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("e4"), square("e5"))
+               )
+
+      assert {:ok, position} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("d7"), square("d5"))
+               )
+
+      assert position.en_passant == square("d6")
+    end
+
     test "a black pawn can capture en passant" do
       position =
         Position.new(

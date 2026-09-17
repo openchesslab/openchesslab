@@ -729,12 +729,14 @@ defmodule Chess.Position do
 
   defp move_piece(position, from, to, color, next_side) do
     piece = piece_at(position, from)
+    captured_piece = piece_at(position, to)
 
     position =
       position
       |> remove_piece(from)
       |> put_piece(to, piece)
       |> update_castling_rights_for_move(color, piece, from)
+      |> update_castling_rights_for_capture(to, captured_piece)
 
     {:ok,
      %{

@@ -194,6 +194,51 @@ defmodule Chess.PositionTest do
 
       refute Position.in_check?(position, :white)
     end
+
+    test "white is in check from a bishop" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("h4"), {:black, :bishop})
+
+      assert Position.in_check?(position, :white)
+    end
+
+    test "white is in check from a queen" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("h4"), {:black, :queen})
+
+      assert Position.in_check?(position, :white)
+    end
+
+    test "white is in check from a knight" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("f3"), {:black, :knight})
+
+      assert Position.in_check?(position, :white)
+    end
+
+    test "white is in check from a pawn" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("d2"), {:black, :pawn})
+
+      assert Position.in_check?(position, :white)
+    end
+
+    test "white is in check from the opposing king" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e2"), {:black, :king})
+
+      assert Position.in_check?(position, :white)
+    end
   end
 
   describe "legal_moves/1" do
@@ -344,39 +389,589 @@ defmodule Chess.PositionTest do
       assert Move.new(square("e2"), square("e3")) in moves
       assert Move.new(square("e1"), square("f1")) in moves
     end
+
+    test "king cannot move into check" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("e5"), {:black, :rook})
+
+      moves = Position.legal_moves(position)
+
+      refute Move.new(square("e1"), square("e2")) in moves
+      assert Move.new(square("e1"), square("f1")) in moves
+    end
+
+    test "pinned rook can only move along the pin" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e2"), {:white, :rook})
+        |> Position.put_piece(square("e8"), {:black, :rook})
+
+      moves = Position.legal_moves(position)
+
+      assert Move.new(square("e2"), square("e3")) in moves
+      assert Move.new(square("e2"), square("e8")) in moves
+
+      refute Move.new(square("e2"), square("f2")) in moves
+      refute Move.new(square("e2"), square("d2")) in moves
+    end
+
+    test "a piece can block a sliding check" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("a1"), {:white, :rook})
+        |> Position.put_piece(square("e8"), {:black, :rook})
+
+      moves = Position.legal_moves(position)
+
+      assert Move.new(square("a1"), square("e1")) not in moves
+    end
+
+    test "king can move out of check" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :rook})
+        |> Position.put_piece(square("a8"), {:black, :king})
+
+      moves = Position.legal_moves(position)
+
+      assert Move.new(square("e1"), square("f1")) in moves
+      assert Move.new(square("e1"), square("d1")) in moves
+    end
+
+    test "king can capture the checking piece when it is safe" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e2"), {:black, :rook})
+        |> Position.put_piece(square("a8"), {:black, :king})
+
+      moves = Position.legal_moves(position)
+
+      assert Move.new(square("e1"), square("e2")) in moves
+    end
+
+    test "a piece can capture the checking piece" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e2"), {:white, :rook})
+        |> Position.put_piece(square("e8"), {:black, :rook})
+        |> Position.put_piece(square("a8"), {:black, :king})
+
+      moves = Position.legal_moves(position)
+
+      assert Move.new(square("e2"), square("e8")) in moves
+    end
+
+    test "a sliding check can be blocked" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :rook})
+        |> Position.put_piece(square("d2"), {:white, :bishop})
+        |> Position.put_piece(square("a8"), {:black, :king})
+
+      moves = Position.legal_moves(position)
+
+      assert Move.new(square("d2"), square("e3")) in moves
+    end
+
+    test "a pinned rook cannot move off the pin line" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e2"), {:white, :rook})
+        |> Position.put_piece(square("e8"), {:black, :rook})
+        |> Position.put_piece(square("a8"), {:black, :king})
+
+      moves = Position.legal_moves(position)
+
+      refute Move.new(square("e2"), square("d2")) in moves
+      refute Move.new(square("e2"), square("f2")) in moves
+
+      assert Move.new(square("e2"), square("e3")) in moves
+      assert Move.new(square("e2"), square("e4")) in moves
+    end
+
+    test "a pinned bishop cannot move off the pin line" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("f2"), {:white, :bishop})
+        |> Position.put_piece(square("h4"), {:black, :bishop})
+        |> Position.put_piece(square("a8"), {:black, :king})
+
+      moves = Position.legal_moves(position)
+
+      refute Move.new(square("f2"), square("h2")) in moves
+      refute Move.new(square("f2"), square("g1")) in moves
+
+      assert Move.new(square("f2"), square("g3")) in moves
+      assert Move.new(square("f2"), square("h4")) in moves
+    end
+
+    test "in double check only king moves are legal" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :rook})
+        |> Position.put_piece(square("h4"), {:black, :bishop})
+        |> Position.put_piece(square("a8"), {:black, :king})
+        |> Position.put_piece(square("a1"), {:white, :rook})
+
+      assert Position.in_check?(position, :white)
+
+      moves = Position.legal_moves(position)
+
+      assert moves != []
+      assert Enum.all?(moves, &(&1.from == square("e1")))
+    end
+
+    test "king cannot move onto a square attacked by a rook" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :rook})
+        |> Position.put_piece(square("a8"), {:black, :king})
+
+      moves = Position.legal_moves(position)
+
+      refute Move.new(square("e1"), square("e2")) in moves
+    end
+
+    test "king cannot capture a protected piece" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e2"), {:black, :rook})
+        |> Position.put_piece(square("h5"), {:black, :bishop})
+        |> Position.put_piece(square("a8"), {:black, :king})
+
+      moves = Position.legal_moves(position)
+
+      refute Move.new(square("e1"), square("e2")) in moves
+    end
+
+    test "king cannot capture the opposing king" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e3"), {:black, :king})
+
+      moves = Position.legal_moves(position)
+
+      refute Move.new(square("e1"), square("e3")) in moves
+    end
+
+    test "kings cannot move next to each other" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e3"), {:black, :king})
+
+      moves = Position.legal_moves(position)
+
+      refute Move.new(square("e1"), square("e2")) in moves
+    end
+
+    test "a knight check can be resolved by capturing the knight" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("d3"), {:black, :knight})
+        |> Position.put_piece(square("c2"), {:white, :bishop})
+        |> Position.put_piece(square("a8"), {:black, :king})
+
+      moves = Position.legal_moves(position)
+
+      assert Move.new(square("c2"), square("d3")) in moves
+    end
+
+    test "a knight check can be resolved by moving the king" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("d3"), {:black, :knight})
+        |> Position.put_piece(square("a8"), {:black, :king})
+
+      moves = Position.legal_moves(position)
+
+      assert Move.new(square("e1"), square("d1")) in moves
+      assert Move.new(square("e1"), square("f1")) in moves
+    end
+
+    test "a pawn check can be resolved by capturing the pawn" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("d2"), {:black, :pawn})
+        |> Position.put_piece(square("c2"), {:white, :rook})
+        |> Position.put_piece(square("a8"), {:black, :king})
+
+      moves = Position.legal_moves(position)
+
+      assert Move.new(square("c2"), square("d2")) in moves
+    end
+
+    test "a diagonal check can be blocked" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("h4"), {:black, :bishop})
+        |> Position.put_piece(square("g2"), {:white, :rook})
+        |> Position.put_piece(square("a8"), {:black, :king})
+
+      moves = Position.legal_moves(position)
+
+      assert Move.new(square("g2"), square("g3")) in moves
+    end
+
+    test "a pinned pawn cannot capture if it exposes the king" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e2"), {:white, :pawn})
+        |> Position.put_piece(square("d3"), {:black, :knight})
+        |> Position.put_piece(square("e8"), {:black, :rook})
+        |> Position.put_piece(square("a8"), {:black, :king})
+
+      moves = Position.legal_moves(position)
+
+      refute Move.new(square("e2"), square("d3")) in moves
+    end
+
+    test "en passant is illegal when it exposes the king to a rook" do
+      position =
+        Position.new(
+          side_to_move: :white,
+          en_passant: square("d6")
+        )
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e5"), {:white, :pawn})
+        |> Position.put_piece(square("d5"), {:black, :pawn})
+        |> Position.put_piece(square("e8"), {:black, :rook})
+        |> Position.put_piece(square("a8"), {:black, :king})
+
+      moves = Position.legal_moves(position)
+
+      refute Move.new(square("e5"), square("d6")) in moves
+    end
+
+    test "king cannot move next to the opposing king" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e3"), {:black, :king})
+
+      moves = Position.legal_moves(position)
+
+      refute Move.new(square("e1"), square("e2")) in moves
+    end
   end
 
-  test "checkmate?/2 returns true for checkmate" do
-    position =
-      Position.starting_position()
-      |> then(fn position ->
-        {:ok, position} =
-          Position.apply_move(position, Move.new(square("f2"), square("f3")))
+  describe "castling" do
+    test "cannot castle out of check" do
+      position =
+        Position.new(castling_rights: MapSet.new([:white_kingside]))
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("h1"), {:white, :rook})
+        |> Position.put_piece(square("e8"), {:black, :rook})
+        |> Position.put_piece(square("a8"), {:black, :king})
 
-        {:ok, position} =
-          Position.apply_move(position, Move.new(square("e7"), square("e5")))
+      moves = Position.legal_moves(position)
 
-        {:ok, position} =
-          Position.apply_move(position, Move.new(square("g2"), square("g4")))
+      refute Move.new(square("e1"), square("g1")) in moves
+    end
 
-        {:ok, position} =
-          Position.apply_move(position, Move.new(square("d8"), square("h4")))
+    test "cannot castle through an attacked square" do
+      position =
+        Position.new(castling_rights: MapSet.new([:white_kingside]))
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("h1"), {:white, :rook})
+        |> Position.put_piece(square("f8"), {:black, :rook})
+        |> Position.put_piece(square("a8"), {:black, :king})
 
-        position
-      end)
+      moves = Position.legal_moves(position)
 
-    assert Position.checkmate?(position, :white)
-    refute Position.stalemate?(position, :white)
+      refute Move.new(square("e1"), square("g1")) in moves
+    end
+
+    test "cannot castle into check" do
+      position =
+        Position.new(castling_rights: MapSet.new([:white_kingside]))
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("h1"), {:white, :rook})
+        |> Position.put_piece(square("g8"), {:black, :rook})
+        |> Position.put_piece(square("a8"), {:black, :king})
+
+      moves = Position.legal_moves(position)
+
+      refute Move.new(square("e1"), square("g1")) in moves
+    end
+
+    test "castling moves both king and rook" do
+      position =
+        Position.new(castling_rights: MapSet.new([:white_kingside]))
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("h1"), {:white, :rook})
+        |> Position.put_piece(square("a8"), {:black, :king})
+
+      {:ok, position} =
+        Position.apply_move(
+          position,
+          Move.new(square("e1"), square("g1"))
+        )
+
+      assert Position.piece_at(position, square("g1")) == {:white, :king}
+      assert Position.piece_at(position, square("f1")) == {:white, :rook}
+      assert Position.piece_at(position, square("e1")) == nil
+      assert Position.piece_at(position, square("h1")) == nil
+    end
+
+    test "castling removes the corresponding castling right" do
+      position =
+        Position.new(
+          castling_rights:
+            MapSet.new([
+              :white_kingside,
+              :white_queenside
+            ])
+        )
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("h1"), {:white, :rook})
+        |> Position.put_piece(square("a8"), {:black, :king})
+
+      {:ok, position} =
+        Position.apply_move(
+          position,
+          Move.new(square("e1"), square("g1"))
+        )
+
+      refute MapSet.member?(position.castling_rights, :white_kingside)
+      assert MapSet.member?(position.castling_rights, :white_queenside)
+    end
+
+    test "moving the king removes both castling rights" do
+      position =
+        Position.new(
+          castling_rights:
+            MapSet.new([
+              :white_kingside,
+              :white_queenside
+            ])
+        )
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("a8"), {:black, :king})
+
+      {:ok, position} =
+        Position.apply_move(
+          position,
+          Move.new(square("e1"), square("f1"))
+        )
+
+      refute MapSet.member?(position.castling_rights, :white_kingside)
+      refute MapSet.member?(position.castling_rights, :white_queenside)
+    end
+
+    test "moving a rook removes its castling right" do
+      position =
+        Position.new(
+          castling_rights:
+            MapSet.new([
+              :white_kingside,
+              :white_queenside
+            ])
+        )
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("h1"), {:white, :rook})
+        |> Position.put_piece(square("a1"), {:white, :rook})
+        |> Position.put_piece(square("a8"), {:black, :king})
+
+      {:ok, position} =
+        Position.apply_move(
+          position,
+          Move.new(square("h1"), square("h2"))
+        )
+
+      refute MapSet.member?(position.castling_rights, :white_kingside)
+      assert MapSet.member?(position.castling_rights, :white_queenside)
+    end
+
+    test "capturing a rook removes its castling right" do
+      position =
+        Position.new(
+          side_to_move: :white,
+          castling_rights: MapSet.new([:black_kingside, :black_queenside])
+        )
+        |> Position.put_piece(square("a1"), {:white, :king})
+        |> Position.put_piece(square("g7"), {:white, :bishop})
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("h8"), {:black, :rook})
+
+      assert {:ok, position} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("g7"), square("h8"))
+               )
+
+      refute MapSet.member?(position.castling_rights, :black_kingside)
+      assert MapSet.member?(position.castling_rights, :black_queenside)
+    end
   end
 
-  test "stalemate?/2 returns true for stalemate" do
-    position =
-      Position.new(side_to_move: :white)
-      |> Position.put_piece(square("h1"), {:white, :king})
-      |> Position.put_piece(square("f2"), {:black, :king})
-      |> Position.put_piece(square("g3"), {:black, :queen})
+  describe "en passant state" do
+    test "a non-pawn move clears the en passant target" do
+      position = Position.starting_position()
 
-    assert Position.stalemate?(position, :white)
-    refute Position.checkmate?(position, :white)
+      {:ok, position} =
+        Position.apply_move(
+          position,
+          Move.new(square("e2"), square("e4"))
+        )
+
+      {:ok, position} =
+        Position.apply_move(
+          position,
+          Move.new(square("g8"), square("f6"))
+        )
+
+      assert position.en_passant == nil
+    end
+
+    test "an en passant capture removes the captured pawn" do
+      position =
+        Position.new(
+          side_to_move: :white,
+          en_passant: square("d6")
+        )
+        |> Position.put_piece(square("e5"), {:white, :pawn})
+        |> Position.put_piece(square("d5"), {:black, :pawn})
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :king})
+
+      {:ok, position} =
+        Position.apply_move(
+          position,
+          Move.new(square("e5"), square("d6"))
+        )
+
+      assert Position.piece_at(position, square("d6")) == {:white, :pawn}
+      assert Position.piece_at(position, square("d5")) == nil
+    end
+
+    test "an en passant capture clears the en passant target" do
+      position =
+        Position.new(
+          side_to_move: :white,
+          en_passant: square("d6")
+        )
+        |> Position.put_piece(square("e5"), {:white, :pawn})
+        |> Position.put_piece(square("d5"), {:black, :pawn})
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :king})
+
+      {:ok, position} =
+        Position.apply_move(
+          position,
+          Move.new(square("e5"), square("d6"))
+        )
+
+      assert position.en_passant == nil
+    end
+  end
+
+  describe "promotion" do
+    test "promotion move changes the pawn into the selected piece" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e7"), {:white, :pawn})
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("a8"), {:black, :king})
+
+      {:ok, position} =
+        Position.apply_move(
+          position,
+          Move.new(square("e7"), square("e8"), :knight)
+        )
+
+      assert Position.piece_at(position, square("e8")) == {:white, :knight}
+      assert Position.piece_at(position, square("e7")) == nil
+    end
+
+    test "a promotion capture changes the pawn into the selected piece" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e7"), {:white, :pawn})
+        |> Position.put_piece(square("d8"), {:black, :rook})
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("a8"), {:black, :king})
+
+      {:ok, position} =
+        Position.apply_move(
+          position,
+          Move.new(square("e7"), square("d8"), :bishop)
+        )
+
+      assert Position.piece_at(position, square("d8")) == {:white, :bishop}
+      assert Position.piece_at(position, square("e7")) == nil
+    end
+
+    test "a promotion move cannot use an invalid promotion piece" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e7"), {:white, :pawn})
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("a8"), {:black, :king})
+
+      assert {:error, :illegal_move} =
+               Position.apply_move(
+                 position,
+                 Move.new(square("e7"), square("e8"), :king)
+               )
+    end
+  end
+
+  describe "checkmate?/2" do
+    test "returns true for checkmate" do
+      position =
+        Position.starting_position()
+        |> then(fn position ->
+          {:ok, position} =
+            Position.apply_move(position, Move.new(square("f2"), square("f3")))
+
+          {:ok, position} =
+            Position.apply_move(position, Move.new(square("e7"), square("e5")))
+
+          {:ok, position} =
+            Position.apply_move(position, Move.new(square("g2"), square("g4")))
+
+          {:ok, position} =
+            Position.apply_move(position, Move.new(square("d8"), square("h4")))
+
+          position
+        end)
+
+      assert Position.checkmate?(position, :white)
+      refute Position.stalemate?(position, :white)
+    end
+  end
+
+  describe "stalemate?/2" do
+    test "returns true for stalemate" do
+      position =
+        Position.new(side_to_move: :white)
+        |> Position.put_piece(square("h1"), {:white, :king})
+        |> Position.put_piece(square("f2"), {:black, :king})
+        |> Position.put_piece(square("g3"), {:black, :queen})
+
+      assert Position.stalemate?(position, :white)
+      refute Position.checkmate?(position, :white)
+    end
   end
 end
