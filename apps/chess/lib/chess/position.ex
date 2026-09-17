@@ -160,18 +160,70 @@ defmodule Chess.Position do
   end
 
   def legal_moves(position) do
-    position
-    |> pieces()
-    |> Enum.flat_map(fn
-      {from, {color, _piece_type} = piece} when color == position.side_to_move ->
-        candidate_moves(from, piece)
+    bitboard = Bitboard.from_position(position)
 
-      _ ->
-        []
-    end)
+    pseudo_moves =
+      bitboard
+      |> Bitboard.pseudo_moves(position.side_to_move)
+      |> Enum.flat_map(fn {from, destinations} ->
+        piece = piece_at(position, from)
+
+        for to <- 0..63,
+            Bitwise.band(destinations, Bitwise.bsl(1, to)) != 0 do
+          promotion =
+            if promotion_move?(piece, from) do
+              [:queen, :rook, :bishop, :knight]
+            else
+              [nil]
+            end
+
+          for promotion_piece <- promotion do
+            Move.new(from, to, promotion_piece)
+          end
+        end
+        |> List.flatten()
+      end)
+
+    special_moves = special_candidate_moves(position)
+
+    (pseudo_moves ++ special_moves)
     |> Enum.filter(fn move ->
       match?({:ok, _}, apply_move(position, move))
     end)
+  end
+
+  defp special_candidate_moves(position) do
+    castling_moves =
+      case position.side_to_move do
+        :white ->
+          [Move.new(4, 6), Move.new(4, 2)]
+
+        :black ->
+          [Move.new(60, 62), Move.new(60, 58)]
+      end
+
+    en_passant_moves =
+      case position.en_passant do
+        nil ->
+          []
+
+        target ->
+          en_passant_candidate_moves(position, target)
+      end
+
+    castling_moves ++ en_passant_moves
+  end
+
+  defp en_passant_candidate_moves(%{side_to_move: :white}, target) do
+    [target - 7, target - 9]
+    |> Enum.filter(&(&1 in 0..63))
+    |> Enum.map(&Move.new(&1, target))
+  end
+
+  defp en_passant_candidate_moves(%{side_to_move: :black}, target) do
+    [target + 7, target + 9]
+    |> Enum.filter(&(&1 in 0..63))
+    |> Enum.map(&Move.new(&1, target))
   end
 
   def checkmate?(position, color) do
@@ -182,21 +234,6 @@ defmodule Chess.Position do
   def stalemate?(position, color) do
     not in_check?(position, color) and
       legal_moves(%{position | side_to_move: color}) == []
-  end
-
-  defp candidate_moves(from, piece) do
-    if promotion_move?(piece, from) do
-      for to <- 0..63,
-          to != from,
-          promotion <- [:queen, :rook, :bishop, :knight] do
-        Move.new(from, to, promotion)
-      end
-    else
-      for to <- 0..63,
-          to != from do
-        Move.new(from, to)
-      end
-    end
   end
 
   defp promotion_move?({:white, :pawn}, square), do: square in 48..55
