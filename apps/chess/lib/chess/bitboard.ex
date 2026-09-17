@@ -231,10 +231,20 @@ defmodule Chess.Bitboard do
   end
 
   defp piece_squares(bitboard) do
-    for square <- 0..63,
-        (bitboard &&& 1 <<< square) != 0 do
-      square
-    end
+    piece_squares(bitboard, 0, [])
+  end
+
+  defp piece_squares(0, _square, acc), do: Enum.reverse(acc)
+
+  defp piece_squares(bitboard, square, acc) do
+    acc =
+      if (bitboard &&& 1) != 0 do
+        [square | acc]
+      else
+        acc
+      end
+
+    piece_squares(bitboard >>> 1, square + 1, acc)
   end
 
   @spec attacked?(t(), color(), Chess.Square.t()) :: boolean()
@@ -291,12 +301,16 @@ defmodule Chess.Bitboard do
 
     if valid_ray_square?(square, next, step) do
       if (occupied &&& 1 <<< next) != 0 do
-        case get(board, next) do
-          {^color, piece_type} ->
-            piece_type in piece_types
+        mask = 1 <<< next
 
-          _ ->
-            false
+        case piece_types do
+          [:rook, :queen] ->
+            band(color_rooks(board, color), mask) != 0 or
+              band(color_queens(board, color), mask) != 0
+
+          [:bishop, :queen] ->
+            band(color_bishops(board, color), mask) != 0 or
+              band(color_queens(board, color), mask) != 0
         end
       else
         first_piece_on_ray(board, occupied, next, step, color, piece_types)
@@ -305,6 +319,15 @@ defmodule Chess.Bitboard do
       false
     end
   end
+
+  defp color_rooks(board, :white), do: board.white_rooks
+  defp color_rooks(board, :black), do: board.black_rooks
+
+  defp color_bishops(board, :white), do: board.white_bishops
+  defp color_bishops(board, :black), do: board.black_bishops
+
+  defp color_queens(board, :white), do: board.white_queens
+  defp color_queens(board, :black), do: board.black_queens
 
   defp opposite_color(:white), do: :black
   defp opposite_color(:black), do: :white
