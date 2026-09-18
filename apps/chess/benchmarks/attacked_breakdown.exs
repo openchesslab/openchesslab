@@ -1,200 +1,361 @@
-
 alias Chess.Bitboard
-alias Chess.Move
+alias Chess.Board
 alias Chess.Position
 
-defmodule AttackedBreakdownHelpers do
-  def square(algebraic), do: Chess.Square.from_algebraic(algebraic)
+defmodule AttackedBreakdownBenchmark do
+  import Bitwise
+
+  def starting_position do
+    Position.starting_position()
+  end
 
   def middlegame_position do
-    Position.starting_position()
-    |> move("e2", "e4")
-    |> move("e7", "e5")
-    |> move("g1", "f3")
-    |> move("b8", "c6")
-    |> move("f1", "b5")
-    |> move("a7", "a6")
-    |> move("b5", "a4")
-    |> move("g8", "f6")
-    |> move("e1", "g1")
-    |> move("f8", "e7")
+    Position.new(
+      board:
+        Board.empty()
+        |> Board.put(4, {:white, :king})     # e1
+        |> Board.put(6, {:white, :knight})   # g1
+        |> Board.put(11, {:white, :pawn})    # d2
+        |> Board.put(12, {:white, :pawn})    # e2
+        |> Board.put(21, {:white, :bishop})  # f3
+        |> Board.put(28, {:white, :pawn})    # e4
+        |> Board.put(35, {:white, :pawn})    # d5
+        |> Board.put(36, {:black, :pawn})    # e5
+        |> Board.put(43, {:black, :pawn})    # d6
+        |> Board.put(51, {:black, :pawn})    # d7
+        |> Board.put(60, {:black, :king})    # e8
+        |> Board.put(62, {:black, :knight}), # g8
+      side_to_move: :white
+    )
   end
 
-  def check_position do
-    Position.new(side_to_move: :white)
-    |> Position.put_piece(square("e1"), {:white, :king})
-    |> Position.put_piece(square("a1"), {:white, :rook})
-    |> Position.put_piece(square("e2"), {:white, :pawn})
-    |> Position.put_piece(square("e8"), {:black, :rook})
-    |> Position.put_piece(square("a8"), {:black, :king})
+  def in_check_position do
+    Position.new(
+      board:
+        Board.empty()
+        |> Board.put(4, {:white, :king})    # e1
+        |> Board.put(12, {:white, :pawn})   # e2
+        |> Board.put(60, {:black, :king})   # e8
+        |> Board.put(52, {:black, :rook}),  # e7
+      side_to_move: :white
+    )
   end
 
-  def bitboard(position), do: Bitboard.from_position(position)
+  def sample(position) do
+    board = Bitboard.from_position(position)
+    color = opposite_color(position.side_to_move)
+    square = king_square(position, position.side_to_move)
 
-  def targets(position) do
-    bitboard = bitboard(position)
-
-    [
-      {bitboard, :white, square("e4")},
-      {bitboard, :black, square("e5")},
-      {bitboard, :white, square("e2")},
-      {bitboard, :black, square("e7")},
-      {bitboard, :white, square("a1")},
-      {bitboard, :black, square("a8")},
-      {bitboard, :white, square("g1")},
-      {bitboard, :black, square("g8")}
-    ]
+    {board, color, square}
   end
 
-  def attacked?(position) do
-    targets(position)
-    |> Enum.map(fn {board, color, square} ->
-      Bitboard.attacked?(board, color, square)
-    end)
-  end
+  #
+  # Individual components of Bitboard.attacked?/3
+  #
 
-  def occupied(position) do
-    board = bitboard(position)
+  def occupied({board, _color, _square}) do
     Bitboard.occupied(board)
   end
 
-  def get(position) do
-    board = bitboard(position)
+  def pawn_check({board, color, square}) do
+    attackers = Bitboard.pawn_attacks(opposite_color(color), square)
+    pawns = color_pawns(board, color)
 
-    for square <- 0..63 do
-      Bitboard.get(board, square)
+    (attackers &&& pawns) != 0
+  end
+
+  def knight_check({board, color, square}) do
+    attackers = Bitboard.knight_attacks(square)
+    knights = color_knights(board, color)
+
+    (attackers &&& knights) != 0
+  end
+
+  def king_check({board, color, square}) do
+    attackers = Bitboard.king_attacks(square)
+    king = color_king(board, color)
+
+    (attackers &&& king) != 0
+  end
+
+  #
+  # Sliding attack components.
+  #
+  # These reproduce the current attacked?/3 ray traversal locally,
+  # using only the existing public Bitboard API.
+  #
+
+  def rook_check({board, color, square}) do
+    occupied = Bitboard.occupied(board)
+
+    ray_attacked?(
+      board,
+      occupied,
+      square,
+      [8, -8, 1, -1],
+      color,
+      [:rook, :queen]
+    )
+  end
+
+  def bishop_check({board, color, square}) do
+    occupied = Bitboard.occupied(board)
+
+    ray_attacked?(
+      board,
+      occupied,
+      square,
+      [9, 7, -7, -9],
+      color,
+      [:bishop, :queen]
+    )
+  end
+
+  #
+  # Full attack calculation, equivalent to the current implementation.
+  #
+
+  def all_components(sample) do
+    {
+      pawn_check(sample),
+      knight_check(sample),
+      king_check(sample),
+      rook_check(sample),
+      bishop_check(sample)
+    }
+  end
+
+  def current_attacked?({board, color, square}) do
+    Bitboard.attacked?(board, color, square)
+  end
+
+  #
+  # Alternative evaluation order.
+  #
+  # This is NOT production code. It is only used to measure whether
+  # short-circuiting can make a material difference.
+  #
+
+  def short_circuit_attacked?({board, color, square}) do
+    pawn_attacked? =
+      Bitboard.pawn_attacks(opposite_color(color), square)
+      |> band(color_pawns(board, color))
+      |> Kernel.!=(0)
+
+    if pawn_attacked? do
+      true
+    else
+      knight_attacked? =
+        Bitboard.knight_attacks(square)
+        |> band(color_knights(board, color))
+        |> Kernel.!=(0)
+
+      if knight_attacked? do
+        true
+      else
+        king_attacked? =
+          Bitboard.king_attacks(square)
+          |> band(color_king(board, color))
+          |> Kernel.!=(0)
+
+        if king_attacked? do
+          true
+        else
+          occupied = Bitboard.occupied(board)
+
+          rook_attacked? =
+            ray_attacked?(
+              board,
+              occupied,
+              square,
+              [8, -8, 1, -1],
+              color,
+              [:rook, :queen]
+            )
+
+          if rook_attacked? do
+            true
+          else
+            ray_attacked?(
+              board,
+              occupied,
+              square,
+              [9, 7, -7, -9],
+              color,
+              [:bishop, :queen]
+            )
+          end
+        end
+      end
     end
   end
 
-  def rook_attacks(position) do
-    board = bitboard(position)
+  #
+  # Force each component independently, so we can see its individual cost.
+  #
 
-    for square <- 0..63 do
-      Bitboard.rook_attacks(board, square)
+  def pawn_only(sample), do: pawn_check(sample)
+  def knight_only(sample), do: knight_check(sample)
+  def king_only(sample), do: king_check(sample)
+  def rook_only(sample), do: rook_check(sample)
+  def bishop_only(sample), do: bishop_check(sample)
+
+  #
+  # Helpers copied from the current Bitboard implementation.
+  #
+
+  defp color_pawns(board, :white), do: board.white_pawns
+  defp color_pawns(board, :black), do: board.black_pawns
+
+  defp color_knights(board, :white), do: board.white_knights
+  defp color_knights(board, :black), do: board.black_knights
+
+  defp color_king(board, :white), do: board.white_king
+  defp color_king(board, :black), do: board.black_king
+
+  defp color_rooks(board, :white), do: board.white_rooks
+  defp color_rooks(board, :black), do: board.black_rooks
+
+  defp color_bishops(board, :white), do: board.white_bishops
+  defp color_bishops(board, :black), do: board.black_bishops
+
+  defp color_queens(board, :white), do: board.white_queens
+  defp color_queens(board, :black), do: board.black_queens
+
+  defp ray_attacked?(board, occupied, square, steps, color, piece_types) do
+    Enum.any?(steps, fn step ->
+      first_piece_on_ray(board, occupied, square, step, color, piece_types)
+    end)
+  end
+
+  defp first_piece_on_ray(board, occupied, square, step, color, piece_types) do
+    next = square + step
+
+    if valid_ray_square?(square, next, step) do
+      if (occupied &&& 1 <<< next) != 0 do
+        mask = 1 <<< next
+
+        case piece_types do
+          [:rook, :queen] ->
+            (color_rooks(board, color) &&& mask) != 0 or
+              (color_queens(board, color) &&& mask) != 0
+
+          [:bishop, :queen] ->
+            (color_bishops(board, color) &&& mask) != 0 or
+              (color_queens(board, color) &&& mask) != 0
+        end
+      else
+        first_piece_on_ray(
+          board,
+          occupied,
+          next,
+          step,
+          color,
+          piece_types
+        )
+      end
+    else
+      false
     end
   end
 
-  def bishop_attacks(position) do
-    board = bitboard(position)
-
-    for square <- 0..63 do
-      Bitboard.bishop_attacks(board, square)
-    end
+  defp valid_ray_square?(_from, to, step) when step in [8, -8] do
+    to in 0..63
   end
 
-  def queen_attacks(position) do
-    board = bitboard(position)
-
-    for square <- 0..63 do
-      Bitboard.queen_attacks(board, square)
-    end
+  defp valid_ray_square?(from, to, 1) do
+    to in 0..63 and rem(to, 8) == rem(from, 8) + 1
   end
 
-  def pawn_knight_king_attacks do
-    for square <- 0..63 do
-      Bitboard.pawn_attacks(:white, square)
-      Bitboard.pawn_attacks(:black, square)
-      Bitboard.knight_attacks(square)
-      Bitboard.king_attacks(square)
-    end
+  defp valid_ray_square?(from, to, -1) do
+    to in 0..63 and rem(to, 8) == rem(from, 8) - 1
   end
 
-  defp move(position, from, to) do
-    {:ok, position} =
-      Position.apply_move(
-        position,
-        Move.new(square(from), square(to))
-      )
-
-    position
+  defp valid_ray_square?(from, to, 9) do
+    to in 0..63 and rem(to, 8) == rem(from, 8) + 1
   end
+
+  defp valid_ray_square?(from, to, 7) do
+    to in 0..63 and rem(to, 8) == rem(from, 8) - 1
+  end
+
+  defp valid_ray_square?(from, to, -7) do
+    to in 0..63 and rem(to, 8) == rem(from, 8) + 1
+  end
+
+  defp valid_ray_square?(from, to, -9) do
+    to in 0..63 and rem(to, 8) == rem(from, 8) - 1
+  end
+
+  defp king_square(position, color) do
+    position.board
+    |> Board.pieces()
+    |> Enum.find_value(fn
+      {square, {^color, :king}} -> square
+      _ -> nil
+    end)
+  end
+
+  defp opposite_color(:white), do: :black
+  defp opposite_color(:black), do: :white
 end
 
-starting = Position.starting_position()
-middlegame = AttackedBreakdownHelpers.middlegame_position()
-in_check = AttackedBreakdownHelpers.check_position()
+positions = %{
+  starting: AttackedBreakdownBenchmark.starting_position(),
+  middlegame: AttackedBreakdownBenchmark.middlegame_position(),
+  in_check: AttackedBreakdownBenchmark.in_check_position()
+}
 
-IO.puts("Attack targets:")
-IO.puts("starting:   #{length(AttackedBreakdownHelpers.targets(starting))}")
-IO.puts("middlegame: #{length(AttackedBreakdownHelpers.targets(middlegame))}")
-IO.puts("in check:   #{length(AttackedBreakdownHelpers.targets(in_check))}")
-IO.puts("")
+samples =
+  Map.new(positions, fn {name, position} ->
+    {name, AttackedBreakdownBenchmark.sample(position)}
+  end)
+
+IO.puts("Attack samples:\n")
+
+Enum.each(samples, fn {name, {_board, color, square}} ->
+  IO.puts("#{name}: color=#{color}, target=#{square}")
+end)
+
+IO.puts("\nResults:\n")
+
+benchmarks =
+  Enum.flat_map(samples, fn {name, sample} ->
+    [
+      {"#{name}: pawn", fn ->
+        AttackedBreakdownBenchmark.pawn_only(sample)
+      end},
+      {"#{name}: knight", fn ->
+        AttackedBreakdownBenchmark.knight_only(sample)
+      end},
+      {"#{name}: king", fn ->
+        AttackedBreakdownBenchmark.king_only(sample)
+      end},
+      {"#{name}: rook", fn ->
+        AttackedBreakdownBenchmark.rook_only(sample)
+      end},
+      {"#{name}: bishop", fn ->
+        AttackedBreakdownBenchmark.bishop_only(sample)
+      end},
+      {"#{name}: all components", fn ->
+        AttackedBreakdownBenchmark.all_components(sample)
+      end},
+      {"#{name}: attacked?", fn ->
+        AttackedBreakdownBenchmark.current_attacked?(sample)
+      end},
+      {"#{name}: short circuit", fn ->
+        AttackedBreakdownBenchmark.short_circuit_attacked?(sample)
+      end}
+    ]
+  end)
 
 Benchee.run(
-  %{
-    "starting: occupied" => fn ->
-      AttackedBreakdownHelpers.occupied(starting)
-    end,
-    "middlegame: occupied" => fn ->
-      AttackedBreakdownHelpers.occupied(middlegame)
-    end,
-    "in check: occupied" => fn ->
-      AttackedBreakdownHelpers.occupied(in_check)
-    end,
-
-    "starting: get all squares" => fn ->
-      AttackedBreakdownHelpers.get(starting)
-    end,
-    "middlegame: get all squares" => fn ->
-      AttackedBreakdownHelpers.get(middlegame)
-    end,
-    "in check: get all squares" => fn ->
-      AttackedBreakdownHelpers.get(in_check)
-    end,
-
-    "starting: pawn/knight/king tables" => fn ->
-      AttackedBreakdownHelpers.pawn_knight_king_attacks()
-    end,
-    "middlegame: pawn/knight/king tables" => fn ->
-      AttackedBreakdownHelpers.pawn_knight_king_attacks()
-    end,
-    "in check: pawn/knight/king tables" => fn ->
-      AttackedBreakdownHelpers.pawn_knight_king_attacks()
-    end,
-
-    "starting: rook attacks" => fn ->
-      AttackedBreakdownHelpers.rook_attacks(starting)
-    end,
-    "middlegame: rook attacks" => fn ->
-      AttackedBreakdownHelpers.rook_attacks(middlegame)
-    end,
-    "in check: rook attacks" => fn ->
-      AttackedBreakdownHelpers.rook_attacks(in_check)
-    end,
-
-    "starting: bishop attacks" => fn ->
-      AttackedBreakdownHelpers.bishop_attacks(starting)
-    end,
-    "middlegame: bishop attacks" => fn ->
-      AttackedBreakdownHelpers.bishop_attacks(middlegame)
-    end,
-    "in check: bishop attacks" => fn ->
-      AttackedBreakdownHelpers.bishop_attacks(in_check)
-    end,
-
-    "starting: queen attacks" => fn ->
-      AttackedBreakdownHelpers.queen_attacks(starting)
-    end,
-    "middlegame: queen attacks" => fn ->
-      AttackedBreakdownHelpers.queen_attacks(middlegame)
-    end,
-    "in check: queen attacks" => fn ->
-      AttackedBreakdownHelpers.queen_attacks(in_check)
-    end,
-
-    "starting: attacked?" => fn ->
-      AttackedBreakdownHelpers.attacked?(starting)
-    end,
-    "middlegame: attacked?" => fn ->
-      AttackedBreakdownHelpers.attacked?(middlegame)
-    end,
-    "in check: attacked?" => fn ->
-      AttackedBreakdownHelpers.attacked?(in_check)
-    end
-  },
+  benchmarks,
   warmup: 2,
   time: 5,
   memory_time: 2,
   parallel: 1,
-  print: [fast_warning: false]
+  formatters: [
+    Benchee.Formatters.Console
+  ]
 )
