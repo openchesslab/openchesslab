@@ -1516,5 +1516,149 @@ defmodule Chess.PositionMoveTest do
     end
   end
 
+  describe "castling rights after castling" do
+    test "kingside castling removes both white castling rights" do
+      position =
+        Position.new(castling_rights: MapSet.new([:white_kingside, :white_queenside]))
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("h1"), {:white, :rook})
+
+      {:ok, position} =
+        Position.apply_move(
+          position,
+          Move.new(square("e1"), square("g1"))
+        )
+
+      assert position.castling_rights == MapSet.new()
+    end
+
+    test "queenside castling removes both white castling rights" do
+      position =
+        Position.new(castling_rights: MapSet.new([:white_kingside, :white_queenside]))
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("a1"), {:white, :rook})
+
+      {:ok, position} =
+        Position.apply_move(
+          position,
+          Move.new(square("e1"), square("c1"))
+        )
+
+      assert position.castling_rights == MapSet.new()
+    end
+
+    test "kingside castling removes both black castling rights" do
+      position =
+        Position.new(
+          side_to_move: :black,
+          castling_rights: MapSet.new([:black_kingside, :black_queenside])
+        )
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("h8"), {:black, :rook})
+
+      {:ok, position} =
+        Position.apply_move(
+          position,
+          Move.new(square("e8"), square("g8"))
+        )
+
+      assert position.castling_rights == MapSet.new()
+    end
+
+    test "queenside castling removes both black castling rights" do
+      position =
+        Position.new(
+          side_to_move: :black,
+          castling_rights: MapSet.new([:black_kingside, :black_queenside])
+        )
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("a8"), {:black, :rook})
+
+      {:ok, position} =
+        Position.apply_move(
+          position,
+          Move.new(square("e8"), square("c8"))
+        )
+
+      assert position.castling_rights == MapSet.new()
+    end
+  end
+
+  describe "castling rights after promotion capture" do
+    test "white promotion capture on a8 removes black queenside castling rights" do
+      position =
+        Position.new(castling_rights: MapSet.new([:black_kingside, :black_queenside]))
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("b7"), {:white, :pawn})
+        |> Position.put_piece(square("a8"), {:black, :rook})
+        |> Position.put_piece(square("e8"), {:black, :king})
+
+      {:ok, position} =
+        Position.apply_move(
+          position,
+          Move.new(square("b7"), square("a8"), :queen)
+        )
+
+      assert position.castling_rights == MapSet.new([:black_kingside])
+    end
+
+    test "white promotion capture on h8 removes black kingside castling rights" do
+      position =
+        Position.new(castling_rights: MapSet.new([:black_kingside, :black_queenside]))
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("g7"), {:white, :pawn})
+        |> Position.put_piece(square("h8"), {:black, :rook})
+        |> Position.put_piece(square("e8"), {:black, :king})
+
+      {:ok, position} =
+        Position.apply_move(
+          position,
+          Move.new(square("g7"), square("h8"), :queen)
+        )
+
+      assert position.castling_rights == MapSet.new([:black_queenside])
+    end
+
+    test "black promotion capture on a1 removes white queenside castling rights" do
+      position =
+        Position.new(
+          side_to_move: :black,
+          castling_rights: MapSet.new([:white_kingside, :white_queenside])
+        )
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("b2"), {:black, :pawn})
+        |> Position.put_piece(square("a1"), {:white, :rook})
+        |> Position.put_piece(square("e1"), {:white, :king})
+
+      {:ok, position} =
+        Position.apply_move(
+          position,
+          Move.new(square("b2"), square("a1"), :queen)
+        )
+
+      assert position.castling_rights == MapSet.new([:white_kingside])
+    end
+
+    test "black promotion capture on h1 removes white kingside castling rights" do
+      position =
+        Position.new(
+          side_to_move: :black,
+          castling_rights: MapSet.new([:white_kingside, :white_queenside])
+        )
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("g2"), {:black, :pawn})
+        |> Position.put_piece(square("h1"), {:white, :rook})
+        |> Position.put_piece(square("e1"), {:white, :king})
+
+      {:ok, position} =
+        Position.apply_move(
+          position,
+          Move.new(square("g2"), square("h1"), :queen)
+        )
+
+      assert position.castling_rights == MapSet.new([:white_queenside])
+    end
+  end
+
   defp square(algebraic), do: Square.from_algebraic(algebraic)
 end

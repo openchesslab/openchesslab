@@ -426,22 +426,30 @@ defmodule Chess.Position do
         |> remove_piece(rook_from)
         |> put_piece(king_to, {color, :king})
         |> put_piece(rook_to, {color, :rook})
+        |> remove_castling_rights_for_color(color)
 
       {:ok,
        %{
          position
          | side_to_move: opponent,
-           en_passant: nil,
-           castling_rights:
-             MapSet.delete(
-               position.castling_rights,
-               right
-             )
+           en_passant: nil
        }}
     else
       _ ->
         {:error, :illegal_move}
     end
+  end
+
+  defp remove_castling_rights_for_color(position, :white) do
+    position
+    |> remove_castling_right(:white_kingside)
+    |> remove_castling_right(:white_queenside)
+  end
+
+  defp remove_castling_rights_for_color(position, :black) do
+    position
+    |> remove_castling_right(:black_kingside)
+    |> remove_castling_right(:black_queenside)
   end
 
   defp castling_path_clear?(position, :white_kingside) do
@@ -735,10 +743,13 @@ defmodule Chess.Position do
 
   defp promote_pawn(position, from, to, color, next_side, promotion)
        when promotion in [:queen, :rook, :bishop, :knight] do
+    captured_piece = piece_at(position, to)
+
     position =
       position
       |> remove_piece(from)
       |> put_piece(to, {color, promotion})
+      |> update_castling_rights_for_capture(to, captured_piece)
 
     {:ok,
      %{

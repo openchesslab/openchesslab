@@ -754,7 +754,7 @@ defmodule Chess.PositionTest do
         )
 
       refute MapSet.member?(position.castling_rights, :white_kingside)
-      assert MapSet.member?(position.castling_rights, :white_queenside)
+      refute MapSet.member?(position.castling_rights, :white_queenside)
     end
 
     test "moving the king removes both castling rights" do
