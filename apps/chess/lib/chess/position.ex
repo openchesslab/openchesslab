@@ -98,45 +98,53 @@ defmodule Chess.Position do
         %__MODULE__{side_to_move: side} = position,
         %Move{from: from, to: to, promotion: promotion}
       ) do
-    result =
-      case piece_at(position, from) do
-        {^side, :pawn} ->
-          apply_pawn_move(position, side, from, to, promotion)
+    if opposing_king_at?(position, to, side) do
+      {:error, :illegal_move}
+    else
+      result =
+        case piece_at(position, from) do
+          {^side, :pawn} ->
+            apply_pawn_move(position, side, from, to, promotion)
 
-        {^side, :king} ->
-          apply_king_move(position, side, from, to, promotion)
+          {^side, :king} ->
+            apply_king_move(position, side, from, to, promotion)
 
-        {^side, :rook} ->
-          apply_rook_move(position, side, from, to, promotion)
+          {^side, :rook} ->
+            apply_rook_move(position, side, from, to, promotion)
 
-        {^side, :bishop} ->
-          apply_bishop_move(position, side, from, to, promotion)
+          {^side, :bishop} ->
+            apply_bishop_move(position, side, from, to, promotion)
 
-        {^side, :knight} ->
-          apply_knight_move(position, side, from, to, promotion)
+          {^side, :knight} ->
+            apply_knight_move(position, side, from, to, promotion)
 
-        {^side, :queen} ->
-          apply_queen_move(position, side, from, to, promotion)
+          {^side, :queen} ->
+            apply_queen_move(position, side, from, to, promotion)
 
-        _ ->
-          {:error, :illegal_move}
-      end
-
-    case result do
-      {:ok, new_position} ->
-        if in_check?(new_position, side) do
-          {:error, :illegal_move}
-        else
-          {:ok, new_position}
+          _ ->
+            {:error, :illegal_move}
         end
 
-      error ->
-        error
+      case result do
+        {:ok, new_position} ->
+          if in_check?(new_position, side) do
+            {:error, :illegal_move}
+          else
+            {:ok, new_position}
+          end
+
+        error ->
+          error
+      end
     end
   end
 
   def apply_move(_position, _move) do
     {:error, :illegal_move}
+  end
+
+  defp opposing_king_at?(position, square, side) do
+    piece_at(position, square) == {opposite_color(side), :king}
   end
 
   def in_check?(position, color) when color in [:white, :black] do
@@ -216,22 +224,26 @@ defmodule Chess.Position do
          move,
          piece
        ) do
-    next_bitboard = Bitboard.after_move(bitboard, move, piece)
+    if Bitboard.get(bitboard, move.to) == {opposite_color(side), :king} do
+      false
+    else
+      next_bitboard = Bitboard.after_move(bitboard, move, piece)
 
-    king_square =
-      case piece do
-        {^side, :king} ->
-          move.to
+      king_square =
+        case piece do
+          {^side, :king} ->
+            move.to
 
-        _ ->
-          king_square
-      end
+          _ ->
+            king_square
+        end
 
-    not Bitboard.attacked?(
-      next_bitboard,
-      opposite_color(side),
-      king_square
-    )
+      not Bitboard.attacked?(
+        next_bitboard,
+        opposite_color(side),
+        king_square
+      )
+    end
   end
 
   defp king_square(position, color) do
