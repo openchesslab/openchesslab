@@ -65,6 +65,89 @@ defmodule BenchmarkHelpers do
     |> List.flatten()
   end
 
+  def candidate_generation_breakdown(position) do
+    bitboard = Bitboard.from_position(position)
+    side = position.side_to_move
+    pseudo_moves = Bitboard.pseudo_moves(bitboard, side)
+    king_square = king_square(position, side)
+
+    %{
+      destinations: fn ->
+        Enum.reduce(pseudo_moves, 0, fn {_from, destinations}, count ->
+          count +
+            Enum.count(0..63, fn to ->
+              band(destinations, bsl(1, to)) != 0
+            end)
+        end)
+      end,
+      destinations_and_piece_at: fn ->
+        Enum.reduce(pseudo_moves, 0, fn {from, destinations}, count ->
+          piece = Position.piece_at(position, from)
+
+          count +
+            Enum.count(0..63, fn to ->
+              band(destinations, bsl(1, to)) != 0
+            end) +
+            if piece != nil, do: 0, else: 0
+        end)
+      end,
+      destinations_and_move_new: fn ->
+        Enum.reduce(pseudo_moves, 0, fn {from, destinations}, count ->
+          count +
+            Enum.reduce(0..63, 0, fn to, count ->
+              if band(destinations, bsl(1, to)) != 0 do
+                move = Move.new(from, to)
+                count + if move.from == from, do: 1, else: 0
+              else
+                count
+              end
+            end)
+        end)
+      end,
+      destinations_piece_at_move_new: fn ->
+        Enum.reduce(pseudo_moves, 0, fn {from, destinations}, count ->
+          piece = Position.piece_at(position, from)
+
+          count +
+            Enum.reduce(0..63, 0, fn to, count ->
+              if band(destinations, bsl(1, to)) != 0 do
+                move = Move.new(from, to)
+                count + if move.from == from and piece != nil, do: 1, else: 0
+              else
+                count
+              end
+            end)
+        end)
+      end,
+      candidate_generation: fn ->
+        Enum.flat_map(pseudo_moves, fn {from, destinations} ->
+          piece = Position.piece_at(position, from)
+
+          for to <- 0..63,
+              band(destinations, bsl(1, to)) != 0 do
+            promotions =
+              if promotion_move?(piece, from) do
+                [:queen, :rook, :bishop, :knight]
+              else
+                [nil]
+              end
+
+            for promotion <- promotions do
+              %{
+                bitboard: bitboard,
+                side: side,
+                king_square: king_square,
+                move: Move.new(from, to, promotion),
+                piece: piece
+              }
+            end
+          end
+        end)
+        |> List.flatten()
+      end
+    }
+  end
+
   def after_move_candidates(candidates) do
     Enum.map(candidates, fn %{
                               bitboard: bitboard,
@@ -160,6 +243,15 @@ starting_candidates = BenchmarkHelpers.regular_candidates(starting_position)
 middlegame_candidates = BenchmarkHelpers.regular_candidates(middlegame_position)
 check_candidates = BenchmarkHelpers.regular_candidates(check_position)
 
+starting_breakdown =
+  BenchmarkHelpers.candidate_generation_breakdown(starting_position)
+
+middlegame_breakdown =
+  BenchmarkHelpers.candidate_generation_breakdown(middlegame_position)
+
+check_breakdown =
+  BenchmarkHelpers.candidate_generation_breakdown(check_position)
+
 IO.puts("\nCandidate counts:")
 IO.puts("starting:   #{length(starting_candidates)}")
 IO.puts("middlegame: #{length(middlegame_candidates)}")
@@ -185,15 +277,33 @@ Benchee.run(
         check_position.side_to_move
       )
     end,
-    "starting: candidate generation" => fn ->
-      BenchmarkHelpers.regular_candidates(starting_position)
-    end,
-    "middlegame: candidate generation" => fn ->
-      BenchmarkHelpers.regular_candidates(middlegame_position)
-    end,
-    "in check: candidate generation" => fn ->
-      BenchmarkHelpers.regular_candidates(check_position)
-    end,
+    "starting: destinations" => starting_breakdown.destinations,
+    "middlegame: destinations" => middlegame_breakdown.destinations,
+    "in check: destinations" => check_breakdown.destinations,
+    "starting: destinations + piece_at" =>
+      starting_breakdown.destinations_and_piece_at,
+    "middlegame: destinations + piece_at" =>
+      middlegame_breakdown.destinations_and_piece_at,
+    "in check: destinations + piece_at" =>
+      check_breakdown.destinations_and_piece_at,
+    "starting: destinations + Move.new" =>
+      starting_breakdown.destinations_and_move_new,
+    "middlegame: destinations + Move.new" =>
+      middlegame_breakdown.destinations_and_move_new,
+    "in check: destinations + Move.new" =>
+      check_breakdown.destinations_and_move_new,
+    "starting: destinations + piece_at + Move.new" =>
+      starting_breakdown.destinations_piece_at_move_new,
+    "middlegame: destinations + piece_at + Move.new" =>
+      middlegame_breakdown.destinations_piece_at_move_new,
+    "in check: destinations + piece_at + Move.new" =>
+      check_breakdown.destinations_piece_at_move_new,
+    "starting: candidate generation" =>
+      starting_breakdown.candidate_generation,
+    "middlegame: candidate generation" =>
+      middlegame_breakdown.candidate_generation,
+    "in check: candidate generation" =>
+      check_breakdown.candidate_generation,
     "starting: after_move" => fn ->
       BenchmarkHelpers.after_move_candidates(starting_candidates)
     end,

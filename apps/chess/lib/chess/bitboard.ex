@@ -162,12 +162,12 @@ defmodule Chess.Bitboard do
   def after_move(
         board,
         %Chess.Move{from: from, to: to, promotion: promotion},
-        {color, :pawn}
+        {color, :pawn} = piece
       ) do
     piece_type = promotion || :pawn
 
     board
-    |> remove(from)
+    |> remove_piece(from, piece)
     |> remove(to)
     |> set_piece(to, color, piece_type)
   end
@@ -175,13 +175,34 @@ defmodule Chess.Bitboard do
   def after_move(
         board,
         %Chess.Move{from: from, to: to},
-        {color, piece_type}
+        {color, piece_type} = piece
       ) do
     board
-    |> remove(from)
+    |> remove_piece(from, piece)
     |> remove(to)
     |> set_piece(to, color, piece_type)
   end
+
+  defp remove_piece(board, square, {color, piece_type}) do
+    field = piece_field(color, piece_type)
+    mask = bnot(1 <<< square)
+
+    Map.update!(board, field, &band(&1, mask))
+  end
+
+  defp piece_field(:white, :pawn), do: :white_pawns
+  defp piece_field(:white, :knight), do: :white_knights
+  defp piece_field(:white, :bishop), do: :white_bishops
+  defp piece_field(:white, :rook), do: :white_rooks
+  defp piece_field(:white, :queen), do: :white_queens
+  defp piece_field(:white, :king), do: :white_king
+
+  defp piece_field(:black, :pawn), do: :black_pawns
+  defp piece_field(:black, :knight), do: :black_knights
+  defp piece_field(:black, :bishop), do: :black_bishops
+  defp piece_field(:black, :rook), do: :black_rooks
+  defp piece_field(:black, :queen), do: :black_queens
+  defp piece_field(:black, :king), do: :black_king
 
   def pseudo_moves(board, color) when color in [:white, :black] do
     friendly = friendly_pieces(board, color)
