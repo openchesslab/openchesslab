@@ -183,9 +183,9 @@ defmodule Chess.Bitboard do
     |> set_piece(to, color, piece_type)
   end
 
-  @spec pseudo_moves(t(), color()) :: [pseudo_move()]
   def pseudo_moves(board, color) when color in [:white, :black] do
     friendly = friendly_pieces(board, color)
+    occupied = occupied(board)
 
     board
     |> color_piece_bitboards(color)
@@ -197,6 +197,7 @@ defmodule Chess.Bitboard do
           square,
           pseudo_moves_for_piece(
             board,
+            occupied,
             square,
             piece_type,
             color,
@@ -206,6 +207,117 @@ defmodule Chess.Bitboard do
       end)
     end)
     |> Enum.sort_by(&elem(&1, 0))
+  end
+
+  defp pseudo_moves_for_piece(
+         board,
+         occupied,
+         square,
+         :pawn,
+         color,
+         friendly
+       ) do
+    pawn_pseudo_moves(board, occupied, square, color, friendly)
+  end
+
+  defp pseudo_moves_for_piece(
+         _board,
+         _occupied,
+         square,
+         :knight,
+         _color,
+         friendly
+       ) do
+    knight_attacks(square)
+    |> band(bnot(friendly))
+  end
+
+  defp pseudo_moves_for_piece(
+         _board,
+         occupied,
+         square,
+         :bishop,
+         _color,
+         friendly
+       ) do
+    bishop_attacks_from_occupied(occupied, square)
+    |> band(bnot(friendly))
+  end
+
+  defp pseudo_moves_for_piece(
+         _board,
+         occupied,
+         square,
+         :rook,
+         _color,
+         friendly
+       ) do
+    rook_attacks_from_occupied(occupied, square)
+    |> band(bnot(friendly))
+  end
+
+  defp pseudo_moves_for_piece(
+         _board,
+         occupied,
+         square,
+         :queen,
+         _color,
+         friendly
+       ) do
+    queen_attacks_from_occupied(occupied, square)
+    |> band(bnot(friendly))
+  end
+
+  defp pseudo_moves_for_piece(
+         _board,
+         _occupied,
+         square,
+         :king,
+         _color,
+         friendly
+       ) do
+    king_attacks(square)
+    |> band(bnot(friendly))
+  end
+
+  defp pawn_pseudo_moves(_board, occupied, square, color, friendly) do
+    enemy = band(occupied, bnot(friendly))
+
+    direction =
+      case color do
+        :white -> 8
+        :black -> -8
+      end
+
+    one_step = square + direction
+
+    push =
+      if one_step in 0..63 and
+           (occupied &&& 1 <<< one_step) == 0 do
+        1 <<< one_step
+      else
+        0
+      end
+
+    double_push =
+      if push != 0 and pawn_on_starting_rank?(square, color) do
+        two_step = square + 2 * direction
+
+        if two_step in 0..63 and
+             (occupied &&& 1 <<< two_step) == 0 do
+          1 <<< two_step
+        else
+          0
+        end
+      else
+        0
+      end
+
+    captures =
+      pawn_attacks(color, square)
+      |> band(enemy)
+
+    push ||| double_push ||| captures
   end
 
   defp color_piece_bitboards(board, :white) do
@@ -382,6 +494,11 @@ defmodule Chess.Bitboard do
       bishop_attacks_from_occupied(occupied, square)
   end
 
+  defp queen_attacks_from_occupied(occupied, square) do
+    rook_attacks_from_occupied(occupied, square) |||
+      bishop_attacks_from_occupied(occupied, square)
+  end
+
   @spec king_attacks(Chess.Square.t()) :: non_neg_integer()
   def king_attacks(square) when square in 0..63 do
     elem(@king_attacks, square)
@@ -399,112 +516,6 @@ defmodule Chess.Bitboard do
 
   def pawn_attacks(:black, square) when square in 0..63 do
     elem(@black_pawn_attacks, square)
-  end
-
-  defp pseudo_moves_for_piece(
-         board,
-         square,
-         :pawn,
-         color,
-         friendly
-       ) do
-    pawn_pseudo_moves(board, square, color, friendly)
-  end
-
-  defp pseudo_moves_for_piece(
-         _board,
-         square,
-         :knight,
-         _color,
-         friendly
-       ) do
-    knight_attacks(square)
-    |> band(bnot(friendly))
-  end
-
-  defp pseudo_moves_for_piece(
-         board,
-         square,
-         :bishop,
-         _color,
-         friendly
-       ) do
-    bishop_attacks(board, square)
-    |> band(bnot(friendly))
-  end
-
-  defp pseudo_moves_for_piece(
-         board,
-         square,
-         :rook,
-         _color,
-         friendly
-       ) do
-    rook_attacks(board, square)
-    |> band(bnot(friendly))
-  end
-
-  defp pseudo_moves_for_piece(
-         board,
-         square,
-         :queen,
-         _color,
-         friendly
-       ) do
-    queen_attacks(board, square)
-    |> band(bnot(friendly))
-  end
-
-  defp pseudo_moves_for_piece(
-         _board,
-         square,
-         :king,
-         _color,
-         friendly
-       ) do
-    king_attacks(square)
-    |> band(bnot(friendly))
-  end
-
-  defp pawn_pseudo_moves(board, square, color, friendly) do
-    occupied = occupied(board)
-    enemy = band(occupied, bnot(friendly))
-
-    direction =
-      case color do
-        :white -> 8
-        :black -> -8
-      end
-
-    one_step = square + direction
-
-    push =
-      if one_step in 0..63 and
-           (occupied &&& 1 <<< one_step) == 0 do
-        1 <<< one_step
-      else
-        0
-      end
-
-    double_push =
-      if push != 0 and pawn_on_starting_rank?(square, color) do
-        two_step = square + 2 * direction
-
-        if two_step in 0..63 and
-             (occupied &&& 1 <<< two_step) == 0 do
-          1 <<< two_step
-        else
-          0
-        end
-      else
-        0
-      end
-
-    captures =
-      pawn_attacks(color, square)
-      |> band(enemy)
-
-    push ||| double_push ||| captures
   end
 
   defp pawn_on_starting_rank?(square, :white), do: square in 8..15
