@@ -3,6 +3,8 @@ defmodule Analysis.GameStore.Dets do
 
   use GenServer
 
+  @behaviour Analysis.GameStore
+
   alias Analysis.Game
 
   @table __MODULE__
@@ -15,6 +17,7 @@ defmodule Analysis.GameStore.Dets do
     GenServer.start_link(__MODULE__, path)
   end
 
+  @impl Analysis.GameStore
   @spec insert(store(), Game.t()) ::
           {:ok, revision()}
           | {:error, :already_exists}
@@ -22,6 +25,7 @@ defmodule Analysis.GameStore.Dets do
     GenServer.call(store, {:insert, game})
   end
 
+  @impl Analysis.GameStore
   @spec get(store(), Game.id()) ::
           {:ok, Game.t(), revision()}
           | :not_found
@@ -29,6 +33,7 @@ defmodule Analysis.GameStore.Dets do
     GenServer.call(store, {:get, game_id})
   end
 
+  @impl Analysis.GameStore
   @spec update(store(), Game.t(), revision()) ::
           {:ok, revision()}
           | {:error, :not_found | :conflict}
@@ -39,6 +44,7 @@ defmodule Analysis.GameStore.Dets do
     )
   end
 
+  @impl Analysis.GameStore
   @spec delete(store(), Game.id(), revision()) ::
           :ok
           | {:error, :not_found | :conflict}
