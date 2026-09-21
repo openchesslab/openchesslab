@@ -68,4 +68,46 @@ defmodule Web.RoomLiveTest do
 
     assert render(view) =~ "game-1"
   end
+
+  test "removes a game from the room", %{conn: conn, room_id: room_id} do
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, "game-1")
+
+    {:ok, view, _html} = live(conn, "/rooms/#{room_id}")
+
+    assert render(view) =~ "game-1"
+
+    view
+    |> element("#remove-game-game-1")
+    |> render_click()
+
+    assert {:ok, room} = Rooms.get(room_id)
+    assert room.game_ids == []
+
+    refute render(view) =~ "game-1"
+  end
+
+  test "updates all connected LiveViews when a game is removed", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, "game-1")
+
+    {:ok, view1, _html} = live(conn, "/rooms/#{room_id}")
+    {:ok, view2, _html} = live(conn, "/rooms/#{room_id}")
+
+    assert render(view1) =~ "game-1"
+    assert render(view2) =~ "game-1"
+
+    view1
+    |> element("#remove-game-game-1")
+    |> render_click()
+
+    refute render(view1) =~ "game-1"
+    refute render(view2) =~ "game-1"
+
+    assert {:ok, room} = Rooms.get(room_id)
+    assert room.game_ids == []
+  end
 end

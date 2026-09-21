@@ -42,6 +42,17 @@ defmodule Web.RoomLive do
   end
 
   @impl true
+  def handle_event(
+        "remove_game",
+        %{"game_id" => game_id},
+        socket
+      ) do
+    :ok = Rooms.remove_game(socket.assigns.room_id, game_id)
+
+    {:noreply, socket}
+  end
+
+  @impl true
   def render(assigns) do
     ~H"""
     <main>
@@ -65,7 +76,16 @@ defmodule Web.RoomLive do
       <% else %>
         <ul>
           <li :for={game_id <- @room.game_ids}>
-            {game_id}
+            <span>{game_id}</span>
+
+            <button
+              id={"remove-game-#{game_id}"}
+              type="button"
+              phx-click="remove_game"
+              phx-value-game_id={game_id}
+            >
+              Remove
+            </button>
           </li>
         </ul>
       <% end %>
