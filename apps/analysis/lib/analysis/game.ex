@@ -45,6 +45,44 @@ defmodule Analysis.Game do
     end
   end
 
+  @spec promote(t(), path()) ::
+          {:ok, t(), path()}
+          | {:error, :node_not_found | :root}
+  def promote(%__MODULE__{}, []) do
+    {:error, :root}
+  end
+
+  def promote(%__MODULE__{} = game, path) when is_list(path) do
+    {parent_path, [child_index]} = Enum.split(path, -1)
+
+    case promote_child_at(game.root, parent_path, child_index) do
+      {:ok, root} ->
+        {:ok, %{game | root: root}, parent_path ++ [0]}
+
+      :not_found ->
+        {:error, :node_not_found}
+    end
+  end
+
+  @spec remove(t(), path()) ::
+          {:ok, t(), path()}
+          | {:error, :node_not_found | :root}
+  def remove(%__MODULE__{}, []) do
+    {:error, :root}
+  end
+
+  def remove(%__MODULE__{} = game, path) when is_list(path) do
+    {parent_path, [child_index]} = Enum.split(path, -1)
+
+    case remove_child_at(game.root, parent_path, child_index) do
+      {:ok, root} ->
+        {:ok, %{game | root: root}, parent_path}
+
+      :not_found ->
+        {:error, :node_not_found}
+    end
+  end
+
   defp add_child_at(node, [], move, position_id) do
     if Enum.any?(Node.children(node), &(Node.move(&1) == move)) do
       {:ok, node}
@@ -91,4 +129,85 @@ defmodule Analysis.Game do
   end
 
   defp find_node(_node, _path), do: nil
+
+  defp promote_child_at(node, [], child_index)
+       when is_integer(child_index) and child_index >= 0 do
+    case Enum.fetch(Node.children(node), child_index) do
+      {:ok, child} ->
+        children =
+          Node.children(node)
+          |> List.delete_at(child_index)
+          |> List.insert_at(0, child)
+
+        {:ok, %{node | children: children}}
+
+      :error ->
+        :not_found
+    end
+  end
+
+  defp promote_child_at(node, [index | rest], child_index)
+       when is_integer(index) and index >= 0 do
+    case Enum.fetch(Node.children(node), index) do
+      {:ok, child} ->
+        case promote_child_at(child, rest, child_index) do
+          {:ok, updated_child} ->
+            children =
+              List.replace_at(
+                Node.children(node),
+                index,
+                updated_child
+              )
+
+            {:ok, %{node | children: children}}
+
+          :not_found ->
+            :not_found
+        end
+
+      :error ->
+        :not_found
+    end
+  end
+
+  defp promote_child_at(_node, _path, _child_index), do: :not_found
+
+  defp remove_child_at(node, [], child_index)
+       when is_integer(child_index) and child_index >= 0 do
+    case Enum.fetch(Node.children(node), child_index) do
+      {:ok, _child} ->
+        children = List.delete_at(Node.children(node), child_index)
+
+        {:ok, %{node | children: children}}
+
+      :error ->
+        :not_found
+    end
+  end
+
+  defp remove_child_at(node, [index | rest], child_index)
+       when is_integer(index) and index >= 0 do
+    case Enum.fetch(Node.children(node), index) do
+      {:ok, child} ->
+        case remove_child_at(child, rest, child_index) do
+          {:ok, updated_child} ->
+            children =
+              List.replace_at(
+                Node.children(node),
+                index,
+                updated_child
+              )
+
+            {:ok, %{node | children: children}}
+
+          :not_found ->
+            :not_found
+        end
+
+      :error ->
+        :not_found
+    end
+  end
+
+  defp remove_child_at(_node, _path, _child_index), do: :not_found
 end
