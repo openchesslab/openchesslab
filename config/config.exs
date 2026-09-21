@@ -9,12 +9,42 @@
 # move said applications out of the umbrella.
 import Config
 
-# Sample configuration:
-#
-#     config :logger, :default_handler,
-#       level: :info
-#
-#     config :logger, :default_formatter,
-#       format: "$date $time [$level] $metadata$message\n",
-#       metadata: [:user_id]
-#
+# Configure LiveView
+config :phoenix_live_view,
+  # the attribute set on all root tags. Used for Phoenix.LiveView.ColocatedCSS.
+  root_tag_attribute: "phx-r",
+  # This project does not use colocated JS/CSS; silence the Windows
+  # symlink warning that would otherwise appear on every compile.
+  colocated_assets: [disable_symlink_warning: true]
+
+# Configure the endpoint for the :web application
+config :web, Web.Endpoint,
+  url: [host: "localhost"],
+  adapter: Phoenix.Endpoint.Cowboy2Adapter,
+  render_errors: [
+    formats: [html: Web.ErrorHTML, json: Web.ErrorJSON],
+    layout: false
+  ],
+  pubsub_server: Web.PubSub,
+  live_view: [signing_salt: "3afc4cc97cfdd88a2e57b7b628e59b47"]
+
+# Configure esbuild (the version is required)
+config :esbuild,
+  version: "0.25.4",
+  web: [
+    args: ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js),
+    cd: Path.expand("../apps/web/assets", __DIR__),
+    env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
+  ]
+
+# Configure Elixir's Logger
+config :logger, :default_formatter,
+  format: "$time $metadata[$level] $message\n",
+  metadata: [:request_id]
+
+# Use Jason for JSON parsing in Phoenix
+config :phoenix, :json_library, Jason
+
+# Import environment specific config. This must remain at the bottom
+# of this file so it overrides the configuration defined above.
+import_config "#{config_env()}.exs"
