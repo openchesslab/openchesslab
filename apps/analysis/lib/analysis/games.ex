@@ -3,6 +3,10 @@ defmodule Analysis.Games do
 
   alias Analysis.Game
   alias Analysis.GameStore.Memory
+  alias Analysis.Node
+  alias Analysis.PositionStore
+  alias Chess.Move
+  alias Chess.Position
 
   @store Analysis.GameStore.Runtime
 
@@ -16,5 +20,59 @@ defmodule Analysis.Games do
           {:ok, Game.t(), pos_integer()} | :not_found
   def get(game_id) do
     Memory.get(@store, game_id)
+  end
+
+  @spec play(Game.id(), Game.path(), Move.t()) ::
+          {:ok, Game.t(), pos_integer(), Game.path()}
+          | {:error,
+             :game_not_found
+             | :node_not_found
+             | :position_not_found
+             | :illegal_move
+             | :conflict}
+  def play(game_id, path, %Move{} = move) do
+    case get(game_id) do
+      {:ok, game, revision} ->
+        play(game, revision, path, move)
+
+      :not_found ->
+        {:error, :game_not_found}
+    end
+  end
+
+  defp play(game, revision, path, move) do
+    with %Node{} = node <- Game.node_at(game, path),
+         {:ok, position} <- PositionStore.get(Node.position_id(node)),
+         {:ok, next_position} <- Position.apply_move(position, move) do
+      position_id = PositionStore.append(next_position)
+      updated_game = Game.add_child(game, path, move, position_id)
+
+      child_index =
+        updated_game
+        |> Game.node_at(path)
+        |> Node.child_index(move)
+
+      resulting_path = path ++ [child_index]
+
+      case Memory.update(@store, updated_game, revision) do
+        {:ok, new_revision} ->
+          {:ok, updated_game, new_revision, resulting_path}
+
+        {:error, :conflict} ->
+          {:error, :conflict}
+
+        {:error, :not_found} ->
+          {:error, :game_not_found}
+      end
+    else
+      nil ->
+        {:error, :node_not_found}
+
+      :not_found ->
+        {:error, :position_not_found}
+
+      {:error, :illegal_move} = error ->
+        error
+    end
   end
 end
