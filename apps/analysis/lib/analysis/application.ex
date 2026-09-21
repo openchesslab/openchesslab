@@ -7,6 +7,7 @@ defmodule Analysis.Application do
   def start(_type, _args) do
     children = [
       Analysis.RoomEvents,
+      {Analysis.GameStore.Memory, name: Analysis.GameStore.Runtime},
       {Horde.Registry, name: Analysis.RoomRegistry, keys: :unique, members: :auto},
       {Horde.DynamicSupervisor,
        name: Analysis.RoomSupervisor, strategy: :one_for_one, members: :auto}

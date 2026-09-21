@@ -15,9 +15,21 @@ defmodule Analysis.GameStore.Memory do
           revision: revision()
         }
 
-  @spec start_link() :: GenServer.on_start()
-  def start_link do
-    GenServer.start_link(__MODULE__, %{})
+  @spec start_link(keyword()) :: GenServer.on_start()
+  def start_link(opts \\ []) do
+    GenServer.start_link(
+      __MODULE__,
+      %{},
+      Keyword.take(opts, [:name])
+    )
+  end
+
+  @spec child_spec(keyword()) :: Supervisor.child_spec()
+  def child_spec(opts) do
+    %{
+      id: Keyword.get(opts, :name, __MODULE__),
+      start: {__MODULE__, :start_link, [opts]}
+    }
   end
 
   @impl Analysis.GameStore
