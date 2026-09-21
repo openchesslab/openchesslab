@@ -2,6 +2,7 @@ defmodule Analysis.Games do
   @moduledoc false
 
   alias Analysis.Game
+  alias Analysis.GameEvents
   alias Analysis.GameStore.Memory
   alias Analysis.Node
   alias Analysis.PositionStore
@@ -56,6 +57,8 @@ defmodule Analysis.Games do
 
       case Memory.update(@store, updated_game, revision) do
         {:ok, new_revision} ->
+          :ok = GameEvents.publish_changed(game.id)
+
           {:ok, updated_game, new_revision, resulting_path}
 
         {:error, :conflict} ->

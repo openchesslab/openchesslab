@@ -7,6 +7,7 @@ defmodule Analysis.Application do
   def start(_type, _args) do
     children = [
       Analysis.RoomEvents,
+      Analysis.GameEvents,
       Analysis.PositionStore,
       {Analysis.GameStore.Memory, name: Analysis.GameStore.Runtime},
       {Horde.Registry, name: Analysis.RoomRegistry, keys: :unique, members: :auto},
