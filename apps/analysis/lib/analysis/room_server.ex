@@ -4,6 +4,7 @@ defmodule Analysis.RoomServer do
   use GenServer
 
   alias Analysis.Room
+  alias Analysis.RoomEvents
 
   @type server :: GenServer.server()
 
@@ -51,15 +52,25 @@ defmodule Analysis.RoomServer do
   end
 
   def handle_call({:add_game, game_id}, _from, room) do
-    room = Room.add_game(room, game_id)
+    updated_room = Room.add_game(room, game_id)
 
-    {:reply, :ok, room}
+    publish_if_changed(room, updated_room)
+
+    {:reply, :ok, updated_room}
   end
 
   def handle_call({:remove_game, game_id}, _from, room) do
-    room = Room.remove_game(room, game_id)
+    updated_room = Room.remove_game(room, game_id)
 
-    {:reply, :ok, room}
+    publish_if_changed(room, updated_room)
+
+    {:reply, :ok, updated_room}
+  end
+
+  defp publish_if_changed(room, room), do: :ok
+
+  defp publish_if_changed(_room, updated_room) do
+    RoomEvents.publish_changed(Room.id(updated_room))
   end
 
   defp via_tuple(room_id) do

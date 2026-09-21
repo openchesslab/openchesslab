@@ -6,6 +6,7 @@ defmodule Analysis.Application do
   @impl true
   def start(_type, _args) do
     children = [
+      Analysis.RoomEvents,
       {Horde.Registry, name: Analysis.RoomRegistry, keys: :unique, members: :auto},
       {Horde.DynamicSupervisor,
        name: Analysis.RoomSupervisor, strategy: :one_for_one, members: :auto}
