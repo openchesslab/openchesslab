@@ -3,7 +3,37 @@ defmodule Web.RoomLiveTest do
 
   alias Analysis.Game
   alias Analysis.Games
+  alias Analysis.PositionStore
   alias Analysis.Rooms
+  alias Chess.Move
+  alias Chess.Position
+  alias Chess.Square
+
+  defp move(from, to) do
+    Move.new(
+      Square.from_algebraic(from),
+      Square.from_algebraic(to)
+    )
+  end
+
+  defp insert_game do
+    game_id = "game-#{System.unique_integer([:positive])}"
+    game = Game.new(game_id, 42)
+
+    assert {:ok, 1} = Games.insert(game)
+
+    game_id
+  end
+
+  defp insert_playable_game do
+    game_id = "game-#{System.unique_integer([:positive])}"
+    position_id = PositionStore.append(Position.starting_position())
+    game = Game.new(game_id, position_id)
+
+    assert {:ok, 1} = Games.insert(game)
+
+    game_id
+  end
 
   setup do
     room_id = "room-#{System.unique_integer([:positive])}"
@@ -127,12 +157,81 @@ defmodule Web.RoomLiveTest do
     assert render(view) =~ game_id
   end
 
-  defp insert_game do
-    game_id = "game-#{System.unique_integer([:positive])}"
-    game = Game.new(game_id, 42)
+  test "selects a game from the room", %{conn: conn, room_id: room_id} do
+    game_id = insert_game()
 
-    assert {:ok, 1} = Games.insert(game)
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
 
-    game_id
+    {:ok, view, _html} = live(conn, "/rooms/#{room_id}")
+
+    refute has_element?(view, "#selected-game")
+
+    view
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    assert has_element?(view, "#selected-game")
+    assert has_element?(view, "#selected-game-id", game_id)
+    assert has_element?(view, "#selected-game-revision", "Revision 1")
+  end
+
+  test "refreshes the selected game when it changes", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_playable_game()
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    {:ok, view, _html} = live(conn, "/rooms/#{room_id}")
+
+    view
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    assert has_element?(view, "#selected-game-revision", "Revision 1")
+
+    assert {:ok, _game, 2, [0]} =
+             Games.play(game_id, [], move("e2", "e4"))
+
+    assert has_element?(view, "#selected-game-revision", "Revision 2")
+  end
+
+  test "switches the game event subscription when another game is selected", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    first_game_id = insert_playable_game()
+    second_game_id = insert_playable_game()
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, first_game_id)
+    assert :ok = Rooms.add_game(room_id, second_game_id)
+
+    {:ok, view, _html} = live(conn, "/rooms/#{room_id}")
+
+    view
+    |> element("#select-game-#{first_game_id}")
+    |> render_click()
+
+    view
+    |> element("#select-game-#{second_game_id}")
+    |> render_click()
+
+    assert has_element?(view, "#selected-game-id", second_game_id)
+    assert has_element?(view, "#selected-game-revision", "Revision 1")
+
+    assert {:ok, _game, 2, [0]} =
+             Games.play(first_game_id, [], move("e2", "e4"))
+
+    assert has_element?(view, "#selected-game-id", second_game_id)
+    assert has_element?(view, "#selected-game-revision", "Revision 1")
+
+    assert {:ok, _game, 2, [0]} =
+             Games.play(second_game_id, [], move("e2", "e4"))
+
+    assert has_element?(view, "#selected-game-revision", "Revision 2")
   end
 end

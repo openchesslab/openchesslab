@@ -1,6 +1,7 @@
 defmodule Web.RoomLive do
   use Web, :live_view
 
+  alias Analysis.GameEvents
   alias Analysis.Games
   alias Analysis.RoomEvents
   alias Analysis.Rooms
@@ -17,7 +18,11 @@ defmodule Web.RoomLive do
      assign(socket,
        room_id: room_id,
        room: room,
-       add_game_error: nil
+       add_game_error: nil,
+       selected_game_id: nil,
+       game: nil,
+       game_revision: nil,
+       current_path: []
      )}
   end
 
@@ -26,6 +31,24 @@ defmodule Web.RoomLive do
     case Rooms.get(room_id) do
       {:ok, room} ->
         {:noreply, assign(socket, :room, room)}
+
+      :not_found ->
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_info(
+        {:game_changed, game_id},
+        %{assigns: %{selected_game_id: game_id}} = socket
+      ) do
+    case Games.get(game_id) do
+      {:ok, game, revision} ->
+        {:noreply,
+         assign(socket,
+           game: game,
+           game_revision: revision
+         )}
 
       :not_found ->
         {:noreply, socket}
@@ -61,6 +84,29 @@ defmodule Web.RoomLive do
   end
 
   @impl true
+  def handle_event(
+        "select_game",
+        %{"game_id" => game_id},
+        socket
+      ) do
+    case Games.get(game_id) do
+      {:ok, game, revision} ->
+        subscribe_to_game(socket, game_id)
+
+        {:noreply,
+         assign(socket,
+           selected_game_id: game_id,
+           game: game,
+           game_revision: revision,
+           current_path: []
+         )}
+
+      :not_found ->
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
   def render(assigns) do
     ~H"""
     <main>
@@ -91,6 +137,15 @@ defmodule Web.RoomLive do
             <span>{game_id}</span>
 
             <button
+              id={"select-game-#{game_id}"}
+              type="button"
+              phx-click="select_game"
+              phx-value-game_id={game_id}
+            >
+              Select
+            </button>
+
+            <button
               id={"remove-game-#{game_id}"}
               type="button"
               phx-click="remove_game"
@@ -100,8 +155,37 @@ defmodule Web.RoomLive do
             </button>
           </li>
         </ul>
+
+        <%= if @selected_game_id do %>
+          <section id="selected-game">
+            <h2>Selected game</h2>
+            <p id="selected-game-id">{@selected_game_id}</p>
+            <p id="selected-game-revision">
+              Revision {@game_revision}
+            </p>
+          </section>
+        <% end %>
       <% end %>
     </main>
     """
+  end
+
+  defp subscribe_to_game(socket, game_id) do
+    if connected?(socket) do
+      case socket.assigns.selected_game_id do
+        nil ->
+          :ok
+
+        ^game_id ->
+          :ok
+
+        previous_game_id ->
+          :ok = GameEvents.unsubscribe(previous_game_id)
+      end
+
+      :ok = GameEvents.subscribe(game_id)
+    end
+
+    :ok
   end
 end
