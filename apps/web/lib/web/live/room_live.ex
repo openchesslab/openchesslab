@@ -1,6 +1,7 @@
 defmodule Web.RoomLive do
   use Web, :live_view
 
+  alias Analysis.Games
   alias Analysis.RoomEvents
   alias Analysis.Rooms
 
@@ -15,7 +16,8 @@ defmodule Web.RoomLive do
     {:ok,
      assign(socket,
        room_id: room_id,
-       room: room
+       room: room,
+       add_game_error: nil
      )}
   end
 
@@ -36,9 +38,15 @@ defmodule Web.RoomLive do
         %{"game" => %{"id" => game_id}},
         socket
       ) do
-    :ok = Rooms.add_game(socket.assigns.room_id, game_id)
+    case Games.get(game_id) do
+      {:ok, _game, _revision} ->
+        :ok = Rooms.add_game(socket.assigns.room_id, game_id)
 
-    {:noreply, socket}
+        {:noreply, assign(socket, :add_game_error, nil)}
+
+      :not_found ->
+        {:noreply, assign(socket, :add_game_error, "Game not found.")}
+    end
   end
 
   @impl true
@@ -70,6 +78,10 @@ defmodule Web.RoomLive do
           Add game
         </button>
       </form>
+
+      <%= if @add_game_error do %>
+        <p role="alert">{@add_game_error}</p>
+      <% end %>
 
       <%= if @room.game_ids == [] do %>
         <p>No games in this room.</p>
