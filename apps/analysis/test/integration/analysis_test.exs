@@ -25,7 +25,7 @@ defmodule AnalysisTest do
 
     {db, position_id} = PositionDB.append(db, position)
 
-    {Game.new(position_id), db}
+    {Game.new("game-1", position_id), db}
   end
 
   defp move(from, to) do
@@ -130,7 +130,7 @@ defmodule AnalysisTest do
 
   test "returns an error when the node position does not exist in PositionDB" do
     db = new_db()
-    game = Game.new(999)
+    game = Game.new("game-1", 999)
 
     assert Analysis.play(game, db, [], move("e2", "e4")) ==
              {:error, :position_not_found}

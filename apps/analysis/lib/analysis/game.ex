@@ -1,25 +1,31 @@
 defmodule Analysis.Game do
   alias Analysis.Node
 
+  @type id :: term()
   @type path :: [non_neg_integer()]
   @type position_id :: term()
 
   @type t :: %__MODULE__{
+          id: id(),
           root: Node.t(),
           metadata: map()
         }
 
-  @enforce_keys [:root]
-  defstruct root: nil, metadata: %{}
+  @enforce_keys [:id, :root]
+  defstruct id: nil, root: nil, metadata: %{}
 
-  @spec new(position_id()) :: t()
-  def new(initial_position_id) do
-    %__MODULE__{root: Node.new(initial_position_id)}
+  @spec new(id(), position_id()) :: t()
+  def new(id, initial_position_id) do
+    %__MODULE__{
+      id: id,
+      root: Node.new(initial_position_id)
+    }
   end
 
-  @spec new(position_id(), map()) :: t()
-  def new(initial_position_id, metadata) when is_map(metadata) do
+  @spec new(id(), position_id(), map()) :: t()
+  def new(id, initial_position_id, metadata) when is_map(metadata) do
     %__MODULE__{
+      id: id,
       root: Node.new(initial_position_id),
       metadata: metadata
     }

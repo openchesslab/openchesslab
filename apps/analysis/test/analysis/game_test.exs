@@ -6,10 +6,11 @@ defmodule Analysis.GameTest do
   alias Chess.Move
   alias Chess.Square
 
-  describe "new/1" do
+  describe "new/2" do
     test "creates a game with the initial position as root" do
-      game = Game.new(42)
+      game = Game.new("game-1", 42)
 
+      assert game.id == "game-1"
       assert %Node{} = game.root
       assert game.root.position_id == 42
       assert game.root.move == nil
@@ -17,13 +18,13 @@ defmodule Analysis.GameTest do
     end
 
     test "starts with empty metadata" do
-      game = Game.new(42)
+      game = Game.new("game-1", 42)
 
       assert game.metadata == %{}
     end
   end
 
-  describe "new/2" do
+  describe "new/3" do
     test "stores metadata" do
       metadata = %{
         event: "World Championship",
@@ -31,23 +32,38 @@ defmodule Analysis.GameTest do
         round: "1"
       }
 
-      game = Game.new(42, metadata)
+      game = Game.new("game-1", 42, metadata)
 
       assert game.metadata == metadata
     end
 
     test "creates the initial position as root" do
-      game = Game.new(42, %{event: "World Championship"})
+      game =
+        Game.new(
+          "game-1",
+          42,
+          %{event: "World Championship"}
+        )
 
       assert game.root.position_id == 42
       assert game.root.move == nil
       assert game.root.children == []
     end
+
+    test "creates a game with an explicit identity" do
+      game = Game.new("game-1", 42)
+
+      assert game.id == "game-1"
+      assert game.root.position_id == 42
+      assert game.root.move == nil
+      assert game.root.children == []
+      assert game.metadata == %{}
+    end
   end
 
   describe "root/1" do
     test "returns the root node" do
-      game = Game.new(42)
+      game = Game.new("game-1", 42)
 
       assert Game.root(game) == game.root
     end
@@ -55,7 +71,7 @@ defmodule Analysis.GameTest do
 
   describe "node_at/2" do
     test "returns the root for an empty path" do
-      game = Game.new(42)
+      game = Game.new("game-1", 42)
 
       assert Game.node_at(game, []) == game.root
     end
@@ -70,6 +86,7 @@ defmodule Analysis.GameTest do
       }
 
       game = %Game{
+        id: "game-1",
         root: root,
         metadata: %{}
       }
@@ -95,6 +112,7 @@ defmodule Analysis.GameTest do
       }
 
       game = %Game{
+        id: "game-1",
         root: root,
         metadata: %{}
       }
@@ -103,7 +121,7 @@ defmodule Analysis.GameTest do
     end
 
     test "returns nil for a path that does not exist" do
-      game = Game.new(42)
+      game = Game.new("game-1", 42)
 
       assert Game.node_at(game, [0]) == nil
     end
@@ -117,6 +135,7 @@ defmodule Analysis.GameTest do
       }
 
       game = %Game{
+        id: "game-1",
         root: root,
         metadata: %{}
       }
@@ -125,7 +144,7 @@ defmodule Analysis.GameTest do
     end
 
     test "returns nil for a negative index" do
-      game = Game.new(42)
+      game = Game.new("game-1", 42)
 
       assert Game.node_at(game, [-1]) == nil
     end
@@ -133,7 +152,7 @@ defmodule Analysis.GameTest do
 
   describe "add_child/4" do
     test "adds a child to the root" do
-      game = Game.new(:p0)
+      game = Game.new("game-1", :p0)
       move = move("e2", "e4")
 
       game = Game.add_child(game, [], move, :p1)
@@ -150,7 +169,7 @@ defmodule Analysis.GameTest do
       e5 = move("e7", "e5")
 
       game =
-        Game.new(:p0)
+        Game.new("game-1", :p0)
         |> Game.add_child([], e4, :p1)
         |> Game.add_child([0], e5, :p2)
 
@@ -164,7 +183,7 @@ defmodule Analysis.GameTest do
       c4 = move("c2", "c4")
 
       game =
-        Game.new(:p0)
+        Game.new("game-1", :p0)
         |> Game.add_child([], e4, :p1)
         |> Game.add_child([], d4, :p2)
         |> Game.add_child([], c4, :p3)
@@ -181,7 +200,7 @@ defmodule Analysis.GameTest do
       e4 = move("e2", "e4")
 
       game =
-        Game.new(:p0)
+        Game.new("game-1", :p0)
         |> Game.add_child([], e4, :p1)
         |> Game.add_child([], e4, :p1)
 
@@ -193,7 +212,7 @@ defmodule Analysis.GameTest do
       d4 = move("d2", "d4")
 
       game =
-        Game.new(:p0)
+        Game.new("game-1", :p0)
         |> Game.add_child([], e4, :p1)
         |> Game.add_child([], d4, :p1)
 
@@ -209,7 +228,7 @@ defmodule Analysis.GameTest do
       c4 = move("c2", "c4")
 
       game =
-        Game.new(:p0)
+        Game.new("game-1", :p0)
         |> Game.add_child([], e4, :p1)
         |> Game.add_child([], d4, :p2)
         |> Game.add_child([], c4, :p3)
@@ -219,7 +238,7 @@ defmodule Analysis.GameTest do
     end
 
     test "returns the game unchanged for a nonexistent path" do
-      game = Game.new(:p0)
+      game = Game.new("game-1", :p0)
       move = move("e2", "e4")
 
       assert Game.add_child(game, [0], move, :p1) == game
@@ -234,7 +253,7 @@ defmodule Analysis.GameTest do
       e6 = move("e7", "e6")
 
       game =
-        Game.new(:p0)
+        Game.new("game-1", :p0)
         |> Game.add_child([], e4, :p1)
         |> Game.add_child([0], e5, :p2)
         |> Game.add_child([0], c5, :p3)
@@ -256,7 +275,7 @@ defmodule Analysis.GameTest do
       nf3 = move("g1", "f3")
 
       game =
-        Game.new(:p0)
+        Game.new("game-1", :p0)
         |> Game.add_child([], e4, :p1)
         |> Game.add_child([0], e5, :p2)
         |> Game.add_child([0], c5, :p3)
@@ -277,7 +296,7 @@ defmodule Analysis.GameTest do
       c5 = move("c7", "c5")
 
       game =
-        Game.new(:p0)
+        Game.new("game-1", :p0)
         |> Game.add_child([], e4, :p1)
         |> Game.add_child([0], e5, :p2)
         |> Game.add_child([0], c5, :p3)
@@ -293,7 +312,7 @@ defmodule Analysis.GameTest do
       d4 = move("d2", "d4")
 
       game =
-        Game.new(:p0)
+        Game.new("game-1", :p0)
         |> Game.add_child([], e4, :p1)
         |> Game.add_child([], d4, :p2)
 
@@ -305,14 +324,14 @@ defmodule Analysis.GameTest do
     end
 
     test "returns an error for a nonexistent path" do
-      game = Game.new(:p0)
+      game = Game.new("game-1", :p0)
 
       assert Game.promote(game, [0]) ==
                {:error, :node_not_found}
     end
 
     test "cannot promote the root" do
-      game = Game.new(:p0)
+      game = Game.new("game-1", :p0)
 
       assert Game.promote(game, []) ==
                {:error, :root}
@@ -327,7 +346,7 @@ defmodule Analysis.GameTest do
       e6 = move("e7", "e6")
 
       game =
-        Game.new(:p0)
+        Game.new("game-1", :p0)
         |> Game.add_child([], e4, :p1)
         |> Game.add_child([0], e5, :p2)
         |> Game.add_child([0], c5, :p3)
@@ -348,7 +367,7 @@ defmodule Analysis.GameTest do
       c5 = move("c7", "c5")
 
       game =
-        Game.new(:p0)
+        Game.new("game-1", :p0)
         |> Game.add_child([], e4, :p1)
         |> Game.add_child([0], e5, :p2)
         |> Game.add_child([0], c5, :p3)
@@ -371,7 +390,7 @@ defmodule Analysis.GameTest do
       nf3 = move("g1", "f3")
 
       game =
-        Game.new(:p0)
+        Game.new("game-1", :p0)
         |> Game.add_child([], e4, :p1)
         |> Game.add_child([0], e5, :p2)
         |> Game.add_child([0], c5, :p3)
@@ -390,7 +409,7 @@ defmodule Analysis.GameTest do
       d4 = move("d2", "d4")
 
       game =
-        Game.new(:p0)
+        Game.new("game-1", :p0)
         |> Game.add_child([], e4, :p1)
         |> Game.add_child([], d4, :p2)
 
@@ -402,14 +421,14 @@ defmodule Analysis.GameTest do
     end
 
     test "returns an error for a nonexistent path" do
-      game = Game.new(:p0)
+      game = Game.new("game-1", :p0)
 
       assert Game.remove(game, [0]) ==
                {:error, :node_not_found}
     end
 
     test "cannot remove the root" do
-      game = Game.new(:p0)
+      game = Game.new("game-1", :p0)
 
       assert Game.remove(game, []) ==
                {:error, :root}
@@ -418,7 +437,7 @@ defmodule Analysis.GameTest do
 
   describe "set_comment/3" do
     test "sets a comment on the root" do
-      game = Game.new(:p0)
+      game = Game.new("game-1", :p0)
 
       assert {:ok, game} =
                Game.set_comment(game, [], "Opening analysis")
@@ -431,7 +450,7 @@ defmodule Analysis.GameTest do
       e5 = move("e7", "e5")
 
       game =
-        Game.new(:p0)
+        Game.new("game-1", :p0)
         |> Game.add_child([], e4, :p1)
         |> Game.add_child([0], e5, :p2)
 
@@ -449,7 +468,7 @@ defmodule Analysis.GameTest do
       d4 = move("d2", "d4")
 
       game =
-        Game.new(:p0)
+        Game.new("game-1", :p0)
         |> Game.add_child([], e4, :same_position)
         |> Game.add_child([], d4, :same_position)
 
@@ -463,7 +482,7 @@ defmodule Analysis.GameTest do
     end
 
     test "replaces an existing comment" do
-      game = Game.new(:p0)
+      game = Game.new("game-1", :p0)
 
       assert {:ok, game} =
                Game.set_comment(game, [], "First comment")
@@ -475,7 +494,7 @@ defmodule Analysis.GameTest do
     end
 
     test "removes a comment with nil" do
-      game = Game.new(:p0)
+      game = Game.new("game-1", :p0)
 
       assert {:ok, game} =
                Game.set_comment(game, [], "Comment")
@@ -487,7 +506,7 @@ defmodule Analysis.GameTest do
     end
 
     test "normalizes an empty comment to nil" do
-      game = Game.new(:p0)
+      game = Game.new("game-1", :p0)
 
       assert {:ok, game} =
                Game.set_comment(game, [], "")
@@ -496,7 +515,7 @@ defmodule Analysis.GameTest do
     end
 
     test "returns an error for a nonexistent path" do
-      game = Game.new(:p0)
+      game = Game.new("game-1", :p0)
 
       assert Game.set_comment(game, [0], "Comment") ==
                {:error, :node_not_found}
