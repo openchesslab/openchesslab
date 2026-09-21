@@ -2,6 +2,7 @@ defmodule AnalysisTest do
   use ExUnit.Case, async: true
 
   alias Analysis.Game
+  alias Analysis.GameStore.Memory
   alias Analysis.Node
   alias Chess.Move
   alias Chess.Position
@@ -211,5 +212,44 @@ defmodule AnalysisTest do
              Analysis.play(game, db, [], e4)
 
     assert length(Node.children(Game.root(game))) == 1
+  end
+
+  test "loads a stored game, continues the analysis and saves the new revision" do
+    {game, db} = new_game()
+    {:ok, store} = Memory.start_link()
+
+    assert {:ok, 1} = Memory.insert(store, game)
+
+    assert {:ok, loaded_game, 1} =
+             Memory.get(store, "game-1")
+
+    assert {:ok, continued_game, db, [0]} =
+             Analysis.play(
+               loaded_game,
+               db,
+               [],
+               move("e2", "e4")
+             )
+
+    assert {:ok, 2} =
+             Memory.update(store, continued_game, 1)
+
+    assert {:ok, saved_game, 2} =
+             Memory.get(store, "game-1")
+
+    child = Game.node_at(saved_game, [0])
+
+    assert %Node{} = child
+    assert Node.move(child) == move("e2", "e4")
+
+    assert {:ok, position} =
+             PositionDB.get(db, Node.position_id(child))
+
+    assert Position.piece_at(
+             position,
+             Square.from_algebraic("e4")
+           ) == {:white, :pawn}
+
+    assert position.side_to_move == :black
   end
 end
