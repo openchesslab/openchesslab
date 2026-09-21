@@ -38,7 +38,7 @@ defmodule Web.RoomLiveTest do
     assert html =~ "game-2"
   end
 
-  test "updates all connected LiveViews when the room changes", %{
+  test "updates all connected LiveViews when a game is added", %{
     conn: conn,
     room_id: room_id
   } do
@@ -48,9 +48,24 @@ defmodule Web.RoomLiveTest do
     refute render(view1) =~ "game-1"
     refute render(view2) =~ "game-1"
 
-    assert :ok = Rooms.add_game(room_id, "game-1")
+    view1
+    |> form("#add-game-form", %{"game" => %{"id" => "game-1"}})
+    |> render_submit()
 
     assert render(view1) =~ "game-1"
     assert render(view2) =~ "game-1"
+  end
+
+  test "adds a game to the room", %{conn: conn, room_id: room_id} do
+    {:ok, view, _html} = live(conn, "/rooms/#{room_id}")
+
+    view
+    |> form("#add-game-form", %{"game" => %{"id" => "game-1"}})
+    |> render_submit()
+
+    assert {:ok, room} = Rooms.get(room_id)
+    assert room.game_ids == ["game-1"]
+
+    assert render(view) =~ "game-1"
   end
 end

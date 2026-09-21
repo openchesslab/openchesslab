@@ -31,10 +31,34 @@ defmodule Web.RoomLive do
   end
 
   @impl true
+  def handle_event(
+        "add_game",
+        %{"game" => %{"id" => game_id}},
+        socket
+      ) do
+    :ok = Rooms.add_game(socket.assigns.room_id, game_id)
+
+    {:noreply, socket}
+  end
+
+  @impl true
   def render(assigns) do
     ~H"""
     <main>
       <h1>Room {@room_id}</h1>
+
+      <form id="add-game-form" phx-submit="add_game">
+        <input
+          type="text"
+          name="game[id]"
+          placeholder="Game ID"
+          required
+        />
+
+        <button type="submit">
+          Add game
+        </button>
+      </form>
 
       <%= if @room.game_ids == [] do %>
         <p>No games in this room.</p>
