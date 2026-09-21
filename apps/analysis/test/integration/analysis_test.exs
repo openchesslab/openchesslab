@@ -40,7 +40,7 @@ defmodule AnalysisTest do
 
     e4 = move("e2", "e4")
 
-    assert {:ok, game, db} =
+    assert {:ok, game, db, [0]} =
              Analysis.play(game, db, [], e4)
 
     child = Game.node_at(game, [0])
@@ -66,10 +66,10 @@ defmodule AnalysisTest do
     e4 = move("e2", "e4")
     e5 = move("e7", "e5")
 
-    assert {:ok, game, db} =
+    assert {:ok, game, db, [0]} =
              Analysis.play(game, db, [], e4)
 
-    assert {:ok, game, db} =
+    assert {:ok, game, db, [0, 0]} =
              Analysis.play(game, db, [0], e5)
 
     e4_node = Game.node_at(game, [0])
@@ -96,10 +96,10 @@ defmodule AnalysisTest do
     e4 = move("e2", "e4")
     d4 = move("d2", "d4")
 
-    assert {:ok, game, db} =
+    assert {:ok, game, db, [0]} =
              Analysis.play(game, db, [], e4)
 
-    assert {:ok, game, _db} =
+    assert {:ok, game, _db, [1]} =
              Analysis.play(game, db, [], d4)
 
     children = game |> Game.root() |> Node.children()
@@ -142,16 +142,16 @@ defmodule AnalysisTest do
     # First move order:
     # 1. Nf3 Nf6 2. g3 g6
 
-    assert {:ok, game, db} =
+    assert {:ok, game, db, [0]} =
              Analysis.play(game, db, [], move("g1", "f3"))
 
-    assert {:ok, game, db} =
+    assert {:ok, game, db, [0, 0]} =
              Analysis.play(game, db, [0], move("g8", "f6"))
 
-    assert {:ok, game, db} =
+    assert {:ok, game, db, [0, 0, 0]} =
              Analysis.play(game, db, [0, 0], move("g2", "g3"))
 
-    assert {:ok, game, db} =
+    assert {:ok, game, db, [0, 0, 0, 0]} =
              Analysis.play(game, db, [0, 0, 0], move("g7", "g6"))
 
     first_node = Game.node_at(game, [0, 0, 0, 0])
@@ -160,16 +160,16 @@ defmodule AnalysisTest do
     # Second move order:
     # 1. g3 g6 2. Nf3 Nf6
 
-    assert {:ok, game, db} =
+    assert {:ok, game, db, [1]} =
              Analysis.play(game, db, [], move("g2", "g3"))
 
-    assert {:ok, game, db} =
+    assert {:ok, game, db, [1, 0]} =
              Analysis.play(game, db, [1], move("g7", "g6"))
 
-    assert {:ok, game, db} =
+    assert {:ok, game, db, [1, 0, 0]} =
              Analysis.play(game, db, [1, 0], move("g1", "f3"))
 
-    assert {:ok, game, _db} =
+    assert {:ok, game, _db, [1, 0, 0, 0]} =
              Analysis.play(game, db, [1, 0, 0], move("g8", "f6"))
 
     second_node = Game.node_at(game, [1, 0, 0, 0])
@@ -177,5 +177,39 @@ defmodule AnalysisTest do
 
     assert first_node != second_node
     assert first_position_id == second_position_id
+  end
+
+  test "returns the path of the newly created occurrence" do
+    {game, db} = new_game()
+
+    assert {:ok, game, _db, [0]} =
+             Analysis.play(game, db, [], move("e2", "e4"))
+
+    assert Game.node_at(game, [0]) != nil
+  end
+
+  test "returns the path of a nested occurrence" do
+    {game, db} = new_game()
+
+    assert {:ok, game, db, [0]} =
+             Analysis.play(game, db, [], move("e2", "e4"))
+
+    assert {:ok, game, _db, [0, 0]} =
+             Analysis.play(game, db, [0], move("e7", "e5"))
+
+    assert Game.node_at(game, [0, 0]) != nil
+  end
+
+  test "playing an existing move returns its existing path" do
+    {game, db} = new_game()
+    e4 = move("e2", "e4")
+
+    assert {:ok, game, db, [0]} =
+             Analysis.play(game, db, [], e4)
+
+    assert {:ok, game, _db, [0]} =
+             Analysis.play(game, db, [], e4)
+
+    assert length(Node.children(Game.root(game))) == 1
   end
 end

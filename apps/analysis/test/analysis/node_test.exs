@@ -92,4 +92,34 @@ defmodule Analysis.NodeTest do
       assert Node.main_child(Node.new(42)) == nil
     end
   end
+
+  describe "child_index/2" do
+    test "returns the index of the child reached by a move" do
+      e4 = Move.new(Square.from_algebraic("e2"), Square.from_algebraic("e4"))
+      d4 = Move.new(Square.from_algebraic("d2"), Square.from_algebraic("d4"))
+
+      node = %Node{
+        position_id: 42,
+        children: [
+          Node.new(43, e4),
+          Node.new(44, d4)
+        ]
+      }
+
+      assert Node.child_index(node, e4) == 0
+      assert Node.child_index(node, d4) == 1
+    end
+
+    test "returns nil when the move is not a child" do
+      e4 = Move.new(Square.from_algebraic("e2"), Square.from_algebraic("e4"))
+      d4 = Move.new(Square.from_algebraic("d2"), Square.from_algebraic("d4"))
+
+      node = %Node{
+        position_id: 42,
+        children: [Node.new(43, e4)]
+      }
+
+      assert Node.child_index(node, d4) == nil
+    end
+  end
 end

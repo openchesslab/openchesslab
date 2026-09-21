@@ -68,4 +68,9 @@ defmodule Analysis.Node do
   def main_child(%__MODULE__{children: []}) do
     nil
   end
+
+  @spec child_index(t(), Move.t()) :: non_neg_integer() | nil
+  def child_index(%__MODULE__{children: children}, move) do
+    Enum.find_index(children, &(move(&1) == move))
+  end
 end

@@ -10,7 +10,7 @@ defmodule Analysis do
           Game.path(),
           Move.t()
         ) ::
-          {:ok, Game.t(), PositionDB.t()}
+          {:ok, Game.t(), PositionDB.t(), Game.path()}
           | {:error, :node_not_found | :position_not_found | :illegal_move}
   def play(game, db, path, move) do
     with %Node{} = node <- Game.node_at(game, path),
@@ -19,7 +19,12 @@ defmodule Analysis do
       {db, position_id} = PositionDB.append(db, next_position)
       game = Game.add_child(game, path, move, position_id)
 
-      {:ok, game, db}
+      child_index =
+        game
+        |> Game.node_at(path)
+        |> Node.child_index(move)
+
+      {:ok, game, db, path ++ [child_index]}
     else
       nil ->
         {:error, :node_not_found}
