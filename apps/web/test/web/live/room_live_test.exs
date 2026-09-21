@@ -315,4 +315,173 @@ defmodule Web.RoomLiveTest do
     assert has_element?(view1, "#current-path", "Path [0]")
     assert has_element?(view2, "#current-path", "Path []")
   end
+
+  test "plays a move from the current path and navigates to the result", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_playable_game()
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    {:ok, view, _html} = live(conn, "/rooms/#{room_id}")
+
+    view
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    assert has_element?(view, "#current-path", "Path []")
+    assert has_element?(view, "#selected-game-revision", "Revision 1")
+
+    view
+    |> form("#play-move-form", %{
+      "move" => %{
+        "from" => "e2",
+        "to" => "e4"
+      }
+    })
+    |> render_submit()
+
+    assert has_element?(view, "#current-path", "Path [0]")
+    assert has_element?(view, "#selected-game-revision", "Revision 2")
+
+    assert {:ok, game, 2} = Games.get(game_id)
+    assert Game.node_at(game, [0])
+  end
+
+  test "plays a move from the current occurrence", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_game_with_moves()
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    {:ok, view, _html} = live(conn, "/rooms/#{room_id}")
+
+    view
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    view
+    |> element("#navigate-child-0")
+    |> render_click()
+
+    view
+    |> element("#navigate-child-0")
+    |> render_click()
+
+    assert has_element?(view, "#current-path", "Path [0, 0]")
+
+    view
+    |> form("#play-move-form", %{
+      "move" => %{
+        "from" => "g1",
+        "to" => "f3"
+      }
+    })
+    |> render_submit()
+
+    assert has_element?(view, "#current-path", "Path [0, 0, 0]")
+
+    assert {:ok, game, 4} = Games.get(game_id)
+    assert Game.node_at(game, [0, 0, 0])
+  end
+
+  test "shows an error and stays at the current path for an illegal move", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_playable_game()
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    {:ok, view, _html} = live(conn, "/rooms/#{room_id}")
+
+    view
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    view
+    |> form("#play-move-form", %{
+      "move" => %{
+        "from" => "e2",
+        "to" => "e5"
+      }
+    })
+    |> render_submit()
+
+    assert has_element?(view, "#move-error", "Illegal move.")
+    assert has_element?(view, "#current-path", "Path []")
+    assert has_element?(view, "#selected-game-revision", "Revision 1")
+  end
+
+  test "shows an error for an invalid square", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_playable_game()
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    {:ok, view, _html} = live(conn, "/rooms/#{room_id}")
+
+    view
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    view
+    |> form("#play-move-form", %{
+      "move" => %{
+        "from" => "foo",
+        "to" => "e4"
+      }
+    })
+    |> render_submit()
+
+    assert has_element?(view, "#move-error", "Invalid square.")
+    assert has_element?(view, "#current-path", "Path []")
+  end
+
+  test "a played move updates both views but only moves the initiating path", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_playable_game()
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    {:ok, view1, _html} = live(conn, "/rooms/#{room_id}")
+    {:ok, view2, _html} = live(conn, "/rooms/#{room_id}")
+
+    view1
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    view2
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    view1
+    |> form("#play-move-form", %{
+      "move" => %{
+        "from" => "e2",
+        "to" => "e4"
+      }
+    })
+    |> render_submit()
+
+    assert has_element?(view1, "#selected-game-revision", "Revision 2")
+    assert has_element?(view2, "#selected-game-revision", "Revision 2")
+
+    assert has_element?(view1, "#current-path", "Path [0]")
+    assert has_element?(view2, "#current-path", "Path []")
+
+    assert has_element?(view2, "#navigate-child-0")
+  end
 end

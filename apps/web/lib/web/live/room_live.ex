@@ -7,6 +7,8 @@ defmodule Web.RoomLive do
   alias Analysis.Node
   alias Analysis.RoomEvents
   alias Analysis.Rooms
+  alias Chess.Move
+  alias Chess.Square
 
   @impl true
   def mount(%{"room_id" => room_id}, _session, socket) do
@@ -21,6 +23,7 @@ defmodule Web.RoomLive do
        room_id: room_id,
        room: room,
        add_game_error: nil,
+       move_error: nil,
        selected_game_id: nil,
        game: nil,
        game_revision: nil,
@@ -146,6 +149,25 @@ defmodule Web.RoomLive do
   end
 
   @impl true
+  def handle_event(
+        "play_move",
+        %{"move" => %{"from" => from, "to" => to}},
+        socket
+      ) do
+    with from_square when is_integer(from_square) <-
+           Square.from_algebraic(from),
+         to_square when is_integer(to_square) <-
+           Square.from_algebraic(to) do
+      move = Move.new(from_square, to_square)
+
+      play_move(socket, move)
+    else
+      {:error, :invalid_square} ->
+        {:noreply, assign(socket, :move_error, "Invalid square.")}
+    end
+  end
+
+  @impl true
   def render(assigns) do
     ~H"""
     <main>
@@ -205,6 +227,29 @@ defmodule Web.RoomLive do
             <p id="current-path">
               Path {inspect(@current_path)}
             </p>
+            <form id="play-move-form" phx-submit="play_move">
+              <input
+                type="text"
+                name="move[from]"
+                placeholder="From"
+                required
+              />
+
+              <input
+                type="text"
+                name="move[to]"
+                placeholder="To"
+                required
+              />
+
+              <button type="submit">
+                Play move
+              </button>
+            </form>
+
+            <%= if @move_error do %>
+              <p id="move-error" role="alert">{@move_error}</p>
+            <% end %>
 
             <% current_node = Game.node_at(@game, @current_path) %>
 
@@ -259,6 +304,38 @@ defmodule Web.RoomLive do
       path
       |> Enum.drop(-1)
       |> then(&nearest_existing_path(game, &1))
+    end
+  end
+
+  defp play_move(socket, move) do
+    case Games.play(
+           socket.assigns.selected_game_id,
+           socket.assigns.current_path,
+           move
+         ) do
+      {:ok, game, revision, resulting_path} ->
+        {:noreply,
+         assign(socket,
+           game: game,
+           game_revision: revision,
+           current_path: resulting_path,
+           move_error: nil
+         )}
+
+      {:error, :illegal_move} ->
+        {:noreply, assign(socket, :move_error, "Illegal move.")}
+
+      {:error, :node_not_found} ->
+        {:noreply, assign(socket, :move_error, "Position no longer exists.")}
+
+      {:error, :position_not_found} ->
+        {:noreply, assign(socket, :move_error, "Position not found.")}
+
+      {:error, :game_not_found} ->
+        {:noreply, assign(socket, :move_error, "Game not found.")}
+
+      {:error, :conflict} ->
+        {:noreply, assign(socket, :move_error, "Game changed. Try again.")}
     end
   end
 end
