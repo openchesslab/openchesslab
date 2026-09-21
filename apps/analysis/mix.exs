@@ -18,6 +18,7 @@ defmodule Analysis.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
+      mod: {Analysis.Application, []},
       extra_applications: [:logger]
     ]
   end
@@ -26,7 +27,8 @@ defmodule Analysis.MixProject do
   defp deps do
     [
       {:chess, in_umbrella: true},
-      {:position_db, in_umbrella: true}
+      {:position_db, in_umbrella: true},
+      {:horde, "~> 0.10"}
     ]
   end
 end

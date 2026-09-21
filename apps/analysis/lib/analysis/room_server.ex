@@ -7,9 +7,22 @@ defmodule Analysis.RoomServer do
 
   @type server :: GenServer.server()
 
+  @spec child_spec(Room.t()) :: Supervisor.child_spec()
+  def child_spec(%Room{} = room) do
+    %{
+      id: {__MODULE__, Room.id(room)},
+      start: {__MODULE__, :start_link, [room]},
+      restart: :permanent
+    }
+  end
+
   @spec start_link(Room.t()) :: GenServer.on_start()
   def start_link(%Room{} = room) do
-    GenServer.start_link(__MODULE__, room)
+    GenServer.start_link(
+      __MODULE__,
+      room,
+      name: via_tuple(Room.id(room))
+    )
   end
 
   @spec get(server()) :: Room.t()
@@ -47,5 +60,9 @@ defmodule Analysis.RoomServer do
     room = Room.remove_game(room, game_id)
 
     {:reply, :ok, room}
+  end
+
+  defp via_tuple(room_id) do
+    {:via, Horde.Registry, {Analysis.RoomRegistry, room_id}}
   end
 end
