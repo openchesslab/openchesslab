@@ -1,4 +1,3 @@
-
 alias Chess.Bitboard
 alias Chess.Move
 alias Chess.Position
@@ -207,41 +206,30 @@ IO.puts("  captured:    #{inspect(capture.captured)}")
 
 Benchee.run(
   %{
-    "non-capture: remove from" =>
-      fn -> BenchmarkHelpers.remove_from(non_capture) end,
-
-    "non-capture: remove to" =>
-      fn -> BenchmarkHelpers.remove_to(non_capture) end,
-
-    "non-capture: set to" =>
-      fn -> BenchmarkHelpers.set_to(non_capture) end,
-
-    "non-capture: remove from + set to" =>
-      fn ->
-        board = BenchmarkHelpers.remove_from(non_capture)
-        BenchmarkHelpers.set_to(%{non_capture | board: board})
-      end,
-
-    "non-capture: exact implementation" =>
-      fn -> BenchmarkHelpers.after_move_non_capture(non_capture) end,
-
-    "non-capture: explicit implementation" =>
-      fn -> BenchmarkHelpers.after_move_explicit(non_capture) end,
-
-    "non-capture: production after_move" =>
-      fn -> BenchmarkHelpers.production_after_move(non_capture) end,
-
-    "capture: remove from + remove to + set to" =>
-      fn -> BenchmarkHelpers.after_move_non_capture(capture) end,
-
-    "capture: remove from + known captured + set to" =>
-      fn -> BenchmarkHelpers.after_move_known_capture(capture) end,
-
-    "capture: explicit implementation" =>
-      fn -> BenchmarkHelpers.after_move_explicit(capture) end,
-
-    "capture: production after_move" =>
-      fn -> BenchmarkHelpers.production_after_move(capture) end
+    "non-capture: remove from" => fn -> BenchmarkHelpers.remove_from(non_capture) end,
+    "non-capture: remove to" => fn -> BenchmarkHelpers.remove_to(non_capture) end,
+    "non-capture: set to" => fn -> BenchmarkHelpers.set_to(non_capture) end,
+    "non-capture: remove from + set to" => fn ->
+      board = BenchmarkHelpers.remove_from(non_capture)
+      BenchmarkHelpers.set_to(%{non_capture | board: board})
+    end,
+    "non-capture: exact implementation" => fn ->
+      BenchmarkHelpers.after_move_non_capture(non_capture)
+    end,
+    "non-capture: explicit implementation" => fn ->
+      BenchmarkHelpers.after_move_explicit(non_capture)
+    end,
+    "non-capture: production after_move" => fn ->
+      BenchmarkHelpers.production_after_move(non_capture)
+    end,
+    "capture: remove from + remove to + set to" => fn ->
+      BenchmarkHelpers.after_move_non_capture(capture)
+    end,
+    "capture: remove from + known captured + set to" => fn ->
+      BenchmarkHelpers.after_move_known_capture(capture)
+    end,
+    "capture: explicit implementation" => fn -> BenchmarkHelpers.after_move_explicit(capture) end,
+    "capture: production after_move" => fn -> BenchmarkHelpers.production_after_move(capture) end
   },
   warmup: 2,
   time: 5,

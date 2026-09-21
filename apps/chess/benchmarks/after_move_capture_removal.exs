@@ -1,4 +1,3 @@
-
 alias Chess.Bitboard
 alias Chess.Move
 alias Chess.Position
@@ -55,18 +54,14 @@ defmodule BenchmarkHelpers do
     |> set_piece(to, color, type)
   end
 
-  def remove_from_remove_to_set_to(
-        %{board: board, from: from, to: to, piece: {color, type}}
-      ) do
+  def remove_from_remove_to_set_to(%{board: board, from: from, to: to, piece: {color, type}}) do
     board
     |> remove_piece(from, {color, type})
     |> Bitboard.remove(to)
     |> set_piece(to, color, type)
   end
 
-  def remove_from_remove_at_set_to(
-        %{board: board, from: from, to: to, piece: {color, type}}
-      ) do
+  def remove_from_remove_at_set_to(%{board: board, from: from, to: to, piece: {color, type}}) do
     board
     |> remove_piece(from, {color, type})
     |> remove_at(to)
@@ -91,7 +86,7 @@ defmodule BenchmarkHelpers do
     mask = bnot(1 <<< square)
 
     Enum.reduce_while(piece_fields(), board, fn {field, _color, _type}, board ->
-      if (Map.fetch!(board, field) &&& (1 <<< square)) != 0 do
+      if (Map.fetch!(board, field) &&& 1 <<< square) != 0 do
         {:halt, Map.update!(board, field, &band(&1, mask))}
       else
         {:cont, board}
@@ -178,41 +173,36 @@ BenchmarkHelpers.print_case("middlegame capture", middlegame_capture)
 
 Benchee.run(
   %{
-    "starting: remove from + set to" =>
-      fn -> BenchmarkHelpers.remove_from_set_to(starting) end,
-
-    "starting: remove from + remove to + set to" =>
-      fn -> BenchmarkHelpers.remove_from_remove_to_set_to(starting) end,
-
-    "starting: remove from + remove_at + set to" =>
-      fn -> BenchmarkHelpers.remove_from_remove_at_set_to(starting) end,
-
-    "starting: after_move" =>
-      fn -> BenchmarkHelpers.after_move(starting) end,
-
-    "middlegame non-capture: remove from + set to" =>
-      fn -> BenchmarkHelpers.remove_from_set_to(middlegame_non_capture) end,
-
-    "middlegame non-capture: remove from + remove to + set to" =>
-      fn -> BenchmarkHelpers.remove_from_remove_to_set_to(middlegame_non_capture) end,
-
-    "middlegame non-capture: remove from + remove_at + set to" =>
-      fn -> BenchmarkHelpers.remove_from_remove_at_set_to(middlegame_non_capture) end,
-
-    "middlegame non-capture: after_move" =>
-      fn -> BenchmarkHelpers.after_move(middlegame_non_capture) end,
-
-    "middlegame capture: remove from + set to" =>
-      fn -> BenchmarkHelpers.remove_from_set_to(middlegame_capture) end,
-
-    "middlegame capture: remove from + remove to + set to" =>
-      fn -> BenchmarkHelpers.remove_from_remove_to_set_to(middlegame_capture) end,
-
-    "middlegame capture: remove from + remove_at + set to" =>
-      fn -> BenchmarkHelpers.remove_from_remove_at_set_to(middlegame_capture) end,
-
-    "middlegame capture: after_move" =>
-      fn -> BenchmarkHelpers.after_move(middlegame_capture) end
+    "starting: remove from + set to" => fn -> BenchmarkHelpers.remove_from_set_to(starting) end,
+    "starting: remove from + remove to + set to" => fn ->
+      BenchmarkHelpers.remove_from_remove_to_set_to(starting)
+    end,
+    "starting: remove from + remove_at + set to" => fn ->
+      BenchmarkHelpers.remove_from_remove_at_set_to(starting)
+    end,
+    "starting: after_move" => fn -> BenchmarkHelpers.after_move(starting) end,
+    "middlegame non-capture: remove from + set to" => fn ->
+      BenchmarkHelpers.remove_from_set_to(middlegame_non_capture)
+    end,
+    "middlegame non-capture: remove from + remove to + set to" => fn ->
+      BenchmarkHelpers.remove_from_remove_to_set_to(middlegame_non_capture)
+    end,
+    "middlegame non-capture: remove from + remove_at + set to" => fn ->
+      BenchmarkHelpers.remove_from_remove_at_set_to(middlegame_non_capture)
+    end,
+    "middlegame non-capture: after_move" => fn ->
+      BenchmarkHelpers.after_move(middlegame_non_capture)
+    end,
+    "middlegame capture: remove from + set to" => fn ->
+      BenchmarkHelpers.remove_from_set_to(middlegame_capture)
+    end,
+    "middlegame capture: remove from + remove to + set to" => fn ->
+      BenchmarkHelpers.remove_from_remove_to_set_to(middlegame_capture)
+    end,
+    "middlegame capture: remove from + remove_at + set to" => fn ->
+      BenchmarkHelpers.remove_from_remove_at_set_to(middlegame_capture)
+    end,
+    "middlegame capture: after_move" => fn -> BenchmarkHelpers.after_move(middlegame_capture) end
   },
   warmup: 2,
   time: 5,

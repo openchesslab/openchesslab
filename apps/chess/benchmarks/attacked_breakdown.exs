@@ -13,18 +13,30 @@ defmodule AttackedBreakdownBenchmark do
     Position.new(
       board:
         Board.empty()
-        |> Board.put(4, {:white, :king})     # e1
-        |> Board.put(6, {:white, :knight})   # g1
-        |> Board.put(11, {:white, :pawn})    # d2
-        |> Board.put(12, {:white, :pawn})    # e2
-        |> Board.put(21, {:white, :bishop})  # f3
-        |> Board.put(28, {:white, :pawn})    # e4
-        |> Board.put(35, {:white, :pawn})    # d5
-        |> Board.put(36, {:black, :pawn})    # e5
-        |> Board.put(43, {:black, :pawn})    # d6
-        |> Board.put(51, {:black, :pawn})    # d7
-        |> Board.put(60, {:black, :king})    # e8
-        |> Board.put(62, {:black, :knight}), # g8
+        # e1
+        |> Board.put(4, {:white, :king})
+        # g1
+        |> Board.put(6, {:white, :knight})
+        # d2
+        |> Board.put(11, {:white, :pawn})
+        # e2
+        |> Board.put(12, {:white, :pawn})
+        # f3
+        |> Board.put(21, {:white, :bishop})
+        # e4
+        |> Board.put(28, {:white, :pawn})
+        # d5
+        |> Board.put(35, {:white, :pawn})
+        # e5
+        |> Board.put(36, {:black, :pawn})
+        # d6
+        |> Board.put(43, {:black, :pawn})
+        # d7
+        |> Board.put(51, {:black, :pawn})
+        # e8
+        |> Board.put(60, {:black, :king})
+        # g8
+        |> Board.put(62, {:black, :knight}),
       side_to_move: :white
     )
   end
@@ -33,10 +45,14 @@ defmodule AttackedBreakdownBenchmark do
     Position.new(
       board:
         Board.empty()
-        |> Board.put(4, {:white, :king})    # e1
-        |> Board.put(12, {:white, :pawn})   # e2
-        |> Board.put(60, {:black, :king})   # e8
-        |> Board.put(52, {:black, :rook}),  # e7
+        # e1
+        |> Board.put(4, {:white, :king})
+        # e2
+        |> Board.put(12, {:white, :pawn})
+        # e8
+        |> Board.put(60, {:black, :king})
+        # e7
+        |> Board.put(52, {:black, :rook}),
       side_to_move: :white
     )
   end
@@ -322,30 +338,38 @@ IO.puts("\nResults:\n")
 benchmarks =
   Enum.flat_map(samples, fn {name, sample} ->
     [
-      {"#{name}: pawn", fn ->
-        AttackedBreakdownBenchmark.pawn_only(sample)
-      end},
-      {"#{name}: knight", fn ->
-        AttackedBreakdownBenchmark.knight_only(sample)
-      end},
-      {"#{name}: king", fn ->
-        AttackedBreakdownBenchmark.king_only(sample)
-      end},
-      {"#{name}: rook", fn ->
-        AttackedBreakdownBenchmark.rook_only(sample)
-      end},
-      {"#{name}: bishop", fn ->
-        AttackedBreakdownBenchmark.bishop_only(sample)
-      end},
-      {"#{name}: all components", fn ->
-        AttackedBreakdownBenchmark.all_components(sample)
-      end},
-      {"#{name}: attacked?", fn ->
-        AttackedBreakdownBenchmark.current_attacked?(sample)
-      end},
-      {"#{name}: short circuit", fn ->
-        AttackedBreakdownBenchmark.short_circuit_attacked?(sample)
-      end}
+      {"#{name}: pawn",
+       fn ->
+         AttackedBreakdownBenchmark.pawn_only(sample)
+       end},
+      {"#{name}: knight",
+       fn ->
+         AttackedBreakdownBenchmark.knight_only(sample)
+       end},
+      {"#{name}: king",
+       fn ->
+         AttackedBreakdownBenchmark.king_only(sample)
+       end},
+      {"#{name}: rook",
+       fn ->
+         AttackedBreakdownBenchmark.rook_only(sample)
+       end},
+      {"#{name}: bishop",
+       fn ->
+         AttackedBreakdownBenchmark.bishop_only(sample)
+       end},
+      {"#{name}: all components",
+       fn ->
+         AttackedBreakdownBenchmark.all_components(sample)
+       end},
+      {"#{name}: attacked?",
+       fn ->
+         AttackedBreakdownBenchmark.current_attacked?(sample)
+       end},
+      {"#{name}: short circuit",
+       fn ->
+         AttackedBreakdownBenchmark.short_circuit_attacked?(sample)
+       end}
     ]
   end)
 

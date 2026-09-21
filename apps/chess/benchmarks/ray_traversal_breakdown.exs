@@ -9,38 +9,46 @@ defmodule RayTraversalBreakdownBenchmark do
   def run do
     Benchee.run(
       [
-        {"rook: 0 empty squares", fn ->
-          benchmark_ray(:rook, [])
-        end},
-        {"rook: 1 empty square", fn ->
-          benchmark_ray(:rook, [29])
-        end},
-        {"rook: 2 empty squares", fn ->
-          benchmark_ray(:rook, [29, 30])
-        end},
-        {"rook: 3 empty squares", fn ->
-          benchmark_ray(:rook, [29, 30, 31])
-        end},
-
-        {"bishop: 0 empty squares", fn ->
-          benchmark_ray(:bishop, [])
-        end},
-        {"bishop: 1 empty square", fn ->
-          benchmark_ray(:bishop, [37])
-        end},
-        {"bishop: 2 empty squares", fn ->
-          benchmark_ray(:bishop, [37, 46])
-        end},
-        {"bishop: 3 empty squares", fn ->
-          benchmark_ray(:bishop, [37, 46, 55])
-        end},
-
-        {"rook: 3 empty squares + blocker", fn ->
-          benchmark_blocker(:rook, [29, 30, 31])
-        end},
-        {"bishop: 3 empty squares + blocker", fn ->
-          benchmark_blocker(:bishop, [37, 46, 55])
-        end}
+        {"rook: 0 empty squares",
+         fn ->
+           benchmark_ray(:rook, [])
+         end},
+        {"rook: 1 empty square",
+         fn ->
+           benchmark_ray(:rook, [29])
+         end},
+        {"rook: 2 empty squares",
+         fn ->
+           benchmark_ray(:rook, [29, 30])
+         end},
+        {"rook: 3 empty squares",
+         fn ->
+           benchmark_ray(:rook, [29, 30, 31])
+         end},
+        {"bishop: 0 empty squares",
+         fn ->
+           benchmark_ray(:bishop, [])
+         end},
+        {"bishop: 1 empty square",
+         fn ->
+           benchmark_ray(:bishop, [37])
+         end},
+        {"bishop: 2 empty squares",
+         fn ->
+           benchmark_ray(:bishop, [37, 46])
+         end},
+        {"bishop: 3 empty squares",
+         fn ->
+           benchmark_ray(:bishop, [37, 46, 55])
+         end},
+        {"rook: 3 empty squares + blocker",
+         fn ->
+           benchmark_blocker(:rook, [29, 30, 31])
+         end},
+        {"bishop: 3 empty squares + blocker",
+         fn ->
+           benchmark_blocker(:bishop, [37, 46, 55])
+         end}
       ],
       warmup: 2,
       time: 5,

@@ -1,4 +1,3 @@
-
 alias Chess.Bitboard
 alias Chess.Position
 
@@ -44,16 +43,16 @@ defmodule RayPieceLookupBenchmark do
   def rook_or_queen(board, square, color) do
     mask = 1 <<< square
 
-    (band(color_rooks(board, color), mask) != 0) or
-      (band(color_queens(board, color), mask) != 0)
+    band(color_rooks(board, color), mask) != 0 or
+      band(color_queens(board, color), mask) != 0
   end
 
   # Specialized implementation for bishop/queen rays.
   def bishop_or_queen(board, square, color) do
     mask = 1 <<< square
 
-    (band(color_bishops(board, color), mask) != 0) or
-      (band(color_queens(board, color), mask) != 0)
+    band(color_bishops(board, color), mask) != 0 or
+      band(color_queens(board, color), mask) != 0
   end
 
   defp color_rooks(board, :white), do: board.white_rooks
@@ -107,18 +106,22 @@ benchmarks =
     square = RayPieceLookupBenchmark.square(algebraic)
 
     [
-      {"starting #{name}: get rook/queen", fn ->
-        RayPieceLookupBenchmark.current(board, square, color, [:rook, :queen])
-      end},
-      {"starting #{name}: mask rook/queen", fn ->
-        RayPieceLookupBenchmark.rook_or_queen(board, square, color)
-      end},
-      {"starting #{name}: get bishop/queen", fn ->
-        RayPieceLookupBenchmark.current(board, square, color, [:bishop, :queen])
-      end},
-      {"starting #{name}: mask bishop/queen", fn ->
-        RayPieceLookupBenchmark.bishop_or_queen(board, square, color)
-      end}
+      {"starting #{name}: get rook/queen",
+       fn ->
+         RayPieceLookupBenchmark.current(board, square, color, [:rook, :queen])
+       end},
+      {"starting #{name}: mask rook/queen",
+       fn ->
+         RayPieceLookupBenchmark.rook_or_queen(board, square, color)
+       end},
+      {"starting #{name}: get bishop/queen",
+       fn ->
+         RayPieceLookupBenchmark.current(board, square, color, [:bishop, :queen])
+       end},
+      {"starting #{name}: mask bishop/queen",
+       fn ->
+         RayPieceLookupBenchmark.bishop_or_queen(board, square, color)
+       end}
     ]
   end)
   |> Map.new()

@@ -1,95 +1,131 @@
 defmodule Analysis.GameStore.Memory do
   @moduledoc false
 
+  use GenServer
+
   alias Analysis.Game
 
   @type revision :: pos_integer()
+  @type store :: GenServer.server()
 
   @type entry :: %{
           game: Game.t(),
           revision: revision()
         }
 
-  @type t :: %__MODULE__{
-          games: %{optional(Game.id()) => entry()}
-        }
-
-  defstruct games: %{}
-
-  @spec new() :: t()
-  def new do
-    %__MODULE__{}
+  @spec start_link() :: GenServer.on_start()
+  def start_link do
+    GenServer.start_link(__MODULE__, %{})
   end
 
-  @spec insert(t(), Game.t()) ::
-          {:ok, t(), revision()}
+  @spec insert(store(), Game.t()) ::
+          {:ok, revision()}
           | {:error, :already_exists}
-  def insert(%__MODULE__{} = store, %Game{id: id} = game) do
-    if Map.has_key?(store.games, id) do
-      {:error, :already_exists}
+  def insert(store, %Game{} = game) do
+    GenServer.call(store, {:insert, game})
+  end
+
+  @spec get(store(), Game.id()) ::
+          {:ok, Game.t(), revision()}
+          | :not_found
+  def get(store, game_id) do
+    GenServer.call(store, {:get, game_id})
+  end
+
+  @spec update(store(), Game.t(), revision()) ::
+          {:ok, revision()}
+          | {:error, :not_found | :conflict}
+  def update(store, %Game{} = game, expected_revision) do
+    GenServer.call(
+      store,
+      {:update, game, expected_revision}
+    )
+  end
+
+  @spec delete(store(), Game.id(), revision()) ::
+          :ok
+          | {:error, :not_found | :conflict}
+  def delete(store, game_id, expected_revision) do
+    GenServer.call(
+      store,
+      {:delete, game_id, expected_revision}
+    )
+  end
+
+  @impl true
+  def init(games) do
+    {:ok, games}
+  end
+
+  @impl true
+  def handle_call(
+        {:insert, %Game{id: id} = game},
+        _from,
+        games
+      ) do
+    if Map.has_key?(games, id) do
+      {:reply, {:error, :already_exists}, games}
     else
       revision = 1
       entry = %{game: game, revision: revision}
 
-      {:ok, %{store | games: Map.put(store.games, id, entry)}, revision}
+      {:reply, {:ok, revision}, Map.put(games, id, entry)}
     end
   end
 
-  @spec get(t(), Game.id()) ::
-          {:ok, Game.t(), revision()}
-          | :not_found
-  def get(%__MODULE__{} = store, game_id) do
-    case Map.fetch(store.games, game_id) do
-      {:ok, %{game: game, revision: revision}} ->
-        {:ok, game, revision}
+  def handle_call({:get, game_id}, _from, games) do
+    reply =
+      case Map.fetch(games, game_id) do
+        {:ok, %{game: game, revision: revision}} ->
+          {:ok, game, revision}
 
-      :error ->
-        :not_found
-    end
+        :error ->
+          :not_found
+      end
+
+    {:reply, reply, games}
   end
 
-  @spec update(t(), Game.t(), revision()) ::
-          {:ok, t(), revision()}
-          | {:error, :not_found | :conflict}
-  def update(
-        %__MODULE__{} = store,
-        %Game{id: id} = game,
-        expected_revision
+  def handle_call(
+        {:update, %Game{id: id} = game, expected_revision},
+        _from,
+        games
       ) do
-    case Map.fetch(store.games, id) do
+    case Map.fetch(games, id) do
       :error ->
-        {:error, :not_found}
+        {:reply, {:error, :not_found}, games}
 
       {:ok, %{revision: revision}}
       when revision != expected_revision ->
-        {:error, :conflict}
+        {:reply, {:error, :conflict}, games}
 
       {:ok, %{revision: revision}} ->
         new_revision = revision + 1
-        entry = %{game: game, revision: new_revision}
 
-        {:ok, %{store | games: Map.put(store.games, id, entry)}, new_revision}
+        entry = %{
+          game: game,
+          revision: new_revision
+        }
+
+        {:reply, {:ok, new_revision}, Map.put(games, id, entry)}
     end
   end
 
-  @spec delete(t(), Game.id(), revision()) ::
-          {:ok, t()}
-          | {:error, :not_found | :conflict}
-  def delete(
-        %__MODULE__{} = store,
-        game_id,
-        expected_revision
+  def handle_call(
+        {:delete, game_id, expected_revision},
+        _from,
+        games
       ) do
-    case Map.fetch(store.games, game_id) do
+    case Map.fetch(games, game_id) do
       :error ->
-        {:error, :not_found}
+        {:reply, {:error, :not_found}, games}
 
       {:ok, %{revision: revision}}
       when revision != expected_revision ->
-        {:error, :conflict}
+        {:reply, {:error, :conflict}, games}
 
       {:ok, _entry} ->
-        {:ok, %{store | games: Map.delete(store.games, game_id)}}
+        {:reply, :ok, Map.delete(games, game_id)}
     end
   end
 end

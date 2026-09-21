@@ -280,30 +280,21 @@ Benchee.run(
     "starting: destinations" => starting_breakdown.destinations,
     "middlegame: destinations" => middlegame_breakdown.destinations,
     "in check: destinations" => check_breakdown.destinations,
-    "starting: destinations + piece_at" =>
-      starting_breakdown.destinations_and_piece_at,
-    "middlegame: destinations + piece_at" =>
-      middlegame_breakdown.destinations_and_piece_at,
-    "in check: destinations + piece_at" =>
-      check_breakdown.destinations_and_piece_at,
-    "starting: destinations + Move.new" =>
-      starting_breakdown.destinations_and_move_new,
-    "middlegame: destinations + Move.new" =>
-      middlegame_breakdown.destinations_and_move_new,
-    "in check: destinations + Move.new" =>
-      check_breakdown.destinations_and_move_new,
+    "starting: destinations + piece_at" => starting_breakdown.destinations_and_piece_at,
+    "middlegame: destinations + piece_at" => middlegame_breakdown.destinations_and_piece_at,
+    "in check: destinations + piece_at" => check_breakdown.destinations_and_piece_at,
+    "starting: destinations + Move.new" => starting_breakdown.destinations_and_move_new,
+    "middlegame: destinations + Move.new" => middlegame_breakdown.destinations_and_move_new,
+    "in check: destinations + Move.new" => check_breakdown.destinations_and_move_new,
     "starting: destinations + piece_at + Move.new" =>
       starting_breakdown.destinations_piece_at_move_new,
     "middlegame: destinations + piece_at + Move.new" =>
       middlegame_breakdown.destinations_piece_at_move_new,
     "in check: destinations + piece_at + Move.new" =>
       check_breakdown.destinations_piece_at_move_new,
-    "starting: candidate generation" =>
-      starting_breakdown.candidate_generation,
-    "middlegame: candidate generation" =>
-      middlegame_breakdown.candidate_generation,
-    "in check: candidate generation" =>
-      check_breakdown.candidate_generation,
+    "starting: candidate generation" => starting_breakdown.candidate_generation,
+    "middlegame: candidate generation" => middlegame_breakdown.candidate_generation,
+    "in check: candidate generation" => check_breakdown.candidate_generation,
     "starting: after_move" => fn ->
       BenchmarkHelpers.after_move_candidates(starting_candidates)
     end,
