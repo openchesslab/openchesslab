@@ -416,6 +416,93 @@ defmodule Analysis.GameTest do
     end
   end
 
+  describe "set_comment/3" do
+    test "sets a comment on the root" do
+      game = Game.new(:p0)
+
+      assert {:ok, game} =
+               Game.set_comment(game, [], "Opening analysis")
+
+      assert Node.comment(Game.root(game)) == "Opening analysis"
+    end
+
+    test "sets a comment on a nested occurrence" do
+      e4 = move("e2", "e4")
+      e5 = move("e7", "e5")
+
+      game =
+        Game.new(:p0)
+        |> Game.add_child([], e4, :p1)
+        |> Game.add_child([0], e5, :p2)
+
+      assert {:ok, game} =
+               Game.set_comment(game, [0, 0], "Main line")
+
+      assert Node.comment(Game.node_at(game, [0, 0])) ==
+               "Main line"
+
+      assert Node.comment(Game.node_at(game, [0])) == nil
+    end
+
+    test "comments belong to occurrences rather than positions" do
+      e4 = move("e2", "e4")
+      d4 = move("d2", "d4")
+
+      game =
+        Game.new(:p0)
+        |> Game.add_child([], e4, :same_position)
+        |> Game.add_child([], d4, :same_position)
+
+      assert {:ok, game} =
+               Game.set_comment(game, [0], "First occurrence")
+
+      assert Node.comment(Game.node_at(game, [0])) ==
+               "First occurrence"
+
+      assert Node.comment(Game.node_at(game, [1])) == nil
+    end
+
+    test "replaces an existing comment" do
+      game = Game.new(:p0)
+
+      assert {:ok, game} =
+               Game.set_comment(game, [], "First comment")
+
+      assert {:ok, game} =
+               Game.set_comment(game, [], "Updated comment")
+
+      assert Node.comment(Game.root(game)) == "Updated comment"
+    end
+
+    test "removes a comment with nil" do
+      game = Game.new(:p0)
+
+      assert {:ok, game} =
+               Game.set_comment(game, [], "Comment")
+
+      assert {:ok, game} =
+               Game.set_comment(game, [], nil)
+
+      assert Node.comment(Game.root(game)) == nil
+    end
+
+    test "normalizes an empty comment to nil" do
+      game = Game.new(:p0)
+
+      assert {:ok, game} =
+               Game.set_comment(game, [], "")
+
+      assert Node.comment(Game.root(game)) == nil
+    end
+
+    test "returns an error for a nonexistent path" do
+      game = Game.new(:p0)
+
+      assert Game.set_comment(game, [0], "Comment") ==
+               {:error, :node_not_found}
+    end
+  end
+
   defp move(from, to) do
     Chess.Move.new(
       Chess.Square.from_algebraic(from),

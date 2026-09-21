@@ -122,4 +122,19 @@ defmodule Analysis.NodeTest do
       assert Node.child_index(node, d4) == nil
     end
   end
+
+  describe "comment/1" do
+    test "returns nil by default" do
+      assert Node.comment(Node.new(42)) == nil
+    end
+
+    test "returns the node comment" do
+      node = %Node{
+        position_id: 42,
+        comment: "An interesting position"
+      }
+
+      assert Node.comment(node) == "An interesting position"
+    end
+  end
 end

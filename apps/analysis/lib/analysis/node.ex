@@ -17,12 +17,14 @@ defmodule Analysis.Node do
   @type t :: %__MODULE__{
           position_id: position_id(),
           move: Move.t() | nil,
+          comment: String.t() | nil,
           children: [t()]
         }
 
   @enforce_keys [:position_id]
   defstruct position_id: nil,
             move: nil,
+            comment: nil,
             children: []
 
   @spec new(position_id()) :: t()
@@ -72,5 +74,10 @@ defmodule Analysis.Node do
   @spec child_index(t(), Move.t()) :: non_neg_integer() | nil
   def child_index(%__MODULE__{children: children}, move) do
     Enum.find_index(children, &(move(&1) == move))
+  end
+
+  @spec comment(t()) :: String.t() | nil
+  def comment(%__MODULE__{comment: comment}) do
+    comment
   end
 end

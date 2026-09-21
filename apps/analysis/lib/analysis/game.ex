@@ -83,6 +83,24 @@ defmodule Analysis.Game do
     end
   end
 
+  @spec set_comment(t(), path(), String.t() | nil) ::
+          {:ok, t()}
+          | {:error, :node_not_found}
+  def set_comment(%__MODULE__{} = game, path, comment)
+      when is_list(path) and (is_binary(comment) or is_nil(comment)) do
+    comment = normalize_comment(comment)
+
+    case update_node_at(game.root, path, fn node ->
+           %{node | comment: comment}
+         end) do
+      {:ok, root} ->
+        {:ok, %{game | root: root}}
+
+      :not_found ->
+        {:error, :node_not_found}
+    end
+  end
+
   defp add_child_at(node, [], move, position_id) do
     if Enum.any?(Node.children(node), &(Node.move(&1) == move)) do
       {:ok, node}
@@ -210,4 +228,37 @@ defmodule Analysis.Game do
   end
 
   defp remove_child_at(_node, _path, _child_index), do: :not_found
+
+  defp normalize_comment(""), do: nil
+  defp normalize_comment(comment), do: comment
+
+  defp update_node_at(node, [], update) do
+    {:ok, update.(node)}
+  end
+
+  defp update_node_at(node, [index | rest], update)
+       when is_integer(index) and index >= 0 do
+    case Enum.fetch(Node.children(node), index) do
+      {:ok, child} ->
+        case update_node_at(child, rest, update) do
+          {:ok, updated_child} ->
+            children =
+              List.replace_at(
+                Node.children(node),
+                index,
+                updated_child
+              )
+
+            {:ok, %{node | children: children}}
+
+          :not_found ->
+            :not_found
+        end
+
+      :error ->
+        :not_found
+    end
+  end
+
+  defp update_node_at(_node, _path, _update), do: :not_found
 end
