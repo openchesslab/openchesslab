@@ -76,4 +76,75 @@ defmodule Analysis.RoomsTest do
   test "stopping an unknown room is idempotent", %{room_id: room_id} do
     assert :ok = Rooms.stop_room(room_id)
   end
+
+  test "restarts a crashed room with fresh ephemeral state", %{room_id: room_id} do
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, "game-1")
+
+    [{pid, _value}] =
+      Horde.Registry.lookup(Analysis.RoomRegistry, room_id)
+
+    ref = Process.monitor(pid)
+    Process.exit(pid, :kill)
+
+    assert_receive {:DOWN, ^ref, :process, ^pid, :killed}
+
+    assert {:ok, room} = eventually_get_room(room_id)
+
+    assert room.id == room_id
+    assert room.game_ids == []
+
+    [{new_pid, _value}] =
+      Horde.Registry.lookup(Analysis.RoomRegistry, room_id)
+
+    assert new_pid != pid
+  end
+
+  test "does not restart an explicitly stopped room", %{room_id: room_id} do
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, "game-1")
+
+    [{pid, _value}] =
+      Horde.Registry.lookup(Analysis.RoomRegistry, room_id)
+
+    ref = Process.monitor(pid)
+
+    assert :ok = Rooms.stop_room(room_id)
+
+    assert_receive {:DOWN, ^ref, :process, ^pid, _reason}
+
+    assert :ok = eventually_room_not_found(room_id)
+  end
+
+  defp eventually_get_room(room_id, attempts \\ 50)
+
+  defp eventually_get_room(_room_id, 0), do: :not_found
+
+  defp eventually_get_room(room_id, attempts) do
+    case Rooms.get(room_id) do
+      {:ok, room} ->
+        {:ok, room}
+
+      :not_found ->
+        Process.sleep(10)
+        eventually_get_room(room_id, attempts - 1)
+    end
+  end
+
+  defp eventually_room_not_found(room_id, attempts \\ 50)
+
+  defp eventually_room_not_found(_room_id, 0) do
+    {:error, :room_still_exists}
+  end
+
+  defp eventually_room_not_found(room_id, attempts) do
+    case Rooms.get(room_id) do
+      :not_found ->
+        :ok
+
+      {:ok, _room} ->
+        Process.sleep(10)
+        eventually_room_not_found(room_id, attempts - 1)
+    end
+  end
 end
