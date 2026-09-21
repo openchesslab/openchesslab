@@ -2,7 +2,9 @@ defmodule Web.RoomLive do
   use Web, :live_view
 
   alias Analysis.GameEvents
+  alias Analysis.Game
   alias Analysis.Games
+  alias Analysis.Node
   alias Analysis.RoomEvents
   alias Analysis.Rooms
 
@@ -44,10 +46,14 @@ defmodule Web.RoomLive do
       ) do
     case Games.get(game_id) do
       {:ok, game, revision} ->
+        current_path =
+          nearest_existing_path(game, socket.assigns.current_path)
+
         {:noreply,
          assign(socket,
            game: game,
-           game_revision: revision
+           game_revision: revision,
+           current_path: current_path
          )}
 
       :not_found ->
@@ -107,6 +113,39 @@ defmodule Web.RoomLive do
   end
 
   @impl true
+  def handle_event(
+        "navigate_child",
+        %{"index" => index},
+        %{assigns: %{game: game, current_path: path}} = socket
+      ) do
+    child_index = String.to_integer(index)
+    new_path = path ++ [child_index]
+
+    if Game.node_at(game, new_path) do
+      {:noreply, assign(socket, :current_path, new_path)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event(
+        "navigate_parent",
+        _params,
+        %{assigns: %{current_path: []}} = socket
+      ) do
+    {:noreply, socket}
+  end
+
+  def handle_event(
+        "navigate_parent",
+        _params,
+        %{assigns: %{current_path: path}} = socket
+      ) do
+    {:noreply, assign(socket, :current_path, Enum.drop(path, -1))}
+  end
+
+  @impl true
   def render(assigns) do
     ~H"""
     <main>
@@ -163,6 +202,30 @@ defmodule Web.RoomLive do
             <p id="selected-game-revision">
               Revision {@game_revision}
             </p>
+            <p id="current-path">
+              Path {inspect(@current_path)}
+            </p>
+
+            <% current_node = Game.node_at(@game, @current_path) %>
+
+            <button
+              :if={@current_path != []}
+              id="navigate-parent"
+              type="button"
+              phx-click="navigate_parent"
+            >
+              Parent
+            </button>
+
+            <button
+              :for={{_child, index} <- Enum.with_index(Node.children(current_node))}
+              id={"navigate-child-#{index}"}
+              type="button"
+              phx-click="navigate_child"
+              phx-value-index={index}
+            >
+              Child {index}
+            </button>
           </section>
         <% end %>
       <% end %>
@@ -187,5 +250,15 @@ defmodule Web.RoomLive do
     end
 
     :ok
+  end
+
+  defp nearest_existing_path(game, path) do
+    if Game.node_at(game, path) do
+      path
+    else
+      path
+      |> Enum.drop(-1)
+      |> then(&nearest_existing_path(game, &1))
+    end
   end
 end

@@ -16,6 +16,18 @@ defmodule Web.RoomLiveTest do
     )
   end
 
+  defp insert_game_with_moves do
+    game_id = insert_playable_game()
+
+    assert {:ok, _game, 2, [0]} =
+             Games.play(game_id, [], move("e2", "e4"))
+
+    assert {:ok, _game, 3, [0, 0]} =
+             Games.play(game_id, [0], move("e7", "e5"))
+
+    game_id
+  end
+
   defp insert_game do
     game_id = "game-#{System.unique_integer([:positive])}"
     game = Game.new(game_id, 42)
@@ -233,5 +245,74 @@ defmodule Web.RoomLiveTest do
              Games.play(second_game_id, [], move("e2", "e4"))
 
     assert has_element?(view, "#selected-game-revision", "Revision 2")
+  end
+
+  test "navigates through the selected game tree", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_game_with_moves()
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    {:ok, view, _html} = live(conn, "/rooms/#{room_id}")
+
+    view
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    assert has_element?(view, "#current-path", "Path []")
+    assert has_element?(view, "#navigate-child-0")
+    refute has_element?(view, "#navigate-parent")
+
+    view
+    |> element("#navigate-child-0")
+    |> render_click()
+
+    assert has_element?(view, "#current-path", "Path [0]")
+    assert has_element?(view, "#navigate-parent")
+    assert has_element?(view, "#navigate-child-0")
+
+    view
+    |> element("#navigate-child-0")
+    |> render_click()
+
+    assert has_element?(view, "#current-path", "Path [0, 0]")
+    refute has_element?(view, "#navigate-child-0")
+
+    view
+    |> element("#navigate-parent")
+    |> render_click()
+
+    assert has_element?(view, "#current-path", "Path [0]")
+  end
+
+  test "connected LiveViews navigate independently", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_game_with_moves()
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    {:ok, view1, _html} = live(conn, "/rooms/#{room_id}")
+    {:ok, view2, _html} = live(conn, "/rooms/#{room_id}")
+
+    view1
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    view2
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    view1
+    |> element("#navigate-child-0")
+    |> render_click()
+
+    assert has_element?(view1, "#current-path", "Path [0]")
+    assert has_element?(view2, "#current-path", "Path []")
   end
 end
