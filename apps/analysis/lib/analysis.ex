@@ -1,18 +1,34 @@
 defmodule Analysis do
-  @moduledoc """
-  Documentation for `Analysis`.
-  """
+  alias Analysis.Game
+  alias Analysis.Node
+  alias Chess.Move
+  alias Chess.Position
 
-  @doc """
-  Hello world.
+  @spec play(
+          Game.t(),
+          PositionDB.t(),
+          Game.path(),
+          Move.t()
+        ) ::
+          {:ok, Game.t(), PositionDB.t()}
+          | {:error, :node_not_found | :position_not_found | :illegal_move}
+  def play(game, db, path, move) do
+    with %Node{} = node <- Game.node_at(game, path),
+         {:ok, position} <- PositionDB.get(db, Node.position_id(node)),
+         {:ok, next_position} <- Position.apply_move(position, move) do
+      {db, position_id} = PositionDB.append(db, next_position)
+      game = Game.add_child(game, path, move, position_id)
 
-  ## Examples
+      {:ok, game, db}
+    else
+      nil ->
+        {:error, :node_not_found}
 
-      iex> Analysis.hello()
-      :world
+      :not_found ->
+        {:error, :position_not_found}
 
-  """
-  def hello do
-    :world
+      {:error, :illegal_move} = error ->
+        error
+    end
   end
 end
