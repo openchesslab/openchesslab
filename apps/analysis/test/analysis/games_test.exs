@@ -9,6 +9,13 @@ defmodule Analysis.GamesTest do
   alias Chess.Position
   alias Chess.Square
 
+  defp game_with_variations(game_id) do
+    Game.new(game_id, 1)
+    |> Game.add_child([], move("e2", "e4"), 2)
+    |> Game.add_child([], move("d2", "d4"), 3)
+    |> Game.add_child([], move("c2", "c4"), 4)
+  end
+
   defp move(from, to) do
     Move.new(
       Square.from_algebraic(from),
@@ -223,5 +230,99 @@ defmodule Analysis.GamesTest do
              {:error, :node_not_found}
 
     refute_receive {:game_changed, ^game_id}
+  end
+
+  test "promotes a variation and persists the updated game", %{
+    game_id: game_id
+  } do
+    game = game_with_variations(game_id)
+
+    assert {:ok, 1} = Games.insert(game)
+
+    assert {:ok, updated_game, 2, [0]} =
+             Games.promote(game_id, [1])
+
+    assert updated_game
+           |> Game.node_at([0])
+           |> Node.move() == move("d2", "d4")
+
+    assert updated_game
+           |> Game.node_at([1])
+           |> Node.move() == move("e2", "e4")
+
+    assert updated_game
+           |> Game.node_at([2])
+           |> Node.move() == move("c2", "c4")
+
+    assert {:ok, ^updated_game, 2} = Games.get(game_id)
+  end
+
+  test "promotes a nested variation and returns its new path", %{
+    game_id: game_id
+  } do
+    game =
+      Game.new(game_id, 1)
+      |> Game.add_child([], move("e2", "e4"), 2)
+      |> Game.add_child([0], move("e7", "e5"), 3)
+      |> Game.add_child([0], move("c7", "c5"), 4)
+
+    assert {:ok, 1} = Games.insert(game)
+
+    assert {:ok, updated_game, 2, [0, 0]} =
+             Games.promote(game_id, [0, 1])
+
+    assert updated_game
+           |> Game.node_at([0, 0])
+           |> Node.move() == move("c7", "c5")
+
+    assert updated_game
+           |> Game.node_at([0, 1])
+           |> Node.move() == move("e7", "e5")
+  end
+
+  test "returns game_not_found when promoting in an unknown game", %{
+    game_id: game_id
+  } do
+    assert Games.promote(game_id, [0]) ==
+             {:error, :game_not_found}
+  end
+
+  test "returns root when promoting the root", %{game_id: game_id} do
+    game = game_with_variations(game_id)
+
+    assert {:ok, 1} = Games.insert(game)
+
+    assert Games.promote(game_id, []) ==
+             {:error, :root}
+
+    assert {:ok, ^game, 1} = Games.get(game_id)
+  end
+
+  test "returns node_not_found when promoting an unknown path", %{
+    game_id: game_id
+  } do
+    game = game_with_variations(game_id)
+
+    assert {:ok, 1} = Games.insert(game)
+
+    assert Games.promote(game_id, [99]) ==
+             {:error, :node_not_found}
+
+    assert {:ok, ^game, 1} = Games.get(game_id)
+  end
+
+  test "publishes a game change after promoting a variation", %{
+    game_id: game_id
+  } do
+    game = game_with_variations(game_id)
+
+    assert {:ok, 1} = Games.insert(game)
+
+    :ok = Analysis.GameEvents.subscribe(game_id)
+
+    assert {:ok, _game, 2, [0]} =
+             Games.promote(game_id, [1])
+
+    assert_receive {:game_changed, ^game_id}
   end
 end

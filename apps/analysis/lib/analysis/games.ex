@@ -54,6 +54,19 @@ defmodule Analysis.Games do
     end
   end
 
+  @spec promote(Game.id(), Game.path()) ::
+          {:ok, Game.t(), pos_integer(), Game.path()}
+          | {:error, :game_not_found | :node_not_found | :root | :conflict}
+  def promote(game_id, path) do
+    case get(game_id) do
+      {:ok, game, revision} ->
+        promote(game, revision, path)
+
+      :not_found ->
+        {:error, :game_not_found}
+    end
+  end
+
   defp set_comment(game, revision, path, comment) do
     with {:ok, updated_game} <- Game.set_comment(game, path, comment),
          {:ok, new_revision} <- persist(updated_game, revision) do
@@ -91,6 +104,13 @@ defmodule Analysis.Games do
 
       {:error, :illegal_move} = error ->
         error
+    end
+  end
+
+  defp promote(game, revision, path) do
+    with {:ok, updated_game, resulting_path} <- Game.promote(game, path),
+         {:ok, new_revision} <- persist(updated_game, revision) do
+      {:ok, updated_game, new_revision, resulting_path}
     end
   end
 
