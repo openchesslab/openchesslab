@@ -22,33 +22,82 @@ defmodule Chess.Notation.SAN do
   defp format_legal_move(position, %Move{} = move) do
     {_color, piece} = Position.piece_at(position, move.from)
 
-    destination = Square.to_algebraic(move.to)
-    capture? = capture?(position, move)
+    if castle?(piece, move) do
+      format_castle(move)
+    else
+      destination = Square.to_algebraic(move.to)
+      capture? = capture?(position, piece, move)
 
-    case piece do
-      :pawn ->
-        format_pawn_move(move, destination, capture?)
+      case piece do
+        :pawn ->
+          format_pawn_move(
+            move,
+            destination,
+            capture?
+          )
 
-      piece ->
-        piece_letter(piece) <>
-          capture_marker(capture?) <>
-          destination
+        piece ->
+          piece_letter(piece) <>
+            capture_marker(capture?) <>
+            destination
+      end
     end
   end
 
-  defp format_pawn_move(move, destination, true) do
-    source = Square.to_algebraic(move.from)
-    source_file = String.first(source)
-
-    source_file <> "x" <> destination
+  defp castle?(:king, %Move{from: from, to: to}) do
+    abs(to - from) == 2
   end
 
-  defp format_pawn_move(_move, destination, false) do
-    destination
+  defp castle?(_piece, _move), do: false
+
+  defp format_castle(%Move{from: from, to: to})
+       when to > from do
+    "O-O"
   end
 
-  defp capture?(position, move) do
+  defp format_castle(%Move{}) do
+    "O-O-O"
+  end
+
+  defp format_pawn_move(move, destination, capture?) do
+    prefix =
+      if capture? do
+        move.from
+        |> Square.to_algebraic()
+        |> String.first()
+        |> Kernel.<>("x")
+      else
+        ""
+      end
+
+    prefix <>
+      destination <>
+      promotion_suffix(move.promotion)
+  end
+
+  defp capture?(position, :pawn, move) do
+    Position.piece_at(position, move.to) != nil or
+      en_passant_capture?(position, move)
+  end
+
+  defp capture?(position, _piece, move) do
     Position.piece_at(position, move.to) != nil
+  end
+
+  defp en_passant_capture?(
+         %Position{en_passant: target},
+         %Move{to: target}
+       )
+       when not is_nil(target) do
+    true
+  end
+
+  defp en_passant_capture?(_position, _move), do: false
+
+  defp promotion_suffix(nil), do: ""
+
+  defp promotion_suffix(piece) do
+    "=" <> piece_letter(piece)
   end
 
   defp capture_marker(true), do: "x"

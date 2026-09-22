@@ -51,6 +51,78 @@ defmodule Chess.Notation.SANTest do
              {:error, :illegal_move}
   end
 
+  test "formats kingside castling" do
+    position =
+      Position.new(castling_rights: MapSet.new([:white_kingside]))
+      |> Position.put_piece(square("e1"), {:white, :king})
+      |> Position.put_piece(square("h1"), {:white, :rook})
+      |> Position.put_piece(square("e8"), {:black, :king})
+
+    assert SAN.format(position, move("e1", "g1")) ==
+             {:ok, "O-O"}
+  end
+
+  test "formats queenside castling" do
+    position =
+      Position.new(castling_rights: MapSet.new([:white_queenside]))
+      |> Position.put_piece(square("e1"), {:white, :king})
+      |> Position.put_piece(square("a1"), {:white, :rook})
+      |> Position.put_piece(square("e8"), {:black, :king})
+
+    assert SAN.format(position, move("e1", "c1")) ==
+             {:ok, "O-O-O"}
+  end
+
+  test "formats an en passant capture" do
+    position =
+      Position.new(
+        side_to_move: :white,
+        en_passant: square("d6")
+      )
+      |> Position.put_piece(square("e1"), {:white, :king})
+      |> Position.put_piece(square("e8"), {:black, :king})
+      |> Position.put_piece(square("e5"), {:white, :pawn})
+      |> Position.put_piece(square("d5"), {:black, :pawn})
+
+    assert SAN.format(position, move("e5", "d6")) ==
+             {:ok, "exd6"}
+  end
+
+  test "formats a promotion" do
+    position =
+      Position.new()
+      |> Position.put_piece(square("e1"), {:white, :king})
+      |> Position.put_piece(square("a8"), {:black, :king})
+      |> Position.put_piece(square("e7"), {:white, :pawn})
+
+    assert SAN.format(
+             position,
+             Move.new(
+               square("e7"),
+               square("e8"),
+               :queen
+             )
+           ) == {:ok, "e8=Q"}
+  end
+
+  test "formats a promotion capture" do
+    position =
+      Position.new()
+      |> Position.put_piece(square("e1"), {:white, :king})
+      |> Position.put_piece(square("h8"), {:black, :king})
+      |> Position.put_piece(square("e7"), {:white, :pawn})
+      |> Position.put_piece(square("d8"), {:black, :rook})
+
+    assert SAN.format(
+             position,
+             Move.new(
+               square("e7"),
+               square("d8"),
+               :knight
+             )
+           ) == {:ok, "exd8=N"}
+  end
+
   defp move(from, to) do
     Move.new(square(from), square(to))
   end
