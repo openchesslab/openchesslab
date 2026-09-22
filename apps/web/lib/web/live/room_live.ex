@@ -1,14 +1,16 @@
 defmodule Web.RoomLive do
   use Web, :live_view
 
-  alias Analysis.GameEvents
   alias Analysis.Game
+  alias Analysis.GameEvents
   alias Analysis.Games
   alias Analysis.Node
+  alias Analysis.PositionStore
   alias Analysis.RoomEvents
   alias Analysis.Rooms
   alias Chess.Move
   alias Chess.Square
+  alias Web.Components.ChessBoard
 
   @impl true
   def mount(%{"room_id" => room_id}, _session, socket) do
@@ -27,7 +29,8 @@ defmodule Web.RoomLive do
        selected_game_id: nil,
        game: nil,
        game_revision: nil,
-       current_path: []
+       current_path: [],
+       position: nil
      )}
   end
 
@@ -56,12 +59,12 @@ defmodule Web.RoomLive do
             socket.assigns.current_path
           )
 
-        {:noreply,
-         assign(socket,
-           game: game,
-           game_revision: revision,
-           current_path: current_path
-         )}
+        socket =
+          socket
+          |> assign(:game_revision, revision)
+          |> assign_current_occurrence(game, current_path)
+
+        {:noreply, socket}
 
       :not_found ->
         {:noreply, socket}
@@ -106,13 +109,15 @@ defmodule Web.RoomLive do
       {:ok, game, revision} ->
         subscribe_to_game(socket, game_id)
 
-        {:noreply,
-         assign(socket,
-           selected_game_id: game_id,
-           game: game,
-           game_revision: revision,
-           current_path: []
-         )}
+        socket =
+          socket
+          |> assign(
+            selected_game_id: game_id,
+            game_revision: revision
+          )
+          |> assign_current_occurrence(game, [])
+
+        {:noreply, socket}
 
       :not_found ->
         {:noreply, socket}
@@ -129,7 +134,7 @@ defmodule Web.RoomLive do
     new_path = path ++ [child_index]
 
     if Game.node_at(game, new_path) do
-      {:noreply, assign(socket, :current_path, new_path)}
+      {:noreply, assign_current_occurrence(socket, game, new_path)}
     else
       {:noreply, socket}
     end
@@ -149,7 +154,14 @@ defmodule Web.RoomLive do
         _params,
         %{assigns: %{current_path: path}} = socket
       ) do
-    {:noreply, assign(socket, :current_path, Enum.drop(path, -1))}
+    new_path = Enum.drop(path, -1)
+
+    {:noreply,
+     assign_current_occurrence(
+       socket,
+       socket.assigns.game,
+       new_path
+     )}
   end
 
   @impl true
@@ -224,13 +236,21 @@ defmodule Web.RoomLive do
         <%= if @selected_game_id do %>
           <section id="selected-game">
             <h2>Selected game</h2>
-            <p id="selected-game-id">{@selected_game_id}</p>
+
+            <p id="selected-game-id">
+              {@selected_game_id}
+            </p>
+
             <p id="selected-game-revision">
               Revision {@game_revision}
             </p>
+
             <p id="current-path">
               Path {inspect(@current_path)}
             </p>
+
+            <ChessBoard.chess_board position={@position} />
+
             <form id="play-move-form" phx-submit="play_move">
               <input
                 type="text"
@@ -308,13 +328,15 @@ defmodule Web.RoomLive do
            move
          ) do
       {:ok, game, revision, resulting_path} ->
-        {:noreply,
-         assign(socket,
-           game: game,
-           game_revision: revision,
-           current_path: resulting_path,
-           move_error: nil
-         )}
+        socket =
+          socket
+          |> assign(
+            game_revision: revision,
+            move_error: nil
+          )
+          |> assign_current_occurrence(game, resulting_path)
+
+        {:noreply, socket}
 
       {:error, :illegal_move} ->
         {:noreply, assign(socket, :move_error, "Illegal move.")}
@@ -331,5 +353,18 @@ defmodule Web.RoomLive do
       {:error, :conflict} ->
         {:noreply, assign(socket, :move_error, "Game changed. Try again.")}
     end
+  end
+
+  defp assign_current_occurrence(socket, game, path) do
+    node = Game.node_at(game, path)
+    position_id = Node.position_id(node)
+
+    {:ok, position} = PositionStore.get(position_id)
+
+    assign(socket,
+      game: game,
+      current_path: path,
+      position: position
+    )
   end
 end

@@ -28,15 +28,6 @@ defmodule Web.RoomLiveTest do
     game_id
   end
 
-  defp insert_game do
-    game_id = "game-#{System.unique_integer([:positive])}"
-    game = Game.new(game_id, 42)
-
-    assert {:ok, 1} = Games.insert(game)
-
-    game_id
-  end
-
   defp insert_playable_game do
     game_id = "game-#{System.unique_integer([:positive])}"
     position_id = PositionStore.append(Position.starting_position())
@@ -83,7 +74,7 @@ defmodule Web.RoomLiveTest do
   end
 
   test "adds a game to the room", %{conn: conn, room_id: room_id} do
-    game_id = insert_game()
+    game_id = insert_playable_game()
 
     {:ok, view, _html} = live(conn, "/rooms/#{room_id}")
 
@@ -118,7 +109,7 @@ defmodule Web.RoomLiveTest do
     conn: conn,
     room_id: room_id
   } do
-    game_id = insert_game()
+    game_id = insert_playable_game()
 
     {:ok, view1, _html} = live(conn, "/rooms/#{room_id}")
     {:ok, view2, _html} = live(conn, "/rooms/#{room_id}")
@@ -151,7 +142,7 @@ defmodule Web.RoomLiveTest do
     conn: conn,
     room_id: room_id
   } do
-    game_id = insert_game()
+    game_id = insert_playable_game()
 
     {:ok, view, _html} = live(conn, "/rooms/#{room_id}")
 
@@ -170,7 +161,7 @@ defmodule Web.RoomLiveTest do
   end
 
   test "selects a game from the room", %{conn: conn, room_id: room_id} do
-    game_id = insert_game()
+    game_id = insert_playable_game()
 
     assert {:ok, _room} = Rooms.start_room(room_id)
     assert :ok = Rooms.add_game(room_id, game_id)
@@ -348,6 +339,44 @@ defmodule Web.RoomLiveTest do
 
     assert {:ok, game, 2} = Games.get(game_id)
     assert Game.node_at(game, [0])
+  end
+
+  test "renders the position for the current occurrence", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_playable_game()
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    {:ok, view, _html} = live(conn, "/rooms/#{room_id}")
+
+    view
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    assert has_element?(view, "#piece-e2")
+    refute has_element?(view, "#piece-e4")
+
+    view
+    |> form("#play-move-form", %{
+      "move" => %{
+        "from" => "e2",
+        "to" => "e4"
+      }
+    })
+    |> render_submit()
+
+    refute has_element?(view, "#piece-e2")
+    assert has_element?(view, "#piece-e4")
+
+    view
+    |> element("#navigate-parent")
+    |> render_click()
+
+    assert has_element?(view, "#piece-e2")
+    refute has_element?(view, "#piece-e4")
   end
 
   test "plays a move from the current occurrence", %{
