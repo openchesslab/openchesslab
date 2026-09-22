@@ -7,6 +7,7 @@ defmodule AnalysisTest do
   alias Analysis.Transition
   alias Chess.Move
   alias Chess.Position
+  alias Chess.PositionDraft
   alias Chess.PositionKey
   alias Chess.PositionProperties
   alias Chess.Square
@@ -214,6 +215,123 @@ defmodule AnalysisTest do
              Analysis.play(game, db, [], e4)
 
     assert length(Node.children(Game.root(game))) == 1
+  end
+
+  describe "edit/4" do
+    test "adds a valid edited position to the game tree" do
+      {game, db} = new_game()
+
+      draft =
+        Position.starting_position()
+        |> PositionDraft.new()
+        |> PositionDraft.remove_piece(Square.from_algebraic("a2"))
+
+      assert {:ok, game, db, [0]} =
+               Analysis.edit(game, db, [], draft)
+
+      child = Game.node_at(game, [0])
+
+      assert %Node{} = child
+      assert Node.transition(child) == Transition.edit()
+
+      assert {:ok, position} =
+               PositionDB.get(db, Node.position_id(child))
+
+      assert Position.piece_at(
+               position,
+               Square.from_algebraic("a2")
+             ) == nil
+    end
+
+    test "different edits from the same occurrence create separate children" do
+      {game, db} = new_game()
+
+      a2_removed =
+        Position.starting_position()
+        |> PositionDraft.new()
+        |> PositionDraft.remove_piece(Square.from_algebraic("a2"))
+
+      h2_removed =
+        Position.starting_position()
+        |> PositionDraft.new()
+        |> PositionDraft.remove_piece(Square.from_algebraic("h2"))
+
+      assert {:ok, game, db, [0]} =
+               Analysis.edit(game, db, [], a2_removed)
+
+      assert {:ok, game, _db, [1]} =
+               Analysis.edit(game, db, [], h2_removed)
+
+      children =
+        game
+        |> Game.root()
+        |> Node.children()
+
+      assert length(children) == 2
+
+      assert Enum.map(children, &Node.transition/1) ==
+               [Transition.edit(), Transition.edit()]
+
+      assert Node.position_id(Enum.at(children, 0)) !=
+               Node.position_id(Enum.at(children, 1))
+    end
+
+    test "reuses an existing occurrence for the same edit result" do
+      {game, db} = new_game()
+
+      draft =
+        Position.starting_position()
+        |> PositionDraft.new()
+        |> PositionDraft.remove_piece(Square.from_algebraic("a2"))
+
+      assert {:ok, game, db, [0]} =
+               Analysis.edit(game, db, [], draft)
+
+      assert {:ok, game, _db, [0]} =
+               Analysis.edit(game, db, [], draft)
+
+      assert length(Node.children(Game.root(game))) == 1
+    end
+
+    test "rejects an invalid draft without changing the game or database" do
+      {game, db} = new_game()
+
+      draft =
+        Position.starting_position()
+        |> PositionDraft.new()
+        |> PositionDraft.remove_piece(Square.from_algebraic("e1"))
+
+      assert {:error, {:invalid_position, reasons}} =
+               Analysis.edit(game, db, [], draft)
+
+      assert :invalid_white_king_count in reasons
+      assert Node.children(Game.root(game)) == []
+
+      root_position_id =
+        game
+        |> Game.root()
+        |> Node.position_id()
+
+      assert {:ok, position} =
+               PositionDB.get(db, root_position_id)
+
+      assert Position.piece_at(
+               position,
+               Square.from_algebraic("e1")
+             ) == {:white, :king}
+    end
+
+    test "returns an error for a nonexistent path" do
+      {game, db} = new_game()
+
+      draft =
+        Position.starting_position()
+        |> PositionDraft.new()
+        |> PositionDraft.remove_piece(Square.from_algebraic("a2"))
+
+      assert Analysis.edit(game, db, [0], draft) ==
+               {:error, :node_not_found}
+    end
   end
 
   test "loads a stored game, continues the analysis and saves the new revision" do
