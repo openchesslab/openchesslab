@@ -39,6 +39,19 @@ defmodule Analysis.Game do
     find_node(root, path)
   end
 
+  @spec reconcile_path(t(), t(), path()) :: path()
+  def reconcile_path(%__MODULE__{} = old_game, %__MODULE__{} = new_game, path)
+      when is_list(path) do
+    old_nodes =
+      path
+      |> prefixes()
+      |> Enum.map(&node_at(old_game, &1))
+
+    new_root = root(new_game)
+
+    follow_occurrences(new_root, tl(old_nodes), [])
+  end
+
   @spec add_child(t(), path(), Chess.Move.t(), position_id()) :: t()
   def add_child(%__MODULE__{} = game, path, move, position_id)
       when is_list(path) do
@@ -267,4 +280,37 @@ defmodule Analysis.Game do
   end
 
   defp update_node_at(_node, _path, _update), do: :not_found
+
+  defp follow_occurrences(_new_node, [], path), do: path
+
+  defp follow_occurrences(new_node, [old_child | old_rest], path) do
+    case matching_child(new_node, old_child) do
+      nil ->
+        path
+
+      {child, index} ->
+        follow_occurrences(child, old_rest, path ++ [index])
+    end
+  end
+
+  defp matching_child(new_node, old_child) do
+    new_node
+    |> Node.children()
+    |> Enum.with_index()
+    |> Enum.find(fn {child, _index} ->
+      same_occurrence?(old_child, child)
+    end)
+  end
+
+  defp same_occurrence?(%Node{} = old_node, %Node{} = new_node) do
+    Node.position_id(old_node) == Node.position_id(new_node) and
+      Node.move(old_node) == Node.move(new_node)
+  end
+
+  defp same_occurrence?(_old_node, _new_node), do: false
+
+  defp prefixes(path) do
+    0..length(path)
+    |> Enum.map(&Enum.take(path, &1))
+  end
 end

@@ -435,6 +435,67 @@ defmodule Analysis.GameTest do
     end
   end
 
+  describe "reconcile_path/3" do
+    test "keeps the path when the occurrence has not moved" do
+      old_game =
+        Game.new("game-1", :p0)
+        |> Game.add_child([], move("e2", "e4"), :p1)
+        |> Game.add_child([0], move("e7", "e5"), :p2)
+
+      new_game =
+        Game.add_child(
+          old_game,
+          [0, 0],
+          move("g1", "f3"),
+          :p3
+        )
+
+      assert Game.reconcile_path(old_game, new_game, [0, 0]) ==
+               [0, 0]
+    end
+
+    test "follows an occurrence when its variation is promoted" do
+      old_game =
+        Game.new("game-1", :p0)
+        |> Game.add_child([], move("e2", "e4"), :p1)
+        |> Game.add_child([0], move("e7", "e5"), :p2)
+        |> Game.add_child([0], move("c7", "c5"), :p3)
+        |> Game.add_child([0, 1], move("g1", "f3"), :p4)
+
+      assert {:ok, new_game, [0, 0]} =
+               Game.promote(old_game, [0, 1])
+
+      assert Game.reconcile_path(old_game, new_game, [0, 1, 0]) ==
+               [0, 0, 0]
+    end
+
+    test "falls back to the nearest surviving ancestor after removal" do
+      old_game =
+        Game.new("game-1", :p0)
+        |> Game.add_child([], move("e2", "e4"), :p1)
+        |> Game.add_child([0], move("e7", "e5"), :p2)
+        |> Game.add_child([0, 0], move("g1", "f3"), :p3)
+        |> Game.add_child([0], move("c7", "c5"), :p4)
+
+      assert {:ok, new_game, [0]} =
+               Game.remove(old_game, [0, 0])
+
+      assert Game.reconcile_path(old_game, new_game, [0, 0, 0]) ==
+               [0]
+    end
+
+    test "returns the root when the first occurrence no longer exists" do
+      old_game =
+        Game.new("game-1", :p0)
+        |> Game.add_child([], move("e2", "e4"), :p1)
+
+      assert {:ok, new_game, []} =
+               Game.remove(old_game, [0])
+
+      assert Game.reconcile_path(old_game, new_game, [0]) == []
+    end
+  end
+
   describe "set_comment/3" do
     test "sets a comment on the root" do
       game = Game.new("game-1", :p0)
