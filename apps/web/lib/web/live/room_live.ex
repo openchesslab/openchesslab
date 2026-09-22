@@ -338,6 +338,38 @@ defmodule Web.RoomLive do
   end
 
   @impl true
+  def handle_event(
+        "promote_variation",
+        _params,
+        socket
+      ) do
+    case Games.promote(
+           socket.assigns.selected_game_id,
+           socket.assigns.current_path
+         ) do
+      {:ok, game, revision, resulting_path} ->
+        socket =
+          socket
+          |> assign(:game_revision, revision)
+          |> assign_current_occurrence(game, resulting_path)
+
+        {:noreply, socket}
+
+      {:error, :node_not_found} ->
+        {:noreply, socket}
+
+      {:error, :root} ->
+        {:noreply, socket}
+
+      {:error, :game_not_found} ->
+        {:noreply, socket}
+
+      {:error, :conflict} ->
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
   def render(assigns) do
     ~H"""
     <main>
@@ -430,6 +462,16 @@ defmodule Web.RoomLive do
               <p id="move-error" role="alert">{@move_error}</p>
             <% end %>
             <% current_node = Game.node_at(@game, @current_path) %>
+
+            <button
+              :if={promotable_path?(@current_path)}
+              id="promote-variation"
+              type="button"
+              phx-click="promote_variation"
+            >
+              Promote variation
+            </button>
+
             <button
               :if={@current_path != []}
               id="navigate-parent"
@@ -603,5 +645,11 @@ defmodule Web.RoomLive do
       {:error, :invalid_square} ->
         {:error, :invalid_en_passant}
     end
+  end
+
+  defp promotable_path?([]), do: false
+
+  defp promotable_path?(path) do
+    List.last(path) > 0
   end
 end
