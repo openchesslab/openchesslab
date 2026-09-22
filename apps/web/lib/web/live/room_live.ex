@@ -13,6 +13,7 @@ defmodule Web.RoomLive do
   alias Chess.PositionDraft
   alias Chess.Square
   alias Web.Components.ChessBoard
+  alias Web.Components.MoveTree
   alias Web.Components.PositionEditor
 
   @impl true
@@ -35,6 +36,7 @@ defmodule Web.RoomLive do
        game_revision: nil,
        current_path: [],
        selected_square: nil,
+       root_position: nil,
        position: nil
      )}
   end
@@ -113,12 +115,15 @@ defmodule Web.RoomLive do
     case Games.get(game_id) do
       {:ok, game, revision} ->
         subscribe_to_game(socket, game_id)
+        root = Game.root(game)
+        {:ok, root_position} = PositionStore.get(Node.position_id(root))
 
         socket =
           socket
           |> assign(
             selected_game_id: game_id,
-            game_revision: revision
+            game_revision: revision,
+            root_position: root_position
           )
           |> assign_current_occurrence(game, [])
 
@@ -436,6 +441,21 @@ defmodule Web.RoomLive do
   end
 
   @impl true
+  def handle_event(
+        "navigate_path",
+        %{"path" => encoded_path},
+        %{assigns: %{game: game}} = socket
+      ) do
+    path = parse_path(encoded_path)
+
+    if Game.node_at(game, path) do
+      {:noreply, assign_current_occurrence(socket, game, path)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
   def render(assigns) do
     ~H"""
     <main>
@@ -498,6 +518,11 @@ defmodule Web.RoomLive do
             <p id="current-path">
               Path {inspect(@current_path)}
             </p>
+
+            <MoveTree.move_tree
+              game={@game}
+              root_position={@root_position}
+            />
 
             <ChessBoard.chess_board position={@position} />
 
@@ -754,5 +779,13 @@ defmodule Web.RoomLive do
       {:error, :illegal_move} ->
         "Invalid move"
     end
+  end
+
+  defp parse_path(""), do: []
+
+  defp parse_path(path) do
+    path
+    |> String.split(",")
+    |> Enum.map(&String.to_integer/1)
   end
 end

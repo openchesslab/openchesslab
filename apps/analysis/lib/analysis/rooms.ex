@@ -15,14 +15,14 @@ defmodule Analysis.Rooms do
            @supervisor,
            {RoomServer, room}
          ) do
-      {:ok, _pid} ->
-        get(room_id)
+      {:ok, pid} ->
+        {:ok, RoomServer.get(pid)}
 
-      {:error, {:already_started, _pid}} ->
-        get(room_id)
+      {:error, {:already_started, pid}} ->
+        {:ok, RoomServer.get(pid)}
 
-      {:error, {:already_registered, _pid}} ->
-        get(room_id)
+      {:error, {:already_registered, pid}} ->
+        {:ok, RoomServer.get(pid)}
     end
   end
 
@@ -76,9 +76,24 @@ defmodule Analysis.Rooms do
   end
 
   defp lookup(room_id) do
+    deadline =
+      System.monotonic_time(:millisecond) + 100
+
+    lookup_until(room_id, deadline)
+  end
+
+  defp lookup_until(room_id, deadline) do
     case Horde.Registry.lookup(@registry, room_id) do
-      [{pid, _value}] -> {:ok, pid}
-      [] -> :not_found
+      [{pid, _value}] ->
+        {:ok, pid}
+
+      [] ->
+        if System.monotonic_time(:millisecond) < deadline do
+          Process.sleep(1)
+          lookup_until(room_id, deadline)
+        else
+          :not_found
+        end
     end
   end
 end
