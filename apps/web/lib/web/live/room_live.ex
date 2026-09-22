@@ -269,6 +269,26 @@ defmodule Web.RoomLive do
   end
 
   @impl true
+  def handle_event(
+        "set_side_to_move",
+        %{"edit" => %{"side_to_move" => side_to_move}},
+        socket
+      ) do
+    case parse_side_to_move(side_to_move) do
+      {:ok, side_to_move} ->
+        draft =
+          socket.assigns.position
+          |> PositionDraft.new()
+          |> PositionDraft.set_side_to_move(side_to_move)
+
+        edit_position(socket, draft)
+
+      {:error, :invalid_side_to_move} ->
+        {:noreply, assign(socket, :edit_error, "Invalid side to move.")}
+    end
+  end
+
+  @impl true
   def render(assigns) do
     ~H"""
     <main>
@@ -331,7 +351,34 @@ defmodule Web.RoomLive do
             <p id="current-path">
               Path {inspect(@current_path)}
             </p>
+
             <ChessBoard.chess_board position={@position} />
+
+            <p id="side-to-move">
+              {if @position.side_to_move == :white, do: "White", else: "Black"}
+            </p>
+
+            <form id="side-to-move-form" phx-submit="set_side_to_move">
+              <select name="edit[side_to_move]" required>
+                <option
+                  value="white"
+                  selected={@position.side_to_move == :white}
+                >
+                  White
+                </option>
+                <option
+                  value="black"
+                  selected={@position.side_to_move == :black}
+                >
+                  Black
+                </option>
+              </select>
+
+              <button type="submit">
+                Set side to move
+              </button>
+            </form>
+
             <form id="remove-piece-form" phx-submit="remove_piece">
               <input
                 type="text"
@@ -535,4 +582,8 @@ defmodule Web.RoomLive do
       _ -> {:error, :invalid_piece}
     end
   end
+
+  defp parse_side_to_move("white"), do: {:ok, :white}
+  defp parse_side_to_move("black"), do: {:ok, :black}
+  defp parse_side_to_move(_side), do: {:error, :invalid_side_to_move}
 end

@@ -860,4 +860,74 @@ defmodule Web.RoomLiveTest do
     assert {:ok, game, 1} = Games.get(game_id)
     assert Game.node_at(game, [0]) == nil
   end
+
+  test "changes the side to move and navigates to the result", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_playable_game()
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    {:ok, view, _html} = live(conn, "/rooms/#{room_id}")
+
+    view
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    assert has_element?(view, "#side-to-move", "White")
+    assert has_element?(view, "#current-path", "Path []")
+    assert has_element?(view, "#selected-game-revision", "Revision 1")
+
+    view
+    |> form("#side-to-move-form", %{
+      "edit" => %{"side_to_move" => "black"}
+    })
+    |> render_submit()
+
+    assert has_element?(view, "#side-to-move", "Black")
+    assert has_element?(view, "#current-path", "Path [0]")
+    assert has_element?(view, "#selected-game-revision", "Revision 2")
+
+    assert {:ok, game, 2} = Games.get(game_id)
+
+    child = Game.node_at(game, [0])
+
+    assert %Node{} = child
+    assert Node.transition(child) == Transition.edit()
+
+    assert {:ok, edited_position} =
+             PositionStore.get(Node.position_id(child))
+
+    assert edited_position.side_to_move == :black
+  end
+
+  test "shows an error for an invalid side to move", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_playable_game()
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    {:ok, view, _html} = live(conn, "/rooms/#{room_id}")
+
+    view
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    render_submit(view, "set_side_to_move", %{
+      "edit" => %{"side_to_move" => "green"}
+    })
+
+    assert has_element?(view, "#edit-error", "Invalid side to move.")
+    assert has_element?(view, "#side-to-move", "White")
+    assert has_element?(view, "#current-path", "Path []")
+    assert has_element?(view, "#selected-game-revision", "Revision 1")
+
+    assert {:ok, game, 1} = Games.get(game_id)
+    assert Game.node_at(game, [0]) == nil
+  end
 end
