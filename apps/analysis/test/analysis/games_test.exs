@@ -8,6 +8,7 @@ defmodule Analysis.GamesTest do
   alias Analysis.Transition
   alias Chess.Move
   alias Chess.Position
+  alias Chess.PositionDraft
   alias Chess.Square
 
   defp game_with_variations(game_id) do
@@ -422,6 +423,167 @@ defmodule Analysis.GamesTest do
 
     assert {:ok, _game, 2, []} =
              Games.remove(game_id, [1])
+
+    assert_receive {:game_changed, ^game_id}
+  end
+
+  test "edits a position and persists the updated game", %{
+    game_id: game_id
+  } do
+    position = Position.starting_position()
+    position_id = PositionStore.append(position)
+    game = Game.new(game_id, position_id)
+
+    assert {:ok, 1} = Games.insert(game)
+
+    draft =
+      position
+      |> PositionDraft.new()
+      |> PositionDraft.remove_piece(Square.from_algebraic("e2"))
+
+    assert {:ok, updated_game, 2, [0]} =
+             Games.edit(game_id, [], draft)
+
+    child = Game.node_at(updated_game, [0])
+
+    assert %Node{} = child
+    assert Node.transition(child) == Transition.edit()
+
+    assert {:ok, ^updated_game, 2} = Games.get(game_id)
+
+    assert {:ok, edited_position} =
+             PositionStore.get(Node.position_id(child))
+
+    assert Position.piece_at(
+             edited_position,
+             Square.from_algebraic("e2")
+           ) == nil
+  end
+
+  test "returns game_not_found when editing an unknown game", %{
+    game_id: game_id
+  } do
+    position = Position.new()
+
+    draft =
+      position
+      |> PositionDraft.new()
+      |> PositionDraft.put_piece(
+        Square.from_algebraic("e1"),
+        {:white, :king}
+      )
+      |> PositionDraft.put_piece(
+        Square.from_algebraic("e8"),
+        {:black, :king}
+      )
+
+    assert Games.edit(game_id, [], draft) ==
+             {:error, :game_not_found}
+  end
+
+  test "returns node_not_found when editing an unknown path", %{
+    game_id: game_id
+  } do
+    position = Position.starting_position()
+    position_id = PositionStore.append(position)
+    game = Game.new(game_id, position_id)
+
+    assert {:ok, 1} = Games.insert(game)
+
+    draft =
+      position
+      |> PositionDraft.new()
+      |> PositionDraft.put_piece(
+        Square.from_algebraic("e1"),
+        {:white, :king}
+      )
+      |> PositionDraft.put_piece(
+        Square.from_algebraic("e8"),
+        {:black, :king}
+      )
+
+    assert Games.edit(game_id, [0], draft) ==
+             {:error, :node_not_found}
+
+    assert {:ok, ^game, 1} = Games.get(game_id)
+  end
+
+  test "returns invalid_position without updating the game", %{
+    game_id: game_id
+  } do
+    position = Position.starting_position()
+    position_id = PositionStore.append(position)
+    game = Game.new(game_id, position_id)
+
+    assert {:ok, 1} = Games.insert(game)
+
+    draft =
+      position
+      |> PositionDraft.new()
+      |> PositionDraft.remove_piece(Square.from_algebraic("e1"))
+
+    assert {:error, {:invalid_position, reasons}} =
+             Games.edit(game_id, [], draft)
+
+    assert reasons != []
+    assert {:ok, ^game, 1} = Games.get(game_id)
+  end
+
+  test "editing the same position does not duplicate the continuation", %{
+    game_id: game_id
+  } do
+    position = Position.starting_position()
+    position_id = PositionStore.append(position)
+    game = Game.new(game_id, position_id)
+
+    assert {:ok, 1} = Games.insert(game)
+
+    draft =
+      position
+      |> PositionDraft.new()
+      |> PositionDraft.put_piece(
+        Square.from_algebraic("e1"),
+        {:white, :king}
+      )
+      |> PositionDraft.put_piece(
+        Square.from_algebraic("e8"),
+        {:black, :king}
+      )
+
+    assert {:ok, _game, 2, [0]} =
+             Games.edit(game_id, [], draft)
+
+    assert {:ok, updated_game, 3, [0]} =
+             Games.edit(game_id, [], draft)
+
+    assert length(Node.children(Game.root(updated_game))) == 1
+  end
+
+  test "publishes a game change after editing a position", %{
+    game_id: game_id
+  } do
+    position = Position.starting_position()
+    position_id = PositionStore.append(position)
+    game = Game.new(game_id, position_id)
+
+    assert {:ok, 1} = Games.insert(game)
+
+    :ok = Analysis.GameEvents.subscribe(game_id)
+
+    draft =
+      position
+      |> PositionDraft.new()
+      |> PositionDraft.put_piece(
+        Square.from_algebraic("e1"),
+        {:white, :king}
+      )
+      |> PositionDraft.put_piece(
+        Square.from_algebraic("e8"),
+        {:black, :king}
+      )
+
+    assert {:ok, _game, 2, [0]} =
+             Games.edit(game_id, [], draft)
 
     assert_receive {:game_changed, ^game_id}
   end

@@ -9,6 +9,7 @@ defmodule Analysis.Games do
   alias Analysis.Transition
   alias Chess.Move
   alias Chess.Position
+  alias Chess.PositionDraft
 
   @store Analysis.GameStore.Runtime
 
@@ -36,6 +37,23 @@ defmodule Analysis.Games do
     case get(game_id) do
       {:ok, game, revision} ->
         play(game, revision, path, move)
+
+      :not_found ->
+        {:error, :game_not_found}
+    end
+  end
+
+  @spec edit(Game.id(), Game.path(), PositionDraft.t()) ::
+          {:ok, Game.t(), pos_integer(), Game.path()}
+          | {:error,
+             :game_not_found
+             | :node_not_found
+             | {:invalid_position, [atom()]}
+             | :conflict}
+  def edit(game_id, path, %PositionDraft{} = draft) do
+    case get(game_id) do
+      {:ok, game, revision} ->
+        edit(game, revision, path, draft)
 
       :not_found ->
         {:error, :game_not_found}
@@ -154,6 +172,43 @@ defmodule Analysis.Games do
     with {:ok, updated_game, resulting_path} <- Game.remove(game, path),
          {:ok, new_revision} <- persist(updated_game, revision) do
       {:ok, updated_game, new_revision, resulting_path}
+    end
+  end
+
+  defp edit(game, revision, path, draft) do
+    with %Node{} <- Game.node_at(game, path),
+         {:ok, position} <- PositionDraft.apply(draft) do
+      position_id = PositionStore.append(position)
+      transition = Transition.edit()
+
+      updated_game =
+        Game.add_child(
+          game,
+          path,
+          transition,
+          position_id
+        )
+
+      child_index =
+        updated_game
+        |> Game.node_at(path)
+        |> Node.child_index(transition, position_id)
+
+      resulting_path = path ++ [child_index]
+
+      case persist(updated_game, revision) do
+        {:ok, new_revision} ->
+          {:ok, updated_game, new_revision, resulting_path}
+
+        {:error, _reason} = error ->
+          error
+      end
+    else
+      nil ->
+        {:error, :node_not_found}
+
+      {:error, reasons} ->
+        {:error, {:invalid_position, reasons}}
     end
   end
 end
