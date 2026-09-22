@@ -325,4 +325,97 @@ defmodule Analysis.GamesTest do
 
     assert_receive {:game_changed, ^game_id}
   end
+
+  test "removes a variation and persists the updated game", %{
+    game_id: game_id
+  } do
+    game = game_with_variations(game_id)
+
+    assert {:ok, 1} = Games.insert(game)
+
+    assert {:ok, updated_game, 2, []} =
+             Games.remove(game_id, [1])
+
+    assert updated_game
+           |> Game.node_at([0])
+           |> Node.move() == move("e2", "e4")
+
+    assert updated_game
+           |> Game.node_at([1])
+           |> Node.move() == move("c2", "c4")
+
+    assert Game.node_at(updated_game, [2]) == nil
+
+    assert {:ok, ^updated_game, 2} = Games.get(game_id)
+  end
+
+  test "removes a nested variation subtree and returns its parent path", %{
+    game_id: game_id
+  } do
+    game =
+      Game.new(game_id, 1)
+      |> Game.add_child([], move("e2", "e4"), 2)
+      |> Game.add_child([0], move("e7", "e5"), 3)
+      |> Game.add_child([0, 0], move("g1", "f3"), 4)
+      |> Game.add_child([0], move("c7", "c5"), 5)
+
+    assert {:ok, 1} = Games.insert(game)
+
+    assert {:ok, updated_game, 2, [0]} =
+             Games.remove(game_id, [0, 0])
+
+    assert updated_game
+           |> Game.node_at([0, 0])
+           |> Node.move() == move("c7", "c5")
+
+    assert Game.node_at(updated_game, [0, 0, 0]) == nil
+
+    assert {:ok, ^updated_game, 2} = Games.get(game_id)
+  end
+
+  test "returns game_not_found when removing from an unknown game", %{
+    game_id: game_id
+  } do
+    assert Games.remove(game_id, [0]) ==
+             {:error, :game_not_found}
+  end
+
+  test "returns root when removing the root", %{game_id: game_id} do
+    game = game_with_variations(game_id)
+
+    assert {:ok, 1} = Games.insert(game)
+
+    assert Games.remove(game_id, []) ==
+             {:error, :root}
+
+    assert {:ok, ^game, 1} = Games.get(game_id)
+  end
+
+  test "returns node_not_found when removing an unknown path", %{
+    game_id: game_id
+  } do
+    game = game_with_variations(game_id)
+
+    assert {:ok, 1} = Games.insert(game)
+
+    assert Games.remove(game_id, [99]) ==
+             {:error, :node_not_found}
+
+    assert {:ok, ^game, 1} = Games.get(game_id)
+  end
+
+  test "publishes a game change after removing a variation", %{
+    game_id: game_id
+  } do
+    game = game_with_variations(game_id)
+
+    assert {:ok, 1} = Games.insert(game)
+
+    :ok = Analysis.GameEvents.subscribe(game_id)
+
+    assert {:ok, _game, 2, []} =
+             Games.remove(game_id, [1])
+
+    assert_receive {:game_changed, ^game_id}
+  end
 end
