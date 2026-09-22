@@ -4,8 +4,6 @@ defmodule Chess.PositionTest do
   alias Chess.Move
   alias Chess.Position
 
-  defp square(algebraic), do: Chess.Square.from_algebraic(algebraic)
-
   describe "new/0" do
     test "creates an empty position" do
       position = Position.new()
@@ -973,5 +971,356 @@ defmodule Chess.PositionTest do
       assert Position.stalemate?(position, :white)
       refute Position.checkmate?(position, :white)
     end
+  end
+
+  describe "validate/1" do
+    test "accepts the starting position" do
+      assert Position.validate(Position.starting_position()) == :ok
+    end
+
+    test "accepts a legal position with the side to move in check" do
+      position =
+        Position.new(side_to_move: :white)
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("e7"), {:black, :rook})
+
+      assert Position.validate(position) == :ok
+    end
+
+    test "rejects a position without a white king" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e8"), {:black, :king})
+
+      assert Position.validate(position) ==
+               {:error, [:invalid_white_king_count]}
+    end
+
+    test "rejects a position without a black king" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+
+      assert Position.validate(position) ==
+               {:error, [:invalid_black_king_count]}
+    end
+
+    test "rejects multiple kings of the same color" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("d1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :king})
+
+      assert Position.validate(position) ==
+               {:error, [:invalid_white_king_count]}
+    end
+
+    test "rejects adjacent kings" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e2"), {:black, :king})
+
+      assert Position.validate(position) ==
+               {:error, [:adjacent_kings]}
+    end
+
+    test "rejects a white pawn on the eighth rank" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("a8"), {:white, :pawn})
+
+      assert Position.validate(position) ==
+               {:error, [:pawn_on_back_rank]}
+    end
+
+    test "rejects a black pawn on the first rank" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("a1"), {:black, :pawn})
+
+      assert Position.validate(position) ==
+               {:error, [:pawn_on_back_rank]}
+    end
+
+    test "rejects a position where the side not to move is in check" do
+      position =
+        Position.new(side_to_move: :white)
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("e7"), {:white, :rook})
+
+      assert Position.validate(position) ==
+               {:error, [:inactive_king_in_check]}
+    end
+
+    test "rejects castling rights without the required king" do
+      position =
+        Position.new(castling_rights: MapSet.new([:white_kingside]))
+        |> Position.put_piece(square("f1"), {:white, :king})
+        |> Position.put_piece(square("h1"), {:white, :rook})
+        |> Position.put_piece(square("e8"), {:black, :king})
+
+      assert Position.validate(position) ==
+               {:error, [:invalid_castling_rights]}
+    end
+
+    test "rejects castling rights without the required rook" do
+      position =
+        Position.new(castling_rights: MapSet.new([:white_kingside]))
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :king})
+
+      assert Position.validate(position) ==
+               {:error, [:invalid_castling_rights]}
+    end
+
+    test "accepts castling rights while the king is currently in check" do
+      position =
+        Position.new(
+          side_to_move: :white,
+          castling_rights: MapSet.new([:white_kingside])
+        )
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("h1"), {:white, :rook})
+        |> Position.put_piece(square("a8"), {:black, :king})
+        |> Position.put_piece(square("e8"), {:black, :rook})
+
+      assert Position.validate(position) == :ok
+    end
+
+    test "accepts a valid en passant target for white" do
+      position =
+        Position.new(
+          side_to_move: :white,
+          en_passant: square("d6")
+        )
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("e5"), {:white, :pawn})
+        |> Position.put_piece(square("d5"), {:black, :pawn})
+
+      assert Position.validate(position) == :ok
+    end
+
+    test "accepts a valid en passant target for black" do
+      position =
+        Position.new(
+          side_to_move: :black,
+          en_passant: square("d3")
+        )
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("d4"), {:white, :pawn})
+        |> Position.put_piece(square("e4"), {:black, :pawn})
+
+      assert Position.validate(position) == :ok
+    end
+
+    test "rejects an en passant target on the wrong rank" do
+      position =
+        Position.new(
+          side_to_move: :white,
+          en_passant: square("d3")
+        )
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :king})
+
+      assert Position.validate(position) ==
+               {:error, [:invalid_en_passant]}
+    end
+
+    test "rejects en passant without the pawn that moved two squares" do
+      position =
+        Position.new(
+          side_to_move: :white,
+          en_passant: square("d6")
+        )
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("e5"), {:white, :pawn})
+
+      assert Position.validate(position) ==
+               {:error, [:invalid_en_passant]}
+    end
+
+    test "rejects en passant without an adjacent capturing pawn" do
+      position =
+        Position.new(
+          side_to_move: :white,
+          en_passant: square("d6")
+        )
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("d5"), {:black, :pawn})
+
+      assert Position.validate(position) ==
+               {:error, [:invalid_en_passant]}
+    end
+
+    test "rejects an occupied en passant target square" do
+      position =
+        Position.new(
+          side_to_move: :white,
+          en_passant: square("d6")
+        )
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("e5"), {:white, :pawn})
+        |> Position.put_piece(square("d5"), {:black, :pawn})
+        |> Position.put_piece(square("d6"), {:black, :knight})
+
+      assert Position.validate(position) ==
+               {:error, [:invalid_en_passant]}
+    end
+
+    test "accepts all known castling rights when kings and rooks are present" do
+      position =
+        Position.new(
+          castling_rights:
+            MapSet.new([
+              :white_kingside,
+              :white_queenside,
+              :black_kingside,
+              :black_queenside
+            ])
+        )
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("a1"), {:white, :rook})
+        |> Position.put_piece(square("h1"), {:white, :rook})
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("a8"), {:black, :rook})
+        |> Position.put_piece(square("h8"), {:black, :rook})
+
+      assert Position.validate(position) == :ok
+    end
+
+    test "rejects more than eight pawns of one color" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("a2"), {:white, :pawn})
+        |> Position.put_piece(square("b2"), {:white, :pawn})
+        |> Position.put_piece(square("c2"), {:white, :pawn})
+        |> Position.put_piece(square("d2"), {:white, :pawn})
+        |> Position.put_piece(square("e2"), {:white, :pawn})
+        |> Position.put_piece(square("f2"), {:white, :pawn})
+        |> Position.put_piece(square("g2"), {:white, :pawn})
+        |> Position.put_piece(square("h2"), {:white, :pawn})
+        |> Position.put_piece(square("a3"), {:white, :pawn})
+
+      assert Position.validate(position) ==
+               {:error, [:too_many_pawns]}
+    end
+
+    test "rejects an extra piece when all pawns remain" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> put_white_pawns()
+        |> Position.put_piece(square("d1"), {:white, :queen})
+        |> Position.put_piece(square("d3"), {:white, :queen})
+
+      assert Position.validate(position) ==
+               {:error, [:impossible_promotions]}
+    end
+
+    test "accepts one extra piece when one pawn is missing" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("a2"), {:white, :pawn})
+        |> Position.put_piece(square("b2"), {:white, :pawn})
+        |> Position.put_piece(square("c2"), {:white, :pawn})
+        |> Position.put_piece(square("d2"), {:white, :pawn})
+        |> Position.put_piece(square("e2"), {:white, :pawn})
+        |> Position.put_piece(square("f2"), {:white, :pawn})
+        |> Position.put_piece(square("g2"), {:white, :pawn})
+        |> Position.put_piece(square("d1"), {:white, :queen})
+        |> Position.put_piece(square("d3"), {:white, :queen})
+
+      assert Position.validate(position) == :ok
+    end
+
+    test "counts extra promoted pieces across piece types" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("a2"), {:white, :pawn})
+        |> Position.put_piece(square("b2"), {:white, :pawn})
+        |> Position.put_piece(square("c2"), {:white, :pawn})
+        |> Position.put_piece(square("d2"), {:white, :pawn})
+        |> Position.put_piece(square("e2"), {:white, :pawn})
+        |> Position.put_piece(square("f2"), {:white, :pawn})
+        |> Position.put_piece(square("d1"), {:white, :queen})
+        |> Position.put_piece(square("d3"), {:white, :queen})
+        |> Position.put_piece(square("a1"), {:white, :rook})
+        |> Position.put_piece(square("h1"), {:white, :rook})
+        |> Position.put_piece(square("a3"), {:white, :rook})
+
+      assert Position.validate(position) == :ok
+    end
+
+    test "rejects more extra pieces than missing pawns can explain" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("a2"), {:white, :pawn})
+        |> Position.put_piece(square("b2"), {:white, :pawn})
+        |> Position.put_piece(square("c2"), {:white, :pawn})
+        |> Position.put_piece(square("d2"), {:white, :pawn})
+        |> Position.put_piece(square("e2"), {:white, :pawn})
+        |> Position.put_piece(square("f2"), {:white, :pawn})
+        |> Position.put_piece(square("d1"), {:white, :queen})
+        |> Position.put_piece(square("d3"), {:white, :queen})
+        |> Position.put_piece(square("a1"), {:white, :rook})
+        |> Position.put_piece(square("h1"), {:white, :rook})
+        |> Position.put_piece(square("a3"), {:white, :rook})
+        |> Position.put_piece(square("c1"), {:white, :bishop})
+        |> Position.put_piece(square("f1"), {:white, :bishop})
+        |> Position.put_piece(square("c3"), {:white, :bishop})
+
+      assert Position.validate(position) ==
+               {:error, [:impossible_promotions]}
+    end
+
+    test "validates material independently for black" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("a7"), {:black, :pawn})
+        |> Position.put_piece(square("b7"), {:black, :pawn})
+        |> Position.put_piece(square("c7"), {:black, :pawn})
+        |> Position.put_piece(square("d7"), {:black, :pawn})
+        |> Position.put_piece(square("e7"), {:black, :pawn})
+        |> Position.put_piece(square("f7"), {:black, :pawn})
+        |> Position.put_piece(square("g7"), {:black, :pawn})
+        |> Position.put_piece(square("h7"), {:black, :pawn})
+        |> Position.put_piece(square("d8"), {:black, :queen})
+        |> Position.put_piece(square("d6"), {:black, :queen})
+
+      assert Position.validate(position) ==
+               {:error, [:impossible_promotions]}
+    end
+  end
+
+  defp square(algebraic), do: Chess.Square.from_algebraic(algebraic)
+
+  defp put_white_pawns(position) do
+    Enum.reduce(~w(a2 b2 c2 d2 e2 f2 g2 h2), position, fn algebraic, position ->
+      Position.put_piece(position, square(algebraic), {:white, :pawn})
+    end)
   end
 end

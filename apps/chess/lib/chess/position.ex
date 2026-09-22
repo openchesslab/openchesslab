@@ -217,6 +217,241 @@ defmodule Chess.Position do
     pseudo_moves ++ special_moves
   end
 
+  @spec validate(t()) :: :ok | {:error, [atom()]}
+  def validate(%__MODULE__{} = position) do
+    errors =
+      []
+      |> validate_king_count(position, :white)
+      |> validate_king_count(position, :black)
+      |> validate_adjacent_kings(position)
+      |> validate_pawns(position)
+      |> validate_check_state(position)
+      |> validate_castling_rights(position)
+      |> validate_en_passant(position)
+      |> validate_side_to_move(position)
+      |> validate_material(position)
+
+    case errors do
+      [] -> :ok
+      errors -> {:error, Enum.reverse(errors)}
+    end
+  end
+
+  defp validate_king_count(errors, position, color) do
+    count =
+      Enum.count(pieces(position), fn
+        {_square, {^color, :king}} -> true
+        _ -> false
+      end)
+
+    if count == 1 do
+      errors
+    else
+      [king_count_error(color) | errors]
+    end
+  end
+
+  defp king_count_error(:white), do: :invalid_white_king_count
+  defp king_count_error(:black), do: :invalid_black_king_count
+
+  defp validate_adjacent_kings(errors, position) do
+    with white when not is_nil(white) <- king_square(position, :white),
+         black when not is_nil(black) <- king_square(position, :black) do
+      file_distance = abs(rem(white, 8) - rem(black, 8))
+      rank_distance = abs(div(white, 8) - div(black, 8))
+
+      if file_distance <= 1 and rank_distance <= 1 do
+        [:adjacent_kings | errors]
+      else
+        errors
+      end
+    else
+      _ -> errors
+    end
+  end
+
+  defp validate_en_passant(errors, %{en_passant: nil}) do
+    errors
+  end
+
+  defp validate_en_passant(errors, position) do
+    if valid_en_passant?(position) do
+      errors
+    else
+      [:invalid_en_passant | errors]
+    end
+  end
+
+  defp valid_en_passant?(
+         %{
+           side_to_move: :white,
+           en_passant: target
+         } = position
+       )
+       when target in 40..47 do
+    moved_pawn_square = target - 8
+    file = rem(moved_pawn_square, 8)
+
+    piece_at(position, target) == nil and
+      piece_at(position, moved_pawn_square) == {:black, :pawn} and
+      adjacent_pawn?(position, moved_pawn_square, file, {:white, :pawn})
+  end
+
+  defp valid_en_passant?(
+         %{
+           side_to_move: :black,
+           en_passant: target
+         } = position
+       )
+       when target in 16..23 do
+    moved_pawn_square = target + 8
+    file = rem(moved_pawn_square, 8)
+
+    piece_at(position, target) == nil and
+      piece_at(position, moved_pawn_square) == {:white, :pawn} and
+      adjacent_pawn?(position, moved_pawn_square, file, {:black, :pawn})
+  end
+
+  defp valid_en_passant?(_position), do: false
+
+  defp adjacent_pawn?(position, pawn_square, file, pawn) do
+    left? =
+      file > 0 and
+        piece_at(position, pawn_square - 1) == pawn
+
+    right? =
+      file < 7 and
+        piece_at(position, pawn_square + 1) == pawn
+
+    left? or right?
+  end
+
+  defp validate_pawns(errors, position) do
+    invalid? =
+      Enum.any?(pieces(position), fn
+        {square, {_color, :pawn}} ->
+          square in 0..7 or square in 56..63
+
+        _ ->
+          false
+      end)
+
+    if invalid? do
+      [:pawn_on_back_rank | errors]
+    else
+      errors
+    end
+  end
+
+  defp validate_check_state(errors, position) do
+    white_king = king_square(position, :white)
+    black_king = king_square(position, :black)
+
+    if valid_king_configuration?(white_king, black_king) do
+      inactive_color = opposite_color(position.side_to_move)
+
+      if in_check?(position, inactive_color) do
+        [:inactive_king_in_check | errors]
+      else
+        errors
+      end
+    else
+      errors
+    end
+  end
+
+  defp valid_king_configuration?(nil, _black), do: false
+  defp valid_king_configuration?(_white, nil), do: false
+
+  defp valid_king_configuration?(white, black) do
+    file_distance = abs(rem(white, 8) - rem(black, 8))
+    rank_distance = abs(div(white, 8) - div(black, 8))
+
+    file_distance > 1 or rank_distance > 1
+  end
+
+  defp validate_castling_rights(errors, position) do
+    valid? =
+      Enum.all?(position.castling_rights, fn
+        :white_kingside ->
+          piece_at(position, 4) == {:white, :king} and
+            piece_at(position, 7) == {:white, :rook}
+
+        :white_queenside ->
+          piece_at(position, 4) == {:white, :king} and
+            piece_at(position, 0) == {:white, :rook}
+
+        :black_kingside ->
+          piece_at(position, 60) == {:black, :king} and
+            piece_at(position, 63) == {:black, :rook}
+
+        :black_queenside ->
+          piece_at(position, 60) == {:black, :king} and
+            piece_at(position, 56) == {:black, :rook}
+
+        _ ->
+          false
+      end)
+
+    if valid? do
+      errors
+    else
+      [:invalid_castling_rights | errors]
+    end
+  end
+
+  defp validate_side_to_move(errors, %{side_to_move: side_to_move})
+       when side_to_move in [:white, :black] do
+    errors
+  end
+
+  defp validate_side_to_move(errors, _position) do
+    [:invalid_side_to_move | errors]
+  end
+
+  defp validate_material(errors, position) do
+    Enum.reduce([:white, :black], errors, fn color, errors ->
+      validate_material(errors, position, color)
+    end)
+  end
+
+  defp validate_material(errors, position, color) do
+    counts =
+      position
+      |> pieces()
+      |> Enum.reduce(%{}, fn
+        {_square, {^color, piece}}, counts ->
+          Map.update(counts, piece, 1, &(&1 + 1))
+
+        _, counts ->
+          counts
+      end)
+
+    pawn_count = Map.get(counts, :pawn, 0)
+
+    cond do
+      pawn_count > 8 ->
+        [:too_many_pawns | errors]
+
+      required_promotions(counts) > 8 - pawn_count ->
+        [:impossible_promotions | errors]
+
+      true ->
+        errors
+    end
+  end
+
+  defp required_promotions(counts) do
+    extra(counts, :queen, 1) +
+      extra(counts, :rook, 2) +
+      extra(counts, :bishop, 2) +
+      extra(counts, :knight, 2)
+  end
+
+  defp extra(counts, piece, initial_count) do
+    max(Map.get(counts, piece, 0) - initial_count, 0)
+  end
+
   defp legal_pseudo_move?(
          bitboard,
          side,
