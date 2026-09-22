@@ -484,4 +484,52 @@ defmodule Web.RoomLiveTest do
 
     assert has_element?(view2, "#navigate-child-0")
   end
+
+  test "falls back to the surviving ancestor when another user removes the current subtree", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_playable_game()
+
+    assert {:ok, _game, 2, [0]} =
+             Games.play(game_id, [], move("e2", "e4"))
+
+    assert {:ok, _game, 3, [0, 0]} =
+             Games.play(game_id, [0], move("e7", "e5"))
+
+    assert {:ok, _game, 4, [0, 0, 0]} =
+             Games.play(game_id, [0, 0], move("g1", "f3"))
+
+    assert {:ok, _game, 5, [0, 1]} =
+             Games.play(game_id, [0], move("c7", "c5"))
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    {:ok, view, _html} = live(conn, "/rooms/#{room_id}")
+
+    view
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    view
+    |> element("#navigate-child-0")
+    |> render_click()
+
+    view
+    |> element("#navigate-child-0")
+    |> render_click()
+
+    view
+    |> element("#navigate-child-0")
+    |> render_click()
+
+    assert has_element?(view, "#current-path", "Path [0, 0, 0]")
+
+    assert {:ok, _game, 6, [0]} =
+             Games.remove(game_id, [0, 0])
+
+    assert has_element?(view, "#selected-game-revision", "Revision 6")
+    assert has_element?(view, "#current-path", "Path [0]")
+  end
 end

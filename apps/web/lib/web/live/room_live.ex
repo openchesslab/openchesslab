@@ -50,7 +50,11 @@ defmodule Web.RoomLive do
     case Games.get(game_id) do
       {:ok, game, revision} ->
         current_path =
-          nearest_existing_path(game, socket.assigns.current_path)
+          nearest_surviving_path(
+            socket.assigns.game,
+            game,
+            socket.assigns.current_path
+          )
 
         {:noreply,
          assign(socket,
@@ -297,15 +301,29 @@ defmodule Web.RoomLive do
     :ok
   end
 
-  defp nearest_existing_path(game, path) do
-    if Game.node_at(game, path) do
-      path
-    else
-      path
-      |> Enum.drop(-1)
-      |> then(&nearest_existing_path(game, &1))
-    end
+  defp nearest_surviving_path(old_game, new_game, path) do
+    path
+    |> prefixes()
+    |> Enum.take_while(fn candidate_path ->
+      same_occurrence?(
+        Game.node_at(old_game, candidate_path),
+        Game.node_at(new_game, candidate_path)
+      )
+    end)
+    |> List.last()
   end
+
+  defp prefixes(path) do
+    0..length(path)
+    |> Enum.map(&Enum.take(path, &1))
+  end
+
+  defp same_occurrence?(%Node{} = old_node, %Node{} = new_node) do
+    Node.position_id(old_node) == Node.position_id(new_node) and
+      Node.move(old_node) == Node.move(new_node)
+  end
+
+  defp same_occurrence?(_old_node, _new_node), do: false
 
   defp play_move(socket, move) do
     case Games.play(
