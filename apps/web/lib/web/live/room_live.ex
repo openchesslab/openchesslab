@@ -239,11 +239,41 @@ defmodule Web.RoomLive do
   end
 
   @impl true
+  def handle_event(
+        "put_piece",
+        %{
+          "edit" => %{
+            "square" => square,
+            "color" => color,
+            "piece" => piece
+          }
+        },
+        socket
+      ) do
+    with square when is_integer(square) <-
+           Square.from_algebraic(square),
+         {:ok, piece} <- parse_piece(color, piece) do
+      draft =
+        socket.assigns.position
+        |> PositionDraft.new()
+        |> PositionDraft.put_piece(square, piece)
+
+      edit_position(socket, draft)
+    else
+      {:error, :invalid_square} ->
+        {:noreply, assign(socket, :edit_error, "Invalid square.")}
+
+      {:error, :invalid_piece} ->
+        {:noreply, assign(socket, :edit_error, "Invalid piece.")}
+    end
+  end
+
+  @impl true
   def render(assigns) do
     ~H"""
     <main>
       <h1>Room {@room_id}</h1>
-      
+
       <form id="add-game-form" phx-submit="add_game">
         <input
           type="text"
@@ -255,11 +285,11 @@ defmodule Web.RoomLive do
           Add game
         </button>
       </form>
-      
+
       <%= if @add_game_error do %>
         <p role="alert">{@add_game_error}</p>
       <% end %>
-      
+
       <%= if @room.game_ids == [] do %>
         <p>No games in this room.</p>
       <% else %>
@@ -274,7 +304,7 @@ defmodule Web.RoomLive do
             >
               Select
             </button>
-            
+
             <button
               id={"remove-game-#{game_id}"}
               type="button"
@@ -285,23 +315,23 @@ defmodule Web.RoomLive do
             </button>
           </li>
         </ul>
-        
+
         <%= if @selected_game_id do %>
           <section id="selected-game">
             <h2>Selected game</h2>
-            
+
             <p id="selected-game-id">
               {@selected_game_id}
             </p>
-            
+
             <p id="selected-game-revision">
               Revision {@game_revision}
             </p>
-            
+
             <p id="current-path">
               Path {inspect(@current_path)}
             </p>
-             <ChessBoard.chess_board position={@position} />
+            <ChessBoard.chess_board position={@position} />
             <form id="remove-piece-form" phx-submit="remove_piece">
               <input
                 type="text"
@@ -313,11 +343,37 @@ defmodule Web.RoomLive do
                 Remove piece
               </button>
             </form>
-            
+            <form id="put-piece-form" phx-submit="put_piece">
+              <input
+                type="text"
+                name="edit[square]"
+                placeholder="Square"
+                required
+              />
+
+              <select name="edit[color]" required>
+                <option value="white">White</option>
+                <option value="black">Black</option>
+              </select>
+
+              <select name="edit[piece]" required>
+                <option value="king">King</option>
+                <option value="queen">Queen</option>
+                <option value="rook">Rook</option>
+                <option value="bishop">Bishop</option>
+                <option value="knight">Knight</option>
+                <option value="pawn">Pawn</option>
+              </select>
+
+              <button type="submit">
+                Put piece
+              </button>
+            </form>
+
             <%= if @edit_error do %>
               <p id="edit-error" role="alert">{@edit_error}</p>
             <% end %>
-            
+
             <form id="play-move-form" phx-submit="play_move">
               <input
                 type="text"
@@ -335,11 +391,11 @@ defmodule Web.RoomLive do
                 Play move
               </button>
             </form>
-            
+
             <%= if @move_error do %>
               <p id="move-error" role="alert">{@move_error}</p>
             <% end %>
-             <% current_node = Game.node_at(@game, @current_path) %>
+            <% current_node = Game.node_at(@game, @current_path) %>
             <button
               :if={@current_path != []}
               id="navigate-parent"
@@ -348,7 +404,7 @@ defmodule Web.RoomLive do
             >
               Parent
             </button>
-            
+
             <button
               :for={{_child, index} <- Enum.with_index(Node.children(current_node))}
               id={"navigate-child-#{index}"}
@@ -460,5 +516,23 @@ defmodule Web.RoomLive do
       current_path: path,
       position: position
     )
+  end
+
+  defp parse_piece(color, piece) do
+    case {color, piece} do
+      {"white", "king"} -> {:ok, {:white, :king}}
+      {"white", "queen"} -> {:ok, {:white, :queen}}
+      {"white", "rook"} -> {:ok, {:white, :rook}}
+      {"white", "bishop"} -> {:ok, {:white, :bishop}}
+      {"white", "knight"} -> {:ok, {:white, :knight}}
+      {"white", "pawn"} -> {:ok, {:white, :pawn}}
+      {"black", "king"} -> {:ok, {:black, :king}}
+      {"black", "queen"} -> {:ok, {:black, :queen}}
+      {"black", "rook"} -> {:ok, {:black, :rook}}
+      {"black", "bishop"} -> {:ok, {:black, :bishop}}
+      {"black", "knight"} -> {:ok, {:black, :knight}}
+      {"black", "pawn"} -> {:ok, {:black, :pawn}}
+      _ -> {:error, :invalid_piece}
+    end
   end
 end
