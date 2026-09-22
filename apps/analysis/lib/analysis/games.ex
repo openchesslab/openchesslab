@@ -55,23 +55,9 @@ defmodule Analysis.Games do
   end
 
   defp set_comment(game, revision, path, comment) do
-    case Game.set_comment(game, path, comment) do
-      {:ok, updated_game} ->
-        case Memory.update(@store, updated_game, revision) do
-          {:ok, new_revision} ->
-            :ok = GameEvents.publish_changed(game.id)
-
-            {:ok, updated_game, new_revision}
-
-          {:error, :conflict} ->
-            {:error, :conflict}
-
-          {:error, :not_found} ->
-            {:error, :game_not_found}
-        end
-
-      {:error, :node_not_found} = error ->
-        error
+    with {:ok, updated_game} <- Game.set_comment(game, path, comment),
+         {:ok, new_revision} <- persist(updated_game, revision) do
+      {:ok, updated_game, new_revision}
     end
   end
 
@@ -89,17 +75,12 @@ defmodule Analysis.Games do
 
       resulting_path = path ++ [child_index]
 
-      case Memory.update(@store, updated_game, revision) do
+      case persist(updated_game, revision) do
         {:ok, new_revision} ->
-          :ok = GameEvents.publish_changed(game.id)
-
           {:ok, updated_game, new_revision, resulting_path}
 
-        {:error, :conflict} ->
-          {:error, :conflict}
-
-        {:error, :not_found} ->
-          {:error, :game_not_found}
+        {:error, _reason} = error ->
+          error
       end
     else
       nil ->
@@ -110,6 +91,20 @@ defmodule Analysis.Games do
 
       {:error, :illegal_move} = error ->
         error
+    end
+  end
+
+  defp persist(game, revision) do
+    case Memory.update(@store, game, revision) do
+      {:ok, new_revision} ->
+        :ok = GameEvents.publish_changed(game.id)
+        {:ok, new_revision}
+
+      {:error, :conflict} ->
+        {:error, :conflict}
+
+      {:error, :not_found} ->
+        {:error, :game_not_found}
     end
   end
 end
