@@ -76,24 +76,9 @@ defmodule Analysis.Rooms do
   end
 
   defp lookup(room_id) do
-    deadline =
-      System.monotonic_time(:millisecond) + 100
-
-    lookup_until(room_id, deadline)
-  end
-
-  defp lookup_until(room_id, deadline) do
     case Horde.Registry.lookup(@registry, room_id) do
-      [{pid, _value}] ->
-        {:ok, pid}
-
-      [] ->
-        if System.monotonic_time(:millisecond) < deadline do
-          Process.sleep(1)
-          lookup_until(room_id, deadline)
-        else
-          :not_found
-        end
+      [{pid, _value}] -> {:ok, pid}
+      [] -> :not_found
     end
   end
 end

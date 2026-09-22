@@ -29,7 +29,8 @@ defmodule Analysis.RoomsTest do
 
   test "gets an existing room", %{room_id: room_id} do
     assert {:ok, started_room} = Rooms.start_room(room_id)
-    assert {:ok, room} = Rooms.get(room_id)
+
+    assert {:ok, room} = eventually_get_room(room_id)
 
     assert room == started_room
   end
