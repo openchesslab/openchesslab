@@ -8,6 +8,7 @@ defmodule Web.RoomLive do
   alias Analysis.PositionStore
   alias Analysis.RoomEvents
   alias Analysis.Rooms
+  alias Analysis.TransitionNotation
   alias Chess.Move
   alias Chess.PositionDraft
   alias Chess.Square
@@ -571,13 +572,13 @@ defmodule Web.RoomLive do
             </button>
 
             <button
-              :for={{_child, index} <- Enum.with_index(Node.children(current_node))}
+              :for={{child, index} <- Enum.with_index(Node.children(current_node))}
               id={"navigate-child-#{index}"}
               type="button"
               phx-click="navigate_child"
               phx-value-index={index}
             >
-              Child {index}
+              {transition_label(@position, Node.transition(child))}
             </button>
           </section>
         <% end %>
@@ -740,5 +741,18 @@ defmodule Web.RoomLive do
 
   defp promotable_path?(path) do
     List.last(path) > 0
+  end
+
+  defp transition_label(position, transition) do
+    case TransitionNotation.format(position, transition) do
+      {:ok, notation} ->
+        notation
+
+      :not_applicable ->
+        "Edited position"
+
+      {:error, :illegal_move} ->
+        "Invalid move"
+    end
   end
 end
