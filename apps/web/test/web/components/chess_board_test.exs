@@ -54,4 +54,15 @@ defmodule Web.Components.ChessBoardTest do
       refute html =~ ~s(id="piece-e4")
     end
   end
+
+  test "renders squares as clickable board interactions" do
+    html =
+      render_component(&ChessBoard.chess_board/1,
+        position: Position.starting_position()
+      )
+
+    assert html =~ ~s(id="square-e2")
+    assert html =~ ~s(phx-click="square_clicked")
+    assert html =~ ~s(phx-value-square="e2")
+  end
 end

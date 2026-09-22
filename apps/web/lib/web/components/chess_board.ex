@@ -22,6 +22,8 @@ defmodule Web.Components.ChessBoard do
         :for={square <- @squares}
         id={"square-#{Square.to_algebraic(square)}"}
         data-square={Square.to_algebraic(square)}
+        phx-click="square_clicked"
+        phx-value-square={Square.to_algebraic(square)}
       >
         <%= if piece = Position.piece_at(@position, square) do %>
           <span id={"piece-#{Square.to_algebraic(square)}"}>
