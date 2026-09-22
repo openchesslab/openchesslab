@@ -1519,4 +1519,107 @@ defmodule Web.RoomLiveTest do
 
     assert has_element?(view, "#current-path", "Path [0, 0]")
   end
+
+  test "renders variations in the move tree", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_playable_game()
+
+    assert {:ok, _game, 2, [0]} =
+             Games.play(game_id, [], move("e2", "e4"))
+
+    assert {:ok, _game, 3, [0, 0]} =
+             Games.play(game_id, [0], move("e7", "e5"))
+
+    assert {:ok, _game, 4, [0, 0, 0]} =
+             Games.play(game_id, [0, 0], move("g1", "f3"))
+
+    assert {:ok, _game, 5, [0, 1]} =
+             Games.play(game_id, [0], move("c7", "c5"))
+
+    assert {:ok, _game, 6, [0, 1, 0]} =
+             Games.play(game_id, [0, 1], move("g1", "f3"))
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    {:ok, view, _html} =
+      live(conn, "/rooms/#{room_id}")
+
+    view
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    assert has_element?(view, "#move-tree-0", "1. e4")
+    assert has_element?(view, "#move-tree-0-0", "1... e5")
+    assert has_element?(view, "#move-tree-0-0-0", "2. Nf3")
+
+    assert has_element?(view, "#move-tree-0-1", "1... c5")
+    assert has_element?(view, "#move-tree-0-1-0", "2. Nf3")
+
+    view
+    |> element("#move-tree-0-1")
+    |> render_click()
+
+    assert has_element?(view, "#current-path", "Path [0, 1]")
+  end
+
+  test "renders alternative continuations as variations in the move tree", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_playable_game()
+
+    assert {:ok, _game, 2, [0]} =
+             Games.play(game_id, [], move("e2", "e4"))
+
+    assert {:ok, _game, 3, [0, 0]} =
+             Games.play(game_id, [0], move("e7", "e5"))
+
+    assert {:ok, _game, 4, [0, 0, 0]} =
+             Games.play(game_id, [0, 0], move("g1", "f3"))
+
+    assert {:ok, _game, 5, [0, 1]} =
+             Games.play(game_id, [0], move("c7", "c5"))
+
+    assert {:ok, _game, 6, [0, 1, 0]} =
+             Games.play(game_id, [0, 1], move("g1", "f3"))
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    {:ok, view, _html} =
+      live(conn, "/rooms/#{room_id}")
+
+    view
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    assert has_element?(view, "#move-tree-main")
+
+    assert has_element?(
+             view,
+             "#move-tree-main #move-tree-0",
+             "1. e4"
+           )
+
+    assert has_element?(
+             view,
+             "#move-tree-main #move-tree-0-0",
+             "1... e5"
+           )
+
+    assert has_element?(
+             view,
+             "#move-tree-variation-0-1 #move-tree-0-1",
+             "1... c5"
+           )
+
+    assert has_element?(
+             view,
+             "#move-tree-variation-0-1 #move-tree-0-1-0",
+             "2. Nf3"
+           )
+  end
 end
