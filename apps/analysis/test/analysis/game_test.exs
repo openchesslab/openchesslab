@@ -258,6 +258,48 @@ defmodule Analysis.GameTest do
 
       assert Game.add_child(game, [0], transition, :p1) == game
     end
+
+    test "adds an edit child" do
+      game =
+        Game.new("game-1", :p0)
+        |> Game.add_child([], Transition.edit(), :p1)
+
+      child = Game.node_at(game, [0])
+
+      assert Node.position_id(child) == :p1
+      assert Node.transition(child) == Transition.edit()
+    end
+
+    test "keeps different edit results as separate children" do
+      game =
+        Game.new("game-1", :p0)
+        |> Game.add_child([], Transition.edit(), :p1)
+        |> Game.add_child([], Transition.edit(), :p2)
+
+      children = Node.children(Game.root(game))
+
+      assert length(children) == 2
+
+      assert Enum.map(children, &Node.position_id/1) ==
+               [:p1, :p2]
+
+      assert Enum.map(children, &Node.transition/1) ==
+               [Transition.edit(), Transition.edit()]
+    end
+
+    test "does not add the same edit result twice" do
+      game =
+        Game.new("game-1", :p0)
+        |> Game.add_child([], Transition.edit(), :p1)
+        |> Game.add_child([], Transition.edit(), :p1)
+
+      children = Node.children(Game.root(game))
+
+      assert length(children) == 1
+
+      assert Node.position_id(hd(children)) == :p1
+      assert Node.transition(hd(children)) == Transition.edit()
+    end
   end
 
   describe "promote/2" do

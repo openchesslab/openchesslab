@@ -5,8 +5,13 @@ defmodule Analysis.Transition do
 
   alias Chess.Move
 
-  @type t :: {:move, Move.t()}
+  @type t ::
+          {:move, Move.t()}
+          | :edit
 
   @spec move(Move.t()) :: t()
   def move(%Move{} = move), do: {:move, move}
+
+  @spec edit() :: t()
+  def edit, do: :edit
 end
