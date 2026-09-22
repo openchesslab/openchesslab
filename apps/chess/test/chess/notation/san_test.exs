@@ -102,7 +102,7 @@ defmodule Chess.Notation.SANTest do
                square("e8"),
                :queen
              )
-           ) == {:ok, "e8=Q"}
+           ) == {:ok, "e8=Q+"}
   end
 
   test "formats a promotion capture" do
@@ -121,6 +121,84 @@ defmodule Chess.Notation.SANTest do
                :knight
              )
            ) == {:ok, "exd8=N"}
+  end
+
+  test "disambiguates pieces by file" do
+    position =
+      Position.new()
+      |> Position.put_piece(square("e1"), {:white, :king})
+      |> Position.put_piece(square("e8"), {:black, :king})
+      |> Position.put_piece(square("b1"), {:white, :knight})
+      |> Position.put_piece(square("f1"), {:white, :knight})
+
+    assert SAN.format(position, move("b1", "d2")) ==
+             {:ok, "Nbd2"}
+
+    assert SAN.format(position, move("f1", "d2")) ==
+             {:ok, "Nfd2"}
+  end
+
+  test "disambiguates pieces by rank when they share a file" do
+    position =
+      Position.new()
+      |> Position.put_piece(square("e1"), {:white, :king})
+      |> Position.put_piece(square("e8"), {:black, :king})
+      |> Position.put_piece(square("a1"), {:white, :rook})
+      |> Position.put_piece(square("a3"), {:white, :rook})
+
+    assert SAN.format(position, move("a1", "a2")) ==
+             {:ok, "R1a2"}
+
+    assert SAN.format(position, move("a3", "a2")) ==
+             {:ok, "R3a2"}
+  end
+
+  test "disambiguates pieces by file and rank when both are required" do
+    position =
+      Position.new()
+      |> Position.put_piece(square("e1"), {:white, :king})
+      |> Position.put_piece(square("e8"), {:black, :king})
+      |> Position.put_piece(square("b1"), {:white, :knight})
+      |> Position.put_piece(square("b3"), {:white, :knight})
+      |> Position.put_piece(square("f1"), {:white, :knight})
+
+    assert SAN.format(position, move("b1", "d2")) ==
+             {:ok, "Nb1d2"}
+  end
+
+  test "does not disambiguate against a piece that cannot legally move" do
+    position =
+      Position.new()
+      |> Position.put_piece(square("e1"), {:white, :king})
+      |> Position.put_piece(square("e2"), {:white, :knight})
+      |> Position.put_piece(square("c2"), {:white, :knight})
+      |> Position.put_piece(square("e8"), {:black, :rook})
+      |> Position.put_piece(square("a8"), {:black, :king})
+
+    assert SAN.format(position, move("c2", "d4")) ==
+             {:ok, "Nd4"}
+  end
+
+  test "formats check" do
+    position =
+      Position.new()
+      |> Position.put_piece(square("e1"), {:white, :king})
+      |> Position.put_piece(square("a8"), {:black, :king})
+      |> Position.put_piece(square("h1"), {:white, :rook})
+
+    assert SAN.format(position, move("h1", "h8")) ==
+             {:ok, "Rh8+"}
+  end
+
+  test "formats checkmate" do
+    position =
+      Position.new()
+      |> Position.put_piece(square("f6"), {:white, :king})
+      |> Position.put_piece(square("g6"), {:white, :queen})
+      |> Position.put_piece(square("h8"), {:black, :king})
+
+    assert SAN.format(position, move("g6", "g7")) ==
+             {:ok, "Qg7#"}
   end
 
   defp move(from, to) do
