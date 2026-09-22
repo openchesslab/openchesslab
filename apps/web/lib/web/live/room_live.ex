@@ -370,6 +370,38 @@ defmodule Web.RoomLive do
   end
 
   @impl true
+  def handle_event(
+        "remove_subtree",
+        _params,
+        socket
+      ) do
+    case Games.remove(
+           socket.assigns.selected_game_id,
+           socket.assigns.current_path
+         ) do
+      {:ok, game, revision, resulting_path} ->
+        socket =
+          socket
+          |> assign(:game_revision, revision)
+          |> assign_current_occurrence(game, resulting_path)
+
+        {:noreply, socket}
+
+      {:error, :node_not_found} ->
+        {:noreply, socket}
+
+      {:error, :root} ->
+        {:noreply, socket}
+
+      {:error, :game_not_found} ->
+        {:noreply, socket}
+
+      {:error, :conflict} ->
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
   def render(assigns) do
     ~H"""
     <main>
@@ -470,6 +502,15 @@ defmodule Web.RoomLive do
               phx-click="promote_variation"
             >
               Promote variation
+            </button>
+
+            <button
+              :if={@current_path != []}
+              id="remove-subtree"
+              type="button"
+              phx-click="remove_subtree"
+            >
+              Remove subtree
             </button>
 
             <button
