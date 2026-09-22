@@ -610,4 +610,35 @@ defmodule Web.RoomLiveTest do
 
     assert has_element?(view, "#current-path", "Path [0, 0, 0]")
   end
+
+  test "plays a move by clicking two board squares", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_playable_game()
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    {:ok, view, _html} = live(conn, "/rooms/#{room_id}")
+
+    view
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    assert has_element?(view, "#piece-e2")
+    refute has_element?(view, "#piece-e4")
+
+    view
+    |> element("#square-e2")
+    |> render_click()
+
+    view
+    |> element("#square-e4")
+    |> render_click()
+
+    refute has_element?(view, "#piece-e2")
+    assert has_element?(view, "#piece-e4")
+    assert has_element?(view, "#current-path", "Path [0]")
+  end
 end

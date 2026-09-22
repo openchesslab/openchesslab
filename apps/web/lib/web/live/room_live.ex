@@ -30,6 +30,7 @@ defmodule Web.RoomLive do
        game: nil,
        game_revision: nil,
        current_path: [],
+       selected_square: nil,
        position: nil
      )}
   end
@@ -180,6 +181,38 @@ defmodule Web.RoomLive do
     else
       {:error, :invalid_square} ->
         {:noreply, assign(socket, :move_error, "Invalid square.")}
+    end
+  end
+
+  @impl true
+  def handle_event(
+        "square_clicked",
+        %{"square" => square},
+        %{assigns: %{selected_square: nil}} = socket
+      ) do
+    case Square.from_algebraic(square) do
+      selected_square when is_integer(selected_square) ->
+        {:noreply, assign(socket, :selected_square, selected_square)}
+
+      {:error, :invalid_square} ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event(
+        "square_clicked",
+        %{"square" => square},
+        %{assigns: %{selected_square: from_square}} = socket
+      ) do
+    case Square.from_algebraic(square) do
+      to_square when is_integer(to_square) ->
+        socket = assign(socket, :selected_square, nil)
+        move = Move.new(from_square, to_square)
+
+        play_move(socket, move)
+
+      {:error, :invalid_square} ->
+        {:noreply, assign(socket, :selected_square, nil)}
     end
   end
 
