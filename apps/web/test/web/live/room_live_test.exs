@@ -1494,7 +1494,7 @@ defmodule Web.RoomLiveTest do
 
     assert has_element?(view, "#move-tree-0", "1. e4")
     assert has_element?(view, "#move-tree-0-0", "1... e5")
-    assert has_element?(view, "#move-tree-0-0-0", "2. Nf3")
+    assert has_element?(view, "#move-tree-0-0-0", "2. Pf3")
   end
 
   test "navigates directly from the move tree", %{
@@ -1553,10 +1553,10 @@ defmodule Web.RoomLiveTest do
 
     assert has_element?(view, "#move-tree-0", "1. e4")
     assert has_element?(view, "#move-tree-0-0", "1... e5")
-    assert has_element?(view, "#move-tree-0-0-0", "2. Nf3")
+    assert has_element?(view, "#move-tree-0-0-0", "2. Pf3")
 
     assert has_element?(view, "#move-tree-0-1", "1... c5")
-    assert has_element?(view, "#move-tree-0-1-0", "2. Nf3")
+    assert has_element?(view, "#move-tree-0-1-0", "2. Pf3")
 
     view
     |> element("#move-tree-0-1")
@@ -1619,7 +1619,7 @@ defmodule Web.RoomLiveTest do
     assert has_element?(
              view,
              "#move-tree-variation-0-1 #move-tree-0-1-0",
-             "2. Nf3"
+             "2. Pf3"
            )
   end
 end

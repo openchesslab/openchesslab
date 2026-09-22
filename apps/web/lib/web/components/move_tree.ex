@@ -5,7 +5,7 @@ defmodule Web.Components.MoveTree do
   alias Analysis.MoveContext
   alias Analysis.Node
   alias Analysis.PositionStore
-  alias Analysis.TransitionNotation
+  alias Web.ChessNotation
 
   attr(:game, :any, required: true)
   attr(:root_position, :any, required: true)
@@ -132,7 +132,7 @@ defmodule Web.Components.MoveTree do
   end
 
   defp transition_label(position, transition) do
-    case TransitionNotation.format(position, transition) do
+    case ChessNotation.format(position, transition, "nl") do
       {:ok, notation} -> notation
       :not_applicable -> "Edited position"
       {:error, :illegal_move} -> "Invalid move"
