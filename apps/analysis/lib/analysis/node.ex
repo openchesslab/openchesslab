@@ -6,24 +6,24 @@ defmodule Analysis.Node do
   The position itself is stored in PositionDB and is identified by
   `position_id`.
 
-  The root node has no move. Every other node stores the move that led
-  from its parent to this node.
+  The root node has no transition. Every other node stores the transition
+  that led from its parent to this node.
   """
 
-  alias Chess.Move
+  alias Analysis.Transition
 
   @type position_id :: term()
 
   @type t :: %__MODULE__{
           position_id: position_id(),
-          move: Move.t() | nil,
+          transition: Transition.t() | nil,
           comment: String.t() | nil,
           children: [t()]
         }
 
   @enforce_keys [:position_id]
   defstruct position_id: nil,
-            move: nil,
+            transition: nil,
             comment: nil,
             children: []
 
@@ -34,11 +34,11 @@ defmodule Analysis.Node do
     }
   end
 
-  @spec new(position_id(), Move.t()) :: t()
-  def new(position_id, move) do
+  @spec new(position_id(), Transition.t()) :: t()
+  def new(position_id, transition) do
     %__MODULE__{
       position_id: position_id,
-      move: move
+      transition: transition
     }
   end
 
@@ -47,9 +47,9 @@ defmodule Analysis.Node do
     position_id
   end
 
-  @spec move(t()) :: Move.t() | nil
-  def move(%__MODULE__{move: move}) do
-    move
+  @spec transition(t()) :: Transition.t() | nil
+  def transition(%__MODULE__{transition: transition}) do
+    transition
   end
 
   @spec children(t()) :: [t()]
@@ -71,9 +71,17 @@ defmodule Analysis.Node do
     nil
   end
 
-  @spec child_index(t(), Move.t()) :: non_neg_integer() | nil
-  def child_index(%__MODULE__{children: children}, move) do
-    Enum.find_index(children, &(move(&1) == move))
+  @spec child_index(t(), Transition.t(), position_id()) ::
+          non_neg_integer() | nil
+  def child_index(
+        %__MODULE__{children: children},
+        transition,
+        position_id
+      ) do
+    Enum.find_index(children, fn child ->
+      transition(child) == transition and
+        position_id(child) == position_id
+    end)
   end
 
   @spec comment(t()) :: String.t() | nil

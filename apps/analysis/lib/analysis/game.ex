@@ -52,10 +52,10 @@ defmodule Analysis.Game do
     follow_occurrences(new_root, tl(old_nodes), [])
   end
 
-  @spec add_child(t(), path(), Chess.Move.t(), position_id()) :: t()
-  def add_child(%__MODULE__{} = game, path, move, position_id)
+  @spec add_child(t(), path(), Analysis.Transition.t(), position_id()) :: t()
+  def add_child(%__MODULE__{} = game, path, transition, position_id)
       when is_list(path) do
-    case add_child_at(game.root, path, move, position_id) do
+    case add_child_at(game.root, path, transition, position_id) do
       {:ok, root} ->
         %{game | root: root}
 
@@ -120,20 +120,23 @@ defmodule Analysis.Game do
     end
   end
 
-  defp add_child_at(node, [], move, position_id) do
-    if Enum.any?(Node.children(node), &(Node.move(&1) == move)) do
+  defp add_child_at(node, [], transition, position_id) do
+    if Enum.any?(Node.children(node), fn child ->
+         Node.transition(child) == transition and
+           Node.position_id(child) == position_id
+       end) do
       {:ok, node}
     else
-      child = Node.new(position_id, move)
+      child = Node.new(position_id, transition)
       {:ok, %{node | children: Node.children(node) ++ [child]}}
     end
   end
 
-  defp add_child_at(node, [index | rest], move, position_id)
+  defp add_child_at(node, [index | rest], transition, position_id)
        when is_integer(index) and index >= 0 do
     case Enum.fetch(Node.children(node), index) do
       {:ok, child} ->
-        case add_child_at(child, rest, move, position_id) do
+        case add_child_at(child, rest, transition, position_id) do
           {:ok, updated_child} ->
             children =
               List.replace_at(
@@ -153,7 +156,8 @@ defmodule Analysis.Game do
     end
   end
 
-  defp add_child_at(_node, _path, _move, _position_id), do: :not_found
+  defp add_child_at(_node, _path, _transition, _position_id),
+    do: :not_found
 
   defp find_node(node, []), do: node
 
@@ -304,7 +308,7 @@ defmodule Analysis.Game do
 
   defp same_occurrence?(%Node{} = old_node, %Node{} = new_node) do
     Node.position_id(old_node) == Node.position_id(new_node) and
-      Node.move(old_node) == Node.move(new_node)
+      Node.transition(old_node) == Node.transition(new_node)
   end
 
   defp same_occurrence?(_old_node, _new_node), do: false

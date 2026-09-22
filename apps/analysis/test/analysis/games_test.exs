@@ -5,15 +5,20 @@ defmodule Analysis.GamesTest do
   alias Analysis.Games
   alias Analysis.Node
   alias Analysis.PositionStore
+  alias Analysis.Transition
   alias Chess.Move
   alias Chess.Position
   alias Chess.Square
 
   defp game_with_variations(game_id) do
     Game.new(game_id, 1)
-    |> Game.add_child([], move("e2", "e4"), 2)
-    |> Game.add_child([], move("d2", "d4"), 3)
-    |> Game.add_child([], move("c2", "c4"), 4)
+    |> Game.add_child([], transition("e2", "e4"), 2)
+    |> Game.add_child([], transition("d2", "d4"), 3)
+    |> Game.add_child([], transition("c2", "c4"), 4)
+  end
+
+  defp transition(from, to) do
+    Transition.move(move(from, to))
   end
 
   defp move(from, to) do
@@ -54,13 +59,15 @@ defmodule Analysis.GamesTest do
 
     assert {:ok, 1} = Games.insert(game)
 
+    e4 = move("e2", "e4")
+
     assert {:ok, updated_game, 2, [0]} =
-             Games.play(game_id, [], move("e2", "e4"))
+             Games.play(game_id, [], e4)
 
     child = Game.node_at(updated_game, [0])
 
     assert %Node{} = child
-    assert Node.move(child) == move("e2", "e4")
+    assert Node.transition(child) == Transition.move(e4)
 
     assert {:ok, ^updated_game, 2} = Games.get(game_id)
 
@@ -244,15 +251,15 @@ defmodule Analysis.GamesTest do
 
     assert updated_game
            |> Game.node_at([0])
-           |> Node.move() == move("d2", "d4")
+           |> Node.transition() == transition("d2", "d4")
 
     assert updated_game
            |> Game.node_at([1])
-           |> Node.move() == move("e2", "e4")
+           |> Node.transition() == transition("e2", "e4")
 
     assert updated_game
            |> Game.node_at([2])
-           |> Node.move() == move("c2", "c4")
+           |> Node.transition() == transition("c2", "c4")
 
     assert {:ok, ^updated_game, 2} = Games.get(game_id)
   end
@@ -262,9 +269,9 @@ defmodule Analysis.GamesTest do
   } do
     game =
       Game.new(game_id, 1)
-      |> Game.add_child([], move("e2", "e4"), 2)
-      |> Game.add_child([0], move("e7", "e5"), 3)
-      |> Game.add_child([0], move("c7", "c5"), 4)
+      |> Game.add_child([], transition("e2", "e4"), 2)
+      |> Game.add_child([0], transition("e7", "e5"), 3)
+      |> Game.add_child([0], transition("c7", "c5"), 4)
 
     assert {:ok, 1} = Games.insert(game)
 
@@ -273,11 +280,11 @@ defmodule Analysis.GamesTest do
 
     assert updated_game
            |> Game.node_at([0, 0])
-           |> Node.move() == move("c7", "c5")
+           |> Node.transition() == transition("c7", "c5")
 
     assert updated_game
            |> Game.node_at([0, 1])
-           |> Node.move() == move("e7", "e5")
+           |> Node.transition() == transition("e7", "e5")
   end
 
   test "returns game_not_found when promoting in an unknown game", %{
@@ -338,11 +345,11 @@ defmodule Analysis.GamesTest do
 
     assert updated_game
            |> Game.node_at([0])
-           |> Node.move() == move("e2", "e4")
+           |> Node.transition() == transition("e2", "e4")
 
     assert updated_game
            |> Game.node_at([1])
-           |> Node.move() == move("c2", "c4")
+           |> Node.transition() == transition("c2", "c4")
 
     assert Game.node_at(updated_game, [2]) == nil
 
@@ -354,10 +361,10 @@ defmodule Analysis.GamesTest do
   } do
     game =
       Game.new(game_id, 1)
-      |> Game.add_child([], move("e2", "e4"), 2)
-      |> Game.add_child([0], move("e7", "e5"), 3)
-      |> Game.add_child([0, 0], move("g1", "f3"), 4)
-      |> Game.add_child([0], move("c7", "c5"), 5)
+      |> Game.add_child([], transition("e2", "e4"), 2)
+      |> Game.add_child([0], transition("e7", "e5"), 3)
+      |> Game.add_child([0, 0], transition("g1", "f3"), 4)
+      |> Game.add_child([0], transition("c7", "c5"), 5)
 
     assert {:ok, 1} = Games.insert(game)
 
@@ -366,7 +373,7 @@ defmodule Analysis.GamesTest do
 
     assert updated_game
            |> Game.node_at([0, 0])
-           |> Node.move() == move("c7", "c5")
+           |> Node.transition() == transition("c7", "c5")
 
     assert Game.node_at(updated_game, [0, 0, 0]) == nil
 

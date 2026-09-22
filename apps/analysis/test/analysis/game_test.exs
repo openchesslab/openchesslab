@@ -3,6 +3,7 @@ defmodule Analysis.GameTest do
 
   alias Analysis.Game
   alias Analysis.Node
+  alias Analysis.Transition
   alias Chess.Move
   alias Chess.Square
 
@@ -13,7 +14,7 @@ defmodule Analysis.GameTest do
       assert game.id == "game-1"
       assert %Node{} = game.root
       assert game.root.position_id == 42
-      assert game.root.move == nil
+      assert game.root.transition == nil
       assert game.root.children == []
     end
 
@@ -46,7 +47,7 @@ defmodule Analysis.GameTest do
         )
 
       assert game.root.position_id == 42
-      assert game.root.move == nil
+      assert game.root.transition == nil
       assert game.root.children == []
     end
 
@@ -55,7 +56,7 @@ defmodule Analysis.GameTest do
 
       assert game.id == "game-1"
       assert game.root.position_id == 42
-      assert game.root.move == nil
+      assert game.root.transition == nil
       assert game.root.children == []
       assert game.metadata == %{}
     end
@@ -77,8 +78,8 @@ defmodule Analysis.GameTest do
     end
 
     test "returns a child by path" do
-      move = Move.new(Square.from_algebraic("e2"), Square.from_algebraic("e4"))
-      child = Node.new(43, move)
+      transition = transition("e2", "e4")
+      child = Node.new(43, transition)
 
       root = %Node{
         position_id: 42,
@@ -95,14 +96,14 @@ defmodule Analysis.GameTest do
     end
 
     test "returns a deeply nested node by path" do
-      move_1 = Move.new(Square.from_algebraic("e2"), Square.from_algebraic("e4"))
-      move_2 = Move.new(Square.from_algebraic("e7"), Square.from_algebraic("e5"))
+      transition_1 = transition("e2", "e4")
+      transition_2 = transition("e7", "e5")
 
-      grandchild = Node.new(44, move_2)
+      grandchild = Node.new(44, transition_2)
 
       child = %Node{
         position_id: 43,
-        move: move_1,
+        transition: transition_1,
         children: [grandchild]
       }
 
@@ -153,20 +154,20 @@ defmodule Analysis.GameTest do
   describe "add_child/4" do
     test "adds a child to the root" do
       game = Game.new("game-1", :p0)
-      move = move("e2", "e4")
+      transition = transition("e2", "e4")
 
-      game = Game.add_child(game, [], move, :p1)
+      game = Game.add_child(game, [], transition, :p1)
 
       child = Game.node_at(game, [0])
 
       assert Node.position_id(child) == :p1
-      assert Node.move(child) == move
+      assert Node.transition(child) == transition
       assert Node.leaf?(child)
     end
 
     test "adds a child to a nested node" do
-      e4 = move("e2", "e4")
-      e5 = move("e7", "e5")
+      e4 = transition("e2", "e4")
+      e5 = transition("e7", "e5")
 
       game =
         Game.new("game-1", :p0)
@@ -174,13 +175,13 @@ defmodule Analysis.GameTest do
         |> Game.add_child([0], e5, :p2)
 
       assert Node.position_id(Game.node_at(game, [0, 0])) == :p2
-      assert Node.move(Game.node_at(game, [0, 0])) == e5
+      assert Node.transition(Game.node_at(game, [0, 0])) == e5
     end
 
     test "additional children become variations" do
-      e4 = move("e2", "e4")
-      d4 = move("d2", "d4")
-      c4 = move("c2", "c4")
+      e4 = transition("e2", "e4")
+      d4 = transition("d2", "d4")
+      c4 = transition("c2", "c4")
 
       game =
         Game.new("game-1", :p0)
@@ -196,8 +197,8 @@ defmodule Analysis.GameTest do
       assert Node.position_id(Node.main_child(root)) == :p1
     end
 
-    test "does not add the same move twice from the same node" do
-      e4 = move("e2", "e4")
+    test "does not add the same transition and position twice from the same node" do
+      e4 = transition("e2", "e4")
 
       game =
         Game.new("game-1", :p0)
@@ -207,9 +208,23 @@ defmodule Analysis.GameTest do
       assert length(Node.children(Game.root(game))) == 1
     end
 
-    test "does not merge nodes with the same position id" do
-      e4 = move("e2", "e4")
-      d4 = move("d2", "d4")
+    test "does not merge children with the same transition and different positions" do
+      e4 = transition("e2", "e4")
+
+      game =
+        Game.new("game-1", :p0)
+        |> Game.add_child([], e4, :p1)
+        |> Game.add_child([], e4, :p2)
+
+      children = Node.children(Game.root(game))
+
+      assert length(children) == 2
+      assert Enum.map(children, &Node.position_id/1) == [:p1, :p2]
+    end
+
+    test "does not merge nodes with the same position id and different transitions" do
+      e4 = transition("e2", "e4")
+      d4 = transition("d2", "d4")
 
       game =
         Game.new("game-1", :p0)
@@ -223,9 +238,9 @@ defmodule Analysis.GameTest do
     end
 
     test "preserves existing child order when adding a variation" do
-      e4 = move("e2", "e4")
-      d4 = move("d2", "d4")
-      c4 = move("c2", "c4")
+      e4 = transition("e2", "e4")
+      d4 = transition("d2", "d4")
+      c4 = transition("c2", "c4")
 
       game =
         Game.new("game-1", :p0)
@@ -233,24 +248,24 @@ defmodule Analysis.GameTest do
         |> Game.add_child([], d4, :p2)
         |> Game.add_child([], c4, :p3)
 
-      assert Enum.map(Node.children(Game.root(game)), &Node.move/1) ==
+      assert Enum.map(Node.children(Game.root(game)), &Node.transition/1) ==
                [e4, d4, c4]
     end
 
     test "returns the game unchanged for a nonexistent path" do
       game = Game.new("game-1", :p0)
-      move = move("e2", "e4")
+      transition = transition("e2", "e4")
 
-      assert Game.add_child(game, [0], move, :p1) == game
+      assert Game.add_child(game, [0], transition, :p1) == game
     end
   end
 
   describe "promote/2" do
     test "promotes a variation to the main continuation" do
-      e4 = move("e2", "e4")
-      e5 = move("e7", "e5")
-      c5 = move("c7", "c5")
-      e6 = move("e7", "e6")
+      e4 = transition("e2", "e4")
+      e5 = transition("e7", "e5")
+      c5 = transition("c7", "c5")
+      e6 = transition("e7", "e6")
 
       game =
         Game.new("game-1", :p0)
@@ -264,15 +279,15 @@ defmodule Analysis.GameTest do
 
       node = Game.node_at(game, [0])
 
-      assert Enum.map(Node.children(node), &Node.move/1) ==
+      assert Enum.map(Node.children(node), &Node.transition/1) ==
                [c5, e5, e6]
     end
 
     test "preserves the subtree of the promoted variation" do
-      e4 = move("e2", "e4")
-      e5 = move("e7", "e5")
-      c5 = move("c7", "c5")
-      nf3 = move("g1", "f3")
+      e4 = transition("e2", "e4")
+      e5 = transition("e7", "e5")
+      c5 = transition("c7", "c5")
+      nf3 = transition("g1", "f3")
 
       game =
         Game.new("game-1", :p0)
@@ -286,14 +301,14 @@ defmodule Analysis.GameTest do
 
       promoted = Game.node_at(game, [0, 0])
 
-      assert Node.move(promoted) == c5
-      assert Node.move(Node.main_child(promoted)) == nf3
+      assert Node.transition(promoted) == c5
+      assert Node.transition(Node.main_child(promoted)) == nf3
     end
 
     test "leaves the game unchanged when the node is already the main continuation" do
-      e4 = move("e2", "e4")
-      e5 = move("e7", "e5")
-      c5 = move("c7", "c5")
+      e4 = transition("e2", "e4")
+      e5 = transition("e7", "e5")
+      c5 = transition("c7", "c5")
 
       game =
         Game.new("game-1", :p0)
@@ -308,8 +323,8 @@ defmodule Analysis.GameTest do
     end
 
     test "can promote a root variation" do
-      e4 = move("e2", "e4")
-      d4 = move("d2", "d4")
+      e4 = transition("e2", "e4")
+      d4 = transition("d2", "d4")
 
       game =
         Game.new("game-1", :p0)
@@ -319,8 +334,8 @@ defmodule Analysis.GameTest do
       assert {:ok, game, [0]} =
                Game.promote(game, [1])
 
-      assert Node.move(Game.node_at(game, [0])) == d4
-      assert Node.move(Game.node_at(game, [1])) == e4
+      assert Node.transition(Game.node_at(game, [0])) == d4
+      assert Node.transition(Game.node_at(game, [1])) == e4
     end
 
     test "returns an error for a nonexistent path" do
@@ -340,10 +355,10 @@ defmodule Analysis.GameTest do
 
   describe "remove/2" do
     test "removes a variation" do
-      e4 = move("e2", "e4")
-      e5 = move("e7", "e5")
-      c5 = move("c7", "c5")
-      e6 = move("e7", "e6")
+      e4 = transition("e2", "e4")
+      e5 = transition("e7", "e5")
+      c5 = transition("c7", "c5")
+      e6 = transition("e7", "e6")
 
       game =
         Game.new("game-1", :p0)
@@ -357,14 +372,14 @@ defmodule Analysis.GameTest do
 
       node = Game.node_at(game, [0])
 
-      assert Enum.map(Node.children(node), &Node.move/1) ==
+      assert Enum.map(Node.children(node), &Node.transition/1) ==
                [e5, e6]
     end
 
     test "removes the main continuation" do
-      e4 = move("e2", "e4")
-      e5 = move("e7", "e5")
-      c5 = move("c7", "c5")
+      e4 = transition("e2", "e4")
+      e5 = transition("e7", "e5")
+      c5 = transition("c7", "c5")
 
       game =
         Game.new("game-1", :p0)
@@ -377,17 +392,17 @@ defmodule Analysis.GameTest do
 
       node = Game.node_at(game, [0])
 
-      assert Enum.map(Node.children(node), &Node.move/1) ==
+      assert Enum.map(Node.children(node), &Node.transition/1) ==
                [c5]
 
-      assert Node.move(Node.main_child(node)) == c5
+      assert Node.transition(Node.main_child(node)) == c5
     end
 
     test "removes the entire subtree" do
-      e4 = move("e2", "e4")
-      e5 = move("e7", "e5")
-      c5 = move("c7", "c5")
-      nf3 = move("g1", "f3")
+      e4 = transition("e2", "e4")
+      e5 = transition("e7", "e5")
+      c5 = transition("c7", "c5")
+      nf3 = transition("g1", "f3")
 
       game =
         Game.new("game-1", :p0)
@@ -405,8 +420,8 @@ defmodule Analysis.GameTest do
     end
 
     test "can remove a root continuation" do
-      e4 = move("e2", "e4")
-      d4 = move("d2", "d4")
+      e4 = transition("e2", "e4")
+      d4 = transition("d2", "d4")
 
       game =
         Game.new("game-1", :p0)
@@ -416,7 +431,7 @@ defmodule Analysis.GameTest do
       assert {:ok, game, []} =
                Game.remove(game, [0])
 
-      assert Enum.map(Node.children(Game.root(game)), &Node.move/1) ==
+      assert Enum.map(Node.children(Game.root(game)), &Node.transition/1) ==
                [d4]
     end
 
@@ -439,14 +454,14 @@ defmodule Analysis.GameTest do
     test "keeps the path when the occurrence has not moved" do
       old_game =
         Game.new("game-1", :p0)
-        |> Game.add_child([], move("e2", "e4"), :p1)
-        |> Game.add_child([0], move("e7", "e5"), :p2)
+        |> Game.add_child([], transition("e2", "e4"), :p1)
+        |> Game.add_child([0], transition("e7", "e5"), :p2)
 
       new_game =
         Game.add_child(
           old_game,
           [0, 0],
-          move("g1", "f3"),
+          transition("g1", "f3"),
           :p3
         )
 
@@ -457,10 +472,10 @@ defmodule Analysis.GameTest do
     test "follows an occurrence when its variation is promoted" do
       old_game =
         Game.new("game-1", :p0)
-        |> Game.add_child([], move("e2", "e4"), :p1)
-        |> Game.add_child([0], move("e7", "e5"), :p2)
-        |> Game.add_child([0], move("c7", "c5"), :p3)
-        |> Game.add_child([0, 1], move("g1", "f3"), :p4)
+        |> Game.add_child([], transition("e2", "e4"), :p1)
+        |> Game.add_child([0], transition("e7", "e5"), :p2)
+        |> Game.add_child([0], transition("c7", "c5"), :p3)
+        |> Game.add_child([0, 1], transition("g1", "f3"), :p4)
 
       assert {:ok, new_game, [0, 0]} =
                Game.promote(old_game, [0, 1])
@@ -472,10 +487,10 @@ defmodule Analysis.GameTest do
     test "falls back to the nearest surviving ancestor after removal" do
       old_game =
         Game.new("game-1", :p0)
-        |> Game.add_child([], move("e2", "e4"), :p1)
-        |> Game.add_child([0], move("e7", "e5"), :p2)
-        |> Game.add_child([0, 0], move("g1", "f3"), :p3)
-        |> Game.add_child([0], move("c7", "c5"), :p4)
+        |> Game.add_child([], transition("e2", "e4"), :p1)
+        |> Game.add_child([0], transition("e7", "e5"), :p2)
+        |> Game.add_child([0, 0], transition("g1", "f3"), :p3)
+        |> Game.add_child([0], transition("c7", "c5"), :p4)
 
       assert {:ok, new_game, [0]} =
                Game.remove(old_game, [0, 0])
@@ -487,7 +502,7 @@ defmodule Analysis.GameTest do
     test "returns the root when the first occurrence no longer exists" do
       old_game =
         Game.new("game-1", :p0)
-        |> Game.add_child([], move("e2", "e4"), :p1)
+        |> Game.add_child([], transition("e2", "e4"), :p1)
 
       assert {:ok, new_game, []} =
                Game.remove(old_game, [0])
@@ -507,8 +522,8 @@ defmodule Analysis.GameTest do
     end
 
     test "sets a comment on a nested occurrence" do
-      e4 = move("e2", "e4")
-      e5 = move("e7", "e5")
+      e4 = transition("e2", "e4")
+      e5 = transition("e7", "e5")
 
       game =
         Game.new("game-1", :p0)
@@ -525,8 +540,8 @@ defmodule Analysis.GameTest do
     end
 
     test "comments belong to occurrences rather than positions" do
-      e4 = move("e2", "e4")
-      d4 = move("d2", "d4")
+      e4 = transition("e2", "e4")
+      d4 = transition("d2", "d4")
 
       game =
         Game.new("game-1", :p0)
@@ -583,10 +598,16 @@ defmodule Analysis.GameTest do
     end
   end
 
+  defp transition(from, to) do
+    from
+    |> move(to)
+    |> Transition.move()
+  end
+
   defp move(from, to) do
-    Chess.Move.new(
-      Chess.Square.from_algebraic(from),
-      Chess.Square.from_algebraic(to)
+    Move.new(
+      Square.from_algebraic(from),
+      Square.from_algebraic(to)
     )
   end
 end

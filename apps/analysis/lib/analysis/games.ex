@@ -6,6 +6,7 @@ defmodule Analysis.Games do
   alias Analysis.GameStore.Memory
   alias Analysis.Node
   alias Analysis.PositionStore
+  alias Analysis.Transition
   alias Chess.Move
   alias Chess.Position
 
@@ -92,12 +93,20 @@ defmodule Analysis.Games do
          {:ok, position} <- PositionStore.get(Node.position_id(node)),
          {:ok, next_position} <- Position.apply_move(position, move) do
       position_id = PositionStore.append(next_position)
-      updated_game = Game.add_child(game, path, move, position_id)
+      transition = Transition.move(move)
+
+      updated_game =
+        Game.add_child(
+          game,
+          path,
+          transition,
+          position_id
+        )
 
       child_index =
         updated_game
         |> Game.node_at(path)
-        |> Node.child_index(move)
+        |> Node.child_index(transition, position_id)
 
       resulting_path = path ++ [child_index]
 

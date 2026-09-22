@@ -2,6 +2,7 @@ defmodule Analysis.NodeTest do
   use ExUnit.Case, async: true
 
   alias Analysis.Node
+  alias Analysis.Transition
   alias Chess.Move
   alias Chess.Square
 
@@ -10,19 +11,20 @@ defmodule Analysis.NodeTest do
       node = Node.new(42)
 
       assert node.position_id == 42
-      assert node.move == nil
+      assert node.transition == nil
       assert node.children == []
     end
   end
 
   describe "new/2" do
-    test "stores the position id and move" do
+    test "stores the position id and transition" do
       move = Move.new(Square.from_algebraic("e2"), Square.from_algebraic("e4"))
+      transition = Transition.move(move)
 
-      node = Node.new(43, move)
+      node = Node.new(43, transition)
 
       assert node.position_id == 43
-      assert node.move == move
+      assert node.transition == transition
       assert node.children == []
     end
   end
@@ -33,16 +35,17 @@ defmodule Analysis.NodeTest do
     end
   end
 
-  describe "move/1" do
+  describe "transition/1" do
     test "returns nil for the root node" do
-      assert Node.move(Node.new(42)) == nil
+      assert Node.transition(Node.new(42)) == nil
     end
 
-    test "returns the move leading to the node" do
+    test "returns the transition leading to the node" do
       move = Move.new(Square.from_algebraic("e2"), Square.from_algebraic("e4"))
-      node = Node.new(43, move)
+      transition = Transition.move(move)
+      node = Node.new(43, transition)
 
-      assert Node.move(node) == move
+      assert Node.transition(node) == transition
     end
   end
 
@@ -93,10 +96,23 @@ defmodule Analysis.NodeTest do
     end
   end
 
-  describe "child_index/2" do
-    test "returns the index of the child reached by a move" do
-      e4 = Move.new(Square.from_algebraic("e2"), Square.from_algebraic("e4"))
-      d4 = Move.new(Square.from_algebraic("d2"), Square.from_algebraic("d4"))
+  describe "child_index/3" do
+    test "returns the index of the child reached by a transition" do
+      e4 =
+        Transition.move(
+          Move.new(
+            Square.from_algebraic("e2"),
+            Square.from_algebraic("e4")
+          )
+        )
+
+      d4 =
+        Transition.move(
+          Move.new(
+            Square.from_algebraic("d2"),
+            Square.from_algebraic("d4")
+          )
+        )
 
       node = %Node{
         position_id: 42,
@@ -106,20 +122,55 @@ defmodule Analysis.NodeTest do
         ]
       }
 
-      assert Node.child_index(node, e4) == 0
-      assert Node.child_index(node, d4) == 1
+      assert Node.child_index(node, e4, 43) == 0
+      assert Node.child_index(node, d4, 44) == 1
     end
 
-    test "returns nil when the move is not a child" do
-      e4 = Move.new(Square.from_algebraic("e2"), Square.from_algebraic("e4"))
-      d4 = Move.new(Square.from_algebraic("d2"), Square.from_algebraic("d4"))
+    test "returns nil when the transition is not a child" do
+      e4 =
+        Transition.move(
+          Move.new(
+            Square.from_algebraic("e2"),
+            Square.from_algebraic("e4")
+          )
+        )
+
+      d4 =
+        Transition.move(
+          Move.new(
+            Square.from_algebraic("d2"),
+            Square.from_algebraic("d4")
+          )
+        )
 
       node = %Node{
         position_id: 42,
         children: [Node.new(43, e4)]
       }
 
-      assert Node.child_index(node, d4) == nil
+      assert Node.child_index(node, d4, 44) == nil
+    end
+
+    test "distinguishes children by transition and position id" do
+      transition =
+        Transition.move(
+          Move.new(
+            Square.from_algebraic("e2"),
+            Square.from_algebraic("e4")
+          )
+        )
+
+      node = %Node{
+        position_id: 42,
+        children: [
+          Node.new(43, transition),
+          Node.new(44, transition)
+        ]
+      }
+
+      assert Node.child_index(node, transition, 43) == 0
+      assert Node.child_index(node, transition, 44) == 1
+      assert Node.child_index(node, transition, 45) == nil
     end
   end
 

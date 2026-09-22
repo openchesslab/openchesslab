@@ -1,6 +1,7 @@
 defmodule Analysis do
   alias Analysis.Game
   alias Analysis.Node
+  alias Analysis.Transition
   alias Chess.Move
   alias Chess.Position
 
@@ -17,12 +18,20 @@ defmodule Analysis do
          {:ok, position} <- PositionDB.get(db, Node.position_id(node)),
          {:ok, next_position} <- Position.apply_move(position, move) do
       {db, position_id} = PositionDB.append(db, next_position)
-      game = Game.add_child(game, path, move, position_id)
+      transition = Transition.move(move)
+
+      game =
+        Game.add_child(
+          game,
+          path,
+          transition,
+          position_id
+        )
 
       child_index =
         game
         |> Game.node_at(path)
-        |> Node.child_index(move)
+        |> Node.child_index(transition, position_id)
 
       {:ok, game, db, path ++ [child_index]}
     else

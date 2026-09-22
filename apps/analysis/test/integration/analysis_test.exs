@@ -4,6 +4,7 @@ defmodule AnalysisTest do
   alias Analysis.Game
   alias Analysis.GameStore.Memory
   alias Analysis.Node
+  alias Analysis.Transition
   alias Chess.Move
   alias Chess.Position
   alias Chess.PositionKey
@@ -47,7 +48,7 @@ defmodule AnalysisTest do
     child = Game.node_at(game, [0])
 
     assert %Node{} = child
-    assert Node.move(child) == e4
+    assert Node.transition(child) == Transition.move(e4)
 
     assert {:ok, position} =
              PositionDB.get(db, Node.position_id(child))
@@ -76,8 +77,8 @@ defmodule AnalysisTest do
     e4_node = Game.node_at(game, [0])
     e5_node = Game.node_at(game, [0, 0])
 
-    assert Node.move(e4_node) == e4
-    assert Node.move(e5_node) == e5
+    assert Node.transition(e4_node) == Transition.move(e4)
+    assert Node.transition(e5_node) == Transition.move(e5)
 
     assert {:ok, position} =
              PositionDB.get(db, Node.position_id(e5_node))
@@ -105,7 +106,8 @@ defmodule AnalysisTest do
 
     children = game |> Game.root() |> Node.children()
 
-    assert Enum.map(children, &Node.move/1) == [e4, d4]
+    assert Enum.map(children, &Node.transition/1) ==
+             [Transition.move(e4), Transition.move(d4)]
 
     assert Game.node_at(game, [0]) != nil
     assert Game.node_at(game, [1]) != nil
@@ -240,7 +242,9 @@ defmodule AnalysisTest do
     child = Game.node_at(saved_game, [0])
 
     assert %Node{} = child
-    assert Node.move(child) == move("e2", "e4")
+
+    assert Node.transition(child) ==
+             Transition.move(move("e2", "e4"))
 
     assert {:ok, position} =
              PositionDB.get(db, Node.position_id(child))
