@@ -2,10 +2,29 @@ defmodule Analysis.GameTest do
   use ExUnit.Case, async: true
 
   alias Analysis.Game
+  alias Analysis.GameStart
   alias Analysis.Node
   alias Analysis.Transition
   alias Chess.Move
   alias Chess.Square
+
+  describe "new/4" do
+    test "stores an explicit game start context" do
+      start = GameStart.new(37)
+
+      game =
+        Game.new(
+          "game-1",
+          42,
+          start,
+          %{event: "Analysis"}
+        )
+
+      assert Game.start(game) == start
+      assert GameStart.fullmove_number(Game.start(game)) == 37
+      assert game.metadata == %{event: "Analysis"}
+    end
+  end
 
   describe "new/2" do
     test "creates a game with the initial position as root" do
@@ -16,6 +35,7 @@ defmodule Analysis.GameTest do
       assert game.root.position_id == 42
       assert game.root.transition == nil
       assert game.root.children == []
+      assert GameStart.fullmove_number(Game.start(game)) == 1
     end
 
     test "starts with empty metadata" do
@@ -89,6 +109,7 @@ defmodule Analysis.GameTest do
       game = %Game{
         id: "game-1",
         root: root,
+        start: GameStart.standard(),
         metadata: %{}
       }
 
@@ -115,6 +136,7 @@ defmodule Analysis.GameTest do
       game = %Game{
         id: "game-1",
         root: root,
+        start: GameStart.standard(),
         metadata: %{}
       }
 
@@ -138,6 +160,7 @@ defmodule Analysis.GameTest do
       game = %Game{
         id: "game-1",
         root: root,
+        start: GameStart.standard(),
         metadata: %{}
       }
 

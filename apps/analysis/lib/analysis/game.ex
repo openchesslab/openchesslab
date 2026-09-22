@@ -1,4 +1,5 @@
 defmodule Analysis.Game do
+  alias Analysis.GameStart
   alias Analysis.Node
 
   @type id :: term()
@@ -8,17 +9,22 @@ defmodule Analysis.Game do
   @type t :: %__MODULE__{
           id: id(),
           root: Node.t(),
+          start: GameStart.t(),
           metadata: map()
         }
 
-  @enforce_keys [:id, :root]
-  defstruct id: nil, root: nil, metadata: %{}
+  @enforce_keys [:id, :root, :start]
+  defstruct id: nil,
+            root: nil,
+            start: nil,
+            metadata: %{}
 
   @spec new(id(), position_id()) :: t()
   def new(id, initial_position_id) do
     %__MODULE__{
       id: id,
-      root: Node.new(initial_position_id)
+      root: Node.new(initial_position_id),
+      start: GameStart.standard()
     }
   end
 
@@ -27,12 +33,32 @@ defmodule Analysis.Game do
     %__MODULE__{
       id: id,
       root: Node.new(initial_position_id),
+      start: GameStart.standard(),
+      metadata: metadata
+    }
+  end
+
+  @spec new(id(), position_id(), GameStart.t(), map()) :: t()
+  def new(
+        id,
+        initial_position_id,
+        %GameStart{} = start,
+        metadata
+      )
+      when is_map(metadata) do
+    %__MODULE__{
+      id: id,
+      root: Node.new(initial_position_id),
+      start: start,
       metadata: metadata
     }
   end
 
   @spec root(t()) :: Node.t()
   def root(%__MODULE__{root: root}), do: root
+
+  @spec start(t()) :: GameStart.t()
+  def start(%__MODULE__{start: start}), do: start
 
   @spec node_at(t(), path()) :: Node.t() | nil
   def node_at(%__MODULE__{root: root}, path) when is_list(path) do
