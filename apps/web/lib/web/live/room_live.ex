@@ -402,6 +402,39 @@ defmodule Web.RoomLive do
   end
 
   @impl true
+  def handle_event(
+        "set_comment",
+        %{"comment" => %{"text" => comment}},
+        socket
+      ) do
+    case Games.set_comment(
+           socket.assigns.selected_game_id,
+           socket.assigns.current_path,
+           comment
+         ) do
+      {:ok, game, revision} ->
+        socket =
+          socket
+          |> assign(:game_revision, revision)
+          |> assign_current_occurrence(
+            game,
+            socket.assigns.current_path
+          )
+
+        {:noreply, socket}
+
+      {:error, :node_not_found} ->
+        {:noreply, socket}
+
+      {:error, :game_not_found} ->
+        {:noreply, socket}
+
+      {:error, :conflict} ->
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
   def render(assigns) do
     ~H"""
     <main>
@@ -494,6 +527,21 @@ defmodule Web.RoomLive do
               <p id="move-error" role="alert">{@move_error}</p>
             <% end %>
             <% current_node = Game.node_at(@game, @current_path) %>
+            <div id="current-comment">
+              <%= if comment = Node.comment(current_node) do %>
+                {comment}
+              <% else %>
+                No comment
+              <% end %>
+            </div>
+
+            <form id="comment-form" phx-submit="set_comment">
+              <textarea name="comment[text]">{Node.comment(current_node)}</textarea>
+
+              <button type="submit">
+                Save comment
+              </button>
+            </form>
 
             <button
               :if={promotable_path?(@current_path)}

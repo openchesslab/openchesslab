@@ -1310,4 +1310,105 @@ defmodule Web.RoomLiveTest do
     assert has_element?(view, "#current-path", "Path []")
     refute has_element?(view, "#remove-subtree")
   end
+
+  test "sets a comment on the current occurrence", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_playable_game()
+
+    assert {:ok, _game, 2, [0]} =
+             Games.play(game_id, [], move("e2", "e4"))
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    {:ok, view, _html} = live(conn, "/rooms/#{room_id}")
+
+    view
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    view
+    |> element("#navigate-child-0")
+    |> render_click()
+
+    assert has_element?(view, "#current-comment", "No comment")
+
+    view
+    |> form("#comment-form", %{
+      "comment" => %{
+        "text" => "Interesting position"
+      }
+    })
+    |> render_submit()
+
+    assert has_element?(
+             view,
+             "#current-comment",
+             "Interesting position"
+           )
+
+    assert has_element?(
+             view,
+             "#selected-game-revision",
+             "Revision 3"
+           )
+
+    assert has_element?(view, "#current-path", "Path [0]")
+
+    assert {:ok, game, 3} = Games.get(game_id)
+
+    assert game
+           |> Game.node_at([0])
+           |> Node.comment() == "Interesting position"
+  end
+
+  test "clears the comment on the current occurrence", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_playable_game()
+
+    assert {:ok, _game, 2} =
+             Games.set_comment(
+               game_id,
+               [],
+               "Temporary comment"
+             )
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    {:ok, view, _html} = live(conn, "/rooms/#{room_id}")
+
+    view
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    assert has_element?(
+             view,
+             "#current-comment",
+             "Temporary comment"
+           )
+
+    view
+    |> form("#comment-form", %{
+      "comment" => %{
+        "text" => ""
+      }
+    })
+    |> render_submit()
+
+    assert has_element?(view, "#current-comment", "No comment")
+
+    assert has_element?(
+             view,
+             "#selected-game-revision",
+             "Revision 3"
+           )
+
+    assert {:ok, game, 3} = Games.get(game_id)
+    assert Node.comment(Game.root(game)) == nil
+  end
 end
