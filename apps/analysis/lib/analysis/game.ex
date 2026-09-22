@@ -1,5 +1,6 @@
 defmodule Analysis.Game do
   alias Analysis.GameStart
+  alias Analysis.MoveContext
   alias Analysis.Node
 
   @type id :: term()
@@ -59,6 +60,19 @@ defmodule Analysis.Game do
 
   @spec start(t()) :: GameStart.t()
   def start(%__MODULE__{start: start}), do: start
+  @spec move_context(t(), :white | :black, path()) :: MoveContext.t()
+  def move_context(
+        %__MODULE__{start: start},
+        root_side,
+        path
+      )
+      when root_side in [:white, :black] and is_list(path) do
+    MoveContext.at(
+      GameStart.fullmove_number(start),
+      root_side,
+      length(path)
+    )
+  end
 
   @spec node_at(t(), path()) :: Node.t() | nil
   def node_at(%__MODULE__{root: root}, path) when is_list(path) do

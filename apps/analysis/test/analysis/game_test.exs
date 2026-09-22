@@ -3,6 +3,7 @@ defmodule Analysis.GameTest do
 
   alias Analysis.Game
   alias Analysis.GameStart
+  alias Analysis.MoveContext
   alias Analysis.Node
   alias Analysis.Transition
   alias Chess.Move
@@ -660,6 +661,63 @@ defmodule Analysis.GameTest do
 
       assert Game.set_comment(game, [0], "Comment") ==
                {:error, :node_not_found}
+    end
+  end
+
+  describe "move_context/3" do
+    test "calculates the context for a move from the root" do
+      game = Game.new("game-1", 42)
+
+      assert Game.move_context(game, :white, []) ==
+               %MoveContext{
+                 fullmove_number: 1,
+                 side: :white
+               }
+    end
+
+    test "calculates the context from the occurrence path" do
+      game = Game.new("game-1", 42)
+
+      assert Game.move_context(game, :white, [0]) ==
+               %MoveContext{
+                 fullmove_number: 1,
+                 side: :black
+               }
+
+      assert Game.move_context(game, :white, [0, 1]) ==
+               %MoveContext{
+                 fullmove_number: 2,
+                 side: :white
+               }
+    end
+
+    test "uses the explicit game start context" do
+      game =
+        Game.new(
+          "game-1",
+          42,
+          GameStart.new(37),
+          %{}
+        )
+
+      assert Game.move_context(game, :black, []) ==
+               %MoveContext{
+                 fullmove_number: 37,
+                 side: :black
+               }
+
+      assert Game.move_context(game, :black, [0]) ==
+               %MoveContext{
+                 fullmove_number: 38,
+                 side: :white
+               }
+    end
+
+    test "variation indexes do not affect the move context" do
+      game = Game.new("game-1", 42)
+
+      assert Game.move_context(game, :white, [0, 0, 0]) ==
+               Game.move_context(game, :white, [0, 1, 0])
     end
   end
 
