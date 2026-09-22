@@ -41,6 +41,40 @@ defmodule Analysis.Games do
     end
   end
 
+  @spec set_comment(Game.id(), Game.path(), String.t() | nil) ::
+          {:ok, Game.t(), pos_integer()}
+          | {:error, :game_not_found | :node_not_found | :conflict}
+  def set_comment(game_id, path, comment) do
+    case get(game_id) do
+      {:ok, game, revision} ->
+        set_comment(game, revision, path, comment)
+
+      :not_found ->
+        {:error, :game_not_found}
+    end
+  end
+
+  defp set_comment(game, revision, path, comment) do
+    case Game.set_comment(game, path, comment) do
+      {:ok, updated_game} ->
+        case Memory.update(@store, updated_game, revision) do
+          {:ok, new_revision} ->
+            :ok = GameEvents.publish_changed(game.id)
+
+            {:ok, updated_game, new_revision}
+
+          {:error, :conflict} ->
+            {:error, :conflict}
+
+          {:error, :not_found} ->
+            {:error, :game_not_found}
+        end
+
+      {:error, :node_not_found} = error ->
+        error
+    end
+  end
+
   defp play(game, revision, path, move) do
     with %Node{} = node <- Game.node_at(game, path),
          {:ok, position} <- PositionStore.get(Node.position_id(node)),

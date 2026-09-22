@@ -126,4 +126,102 @@ defmodule Analysis.GamesTest do
 
     assert length(Node.children(Game.root(game))) == 1
   end
+
+  test "sets a comment and persists the updated game", %{game_id: game_id} do
+    game = Game.new(game_id, 42)
+
+    assert {:ok, 1} = Games.insert(game)
+
+    assert {:ok, updated_game, 2} =
+             Games.set_comment(game_id, [], "Interesting position")
+
+    assert Node.comment(Game.root(updated_game)) ==
+             "Interesting position"
+
+    assert {:ok, ^updated_game, 2} = Games.get(game_id)
+  end
+
+  test "sets a comment on a child node", %{game_id: game_id} do
+    position_id = PositionStore.append(Position.starting_position())
+    game = Game.new(game_id, position_id)
+
+    assert {:ok, 1} = Games.insert(game)
+
+    assert {:ok, _game, 2, [0]} =
+             Games.play(game_id, [], move("e2", "e4"))
+
+    assert {:ok, updated_game, 3} =
+             Games.set_comment(game_id, [0], "King's Pawn")
+
+    assert updated_game
+           |> Game.node_at([0])
+           |> Node.comment() == "King's Pawn"
+
+    assert {:ok, ^updated_game, 3} = Games.get(game_id)
+  end
+
+  test "removes a comment with nil", %{game_id: game_id} do
+    game = Game.new(game_id, 42)
+
+    assert {:ok, 1} = Games.insert(game)
+
+    assert {:ok, _game, 2} =
+             Games.set_comment(game_id, [], "Temporary")
+
+    assert {:ok, updated_game, 3} =
+             Games.set_comment(game_id, [], nil)
+
+    assert Node.comment(Game.root(updated_game)) == nil
+    assert {:ok, ^updated_game, 3} = Games.get(game_id)
+  end
+
+  test "returns game_not_found when setting a comment on an unknown game", %{
+    game_id: game_id
+  } do
+    assert Games.set_comment(game_id, [], "Comment") ==
+             {:error, :game_not_found}
+  end
+
+  test "returns node_not_found when setting a comment on an unknown path", %{
+    game_id: game_id
+  } do
+    game = Game.new(game_id, 42)
+
+    assert {:ok, 1} = Games.insert(game)
+
+    assert Games.set_comment(game_id, [0], "Comment") ==
+             {:error, :node_not_found}
+
+    assert {:ok, ^game, 1} = Games.get(game_id)
+  end
+
+  test "publishes a game change after setting a comment", %{
+    game_id: game_id
+  } do
+    game = Game.new(game_id, 42)
+
+    assert {:ok, 1} = Games.insert(game)
+
+    :ok = Analysis.GameEvents.subscribe(game_id)
+
+    assert {:ok, _game, 2} =
+             Games.set_comment(game_id, [], "Comment")
+
+    assert_receive {:game_changed, ^game_id}
+  end
+
+  test "does not publish a game change when setting a comment fails", %{
+    game_id: game_id
+  } do
+    game = Game.new(game_id, 42)
+
+    assert {:ok, 1} = Games.insert(game)
+
+    :ok = Analysis.GameEvents.subscribe(game_id)
+
+    assert Games.set_comment(game_id, [0], "Comment") ==
+             {:error, :node_not_found}
+
+    refute_receive {:game_changed, ^game_id}
+  end
 end
