@@ -3,8 +3,10 @@ defmodule Web.RoomLiveTest do
 
   alias Analysis.Game
   alias Analysis.Games
+  alias Analysis.Node
   alias Analysis.PositionStore
   alias Analysis.Rooms
+  alias Analysis.Transition
   alias Chess.Move
   alias Chess.Position
   alias Chess.Square
@@ -640,5 +642,106 @@ defmodule Web.RoomLiveTest do
     refute has_element?(view, "#piece-e2")
     assert has_element?(view, "#piece-e4")
     assert has_element?(view, "#current-path", "Path [0]")
+  end
+
+  test "removes a piece from the current position and navigates to the result", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_playable_game()
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    {:ok, view, _html} = live(conn, "/rooms/#{room_id}")
+
+    view
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    assert has_element?(view, "#piece-e2")
+    assert has_element?(view, "#current-path", "Path []")
+    assert has_element?(view, "#selected-game-revision", "Revision 1")
+
+    view
+    |> form("#remove-piece-form", %{
+      "edit" => %{"square" => "e2"}
+    })
+    |> render_submit()
+
+    refute has_element?(view, "#piece-e2")
+    assert has_element?(view, "#current-path", "Path [0]")
+    assert has_element?(view, "#selected-game-revision", "Revision 2")
+
+    assert {:ok, game, 2} = Games.get(game_id)
+
+    child = Game.node_at(game, [0])
+
+    assert %Node{} = child
+    assert Node.transition(child) == Transition.edit()
+
+    assert {:ok, edited_position} =
+             PositionStore.get(Node.position_id(child))
+
+    assert Position.piece_at(
+             edited_position,
+             Square.from_algebraic("e2")
+           ) == nil
+  end
+
+  test "shows an error and stays at the current path for an invalid edit", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_playable_game()
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    {:ok, view, _html} = live(conn, "/rooms/#{room_id}")
+
+    view
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    view
+    |> form("#remove-piece-form", %{
+      "edit" => %{"square" => "e1"}
+    })
+    |> render_submit()
+
+    assert has_element?(view, "#edit-error", "Invalid position.")
+    assert has_element?(view, "#piece-e1")
+    assert has_element?(view, "#current-path", "Path []")
+    assert has_element?(view, "#selected-game-revision", "Revision 1")
+
+    assert {:ok, game, 1} = Games.get(game_id)
+    assert Game.node_at(game, [0]) == nil
+  end
+
+  test "shows an error for an invalid edit square", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_playable_game()
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    {:ok, view, _html} = live(conn, "/rooms/#{room_id}")
+
+    view
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    view
+    |> form("#remove-piece-form", %{
+      "edit" => %{"square" => "foo"}
+    })
+    |> render_submit()
+
+    assert has_element?(view, "#edit-error", "Invalid square.")
+    assert has_element?(view, "#current-path", "Path []")
+    assert has_element?(view, "#selected-game-revision", "Revision 1")
   end
 end

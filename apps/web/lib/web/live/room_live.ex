@@ -9,6 +9,7 @@ defmodule Web.RoomLive do
   alias Analysis.RoomEvents
   alias Analysis.Rooms
   alias Chess.Move
+  alias Chess.PositionDraft
   alias Chess.Square
   alias Web.Components.ChessBoard
 
@@ -26,6 +27,7 @@ defmodule Web.RoomLive do
        room: room,
        add_game_error: nil,
        move_error: nil,
+       edit_error: nil,
        selected_game_id: nil,
        game: nil,
        game_revision: nil,
@@ -217,11 +219,31 @@ defmodule Web.RoomLive do
   end
 
   @impl true
+  def handle_event(
+        "remove_piece",
+        %{"edit" => %{"square" => square}},
+        socket
+      ) do
+    case Square.from_algebraic(square) do
+      square when is_integer(square) ->
+        draft =
+          socket.assigns.position
+          |> PositionDraft.new()
+          |> PositionDraft.remove_piece(square)
+
+        edit_position(socket, draft)
+
+      {:error, :invalid_square} ->
+        {:noreply, assign(socket, :edit_error, "Invalid square.")}
+    end
+  end
+
+  @impl true
   def render(assigns) do
     ~H"""
     <main>
       <h1>Room {@room_id}</h1>
-
+      
       <form id="add-game-form" phx-submit="add_game">
         <input
           type="text"
@@ -229,23 +251,21 @@ defmodule Web.RoomLive do
           placeholder="Game ID"
           required
         />
-
         <button type="submit">
           Add game
         </button>
       </form>
-
+      
       <%= if @add_game_error do %>
         <p role="alert">{@add_game_error}</p>
       <% end %>
-
+      
       <%= if @room.game_ids == [] do %>
         <p>No games in this room.</p>
       <% else %>
         <ul>
           <li :for={game_id <- @room.game_ids}>
             <span>{game_id}</span>
-
             <button
               id={"select-game-#{game_id}"}
               type="button"
@@ -254,7 +274,7 @@ defmodule Web.RoomLive do
             >
               Select
             </button>
-
+            
             <button
               id={"remove-game-#{game_id}"}
               type="button"
@@ -265,25 +285,39 @@ defmodule Web.RoomLive do
             </button>
           </li>
         </ul>
-
+        
         <%= if @selected_game_id do %>
           <section id="selected-game">
             <h2>Selected game</h2>
-
+            
             <p id="selected-game-id">
               {@selected_game_id}
             </p>
-
+            
             <p id="selected-game-revision">
               Revision {@game_revision}
             </p>
-
+            
             <p id="current-path">
               Path {inspect(@current_path)}
             </p>
-
-            <ChessBoard.chess_board position={@position} />
-
+             <ChessBoard.chess_board position={@position} />
+            <form id="remove-piece-form" phx-submit="remove_piece">
+              <input
+                type="text"
+                name="edit[square]"
+                placeholder="Square"
+                required
+              />
+              <button type="submit">
+                Remove piece
+              </button>
+            </form>
+            
+            <%= if @edit_error do %>
+              <p id="edit-error" role="alert">{@edit_error}</p>
+            <% end %>
+            
             <form id="play-move-form" phx-submit="play_move">
               <input
                 type="text"
@@ -291,25 +325,21 @@ defmodule Web.RoomLive do
                 placeholder="From"
                 required
               />
-
               <input
                 type="text"
                 name="move[to]"
                 placeholder="To"
                 required
               />
-
               <button type="submit">
                 Play move
               </button>
             </form>
-
+            
             <%= if @move_error do %>
               <p id="move-error" role="alert">{@move_error}</p>
             <% end %>
-
-            <% current_node = Game.node_at(@game, @current_path) %>
-
+             <% current_node = Game.node_at(@game, @current_path) %>
             <button
               :if={@current_path != []}
               id="navigate-parent"
@@ -318,7 +348,7 @@ defmodule Web.RoomLive do
             >
               Parent
             </button>
-
+            
             <button
               :for={{_child, index} <- Enum.with_index(Node.children(current_node))}
               id={"navigate-child-#{index}"}
@@ -385,6 +415,37 @@ defmodule Web.RoomLive do
 
       {:error, :conflict} ->
         {:noreply, assign(socket, :move_error, "Game changed. Try again.")}
+    end
+  end
+
+  defp edit_position(socket, draft) do
+    case Games.edit(
+           socket.assigns.selected_game_id,
+           socket.assigns.current_path,
+           draft
+         ) do
+      {:ok, game, revision, resulting_path} ->
+        socket =
+          socket
+          |> assign(
+            game_revision: revision,
+            edit_error: nil
+          )
+          |> assign_current_occurrence(game, resulting_path)
+
+        {:noreply, socket}
+
+      {:error, {:invalid_position, _reasons}} ->
+        {:noreply, assign(socket, :edit_error, "Invalid position.")}
+
+      {:error, :node_not_found} ->
+        {:noreply, assign(socket, :edit_error, "Position no longer exists.")}
+
+      {:error, :game_not_found} ->
+        {:noreply, assign(socket, :edit_error, "Game not found.")}
+
+      {:error, :conflict} ->
+        {:noreply, assign(socket, :edit_error, "Game changed. Try again.")}
     end
   end
 
