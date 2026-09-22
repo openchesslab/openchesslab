@@ -930,4 +930,134 @@ defmodule Web.RoomLiveTest do
     assert {:ok, game, 1} = Games.get(game_id)
     assert Game.node_at(game, [0]) == nil
   end
+
+  test "disables a castling right and navigates to the result", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_playable_game()
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    {:ok, view, _html} = live(conn, "/rooms/#{room_id}")
+
+    view
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    assert has_element?(view, "#castling-white-kingside", "Enabled")
+
+    view
+    |> form("#castling-right-form", %{
+      "edit" => %{
+        "right" => "white_kingside",
+        "enabled" => "false"
+      }
+    })
+    |> render_submit()
+
+    assert has_element?(view, "#castling-white-kingside", "Disabled")
+    assert has_element?(view, "#current-path", "Path [0]")
+    assert has_element?(view, "#selected-game-revision", "Revision 2")
+
+    assert {:ok, game, 2} = Games.get(game_id)
+
+    child = Game.node_at(game, [0])
+
+    assert %Node{} = child
+    assert Node.transition(child) == Transition.edit()
+
+    assert {:ok, edited_position} =
+             PositionStore.get(Node.position_id(child))
+
+    refute MapSet.member?(
+             edited_position.castling_rights,
+             :white_kingside
+           )
+  end
+
+  test "enables a castling right and navigates to the result", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_playable_game()
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    {:ok, view, _html} = live(conn, "/rooms/#{room_id}")
+
+    view
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    view
+    |> form("#castling-right-form", %{
+      "edit" => %{
+        "right" => "white_kingside",
+        "enabled" => "false"
+      }
+    })
+    |> render_submit()
+
+    assert has_element?(view, "#castling-white-kingside", "Disabled")
+
+    view
+    |> form("#castling-right-form", %{
+      "edit" => %{
+        "right" => "white_kingside",
+        "enabled" => "true"
+      }
+    })
+    |> render_submit()
+
+    assert has_element?(view, "#castling-white-kingside", "Enabled")
+    assert has_element?(view, "#current-path", "Path [0, 0]")
+    assert has_element?(view, "#selected-game-revision", "Revision 3")
+
+    assert {:ok, game, 3} = Games.get(game_id)
+
+    child = Game.node_at(game, [0, 0])
+
+    assert %Node{} = child
+
+    assert {:ok, edited_position} =
+             PositionStore.get(Node.position_id(child))
+
+    assert MapSet.member?(
+             edited_position.castling_rights,
+             :white_kingside
+           )
+  end
+
+  test "shows an error for an invalid castling right", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_playable_game()
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    {:ok, view, _html} = live(conn, "/rooms/#{room_id}")
+
+    view
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    render_submit(view, "set_castling_right", %{
+      "edit" => %{
+        "right" => "white_center",
+        "enabled" => "true"
+      }
+    })
+
+    assert has_element?(view, "#edit-error", "Invalid castling right.")
+    assert has_element?(view, "#current-path", "Path []")
+    assert has_element?(view, "#selected-game-revision", "Revision 1")
+
+    assert {:ok, game, 1} = Games.get(game_id)
+    assert Game.node_at(game, [0]) == nil
+  end
 end

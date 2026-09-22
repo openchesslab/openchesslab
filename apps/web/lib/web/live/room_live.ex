@@ -289,6 +289,34 @@ defmodule Web.RoomLive do
   end
 
   @impl true
+  def handle_event(
+        "set_castling_right",
+        %{
+          "edit" => %{
+            "right" => right,
+            "enabled" => enabled
+          }
+        },
+        socket
+      ) do
+    with {:ok, right} <- parse_castling_right(right),
+         {:ok, enabled} <- parse_boolean(enabled) do
+      draft =
+        socket.assigns.position
+        |> PositionDraft.new()
+        |> PositionDraft.set_castling_right(right, enabled)
+
+      edit_position(socket, draft)
+    else
+      {:error, :invalid_castling_right} ->
+        {:noreply, assign(socket, :edit_error, "Invalid castling right.")}
+
+      {:error, :invalid_boolean} ->
+        {:noreply, assign(socket, :edit_error, "Invalid castling value.")}
+    end
+  end
+
+  @impl true
   def render(assigns) do
     ~H"""
     <main>
@@ -378,7 +406,41 @@ defmodule Web.RoomLive do
                 Set side to move
               </button>
             </form>
+            <div id="castling-rights">
+              <p id="castling-white-kingside">
+                White kingside: {castling_status(@position, :white_kingside)}
+              </p>
 
+              <p id="castling-white-queenside">
+                White queenside: {castling_status(@position, :white_queenside)}
+              </p>
+
+              <p id="castling-black-kingside">
+                Black kingside: {castling_status(@position, :black_kingside)}
+              </p>
+
+              <p id="castling-black-queenside">
+                Black queenside: {castling_status(@position, :black_queenside)}
+              </p>
+            </div>
+
+            <form id="castling-right-form" phx-submit="set_castling_right">
+              <select name="edit[right]" required>
+                <option value="white_kingside">White kingside</option>
+                <option value="white_queenside">White queenside</option>
+                <option value="black_kingside">Black kingside</option>
+                <option value="black_queenside">Black queenside</option>
+              </select>
+
+              <select name="edit[enabled]" required>
+                <option value="true">Enabled</option>
+                <option value="false">Disabled</option>
+              </select>
+
+              <button type="submit">
+                Set castling right
+              </button>
+            </form>
             <form id="remove-piece-form" phx-submit="remove_piece">
               <input
                 type="text"
@@ -586,4 +648,31 @@ defmodule Web.RoomLive do
   defp parse_side_to_move("white"), do: {:ok, :white}
   defp parse_side_to_move("black"), do: {:ok, :black}
   defp parse_side_to_move(_side), do: {:error, :invalid_side_to_move}
+
+  defp parse_castling_right("white_kingside"),
+    do: {:ok, :white_kingside}
+
+  defp parse_castling_right("white_queenside"),
+    do: {:ok, :white_queenside}
+
+  defp parse_castling_right("black_kingside"),
+    do: {:ok, :black_kingside}
+
+  defp parse_castling_right("black_queenside"),
+    do: {:ok, :black_queenside}
+
+  defp parse_castling_right(_right),
+    do: {:error, :invalid_castling_right}
+
+  defp parse_boolean("true"), do: {:ok, true}
+  defp parse_boolean("false"), do: {:ok, false}
+  defp parse_boolean(_value), do: {:error, :invalid_boolean}
+
+  defp castling_status(position, right) do
+    if MapSet.member?(position.castling_rights, right) do
+      "Enabled"
+    else
+      "Disabled"
+    end
+  end
 end
