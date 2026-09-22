@@ -1060,4 +1060,118 @@ defmodule Web.RoomLiveTest do
     assert {:ok, game, 1} = Games.get(game_id)
     assert Game.node_at(game, [0]) == nil
   end
+
+  test "sets an en passant target and navigates to the result", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_playable_game()
+
+    assert {:ok, _game, 2, [0]} =
+             Games.play(game_id, [], move("e2", "e4"))
+
+    assert {:ok, _game, 3, [0, 0]} =
+             Games.play(game_id, [0], move("a7", "a6"))
+
+    assert {:ok, _game, 4, [0, 0, 0]} =
+             Games.play(game_id, [0, 0], move("e4", "e5"))
+
+    assert {:ok, _game, 5, [0, 0, 0, 0]} =
+             Games.play(game_id, [0, 0, 0], move("d7", "d5"))
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    {:ok, view, _html} = live(conn, "/rooms/#{room_id}")
+
+    view
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    view |> element("#navigate-child-0") |> render_click()
+    view |> element("#navigate-child-0") |> render_click()
+    view |> element("#navigate-child-0") |> render_click()
+    view |> element("#navigate-child-0") |> render_click()
+
+    assert has_element?(view, "#current-path", "Path [0, 0, 0, 0]")
+    assert has_element?(view, "#en-passant", "d6")
+
+    view
+    |> form("#en-passant-form", %{
+      "edit" => %{"en_passant" => "none"}
+    })
+    |> render_submit()
+
+    assert has_element?(view, "#en-passant", "None")
+    assert has_element?(view, "#current-path", "Path [0, 0, 0, 0, 0]")
+    assert has_element?(view, "#selected-game-revision", "Revision 6")
+
+    assert {:ok, game, 6} = Games.get(game_id)
+
+    child = Game.node_at(game, [0, 0, 0, 0, 0])
+
+    assert %Node{} = child
+    assert Node.transition(child) == Transition.edit()
+
+    assert {:ok, edited_position} =
+             PositionStore.get(Node.position_id(child))
+
+    assert edited_position.en_passant == nil
+  end
+
+  test "shows an error for an invalid en passant square", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_playable_game()
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    {:ok, view, _html} = live(conn, "/rooms/#{room_id}")
+
+    view
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    view
+    |> form("#en-passant-form", %{
+      "edit" => %{"en_passant" => "foo"}
+    })
+    |> render_submit()
+
+    assert has_element?(view, "#edit-error", "Invalid en passant square.")
+    assert has_element?(view, "#current-path", "Path []")
+    assert has_element?(view, "#selected-game-revision", "Revision 1")
+  end
+
+  test "rejects an inconsistent en passant target", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_playable_game()
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    {:ok, view, _html} = live(conn, "/rooms/#{room_id}")
+
+    view
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    view
+    |> form("#en-passant-form", %{
+      "edit" => %{"en_passant" => "d6"}
+    })
+    |> render_submit()
+
+    assert has_element?(view, "#edit-error", "Invalid position.")
+    assert has_element?(view, "#en-passant", "None")
+    assert has_element?(view, "#current-path", "Path []")
+    assert has_element?(view, "#selected-game-revision", "Revision 1")
+
+    assert {:ok, game, 1} = Games.get(game_id)
+    assert Game.node_at(game, [0]) == nil
+  end
 end

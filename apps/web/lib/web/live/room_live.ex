@@ -317,6 +317,26 @@ defmodule Web.RoomLive do
   end
 
   @impl true
+  def handle_event(
+        "set_en_passant",
+        %{"edit" => %{"en_passant" => en_passant}},
+        socket
+      ) do
+    case parse_en_passant(en_passant) do
+      {:ok, en_passant} ->
+        draft =
+          socket.assigns.position
+          |> PositionDraft.new()
+          |> PositionDraft.set_en_passant(en_passant)
+
+        edit_position(socket, draft)
+
+      {:error, :invalid_en_passant} ->
+        {:noreply, assign(socket, :edit_error, "Invalid en passant square.")}
+    end
+  end
+
+  @impl true
   def render(assigns) do
     ~H"""
     <main>
@@ -439,6 +459,22 @@ defmodule Web.RoomLive do
 
               <button type="submit">
                 Set castling right
+              </button>
+            </form>
+            <p id="en-passant">
+              En passant: {en_passant_label(@position.en_passant)}
+            </p>
+
+            <form id="en-passant-form" phx-submit="set_en_passant">
+              <input
+                type="text"
+                name="edit[en_passant]"
+                placeholder="Square or none"
+                required
+              />
+
+              <button type="submit">
+                Set en passant
               </button>
             </form>
             <form id="remove-piece-form" phx-submit="remove_piece">
@@ -675,4 +711,19 @@ defmodule Web.RoomLive do
       "Disabled"
     end
   end
+
+  defp parse_en_passant("none"), do: {:ok, nil}
+
+  defp parse_en_passant(square) do
+    case Square.from_algebraic(square) do
+      square when is_integer(square) ->
+        {:ok, square}
+
+      {:error, :invalid_square} ->
+        {:error, :invalid_en_passant}
+    end
+  end
+
+  defp en_passant_label(nil), do: "None"
+  defp en_passant_label(square), do: Square.to_algebraic(square)
 end
