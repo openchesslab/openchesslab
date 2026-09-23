@@ -17,7 +17,7 @@ defmodule Web.RoomLive do
   alias Web.Components.PositionEditor
 
   @impl true
-def mount(%{"room_id" => room_id}, _session, socket) do
+  def mount(%{"room_id" => room_id}, _session, socket) do
     {:ok, room} = Rooms.start_room(room_id)
 
     if connected?(socket) do

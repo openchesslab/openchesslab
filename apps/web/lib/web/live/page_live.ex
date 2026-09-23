@@ -12,7 +12,7 @@ defmodule Web.PageLive do
     <section class="hero">
       <h1 class="hero-title">OpenChessLab</h1>
       <p class="hero-subtitle">
-        A collaborative chess analysis platform built with Phoenix LiveView.
+        {gettext("A collaborative chess analysis platform built with Phoenix LiveView.")}
       </p>
     </section>
     """

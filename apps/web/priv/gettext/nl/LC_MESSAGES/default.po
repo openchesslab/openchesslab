@@ -164,3 +164,6 @@ msgstr "Bovenliggende stelling"
 
 msgid "Language"
 msgstr "Taal"
+
+msgid "A collaborative chess analysis platform built with Phoenix LiveView."
+msgstr "Een samenwerkingsplatform voor schaakanalyse, gebouwd met Phoenix LiveView."
