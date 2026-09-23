@@ -1,6 +1,6 @@
 defmodule PositionDB.Storage.Disk.RecordStore do
   @moduledoc """
-  Reads fixed-size records from disk segments.
+  Reads and appends fixed-size records in disk segments.
   """
 
   alias PositionDB.Storage.Disk.Layout
@@ -83,6 +83,136 @@ defmodule PositionDB.Storage.Disk.RecordStore do
 
       {:error, :enoent} ->
         :not_found
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @spec append(t(), pos_integer(), binary()) ::
+          :ok
+          | {:error, :invalid_record_size}
+          | {:error, {:unexpected_segment_size, non_neg_integer(), non_neg_integer()}}
+          | {:error, :previous_segment_incomplete}
+          | {:error, term()}
+  def append(
+        %__MODULE__{} = store,
+        position_id,
+        record
+      )
+      when is_integer(position_id) and
+             position_id > 0 and
+             is_binary(record) do
+    if byte_size(record) == store.record_size do
+      {segment, offset} =
+        Layout.location(
+          position_id,
+          store.record_size,
+          store.records_per_segment
+        )
+
+      path =
+        Layout.segment_path(
+          store.directory,
+          segment
+        )
+
+      with :ok <-
+             validate_previous_segment(
+               store,
+               segment,
+               offset
+             ),
+           :ok <-
+             validate_segment_size(
+               path,
+               offset
+             ) do
+        append_record(path, record)
+      end
+    else
+      {:error, :invalid_record_size}
+    end
+  end
+
+  defp validate_previous_segment(
+         _store,
+         0,
+         _offset
+       ) do
+    :ok
+  end
+
+  defp validate_previous_segment(
+         _store,
+         _segment,
+         offset
+       )
+       when offset > 0 do
+    :ok
+  end
+
+  defp validate_previous_segment(
+         store,
+         segment,
+         0
+       ) do
+    previous_path =
+      Layout.segment_path(
+        store.directory,
+        segment - 1
+      )
+
+    expected_size =
+      store.record_size *
+        store.records_per_segment
+
+    case File.stat(previous_path) do
+      {:ok, %{size: ^expected_size}} ->
+        :ok
+
+      {:ok, _stat} ->
+        {:error, :previous_segment_incomplete}
+
+      {:error, :enoent} ->
+        {:error, :previous_segment_incomplete}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp validate_segment_size(path, expected_size) do
+    case File.stat(path) do
+      {:ok, %{size: ^expected_size}} ->
+        :ok
+
+      {:ok, %{size: actual_size}} ->
+        {:error, {:unexpected_segment_size, expected_size, actual_size}}
+
+      {:error, :enoent}
+      when expected_size == 0 ->
+        :ok
+
+      {:error, :enoent} ->
+        {:error, {:unexpected_segment_size, expected_size, 0}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp append_record(path, record) do
+    case :file.open(
+           path,
+           [:append, :binary, :raw]
+         ) do
+      {:ok, file} ->
+        try do
+          :file.write(file, record)
+        after
+          :file.close(file)
+        end
 
       {:error, reason} ->
         {:error, reason}

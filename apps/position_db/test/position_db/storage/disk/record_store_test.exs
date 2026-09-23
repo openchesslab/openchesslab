@@ -109,6 +109,127 @@ defmodule PositionDB.Storage.Disk.RecordStoreTest do
              {:error, :partial_record}
   end
 
+  describe "append/3" do
+    test "appends a record that can be read back", %{
+      store: store
+    } do
+      assert :ok =
+               RecordStore.append(
+                 store,
+                 1,
+                 "aaaa"
+               )
+
+      assert RecordStore.get(store, 1) ==
+               {:ok, "aaaa"}
+    end
+
+    test "appends records sequentially", %{
+      store: store
+    } do
+      assert :ok =
+               RecordStore.append(
+                 store,
+                 1,
+                 "aaaa"
+               )
+
+      assert :ok =
+               RecordStore.append(
+                 store,
+                 2,
+                 "bbbb"
+               )
+
+      assert RecordStore.get(store, 1) ==
+               {:ok, "aaaa"}
+
+      assert RecordStore.get(store, 2) ==
+               {:ok, "bbbb"}
+    end
+
+    test "continues in the next segment", %{
+      store: store
+    } do
+      assert :ok =
+               RecordStore.append(store, 1, "aaaa")
+
+      assert :ok =
+               RecordStore.append(store, 2, "bbbb")
+
+      assert :ok =
+               RecordStore.append(store, 3, "cccc")
+
+      assert :ok =
+               RecordStore.append(store, 4, "dddd")
+
+      assert RecordStore.get(store, 4) ==
+               {:ok, "dddd"}
+    end
+
+    test "rejects records with the wrong size", %{
+      store: store
+    } do
+      assert RecordStore.append(
+               store,
+               1,
+               "aaa"
+             ) ==
+               {:error, :invalid_record_size}
+    end
+
+    test "rejects gaps within a segment", %{
+      store: store
+    } do
+      assert RecordStore.append(
+               store,
+               2,
+               "bbbb"
+             ) ==
+               {:error, {:unexpected_segment_size, 4, 0}}
+    end
+
+    test "does not overwrite an existing record", %{
+      store: store
+    } do
+      assert :ok =
+               RecordStore.append(
+                 store,
+                 1,
+                 "aaaa"
+               )
+
+      assert RecordStore.append(
+               store,
+               1,
+               "bbbb"
+             ) ==
+               {:error, {:unexpected_segment_size, 0, 4}}
+
+      assert RecordStore.get(store, 1) ==
+               {:ok, "aaaa"}
+    end
+
+    test "does not start a new segment before the previous segment is full",
+         %{
+           store: store
+         } do
+      assert :ok =
+               RecordStore.append(
+                 store,
+                 1,
+                 "aaaa"
+               )
+
+      assert RecordStore.append(
+               store,
+               4,
+               "dddd"
+             ) ==
+               {:error, :previous_segment_incomplete}
+    end
+  end
+
   defp write_segment(
          directory,
          segment,
