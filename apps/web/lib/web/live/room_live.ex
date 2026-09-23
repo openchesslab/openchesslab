@@ -15,10 +15,15 @@ defmodule Web.RoomLive do
   alias Web.Components.ChessBoard
   alias Web.Components.MoveTree
   alias Web.Components.PositionEditor
+  alias Web.Locale
 
   @impl true
   def mount(%{"room_id" => room_id}, session, socket) do
-    locale = Map.get(session, "locale", "nl")
+    locale =
+      session
+      |> Map.get("locale")
+      |> Locale.normalize()
+
     Gettext.put_locale(Web.Gettext, locale)
 
     {:ok, room} = Rooms.start_room(room_id)
