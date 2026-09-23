@@ -12,20 +12,18 @@ defmodule PositionDB.Storage.ExactIndex.Disk do
   alias PositionDB.Storage.ExactIndex.Disk.BucketStore
   alias PositionDB.Storage.ExactIndex.Disk.Layout
 
-  @type hash_function :: (binary() -> binary())
-
   @type t :: %__MODULE__{
           bucket_store: BucketStore.t(),
           bucket_count: pos_integer(),
           hash_size: pos_integer(),
-          hash_function: hash_function()
+          hash_module: module()
         }
 
   defstruct [
     :bucket_store,
     :bucket_count,
     :hash_size,
-    :hash_function
+    :hash_module
   ]
 
   @spec new(Path.t(), keyword()) :: t()
@@ -37,17 +35,14 @@ defmodule PositionDB.Storage.ExactIndex.Disk do
         :bucket_count
       )
 
-    hash_size =
+    hash_module =
       Keyword.fetch!(
         opts,
-        :hash_size
+        :hash
       )
 
-    hash_function =
-      Keyword.fetch!(
-        opts,
-        :hash_function
-      )
+    hash_size =
+      hash_module.hash_size()
 
     if bucket_count <= 0 do
       raise ArgumentError,
@@ -59,11 +54,6 @@ defmodule PositionDB.Storage.ExactIndex.Disk do
             "hash_size must be at least 4 bytes"
     end
 
-    unless is_function(hash_function, 1) do
-      raise ArgumentError,
-            "hash_function must be a function of arity 1"
-    end
-
     %__MODULE__{
       bucket_store:
         BucketStore.new(
@@ -72,7 +62,7 @@ defmodule PositionDB.Storage.ExactIndex.Disk do
         ),
       bucket_count: bucket_count,
       hash_size: hash_size,
-      hash_function: hash_function
+      hash_module: hash_module
     }
   end
 
@@ -149,14 +139,21 @@ defmodule PositionDB.Storage.ExactIndex.Disk do
          %__MODULE__{} = index,
          key
        ) do
-    case index.hash_function.(key) do
-      hash when is_binary(hash) ->
+    case index.hash_module.hash(key) do
+      {:ok, hash}
+      when is_binary(hash) ->
         if byte_size(hash) ==
              index.hash_size do
           {:ok, hash}
         else
           {:error, {:invalid_hash_size, index.hash_size, byte_size(hash)}}
         end
+
+      {:ok, _hash} ->
+        {:error, :invalid_hash}
+
+      {:error, reason} ->
+        {:error, reason}
 
       _other ->
         {:error, :invalid_hash}

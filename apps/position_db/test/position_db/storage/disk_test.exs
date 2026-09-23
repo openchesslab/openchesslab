@@ -45,6 +45,26 @@ defmodule PositionDB.Storage.DiskTest do
     end
   end
 
+  defmodule TestHash do
+    @behaviour PositionDB.Storage.ExactKeyHash
+
+    @impl PositionDB.Storage.ExactKeyHash
+    def format_id, do: <<"test-exact-hash-v1">>
+
+    @impl PositionDB.Storage.ExactKeyHash
+    def hash_size, do: 4
+
+    @impl PositionDB.Storage.ExactKeyHash
+    def hash(<<"collision-a">>),
+      do: {:ok, <<0, 0, 0, 1>>}
+
+    def hash(<<"collision-b">>),
+      do: {:ok, <<0, 0, 0, 1>>}
+
+    def hash(_key),
+      do: {:ok, <<0, 0, 0, 15>>}
+  end
+
   setup do
     root =
       Path.join(
@@ -71,8 +91,7 @@ defmodule PositionDB.Storage.DiskTest do
         codec: TestCodec,
         records_per_segment: 3,
         bucket_count: 16,
-        hash_size: 4,
-        hash_function: &hash_key/1
+        hash: TestHash
       )
 
     %{
@@ -220,17 +239,5 @@ defmodule PositionDB.Storage.DiskTest do
 
     assert Disk.cardinality(storage) ==
              {:ok, 2}
-  end
-
-  defp hash_key(<<"collision-a">>) do
-    <<0, 0, 0, 1>>
-  end
-
-  defp hash_key(<<"collision-b">>) do
-    <<0, 0, 0, 1>>
-  end
-
-  defp hash_key(_key) do
-    <<0, 0, 0, 15>>
   end
 end

@@ -50,16 +50,10 @@ defmodule PositionDB.Storage.Disk do
         :bucket_count
       )
 
-    hash_size =
+    hash_module =
       Keyword.fetch!(
         opts,
-        :hash_size
-      )
-
-    hash_function =
-      Keyword.fetch!(
-        opts,
-        :hash_function
+        :hash
       )
 
     record_store =
@@ -79,8 +73,7 @@ defmodule PositionDB.Storage.Disk do
           "exact-index"
         ),
         bucket_count: bucket_count,
-        hash_size: hash_size,
-        hash_function: hash_function
+        hash: hash_module
       )
 
     %__MODULE__{

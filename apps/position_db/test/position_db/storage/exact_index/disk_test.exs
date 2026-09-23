@@ -4,6 +4,64 @@ defmodule PositionDB.Storage.ExactIndex.DiskTest do
   alias PositionDB.Storage.ExactIndex.Disk
   alias PositionDB.Storage.ExactIndex.Disk.Layout
 
+  defmodule TestHash do
+    @behaviour PositionDB.Storage.ExactKeyHash
+
+    @impl PositionDB.Storage.ExactKeyHash
+    def format_id do
+      <<"test-exact-hash-v1">>
+    end
+
+    @impl PositionDB.Storage.ExactKeyHash
+    def hash_size do
+      4
+    end
+
+    @impl PositionDB.Storage.ExactKeyHash
+    def hash(<<"a">>),
+      do: {:ok, <<0, 0, 0, 1>>}
+
+    def hash(<<"b">>),
+      do: {:ok, <<0, 0, 0, 2>>}
+
+    def hash(<<"collision-a">>),
+      do: {:ok, <<0, 0, 0, 3>>}
+
+    def hash(<<"collision-b">>),
+      do: {:ok, <<0, 0, 0, 3>>}
+
+    def hash(_key),
+      do: {:ok, <<0, 0, 0, 15>>}
+  end
+
+  defmodule FailingHash do
+    @behaviour PositionDB.Storage.ExactKeyHash
+
+    @impl PositionDB.Storage.ExactKeyHash
+    def format_id, do: <<"failing-v1">>
+
+    @impl PositionDB.Storage.ExactKeyHash
+    def hash_size, do: 4
+
+    @impl PositionDB.Storage.ExactKeyHash
+    def hash(_key),
+      do: {:error, :cannot_hash}
+  end
+
+  defmodule WrongSizeHash do
+    @behaviour PositionDB.Storage.ExactKeyHash
+
+    @impl PositionDB.Storage.ExactKeyHash
+    def format_id, do: <<"wrong-size-v1">>
+
+    @impl PositionDB.Storage.ExactKeyHash
+    def hash_size, do: 4
+
+    @impl PositionDB.Storage.ExactKeyHash
+    def hash(_key),
+      do: {:ok, <<1, 2, 3>>}
+  end
+
   setup do
     directory =
       Path.join(
@@ -19,8 +77,7 @@ defmodule PositionDB.Storage.ExactIndex.DiskTest do
 
     opts = [
       bucket_count: 16,
-      hash_size: 4,
-      hash_function: &hash_key/1
+      hash: TestHash
     ]
 
     index =
@@ -176,8 +233,8 @@ defmodule PositionDB.Storage.ExactIndex.DiskTest do
     directory: directory,
     index: index
   } do
-    hash =
-      hash_key(<<"a">>)
+    assert {:ok, hash} =
+             TestHash.hash(<<"a">>)
 
     bucket =
       Layout.bucket(
@@ -203,18 +260,37 @@ defmodule PositionDB.Storage.ExactIndex.DiskTest do
              {:error, :partial_entry}
   end
 
-  defp hash_key(<<"a">>),
-    do: <<0, 0, 0, 1>>
+  test "propagates hash implementation errors", %{
+    directory: directory
+  } do
+    index =
+      Disk.new(
+        directory,
+        bucket_count: 16,
+        hash: FailingHash
+      )
 
-  defp hash_key(<<"b">>),
-    do: <<0, 0, 0, 2>>
+    assert Disk.lookup(
+             index,
+             <<"a">>
+           ) ==
+             {:error, :cannot_hash}
+  end
 
-  defp hash_key(<<"collision-a">>),
-    do: <<0, 0, 0, 3>>
+  test "rejects hashes whose size differs from the declared size", %{
+    directory: directory
+  } do
+    index =
+      Disk.new(
+        directory,
+        bucket_count: 16,
+        hash: WrongSizeHash
+      )
 
-  defp hash_key(<<"collision-b">>),
-    do: <<0, 0, 0, 3>>
-
-  defp hash_key(_key),
-    do: <<0, 0, 0, 15>>
+    assert Disk.lookup(
+             index,
+             <<"a">>
+           ) ==
+             {:error, {:invalid_hash_size, 4, 3}}
+  end
 end
