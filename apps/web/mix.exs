@@ -31,7 +31,7 @@ defmodule Web.MixProject do
       {:phoenix_html, "~> 4.3"},
       {:phoenix_live_reload, "~> 1.7", only: :dev},
       {:phoenix_live_view, "~> 1.2"},
-      {:esbuild, "~> 0.10.0", runtime: false},
+      {:esbuild, "~> 0.10.0", runtime: Mix.env() == :dev},
       {:plug_cowboy, "~> 2.9"},
       {:floki, "~> 0.38.4", only: :test},
       {:gettext, "~> 1.0"},
