@@ -9,7 +9,7 @@ defmodule PositionDB.Storage.Disk.Manifest do
   position record and exact-index hash formats.
   """
 
-  @magic <<"OCLPDB01">>
+  @magic <<"OCLPDB", 0, 0>>
   @magic_size byte_size(@magic)
   @version 1
 

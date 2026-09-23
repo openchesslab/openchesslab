@@ -85,7 +85,7 @@ defmodule PositionDB.Storage.Disk.ManifestTest do
     end
 
     test "rejects a truncated manifest" do
-      assert Manifest.decode(<<"OCLPDB01">>) ==
+      assert Manifest.decode(<<"OCLPDB", 0, 0>>) ==
                {:error, :invalid_manifest}
     end
 
@@ -132,6 +132,28 @@ defmodule PositionDB.Storage.Disk.ManifestTest do
 
       assert Manifest.encode(manifest) ==
                {:error, :invalid_manifest}
+    end
+
+    test "uses a version-independent file signature" do
+      manifest = %Manifest{
+        record_format_id: <<"position-v1">>,
+        record_size: 67,
+        records_per_segment: 1_000,
+        exact_hash_format_id: <<"hash-v1">>,
+        exact_hash_size: 32,
+        exact_bucket_count: 16
+      }
+
+      assert {:ok, encoded} =
+               Manifest.encode(manifest)
+
+      assert <<
+               "OCLPDB",
+               0,
+               0,
+               1::unsigned-big-16,
+               _rest::binary
+             >> = encoded
     end
   end
 end
