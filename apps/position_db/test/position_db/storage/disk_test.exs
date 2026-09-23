@@ -2,8 +2,34 @@ defmodule PositionDB.Storage.DiskTest do
   use ExUnit.Case, async: true
 
   alias PositionDB.Storage.Disk
+  alias PositionDB.Storage.Disk.Manifest
+  alias PositionDB.Storage.Disk.ManifestStore
   alias PositionDB.Storage.Disk.RecordStore
   alias PositionDB.Storage.ExactIndex.Disk, as: ExactIndex
+
+  defmodule InvalidFormatCodec do
+    @behaviour PositionDB.Storage.RecordCodec
+
+    @impl PositionDB.Storage.RecordCodec
+    def format_id do
+      <<>>
+    end
+
+    @impl PositionDB.Storage.RecordCodec
+    def record_size do
+      4
+    end
+
+    @impl PositionDB.Storage.RecordCodec
+    def encode(_position) do
+      {:error, :not_implemented}
+    end
+
+    @impl PositionDB.Storage.RecordCodec
+    def decode(_record) do
+      {:error, :not_implemented}
+    end
+  end
 
   defmodule TestCodec do
     @behaviour PositionDB.Storage.RecordCodec
@@ -95,6 +121,7 @@ defmodule PositionDB.Storage.DiskTest do
       )
 
     %{
+      root: root,
       storage: storage
     }
   end
@@ -239,5 +266,133 @@ defmodule PositionDB.Storage.DiskTest do
 
     assert Disk.cardinality(storage) ==
              {:ok, 2}
+  end
+
+  describe "create/2" do
+    test "creates an empty disk store and persists its manifest", %{
+      root: root
+    } do
+      directory =
+        Path.join(
+          root,
+          "created"
+        )
+
+      assert {:ok, storage} =
+               Disk.create(
+                 directory,
+                 codec: TestCodec,
+                 records_per_segment: 3,
+                 bucket_count: 16,
+                 hash: TestHash
+               )
+
+      assert File.dir?(
+               Path.join(
+                 directory,
+                 "records"
+               )
+             )
+
+      assert File.dir?(
+               Path.join(
+                 directory,
+                 "exact-index"
+               )
+             )
+
+      assert ManifestStore.read(directory) ==
+               {:ok,
+                %Manifest{
+                  record_format_id: <<"test-position-v1">>,
+                  record_size: 4,
+                  records_per_segment: 3,
+                  exact_hash_format_id: <<"test-exact-hash-v1">>,
+                  exact_hash_size: 4,
+                  exact_bucket_count: 16
+                }}
+
+      assert Disk.cardinality(storage) ==
+               {:ok, 0}
+    end
+
+    test "refuses to create storage in an existing directory", %{
+      root: root
+    } do
+      directory =
+        Path.join(
+          root,
+          "existing"
+        )
+
+      File.mkdir!(directory)
+
+      assert Disk.create(
+               directory,
+               codec: TestCodec,
+               records_per_segment: 3,
+               bucket_count: 16,
+               hash: TestHash
+             ) ==
+               {:error, :storage_exists}
+
+      assert ManifestStore.read(directory) ==
+               {:error, :manifest_not_found}
+    end
+
+    test "does not overwrite an existing disk store", %{
+      root: root
+    } do
+      directory =
+        Path.join(
+          root,
+          "created"
+        )
+
+      assert {:ok, _storage} =
+               Disk.create(
+                 directory,
+                 codec: TestCodec,
+                 records_per_segment: 3,
+                 bucket_count: 16,
+                 hash: TestHash
+               )
+
+      assert {:ok, original_manifest} =
+               ManifestStore.read(directory)
+
+      assert Disk.create(
+               directory,
+               codec: TestCodec,
+               records_per_segment: 999,
+               bucket_count: 32,
+               hash: TestHash
+             ) ==
+               {:error, :storage_exists}
+
+      assert ManifestStore.read(directory) ==
+               {:ok, original_manifest}
+    end
+
+    test "validates the manifest before creating the storage directory", %{
+      root: root
+    } do
+      directory =
+        Path.join(
+          root,
+          "invalid"
+        )
+
+      assert Disk.create(
+               directory,
+               codec: InvalidFormatCodec,
+               records_per_segment: 3,
+               bucket_count: 16,
+               hash: TestHash
+             ) ==
+               {:error, :invalid_manifest}
+
+      refute File.exists?(directory)
+    end
   end
 end

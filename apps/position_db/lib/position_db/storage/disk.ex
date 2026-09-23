@@ -1,6 +1,9 @@
 defmodule PositionDB.Storage.Disk do
   @moduledoc """
-  Read-only disk-backed position storage.
+  Disk-backed position storage.
+
+  Position records are currently read-only. New empty disk stores
+  can be initialized with `create/2`.
 
   Combines fixed-size position records, the disk-backed exact
   index and a record codec.
@@ -14,6 +17,8 @@ defmodule PositionDB.Storage.Disk do
   """
 
   alias PositionDB.Storage.Disk.ExactLookup
+  alias PositionDB.Storage.Disk.Manifest
+  alias PositionDB.Storage.Disk.ManifestStore
   alias PositionDB.Storage.Disk.RecordStore
   alias PositionDB.Storage.ExactIndex.Disk, as: ExactIndex
 
@@ -28,6 +33,38 @@ defmodule PositionDB.Storage.Disk do
     :exact_index,
     :codec_module
   ]
+
+  @spec create(Path.t(), keyword()) ::
+          {:ok, t()}
+          | {:error, :storage_exists}
+          | {:error, term()}
+  def create(directory, opts)
+      when is_binary(directory) do
+    storage =
+      new(
+        directory,
+        opts
+      )
+
+    manifest =
+      storage_manifest(storage)
+
+    with {:ok, _encoded} <-
+           Manifest.encode(manifest),
+         :ok <-
+           create_root_directory(directory),
+         :ok <-
+           File.mkdir(records_directory(directory)),
+         :ok <-
+           File.mkdir(exact_index_directory(directory)),
+         :ok <-
+           ManifestStore.create(
+             directory,
+             manifest
+           ) do
+      {:ok, storage}
+    end
+  end
 
   @spec new(Path.t(), keyword()) :: t()
   def new(directory, opts)
@@ -58,20 +95,14 @@ defmodule PositionDB.Storage.Disk do
 
     record_store =
       RecordStore.new(
-        Path.join(
-          directory,
-          "records"
-        ),
+        records_directory(directory),
         record_size: codec_module.record_size(),
         records_per_segment: records_per_segment
       )
 
     exact_index =
       ExactIndex.new(
-        Path.join(
-          directory,
-          "exact-index"
-        ),
+        exact_index_directory(directory),
         bucket_count: bucket_count,
         hash: hash_module
       )
@@ -160,5 +191,43 @@ defmodule PositionDB.Storage.Disk do
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  defp storage_manifest(%__MODULE__{} = storage) do
+    %Manifest{
+      record_format_id: storage.codec_module.format_id(),
+      record_size: storage.record_store.record_size,
+      records_per_segment: storage.record_store.records_per_segment,
+      exact_hash_format_id: storage.exact_index.hash_module.format_id(),
+      exact_hash_size: storage.exact_index.hash_size,
+      exact_bucket_count: storage.exact_index.bucket_count
+    }
+  end
+
+  defp create_root_directory(directory) do
+    case File.mkdir(directory) do
+      :ok ->
+        :ok
+
+      {:error, :eexist} ->
+        {:error, :storage_exists}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp records_directory(directory) do
+    Path.join(
+      directory,
+      "records"
+    )
+  end
+
+  defp exact_index_directory(directory) do
+    Path.join(
+      directory,
+      "exact-index"
+    )
   end
 end
