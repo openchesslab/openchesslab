@@ -1790,4 +1790,82 @@ defmodule Web.RoomLiveTest do
              "White"
            )
   end
+
+  test "shows English as the active locale by default", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    {:ok, view, _html} =
+      live(conn, "/rooms/#{room_id}")
+
+    assert has_element?(
+             view,
+             "#locale-en[href='?locale=en'][aria-current='page']",
+             "EN"
+           )
+
+    assert has_element?(
+             view,
+             "#locale-nl[href='?locale=nl']",
+             "NL"
+           )
+
+    refute has_element?(
+             view,
+             "#locale-nl[aria-current='page']"
+           )
+  end
+
+  test "shows Dutch as the active locale", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    conn = with_locale(conn, "nl")
+
+    {:ok, view, _html} =
+      live(conn, "/rooms/#{room_id}")
+
+    assert has_element?(
+             view,
+             "#locale-nl[href='?locale=nl'][aria-current='page']",
+             "NL"
+           )
+
+    assert has_element?(
+             view,
+             "#locale-en[href='?locale=en']",
+             "EN"
+           )
+
+    refute has_element?(
+             view,
+             "#locale-en[aria-current='page']"
+           )
+  end
+
+  test "persists an explicitly selected locale", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    session_key = Localize.Plug.PutLocale.session_key()
+
+    conn =
+      get(
+        conn,
+        "/rooms/#{room_id}?locale=nl"
+      )
+
+    assert get_session(conn, session_key) == "nl"
+
+    conn =
+      conn
+      |> recycle()
+      |> put_req_header("accept-language", "en")
+      |> get("/rooms/#{room_id}")
+
+    assert get_session(conn, session_key) == "nl"
+
+    assert html_response(conn, 200) =~
+             "Ruimte #{room_id}"
+  end
 end

@@ -161,3 +161,6 @@ msgstr "Subboom verwijderen"
 
 msgid "Parent"
 msgstr "Bovenliggende stelling"
+
+msgid "Language"
+msgstr "Taal"

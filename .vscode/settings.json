@@ -5,6 +5,15 @@
     "elixirLS.mixEnv": "test",
     "files.associations": {
         "*.ex": "elixir",
-        "*.exs": "elixir"
+        "*.exs": "elixir",
+        "*.heex": "phoenix-heex"
+    },
+    "[phoenix-heex]": {
+        "editor.defaultFormatter": "JakeBecker.elixir-ls",
+        "editor.formatOnSave": true
+    },
+    "[elixir]": {
+        "editor.defaultFormatter": "JakeBecker.elixir-ls",
+        "editor.formatOnSave": true
     }
 }

@@ -1,6 +1,36 @@
 <header class="navbar">
   <div class="navbar-inner">
     <a href="/" class="brand">OpenChessLab</a>
+
+    <nav
+      id="locale-switcher"
+      class="locale-switcher"
+      aria-label={gettext("Language")}
+    >
+      <a
+        id="locale-en"
+        href="?locale=en"
+        class={[
+          "locale-link",
+          @locale == "en" && "locale-link-active"
+        ]}
+        aria-current={if @locale == "en", do: "page"}
+      >
+        EN
+      </a>
+
+      <a
+        id="locale-nl"
+        href="?locale=nl"
+        class={[
+          "locale-link",
+          @locale == "nl" && "locale-link-active"
+        ]}
+        aria-current={if @locale == "nl", do: "page"}
+      >
+        NL
+      </a>
+    </nav>
   </div>
 </header>
 
