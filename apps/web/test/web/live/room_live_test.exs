@@ -1565,7 +1565,7 @@ defmodule Web.RoomLiveTest do
     assert has_element?(view, "#current-path", "Path [0, 1]")
   end
 
-  test "renders alternative continuations as variations in the move tree", %{
+  test "shows localized move notation for alternative continuations", %{
     conn: conn,
     room_id: room_id
   } do
@@ -1577,14 +1577,11 @@ defmodule Web.RoomLiveTest do
     assert {:ok, _game, 3, [0, 0]} =
              Games.play(game_id, [0], move("e7", "e5"))
 
-    assert {:ok, _game, 4, [0, 0, 0]} =
-             Games.play(game_id, [0, 0], move("g1", "f3"))
-
-    assert {:ok, _game, 5, [0, 1]} =
+    assert {:ok, _game, 4, [0, 1]} =
              Games.play(game_id, [0], move("c7", "c5"))
 
-    assert {:ok, _game, 6, [0, 1, 0]} =
-             Games.play(game_id, [0, 1], move("g1", "f3"))
+    assert {:ok, _game, 5, [0, 0, 0]} =
+             Games.play(game_id, [0, 0], move("g1", "f3"))
 
     assert {:ok, _room} = Rooms.start_room(room_id)
     assert :ok = Rooms.add_game(room_id, game_id)
@@ -1596,30 +1593,17 @@ defmodule Web.RoomLiveTest do
     |> element("#select-game-#{game_id}")
     |> render_click()
 
-    assert has_element?(view, "#move-tree-main")
+    view
+    |> element("#navigate-child-0")
+    |> render_click()
 
-    assert has_element?(
-             view,
-             "#move-tree-main #move-tree-0",
-             "1. e4"
-           )
+    assert has_element?(view, "#navigate-child-0", "e5")
+    assert has_element?(view, "#navigate-child-1", "c5")
 
-    assert has_element?(
-             view,
-             "#move-tree-main #move-tree-0-0",
-             "1... e5"
-           )
+    view
+    |> element("#navigate-child-0")
+    |> render_click()
 
-    assert has_element?(
-             view,
-             "#move-tree-variation-0-1 #move-tree-0-1",
-             "1... c5"
-           )
-
-    assert has_element?(
-             view,
-             "#move-tree-variation-0-1 #move-tree-0-1-0",
-             "2. Pf3"
-           )
+    assert has_element?(view, "#navigate-child-0", "Pf3")
   end
 end

@@ -9,6 +9,7 @@ defmodule Web.Components.MoveTree do
 
   attr(:game, :any, required: true)
   attr(:root_position, :any, required: true)
+  attr(:locale, :string, required: true)
 
   def move_tree(assigns) do
     assigns =
@@ -25,6 +26,7 @@ defmodule Web.Components.MoveTree do
           position={@root_position}
           root_side={@root_side}
           path={[]}
+          locale={@locale}
         />
       </div>
     </div>
@@ -36,6 +38,7 @@ defmodule Web.Components.MoveTree do
   attr(:position, :any, required: true)
   attr(:root_side, :atom, required: true)
   attr(:path, :list, required: true)
+  attr(:locale, :string, required: true)
 
   defp continuation(assigns) do
     children = Node.children(assigns.node)
@@ -54,6 +57,7 @@ defmodule Web.Components.MoveTree do
         root_side={@root_side}
         parent_path={@path}
         child_index={0}
+        locale={@locale}
       />
 
       <div
@@ -68,6 +72,7 @@ defmodule Web.Components.MoveTree do
           root_side={@root_side}
           parent_path={@path}
           child_index={child_index}
+          locale={@locale}
         />
       </div>
     <% end %>
@@ -80,6 +85,7 @@ defmodule Web.Components.MoveTree do
   attr(:root_side, :atom, required: true)
   attr(:parent_path, :list, required: true)
   attr(:child_index, :integer, required: true)
+  attr(:locale, :string, required: true)
 
   defp move(assigns) do
     path = assigns.parent_path ++ [assigns.child_index]
@@ -94,7 +100,8 @@ defmodule Web.Components.MoveTree do
     notation =
       transition_label(
         assigns.position,
-        Node.transition(assigns.child)
+        Node.transition(assigns.child),
+        assigns.locale
       )
 
     child_position =
@@ -127,12 +134,13 @@ defmodule Web.Components.MoveTree do
       position={@child_position}
       root_side={@root_side}
       path={@path}
+      locale={@locale}
     />
     """
   end
 
-  defp transition_label(position, transition) do
-    case ChessNotation.format(position, transition, "nl") do
+  defp transition_label(position, transition, locale) do
+    case ChessNotation.format(position, transition, locale) do
       {:ok, notation} -> notation
       :not_applicable -> "Edited position"
       {:error, :illegal_move} -> "Invalid move"

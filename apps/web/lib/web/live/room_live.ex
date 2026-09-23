@@ -8,10 +8,10 @@ defmodule Web.RoomLive do
   alias Analysis.PositionStore
   alias Analysis.RoomEvents
   alias Analysis.Rooms
-  alias Analysis.TransitionNotation
   alias Chess.Move
   alias Chess.PositionDraft
   alias Chess.Square
+  alias Web.ChessNotation
   alias Web.Components.ChessBoard
   alias Web.Components.MoveTree
   alias Web.Components.PositionEditor
@@ -26,6 +26,7 @@ defmodule Web.RoomLive do
 
     {:ok,
      assign(socket,
+       locale: "nl",
        room_id: room_id,
        room: room,
        add_game_error: nil,
@@ -483,6 +484,7 @@ defmodule Web.RoomLive do
         <ul>
           <li :for={game_id <- @room.game_ids}>
             <span>{game_id}</span>
+
             <button
               id={"select-game-#{game_id}"}
               type="button"
@@ -522,6 +524,7 @@ defmodule Web.RoomLive do
             <MoveTree.move_tree
               game={@game}
               root_position={@root_position}
+              locale={@locale}
             />
 
             <ChessBoard.chess_board position={@position} />
@@ -538,12 +541,14 @@ defmodule Web.RoomLive do
                 placeholder="From"
                 required
               />
+
               <input
                 type="text"
                 name="move[to]"
                 placeholder="To"
                 required
               />
+
               <button type="submit">
                 Play move
               </button>
@@ -552,7 +557,9 @@ defmodule Web.RoomLive do
             <%= if @move_error do %>
               <p id="move-error" role="alert">{@move_error}</p>
             <% end %>
+
             <% current_node = Game.node_at(@game, @current_path) %>
+
             <div id="current-comment">
               <%= if comment = Node.comment(current_node) do %>
                 {comment}
@@ -603,7 +610,11 @@ defmodule Web.RoomLive do
               phx-click="navigate_child"
               phx-value-index={index}
             >
-              {transition_label(@position, Node.transition(child))}
+              {transition_label(
+                @position,
+                Node.transition(child),
+                @locale
+              )}
             </button>
           </section>
         <% end %>
@@ -768,8 +779,8 @@ defmodule Web.RoomLive do
     List.last(path) > 0
   end
 
-  defp transition_label(position, transition) do
-    case TransitionNotation.format(position, transition) do
+  defp transition_label(position, transition, locale) do
+    case ChessNotation.format(position, transition, locale) do
       {:ok, notation} ->
         notation
 
