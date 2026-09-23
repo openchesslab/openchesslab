@@ -15,17 +15,9 @@ defmodule Web.RoomLive do
   alias Web.Components.ChessBoard
   alias Web.Components.MoveTree
   alias Web.Components.PositionEditor
-  alias Web.Locale
 
   @impl true
-  def mount(%{"room_id" => room_id}, session, socket) do
-    locale =
-      session
-      |> Map.get("locale")
-      |> Locale.normalize()
-
-    Gettext.put_locale(Web.Gettext, locale)
-
+def mount(%{"room_id" => room_id}, _session, socket) do
     {:ok, room} = Rooms.start_room(room_id)
 
     if connected?(socket) do
@@ -34,7 +26,6 @@ defmodule Web.RoomLive do
 
     {:ok,
      assign(socket,
-       locale: locale,
        room_id: room_id,
        room: room,
        add_game_error: nil,

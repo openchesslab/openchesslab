@@ -35,6 +35,8 @@ defmodule Web.MixProject do
       {:plug_cowboy, "~> 2.9"},
       {:floki, "~> 0.38.4", only: :test},
       {:gettext, "~> 1.0"},
+      {:localize, "~> 1.0"},
+      {:localize_web, "~> 1.0"},
       # For LiveView tests
       {:lazy_html, "~> 0.1", only: :test},
       {:jason, "~> 1.2"},

@@ -11,6 +11,15 @@ defmodule Web.RoomLiveTest do
   alias Chess.Position
   alias Chess.Square
 
+  defp with_locale(conn, locale) do
+    conn
+    |> init_test_session(%{})
+    |> put_session(
+      Localize.Plug.PutLocale.session_key(),
+      locale
+    )
+  end
+
   defp move(from, to) do
     Move.new(
       Square.from_algebraic(from),
@@ -1569,10 +1578,7 @@ defmodule Web.RoomLiveTest do
     conn: conn,
     room_id: room_id
   } do
-    conn =
-      conn
-      |> init_test_session(%{})
-      |> put_session("locale", "nl")
+    conn = with_locale(conn, "nl")
 
     game_id = insert_playable_game()
 
@@ -1618,10 +1624,7 @@ defmodule Web.RoomLiveTest do
     assert {:ok, _room} = Rooms.start_room(room_id)
     assert :ok = Rooms.add_game(room_id, game_id)
 
-    conn =
-      conn
-      |> init_test_session(%{})
-      |> put_session("locale", "nl")
+    conn = with_locale(conn, "nl")
 
     {:ok, view, _html} =
       live(conn, "/rooms/#{room_id}")
@@ -1642,10 +1645,7 @@ defmodule Web.RoomLiveTest do
     assert {:ok, _room} = Rooms.start_room(room_id)
     assert :ok = Rooms.add_game(room_id, game_id)
 
-    conn =
-      conn
-      |> init_test_session(%{})
-      |> put_session("locale", "nl")
+    conn = with_locale(conn, "nl")
 
     {:ok, view, _html} =
       live(conn, "/rooms/#{room_id}")
@@ -1676,10 +1676,7 @@ defmodule Web.RoomLiveTest do
     assert {:ok, _room} = Rooms.start_room(room_id)
     assert :ok = Rooms.add_game(room_id, game_id)
 
-    conn =
-      conn
-      |> init_test_session(%{})
-      |> put_session("locale", "nl")
+    conn = with_locale(conn, "nl")
 
     {:ok, view, _html} =
       live(conn, "/rooms/#{room_id}")
@@ -1722,7 +1719,7 @@ defmodule Web.RoomLiveTest do
     assert has_element?(view, "#current-path", "Path []")
   end
 
-  test "falls back to English for an unsupported session locale", %{
+  test "uses the browser locale on the first request", %{
     conn: conn,
     room_id: room_id
   } do
@@ -1732,9 +1729,11 @@ defmodule Web.RoomLiveTest do
     assert :ok = Rooms.add_game(room_id, game_id)
 
     conn =
-      conn
-      |> init_test_session(%{})
-      |> put_session("locale", "de")
+      put_req_header(
+        conn,
+        "accept-language",
+        "nl-NL,nl;q=0.9,en;q=0.8"
+      )
 
     {:ok, view, _html} =
       live(conn, "/rooms/#{room_id}")
@@ -1743,7 +1742,52 @@ defmodule Web.RoomLiveTest do
     |> element("#select-game-#{game_id}")
     |> render_click()
 
-    assert has_element?(view, "#selected-game h2", "Selected game")
-    assert has_element?(view, "#side-to-move", "White")
+    assert has_element?(
+             view,
+             "#selected-game h2",
+             "Geselecteerde partij"
+           )
+
+    assert has_element?(
+             view,
+             "#side-to-move",
+             "Wit"
+           )
+  end
+
+  test "an explicit locale overrides the browser locale", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_playable_game()
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    conn =
+      put_req_header(
+        conn,
+        "accept-language",
+        "nl-NL,nl;q=0.9"
+      )
+
+    {:ok, view, _html} =
+      live(conn, "/rooms/#{room_id}?locale=en")
+
+    view
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    assert has_element?(
+             view,
+             "#selected-game h2",
+             "Selected game"
+           )
+
+    assert has_element?(
+             view,
+             "#side-to-move",
+             "White"
+           )
   end
 end

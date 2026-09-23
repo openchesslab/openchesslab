@@ -4,6 +4,15 @@ defmodule Web.Router do
   pipeline :browser do
     plug(:accepts, ["html"])
     plug(:fetch_session)
+
+    plug(Localize.Plug.PutLocale,
+      from: [:query, :session, :accept_language],
+      default: :en,
+      gettext: Web.Gettext
+    )
+
+    plug(Localize.Plug.PutSession)
+
     plug(:fetch_live_flash)
     plug(:put_root_layout, html: {Web.Layouts, :root})
     plug(:protect_from_forgery)
@@ -17,8 +26,11 @@ defmodule Web.Router do
   scope "/", Web do
     pipe_through(:browser)
 
-    live("/", PageLive, :index)
-    live("/rooms/:room_id", RoomLive, :show)
+    live_session :default,
+      on_mount: [{Web.LocaleLive, :default}] do
+      live("/", PageLive, :index)
+      live("/rooms/:room_id", RoomLive, :show)
+    end
   end
 
   # Other scopes may use custom stacks.
