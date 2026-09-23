@@ -13,6 +13,25 @@ defmodule Analysis.Games do
 
   @store Analysis.GameStore.Runtime
 
+  @spec create(Game.id()) ::
+          {:ok, Game.t(), pos_integer()}
+          | {:error, :already_exists}
+  def create(game_id) do
+    position_id =
+      Position.starting_position()
+      |> PositionStore.append()
+
+    game = Game.new(game_id, position_id)
+
+    case insert(game) do
+      {:ok, revision} ->
+        {:ok, game, revision}
+
+      {:error, :already_exists} = error ->
+        error
+    end
+  end
+
   @spec insert(Game.t()) ::
           {:ok, pos_integer()} | {:error, :already_exists}
   def insert(%Game{} = game) do

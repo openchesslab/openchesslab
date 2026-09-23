@@ -35,6 +35,35 @@ defmodule Analysis.GamesTest do
     %{game_id: game_id}
   end
 
+  describe "create/1" do
+    test "creates a game from the standard starting position", %{
+      game_id: game_id
+    } do
+      assert {:ok, game, 1} = Games.create(game_id)
+
+      assert game.id == game_id
+      assert Game.start(game) == Analysis.GameStart.standard()
+
+      root = Game.root(game)
+
+      assert {:ok, position} =
+               PositionStore.get(Node.position_id(root))
+
+      assert position == Position.starting_position()
+
+      assert {:ok, ^game, 1} = Games.get(game_id)
+    end
+
+    test "does not create the same game twice", %{
+      game_id: game_id
+    } do
+      assert {:ok, _game, 1} = Games.create(game_id)
+
+      assert {:error, :already_exists} =
+               Games.create(game_id)
+    end
+  end
+
   test "gets a stored game", %{game_id: game_id} do
     game = Game.new(game_id, 42)
 

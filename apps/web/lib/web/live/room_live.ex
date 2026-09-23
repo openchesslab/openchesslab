@@ -37,7 +37,8 @@ defmodule Web.RoomLive do
        current_path: [],
        selected_square: nil,
        root_position: nil,
-       position: nil
+       position: nil,
+       create_game_error: nil
      )}
   end
 
@@ -461,10 +462,54 @@ defmodule Web.RoomLive do
   end
 
   @impl true
+  def handle_event(
+        "create_game",
+        %{"game" => %{"id" => game_id}},
+        socket
+      ) do
+    case Games.create(game_id) do
+      {:ok, _game, _revision} ->
+        :ok = Rooms.add_game(socket.assigns.room_id, game_id)
+
+        {:noreply,
+         assign(socket,
+           create_game_error: nil
+         )}
+
+      {:error, :already_exists} ->
+        {:noreply,
+         assign(
+           socket,
+           :create_game_error,
+           gettext("Game already exists.")
+         )}
+    end
+  end
+
+  @impl true
   def render(assigns) do
     ~H"""
     <main>
       <h1>{gettext("Room")} {@room_id}</h1>
+
+      <form id="create-game-form" phx-submit="create_game">
+        <input
+          type="text"
+          name="game[id]"
+          placeholder={gettext("Game ID")}
+          required
+        />
+
+        <button type="submit">
+          {gettext("Create game")}
+        </button>
+      </form>
+
+      <%= if @create_game_error do %>
+        <p id="create-game-error" role="alert">
+          {@create_game_error}
+        </p>
+      <% end %>
 
       <form id="add-game-form" phx-submit="add_game">
         <input
