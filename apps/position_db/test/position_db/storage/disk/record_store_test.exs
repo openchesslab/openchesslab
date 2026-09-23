@@ -330,6 +330,93 @@ defmodule PositionDB.Storage.Disk.RecordStoreTest do
     end
   end
 
+  describe "scan/1" do
+    test "scans an empty store", %{
+      store: store
+    } do
+      assert {:ok, scan} =
+               RecordStore.scan(store)
+
+      assert :done =
+               RecordStore.scan_next(scan)
+    end
+
+    test "scans position ids in order", %{
+      store: store
+    } do
+      assert :ok =
+               RecordStore.append(store, 1, "aaaa")
+
+      assert :ok =
+               RecordStore.append(store, 2, "bbbb")
+
+      assert {:ok, scan} =
+               RecordStore.scan(store)
+
+      assert {:ok, 1, scan} =
+               RecordStore.scan_next(scan)
+
+      assert {:ok, 2, scan} =
+               RecordStore.scan_next(scan)
+
+      assert :done =
+               RecordStore.scan_next(scan)
+    end
+
+    test "scans across segment boundaries", %{
+      store: store
+    } do
+      assert :ok =
+               RecordStore.append(store, 1, "aaaa")
+
+      assert :ok =
+               RecordStore.append(store, 2, "bbbb")
+
+      assert :ok =
+               RecordStore.append(store, 3, "cccc")
+
+      assert :ok =
+               RecordStore.append(store, 4, "dddd")
+
+      assert {:ok, scan} =
+               RecordStore.scan(store)
+
+      assert {:ok, 1, scan} =
+               RecordStore.scan_next(scan)
+
+      assert {:ok, 2, scan} =
+               RecordStore.scan_next(scan)
+
+      assert {:ok, 3, scan} =
+               RecordStore.scan_next(scan)
+
+      assert {:ok, 4, scan} =
+               RecordStore.scan_next(scan)
+
+      assert :done =
+               RecordStore.scan_next(scan)
+    end
+
+    test "refuses to scan corrupt storage", %{
+      directory: directory,
+      store: store
+    } do
+      path =
+        Layout.segment_path(
+          directory,
+          0
+        )
+
+      File.write!(
+        path,
+        <<"aaaa", "bb">>
+      )
+
+      assert RecordStore.scan(store) ==
+               {:error, {:invalid_segment_size, 0, 6}}
+    end
+  end
+
   defp write_segment(
          directory,
          segment,

@@ -11,6 +11,11 @@ defmodule PositionDB.Storage.Disk.RecordStore do
           records_per_segment: pos_integer()
         }
 
+  @type scan_state :: %{
+          next_id: pos_integer(),
+          last_id: non_neg_integer()
+        }
+
   defstruct [
     :directory,
     :record_size,
@@ -151,6 +156,44 @@ defmodule PositionDB.Storage.Disk.RecordStore do
            count_records(store, segments) do
       {:ok, count}
     end
+  end
+
+  @spec scan(t()) ::
+          {:ok, scan_state()}
+          | {:error, term()}
+  def scan(%__MODULE__{} = store) do
+    case cardinality(store) do
+      {:ok, count} ->
+        {:ok,
+         %{
+           next_id: 1,
+           last_id: count
+         }}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @spec scan_next(scan_state()) ::
+          {:ok, pos_integer(), scan_state()}
+          | :done
+  def scan_next(
+        %{
+          next_id: next_id,
+          last_id: last_id
+        } = state
+      )
+      when next_id <= last_id do
+    {:ok, next_id, %{state | next_id: next_id + 1}}
+  end
+
+  def scan_next(%{
+        next_id: next_id,
+        last_id: last_id
+      })
+      when next_id > last_id do
+    :done
   end
 
   defp segment_numbers(filenames) do
