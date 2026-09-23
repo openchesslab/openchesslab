@@ -263,6 +263,118 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStoreTest do
     end
   end
 
+  describe "lookup/3" do
+    test "returns no candidates for a missing bucket", %{
+      store: store
+    } do
+      assert BucketStore.lookup(
+               store,
+               3,
+               <<1, 2, 3, 4>>
+             ) ==
+               {:ok, []}
+    end
+
+    test "returns ids whose complete hash matches", %{
+      store: store
+    } do
+      hash = <<1, 2, 3, 4>>
+
+      assert :ok =
+               BucketStore.append(
+                 store,
+                 3,
+                 hash,
+                 10
+               )
+
+      assert :ok =
+               BucketStore.append(
+                 store,
+                 3,
+                 <<1, 2, 3, 5>>,
+                 20
+               )
+
+      assert BucketStore.lookup(
+               store,
+               3,
+               hash
+             ) ==
+               {:ok, [10]}
+    end
+
+    test "returns multiple candidates for the same hash", %{
+      store: store
+    } do
+      hash = <<1, 2, 3, 4>>
+
+      assert :ok =
+               BucketStore.append(
+                 store,
+                 3,
+                 hash,
+                 10
+               )
+
+      assert :ok =
+               BucketStore.append(
+                 store,
+                 3,
+                 hash,
+                 20
+               )
+
+      assert BucketStore.lookup(
+               store,
+               3,
+               hash
+             ) ==
+               {:ok, [10, 20]}
+    end
+
+    test "rejects hashes with the wrong size", %{
+      store: store
+    } do
+      assert BucketStore.lookup(
+               store,
+               0,
+               <<1, 2, 3>>
+             ) ==
+               {:error, :invalid_hash_size}
+    end
+
+    test "detects a partial entry during lookup", %{
+      directory: directory,
+      store: store
+    } do
+      hash = <<1, 2, 3, 4>>
+
+      path =
+        Layout.bucket_path(
+          directory,
+          0
+        )
+
+      File.write!(
+        path,
+        <<
+          Entry.encode(hash, 1)::binary,
+          1,
+          2,
+          3
+        >>
+      )
+
+      assert BucketStore.lookup(
+               store,
+               0,
+               hash
+             ) ==
+               {:error, :partial_entry}
+    end
+  end
+
   defp write_bucket(
          directory,
          bucket,

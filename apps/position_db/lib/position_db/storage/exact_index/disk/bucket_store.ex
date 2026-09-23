@@ -136,6 +136,103 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStore do
     end
   end
 
+  @spec lookup(
+          t(),
+          non_neg_integer(),
+          binary()
+        ) ::
+          {:ok, [pos_integer()]}
+          | {:error, :invalid_hash_size}
+          | {:error, :partial_entry}
+          | {:error, term()}
+  def lookup(
+        %__MODULE__{} = store,
+        bucket,
+        hash
+      )
+      when is_integer(bucket) and
+             bucket >= 0 and
+             is_binary(hash) do
+    if byte_size(hash) == store.hash_size do
+      path =
+        Layout.bucket_path(
+          store.directory,
+          bucket
+        )
+
+      case :file.open(
+             path,
+             [:read, :binary, :raw]
+           ) do
+        {:ok, file} ->
+          try do
+            lookup_entries(
+              file,
+              hash,
+              store.hash_size,
+              Entry.size(store.hash_size),
+              []
+            )
+          after
+            :file.close(file)
+          end
+
+        {:error, :enoent} ->
+          {:ok, []}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    else
+      {:error, :invalid_hash_size}
+    end
+  end
+
+  defp lookup_entries(
+         file,
+         hash,
+         hash_size,
+         entry_size,
+         position_ids
+       ) do
+    case :file.read(
+           file,
+           entry_size
+         ) do
+      {:ok, encoded}
+      when byte_size(encoded) == entry_size ->
+        {:ok, stored_hash, position_id} =
+          Entry.decode(
+            encoded,
+            hash_size
+          )
+
+        position_ids =
+          if stored_hash == hash do
+            [position_id | position_ids]
+          else
+            position_ids
+          end
+
+        lookup_entries(
+          file,
+          hash,
+          hash_size,
+          entry_size,
+          position_ids
+        )
+
+      {:ok, _partial_entry} ->
+        {:error, :partial_entry}
+
+      :eof ->
+        {:ok, Enum.reverse(position_ids)}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
   defp validate_bucket_size(
          path,
          entry_size
