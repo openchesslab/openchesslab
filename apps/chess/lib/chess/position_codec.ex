@@ -7,6 +7,11 @@ defmodule Chess.PositionCodec do
 
   @record_size 67
 
+  @spec record_size() :: pos_integer()
+  def record_size do
+    @record_size
+  end
+
   def encode(%Position{} = position) do
     board =
       position.board
