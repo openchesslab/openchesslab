@@ -176,3 +176,9 @@ msgstr "Partij aanmaken"
 
 msgid "Game already exists."
 msgstr "Partij bestaat al."
+
+msgid "Games"
+msgstr "Partijen"
+
+msgid "No games."
+msgstr "Geen partijen."
