@@ -1606,4 +1606,25 @@ defmodule Web.RoomLiveTest do
 
     assert has_element?(view, "#navigate-child-0", "Pf3")
   end
+
+  test "uses the locale from the session", %{conn: conn, room_id: room_id} do
+    game_id = insert_playable_game()
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    conn =
+      conn
+      |> init_test_session(%{})
+      |> put_session("locale", "nl")
+
+    {:ok, view, _html} =
+      live(conn, "/rooms/#{room_id}")
+
+    view
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    assert render(view) =~ "Geselecteerde partij"
+  end
 end

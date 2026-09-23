@@ -17,7 +17,10 @@ defmodule Web.RoomLive do
   alias Web.Components.PositionEditor
 
   @impl true
-  def mount(%{"room_id" => room_id}, _session, socket) do
+  def mount(%{"room_id" => room_id}, session, socket) do
+    locale = Map.get(session, "locale", "nl")
+    Gettext.put_locale(Web.Gettext, locale)
+
     {:ok, room} = Rooms.start_room(room_id)
 
     if connected?(socket) do
@@ -26,7 +29,7 @@ defmodule Web.RoomLive do
 
     {:ok,
      assign(socket,
-       locale: "nl",
+       locale: locale,
        room_id: room_id,
        room: room,
        add_game_error: nil,
@@ -507,7 +510,7 @@ defmodule Web.RoomLive do
 
         <%= if @selected_game_id do %>
           <section id="selected-game">
-            <h2>Selected game</h2>
+            <h2>{gettext("Selected game")}</h2>
 
             <p id="selected-game-id">
               {@selected_game_id}

@@ -1,0 +1,7 @@
+msgid ""
+msgstr ""
+"Language: nl\n"
+
+#: lib/web/live/room_live.ex
+msgid "Selected game"
+msgstr "Geselecteerde partij"

@@ -77,6 +77,8 @@ defmodule Web do
 
   defp html_helpers do
     quote do
+      use Gettext, backend: Web.Gettext
+
       # HTML escaping functionality
       import Phoenix.HTML
 
