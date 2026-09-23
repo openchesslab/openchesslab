@@ -2,20 +2,28 @@ defmodule Web.GettextTest do
   use ExUnit.Case, async: true
 
   test "translates web text to Dutch" do
-    assert Gettext.dgettext(
-             Web.Gettext,
-             "default",
-             "Selected game",
-             locale: "nl"
-           ) == "Geselecteerde partij"
+    translation =
+      Gettext.with_locale(Web.Gettext, "nl", fn ->
+        Gettext.dgettext(
+          Web.Gettext,
+          "default",
+          "Selected game"
+        )
+      end)
+
+    assert translation == "Geselecteerde partij"
   end
 
   test "keeps English source text in English" do
-    assert Gettext.dgettext(
-             Web.Gettext,
-             "default",
-             "Selected game",
-             locale: "en"
-           ) == "Selected game"
+    translation =
+      Gettext.with_locale(Web.Gettext, "en", fn ->
+        Gettext.dgettext(
+          Web.Gettext,
+          "default",
+          "Selected game"
+        )
+      end)
+
+    assert translation == "Selected game"
   end
 end
