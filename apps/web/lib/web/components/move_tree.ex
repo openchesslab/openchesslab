@@ -1,5 +1,5 @@
 defmodule Web.Components.MoveTree do
-  use Phoenix.Component
+  use Web, :html
 
   alias Analysis.Game
   alias Analysis.MoveContext
@@ -142,8 +142,8 @@ defmodule Web.Components.MoveTree do
   defp transition_label(position, transition, locale) do
     case ChessNotation.format(position, transition, locale) do
       {:ok, notation} -> notation
-      :not_applicable -> "Edited position"
-      {:error, :illegal_move} -> "Invalid move"
+      :not_applicable -> gettext("Edited position")
+      {:error, :illegal_move} -> gettext("Invalid move")
     end
   end
 

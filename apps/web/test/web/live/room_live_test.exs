@@ -134,7 +134,7 @@ defmodule Web.RoomLiveTest do
     |> form("#add-game-form", %{"game" => %{"id" => "unknown-game"}})
     |> render_submit()
 
-    assert render(view) =~ "Game not found."
+    assert render(view) =~ "Partij niet gevonden."
 
     assert {:ok, room} = Rooms.get(room_id)
     assert room.game_ids == []
@@ -152,13 +152,13 @@ defmodule Web.RoomLiveTest do
     |> form("#add-game-form", %{"game" => %{"id" => "unknown-#{game_id}"}})
     |> render_submit()
 
-    assert render(view) =~ "Game not found."
+    assert render(view) =~ "Partij niet gevonden."
 
     view
     |> form("#add-game-form", %{"game" => %{"id" => game_id}})
     |> render_submit()
 
-    refute render(view) =~ "Game not found."
+    refute render(view) =~ "Partij niet gevonden."
     assert render(view) =~ game_id
   end
 
@@ -458,7 +458,7 @@ defmodule Web.RoomLiveTest do
     })
     |> render_submit()
 
-    assert has_element?(view, "#move-error", "Illegal move.")
+    assert has_element?(view, "#move-error", "Ongeldige zet.")
     assert has_element?(view, "#current-path", "Path []")
     assert has_element?(view, "#selected-game-revision", "Revision 1")
   end
@@ -487,7 +487,7 @@ defmodule Web.RoomLiveTest do
     })
     |> render_submit()
 
-    assert has_element?(view, "#move-error", "Invalid square.")
+    assert has_element?(view, "#move-error", "Ongeldig veld.")
     assert has_element?(view, "#current-path", "Path []")
   end
 
@@ -723,7 +723,7 @@ defmodule Web.RoomLiveTest do
     })
     |> render_submit()
 
-    assert has_element?(view, "#edit-error", "Invalid position.")
+    assert has_element?(view, "#edit-error", "Ongeldige stelling.")
     assert has_element?(view, "#piece-e1")
     assert has_element?(view, "#current-path", "Path []")
     assert has_element?(view, "#selected-game-revision", "Revision 1")
@@ -753,7 +753,7 @@ defmodule Web.RoomLiveTest do
     })
     |> render_submit()
 
-    assert has_element?(view, "#edit-error", "Invalid square.")
+    assert has_element?(view, "#edit-error", "Ongeldig veld.")
     assert has_element?(view, "#current-path", "Path []")
     assert has_element?(view, "#selected-game-revision", "Revision 1")
   end
@@ -838,7 +838,7 @@ defmodule Web.RoomLiveTest do
     })
     |> render_submit()
 
-    assert has_element?(view, "#edit-error", "Invalid square.")
+    assert has_element?(view, "#edit-error", "Ongeldig veld.")
     assert has_element?(view, "#current-path", "Path []")
     assert has_element?(view, "#selected-game-revision", "Revision 1")
   end
@@ -866,7 +866,7 @@ defmodule Web.RoomLiveTest do
       }
     })
 
-    assert has_element?(view, "#edit-error", "Invalid piece.")
+    assert has_element?(view, "#edit-error", "Ongeldig stuk.")
     assert has_element?(view, "#current-path", "Path []")
     assert has_element?(view, "#selected-game-revision", "Revision 1")
 
@@ -889,7 +889,7 @@ defmodule Web.RoomLiveTest do
     |> element("#select-game-#{game_id}")
     |> render_click()
 
-    assert has_element?(view, "#side-to-move", "White")
+    assert has_element?(view, "#side-to-move", "Wit")
     assert has_element?(view, "#current-path", "Path []")
     assert has_element?(view, "#selected-game-revision", "Revision 1")
 
@@ -899,7 +899,7 @@ defmodule Web.RoomLiveTest do
     })
     |> render_submit()
 
-    assert has_element?(view, "#side-to-move", "Black")
+    assert has_element?(view, "#side-to-move", "Zwart")
     assert has_element?(view, "#current-path", "Path [0]")
     assert has_element?(view, "#selected-game-revision", "Revision 2")
 
@@ -935,8 +935,8 @@ defmodule Web.RoomLiveTest do
       "edit" => %{"side_to_move" => "green"}
     })
 
-    assert has_element?(view, "#edit-error", "Invalid side to move.")
-    assert has_element?(view, "#side-to-move", "White")
+    assert has_element?(view, "#edit-error", "Ongeldige kleur aan zet.")
+    assert has_element?(view, "#side-to-move", "Wit")
     assert has_element?(view, "#current-path", "Path []")
     assert has_element?(view, "#selected-game-revision", "Revision 1")
 
@@ -959,7 +959,7 @@ defmodule Web.RoomLiveTest do
     |> element("#select-game-#{game_id}")
     |> render_click()
 
-    assert has_element?(view, "#castling-white-kingside", "Enabled")
+    assert has_element?(view, "#castling-white-kingside", "Ingeschakeld")
 
     view
     |> form("#castling-right-form", %{
@@ -970,7 +970,7 @@ defmodule Web.RoomLiveTest do
     })
     |> render_submit()
 
-    assert has_element?(view, "#castling-white-kingside", "Disabled")
+    assert has_element?(view, "#castling-white-kingside", "Uitgeschakeld")
     assert has_element?(view, "#current-path", "Path [0]")
     assert has_element?(view, "#selected-game-revision", "Revision 2")
 
@@ -1014,7 +1014,7 @@ defmodule Web.RoomLiveTest do
     })
     |> render_submit()
 
-    assert has_element?(view, "#castling-white-kingside", "Disabled")
+    assert has_element?(view, "#castling-white-kingside", "Uitgeschakeld")
 
     view
     |> form("#castling-right-form", %{
@@ -1025,7 +1025,7 @@ defmodule Web.RoomLiveTest do
     })
     |> render_submit()
 
-    assert has_element?(view, "#castling-white-kingside", "Enabled")
+    assert has_element?(view, "#castling-white-kingside", "Ingeschakeld")
     assert has_element?(view, "#current-path", "Path [0, 0]")
     assert has_element?(view, "#selected-game-revision", "Revision 3")
 
@@ -1066,7 +1066,7 @@ defmodule Web.RoomLiveTest do
       }
     })
 
-    assert has_element?(view, "#edit-error", "Invalid castling right.")
+    assert has_element?(view, "#edit-error", "Ongeldig rokaderecht.")
     assert has_element?(view, "#current-path", "Path []")
     assert has_element?(view, "#selected-game-revision", "Revision 1")
 
@@ -1115,7 +1115,7 @@ defmodule Web.RoomLiveTest do
     })
     |> render_submit()
 
-    assert has_element?(view, "#en-passant", "None")
+    assert has_element?(view, "#en-passant", "Geen")
     assert has_element?(view, "#current-path", "Path [0, 0, 0, 0, 0]")
     assert has_element?(view, "#selected-game-revision", "Revision 6")
 
@@ -1179,8 +1179,8 @@ defmodule Web.RoomLiveTest do
     })
     |> render_submit()
 
-    assert has_element?(view, "#edit-error", "Invalid position.")
-    assert has_element?(view, "#en-passant", "None")
+    assert has_element?(view, "#edit-error", "Ongeldige stelling.")
+    assert has_element?(view, "#en-passant", "Geen")
     assert has_element?(view, "#current-path", "Path []")
     assert has_element?(view, "#selected-game-revision", "Revision 1")
 
@@ -1626,5 +1626,39 @@ defmodule Web.RoomLiveTest do
     |> render_click()
 
     assert render(view) =~ "Geselecteerde partij"
+  end
+
+  test "localizes edited positions in the move tree", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_playable_game()
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    conn =
+      conn
+      |> init_test_session(%{})
+      |> put_session("locale", "nl")
+
+    {:ok, view, _html} =
+      live(conn, "/rooms/#{room_id}")
+
+    view
+    |> element("#select-game-#{game_id}")
+    |> render_click()
+
+    view
+    |> form("#side-to-move-form", %{
+      "edit" => %{"side_to_move" => "black"}
+    })
+    |> render_submit()
+
+    assert has_element?(
+             view,
+             "#move-tree-0",
+             "Bewerkte stelling"
+           )
   end
 end

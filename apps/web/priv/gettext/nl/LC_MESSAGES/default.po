@@ -5,3 +5,111 @@ msgstr ""
 #: lib/web/live/room_live.ex
 msgid "Selected game"
 msgstr "Geselecteerde partij"
+
+msgid "Edited position"
+msgstr "Bewerkte stelling"
+
+msgid "Invalid move"
+msgstr "Ongeldige zet"
+
+msgid "White"
+msgstr "Wit"
+
+msgid "Black"
+msgstr "Zwart"
+
+msgid "Set side to move"
+msgstr "Zet kleur aan zet"
+
+msgid "White kingside"
+msgstr "Wit koningszijde"
+
+msgid "White queenside"
+msgstr "Wit damezijde"
+
+msgid "Black kingside"
+msgstr "Zwart koningszijde"
+
+msgid "Black queenside"
+msgstr "Zwart damezijde"
+
+msgid "Enabled"
+msgstr "Ingeschakeld"
+
+msgid "Disabled"
+msgstr "Uitgeschakeld"
+
+msgid "En passant"
+msgstr "En passant"
+
+msgid "Square or none"
+msgstr "Veld of geen"
+
+msgid "Set en passant"
+msgstr "Stel en passant in"
+
+msgid "Square"
+msgstr "Veld"
+
+msgid "Remove piece"
+msgstr "Verwijder stuk"
+
+msgid "King"
+msgstr "Koning"
+
+msgid "Queen"
+msgstr "Dame"
+
+msgid "Rook"
+msgstr "Toren"
+
+msgid "Bishop"
+msgstr "Loper"
+
+msgid "Knight"
+msgstr "Paard"
+
+msgid "Pawn"
+msgstr "Pion"
+
+msgid "Put piece"
+msgstr "Plaats stuk"
+
+msgid "None"
+msgstr "Geen"
+
+msgid "Illegal move."
+msgstr "Ongeldige zet."
+
+msgid "Invalid square."
+msgstr "Ongeldig veld."
+
+msgid "Invalid piece."
+msgstr "Ongeldig stuk."
+
+msgid "Invalid side to move."
+msgstr "Ongeldige kleur aan zet."
+
+msgid "Invalid castling right."
+msgstr "Ongeldig rokaderecht."
+
+msgid "Invalid castling value."
+msgstr "Ongeldige rokadewaarde."
+
+msgid "Invalid en passant square."
+msgstr "Ongeldig en-passantveld."
+
+msgid "Invalid position."
+msgstr "Ongeldige stelling."
+
+msgid "Position no longer exists."
+msgstr "De stelling bestaat niet meer."
+
+msgid "Position not found."
+msgstr "Stelling niet gevonden."
+
+msgid "Game not found."
+msgstr "Partij niet gevonden."
+
+msgid "Game changed. Try again."
+msgstr "De partij is gewijzigd. Probeer opnieuw."

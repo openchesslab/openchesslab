@@ -95,7 +95,7 @@ defmodule Web.RoomLive do
         {:noreply, assign(socket, :add_game_error, nil)}
 
       :not_found ->
-        {:noreply, assign(socket, :add_game_error, "Game not found.")}
+        {:noreply, assign(socket, :add_game_error, gettext("Game not found."))}
     end
   end
 
@@ -193,7 +193,7 @@ defmodule Web.RoomLive do
       play_move(socket, move)
     else
       {:error, :invalid_square} ->
-        {:noreply, assign(socket, :move_error, "Invalid square.")}
+        {:noreply, assign(socket, :move_error, gettext("Invalid square."))}
     end
   end
 
@@ -245,7 +245,7 @@ defmodule Web.RoomLive do
         edit_position(socket, draft)
 
       {:error, :invalid_square} ->
-        {:noreply, assign(socket, :edit_error, "Invalid square.")}
+        {:noreply, assign(socket, :edit_error, gettext("Invalid square."))}
     end
   end
 
@@ -272,10 +272,10 @@ defmodule Web.RoomLive do
       edit_position(socket, draft)
     else
       {:error, :invalid_square} ->
-        {:noreply, assign(socket, :edit_error, "Invalid square.")}
+        {:noreply, assign(socket, :edit_error, gettext("Invalid square."))}
 
       {:error, :invalid_piece} ->
-        {:noreply, assign(socket, :edit_error, "Invalid piece.")}
+        {:noreply, assign(socket, :edit_error, gettext("Invalid piece."))}
     end
   end
 
@@ -295,7 +295,7 @@ defmodule Web.RoomLive do
         edit_position(socket, draft)
 
       {:error, :invalid_side_to_move} ->
-        {:noreply, assign(socket, :edit_error, "Invalid side to move.")}
+        {:noreply, assign(socket, :edit_error, gettext("Invalid side to move."))}
     end
   end
 
@@ -320,10 +320,10 @@ defmodule Web.RoomLive do
       edit_position(socket, draft)
     else
       {:error, :invalid_castling_right} ->
-        {:noreply, assign(socket, :edit_error, "Invalid castling right.")}
+        {:noreply, assign(socket, :edit_error, gettext("Invalid castling right."))}
 
       {:error, :invalid_boolean} ->
-        {:noreply, assign(socket, :edit_error, "Invalid castling value.")}
+        {:noreply, assign(socket, :edit_error, gettext("Invalid castling value."))}
     end
   end
 
@@ -663,19 +663,19 @@ defmodule Web.RoomLive do
         {:noreply, socket}
 
       {:error, :illegal_move} ->
-        {:noreply, assign(socket, :move_error, "Illegal move.")}
+        {:noreply, assign(socket, :move_error, gettext("Illegal move."))}
 
       {:error, :node_not_found} ->
-        {:noreply, assign(socket, :move_error, "Position no longer exists.")}
+        {:noreply, assign(socket, :move_error, gettext("Position no longer exists."))}
 
       {:error, :position_not_found} ->
-        {:noreply, assign(socket, :move_error, "Position not found.")}
+        {:noreply, assign(socket, :move_error, gettext("Position not found."))}
 
       {:error, :game_not_found} ->
-        {:noreply, assign(socket, :move_error, "Game not found.")}
+        {:noreply, assign(socket, :move_error, gettext("Game not found."))}
 
       {:error, :conflict} ->
-        {:noreply, assign(socket, :move_error, "Game changed. Try again.")}
+        {:noreply, assign(socket, :move_error, gettext("Game changed. Try again."))}
     end
   end
 
@@ -697,16 +697,16 @@ defmodule Web.RoomLive do
         {:noreply, socket}
 
       {:error, {:invalid_position, _reasons}} ->
-        {:noreply, assign(socket, :edit_error, "Invalid position.")}
+        {:noreply, assign(socket, :edit_error, gettext("Invalid position."))}
 
       {:error, :node_not_found} ->
-        {:noreply, assign(socket, :edit_error, "Position no longer exists.")}
+        {:noreply, assign(socket, :edit_error, gettext("Position no longer exists."))}
 
       {:error, :game_not_found} ->
-        {:noreply, assign(socket, :edit_error, "Game not found.")}
+        {:noreply, assign(socket, :edit_error, gettext("Game not found."))}
 
       {:error, :conflict} ->
-        {:noreply, assign(socket, :edit_error, "Game changed. Try again.")}
+        {:noreply, assign(socket, :edit_error, gettext("Game changed. Try again."))}
     end
   end
 
@@ -788,10 +788,10 @@ defmodule Web.RoomLive do
         notation
 
       :not_applicable ->
-        "Edited position"
+        gettext("Edited position")
 
       {:error, :illegal_move} ->
-        "Invalid move"
+        gettext("Invalid move")
     end
   end
 
