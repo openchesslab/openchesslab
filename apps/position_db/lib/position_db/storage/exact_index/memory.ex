@@ -33,7 +33,7 @@ defmodule PositionDB.Storage.ExactIndex.Memory do
         &MapSet.put(&1, position_id)
       )
 
-    %{index | entries: entries}
+    {:ok, %{index | entries: entries}}
   end
 
   @impl PositionDB.Storage.ExactIndex
@@ -42,8 +42,11 @@ defmodule PositionDB.Storage.ExactIndex.Memory do
         key
       )
       when is_binary(key) do
-    index.entries
-    |> Map.get(key, MapSet.new())
-    |> MapSet.to_list()
+    position_ids =
+      index.entries
+      |> Map.get(key, MapSet.new())
+      |> MapSet.to_list()
+
+    {:ok, position_ids}
   end
 end
