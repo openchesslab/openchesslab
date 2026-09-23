@@ -1696,6 +1696,12 @@ defmodule Web.RoomLiveTest do
     assert has_element?(view, "#play-move-form button", "Zet spelen")
     assert has_element?(view, "#current-comment", "Geen commentaar")
     assert has_element?(view, "#comment-form button", "Commentaar opslaan")
+
+    assert has_element?(
+             view,
+             "#castling-right-form button",
+             "Stel rokaderecht in"
+           )
   end
 
   test "uses English as the default locale", %{
