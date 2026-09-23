@@ -14,6 +14,9 @@ defmodule Analysis.GameStore do
               {:ok, Game.t(), revision()}
               | :not_found
 
+  @callback list(store()) ::
+              [{Game.t(), revision()}]
+
   @callback update(store(), Game.t(), revision()) ::
               {:ok, revision()}
               | {:error, :not_found | :conflict}

@@ -616,4 +616,12 @@ defmodule Analysis.GamesTest do
 
     assert_receive {:game_changed, ^game_id}
   end
+
+  test "lists stored games", %{game_id: game_id} do
+    game = Game.new(game_id, 42)
+
+    assert {:ok, 1} = Games.insert(game)
+
+    assert {game, 1} in Games.list()
+  end
 end

@@ -34,6 +34,12 @@ defmodule Analysis.GameStore.Dets do
   end
 
   @impl Analysis.GameStore
+  @spec list(store()) :: [{Game.t(), revision()}]
+  def list(store) do
+    GenServer.call(store, :list)
+  end
+
+  @impl Analysis.GameStore
   @spec update(store(), Game.t(), revision()) ::
           {:ok, revision()}
           | {:error, :not_found | :conflict}
@@ -99,6 +105,19 @@ defmodule Analysis.GameStore.Dets do
       end
 
     {:reply, reply, table}
+  end
+
+  def handle_call(:list, _from, table) do
+    games =
+      :dets.foldl(
+        fn {_id, revision, game}, acc ->
+          [{game, revision} | acc]
+        end,
+        [],
+        table
+      )
+
+    {:reply, games, table}
   end
 
   def handle_call(

@@ -35,6 +35,42 @@ defmodule Analysis.GameStore.MemoryTest do
     end
   end
 
+  describe "list/1" do
+    test "returns all stored games with their revisions", %{store: store} do
+      game_1 = Game.new("game-1", :p0)
+      game_2 = Game.new("game-2", :p1)
+
+      assert {:ok, 1} = Memory.insert(store, game_1)
+      assert {:ok, 1} = Memory.insert(store, game_2)
+
+      assert MapSet.new(Memory.list(store)) ==
+               MapSet.new([
+                 {game_1, 1},
+                 {game_2, 1}
+               ])
+    end
+
+    test "returns the current revision", %{store: store} do
+      game = Game.new("game-1", :p0)
+
+      assert {:ok, 1} = Memory.insert(store, game)
+
+      updated_game =
+        %{game | metadata: %{event: "Candidates"}}
+
+      assert {:ok, 2} =
+               Memory.update(store, updated_game, 1)
+
+      assert Memory.list(store) == [
+               {updated_game, 2}
+             ]
+    end
+
+    test "returns an empty list for an empty store", %{store: store} do
+      assert Memory.list(store) == []
+    end
+  end
+
   describe "update/3" do
     test "replaces a game when the expected revision matches",
          %{store: store} do

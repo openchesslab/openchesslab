@@ -180,4 +180,52 @@ defmodule Analysis.GameStore.DetsTest do
 
     GenServer.stop(store)
   end
+
+  describe "list/1" do
+    test "returns all stored games with their revisions", %{path: path} do
+      {:ok, store} = Dets.start_link(path)
+
+      game_1 = Game.new("game-1", :p0)
+      game_2 = Game.new("game-2", :p1)
+
+      assert {:ok, 1} = Dets.insert(store, game_1)
+      assert {:ok, 1} = Dets.insert(store, game_2)
+
+      assert MapSet.new(Dets.list(store)) ==
+               MapSet.new([
+                 {game_1, 1},
+                 {game_2, 1}
+               ])
+
+      GenServer.stop(store)
+    end
+
+    test "returns the current revision", %{path: path} do
+      {:ok, store} = Dets.start_link(path)
+
+      game = Game.new("game-1", :p0)
+
+      assert {:ok, 1} = Dets.insert(store, game)
+
+      updated_game =
+        %{game | metadata: %{event: "Candidates"}}
+
+      assert {:ok, 2} =
+               Dets.update(store, updated_game, 1)
+
+      assert Dets.list(store) == [
+               {updated_game, 2}
+             ]
+
+      GenServer.stop(store)
+    end
+
+    test "returns an empty list for an empty store", %{path: path} do
+      {:ok, store} = Dets.start_link(path)
+
+      assert Dets.list(store) == []
+
+      GenServer.stop(store)
+    end
+  end
 end

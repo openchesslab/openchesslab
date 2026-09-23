@@ -1874,4 +1874,56 @@ defmodule Web.RoomLiveTest do
     assert html_response(conn, 200) =~
              "Ruimte #{room_id}"
   end
+
+  test "creates a game and adds it to the room", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = "game-#{System.unique_integer([:positive])}"
+
+    {:ok, view, _html} =
+      live(conn, "/rooms/#{room_id}")
+
+    view
+    |> form("#create-game-form", %{
+      "game" => %{"id" => game_id}
+    })
+    |> render_submit()
+
+    assert {:ok, game, 1} = Games.get(game_id)
+    assert game.id == game_id
+
+    assert {:ok, room} = Rooms.get(room_id)
+    assert game_id in room.game_ids
+
+    assert has_element?(
+             view,
+             "#select-game-#{game_id}"
+           )
+  end
+
+  test "shows an error when creating an existing game", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_playable_game()
+
+    {:ok, view, _html} =
+      live(conn, "/rooms/#{room_id}")
+
+    view
+    |> form("#create-game-form", %{
+      "game" => %{"id" => game_id}
+    })
+    |> render_submit()
+
+    assert has_element?(
+             view,
+             "#create-game-error",
+             "Game already exists."
+           )
+
+    assert {:ok, room} = Rooms.get(room_id)
+    refute game_id in room.game_ids
+  end
 end

@@ -44,6 +44,11 @@ defmodule Analysis.Games do
     Memory.get(@store, game_id)
   end
 
+  @spec list() :: [{Game.t(), pos_integer()}]
+  def list do
+    Memory.list(@store)
+  end
+
   @spec play(Game.id(), Game.path(), Move.t()) ::
           {:ok, Game.t(), pos_integer(), Game.path()}
           | {:error,

@@ -49,6 +49,12 @@ defmodule Analysis.GameStore.Memory do
   end
 
   @impl Analysis.GameStore
+  @spec list(store()) :: [{Game.t(), revision()}]
+  def list(store) do
+    GenServer.call(store, :list)
+  end
+
+  @impl Analysis.GameStore
   @spec update(store(), Game.t(), revision()) ::
           {:ok, revision()}
           | {:error, :not_found | :conflict}
@@ -102,6 +108,15 @@ defmodule Analysis.GameStore.Memory do
       end
 
     {:reply, reply, games}
+  end
+
+  def handle_call(:list, _from, games) do
+    entries =
+      Enum.map(games, fn {_id, %{game: game, revision: revision}} ->
+        {game, revision}
+      end)
+
+    {:reply, entries, games}
   end
 
   def handle_call(
