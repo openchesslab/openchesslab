@@ -230,6 +230,106 @@ defmodule PositionDB.Storage.Disk.RecordStoreTest do
     end
   end
 
+  describe "cardinality/1" do
+    test "returns zero for an empty store", %{
+      store: store
+    } do
+      assert RecordStore.cardinality(store) ==
+               {:ok, 0}
+    end
+
+    test "counts records in the current segment", %{
+      store: store
+    } do
+      assert :ok =
+               RecordStore.append(store, 1, "aaaa")
+
+      assert :ok =
+               RecordStore.append(store, 2, "bbbb")
+
+      assert RecordStore.cardinality(store) ==
+               {:ok, 2}
+    end
+
+    test "counts records across segments", %{
+      store: store
+    } do
+      assert :ok =
+               RecordStore.append(store, 1, "aaaa")
+
+      assert :ok =
+               RecordStore.append(store, 2, "bbbb")
+
+      assert :ok =
+               RecordStore.append(store, 3, "cccc")
+
+      assert :ok =
+               RecordStore.append(store, 4, "dddd")
+
+      assert RecordStore.cardinality(store) ==
+               {:ok, 4}
+    end
+
+    test "rejects a partial final record", %{
+      directory: directory,
+      store: store
+    } do
+      path =
+        Layout.segment_path(
+          directory,
+          0
+        )
+
+      File.write!(
+        path,
+        <<"aaaa", "bb">>
+      )
+
+      assert RecordStore.cardinality(store) ==
+               {:error, {:invalid_segment_size, 0, 6}}
+    end
+
+    test "rejects an incomplete segment before a later segment", %{
+      directory: directory,
+      store: store
+    } do
+      write_segment(
+        directory,
+        0,
+        ["aaaa", "bbbb"]
+      )
+
+      write_segment(
+        directory,
+        1,
+        ["dddd"]
+      )
+
+      assert RecordStore.cardinality(store) ==
+               {:error, {:invalid_segment_size, 0, 8}}
+    end
+
+    test "rejects gaps between segments", %{
+      directory: directory,
+      store: store
+    } do
+      write_segment(
+        directory,
+        0,
+        ["aaaa", "bbbb", "cccc"]
+      )
+
+      write_segment(
+        directory,
+        2,
+        ["gggg"]
+      )
+
+      assert RecordStore.cardinality(store) ==
+               {:error, :non_contiguous_segments}
+    end
+  end
+
   defp write_segment(
          directory,
          segment,

@@ -135,6 +135,140 @@ defmodule PositionDB.Storage.Disk.RecordStore do
     end
   end
 
+  @spec cardinality(t()) ::
+          {:ok, non_neg_integer()}
+          | {:error, :non_contiguous_segments}
+          | {:error, {:invalid_segment_size, non_neg_integer(), non_neg_integer()}}
+          | {:error, term()}
+  def cardinality(%__MODULE__{} = store) do
+    with {:ok, filenames} <-
+           File.ls(store.directory),
+         segments <-
+           segment_numbers(filenames),
+         :ok <-
+           validate_segment_sequence(segments),
+         {:ok, count} <-
+           count_records(store, segments) do
+      {:ok, count}
+    end
+  end
+
+  defp segment_numbers(filenames) do
+    filenames
+    |> Enum.flat_map(fn filename ->
+      case Regex.run(
+             ~r/^segment-(\d+)\.dat$/,
+             filename,
+             capture: :all_but_first
+           ) do
+        [number] ->
+          segment =
+            String.to_integer(number)
+
+          if filename ==
+               Layout.segment_filename(segment) do
+            [segment]
+          else
+            []
+          end
+
+        nil ->
+          []
+      end
+    end)
+    |> Enum.sort()
+  end
+
+  defp validate_segment_sequence(segments) do
+    valid? =
+      segments
+      |> Enum.with_index()
+      |> Enum.all?(fn {segment, index} ->
+        segment == index
+      end)
+
+    if valid? do
+      :ok
+    else
+      {:error, :non_contiguous_segments}
+    end
+  end
+
+  defp count_records(_store, []) do
+    {:ok, 0}
+  end
+
+  defp count_records(store, segments) do
+    last_segment =
+      List.last(segments)
+
+    segment_capacity =
+      store.record_size *
+        store.records_per_segment
+
+    Enum.reduce_while(
+      segments,
+      {:ok, 0},
+      fn segment, {:ok, count} ->
+        path =
+          Layout.segment_path(
+            store.directory,
+            segment
+          )
+
+        case File.stat(path) do
+          {:ok, %{size: size}} ->
+            case segment_record_count(
+                   store,
+                   segment,
+                   last_segment,
+                   size,
+                   segment_capacity
+                 ) do
+              {:ok, records} ->
+                {:cont, {:ok, count + records}}
+
+              {:error, reason} ->
+                {:halt, {:error, reason}}
+            end
+
+          {:error, reason} ->
+            {:halt, {:error, reason}}
+        end
+      end
+    )
+  end
+
+  defp segment_record_count(
+         store,
+         segment,
+         last_segment,
+         size,
+         segment_capacity
+       ) do
+    valid_size? =
+      cond do
+        size > segment_capacity ->
+          false
+
+        rem(size, store.record_size) != 0 ->
+          false
+
+        segment != last_segment and
+            size != segment_capacity ->
+          false
+
+        true ->
+          true
+      end
+
+    if valid_size? do
+      {:ok, div(size, store.record_size)}
+    else
+      {:error, {:invalid_segment_size, segment, size}}
+    end
+  end
+
   defp validate_previous_segment(
          _store,
          0,
