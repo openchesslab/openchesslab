@@ -17,29 +17,40 @@ defmodule Web.RoomLive do
   alias Web.Components.PositionEditor
 
   @impl true
-  def mount(%{"room_id" => room_id}, _session, socket) do
+  def mount(%{"room_id" => room_id} = params, _session, socket) do
     {:ok, room} = Rooms.start_room(room_id)
 
     if connected?(socket) do
       :ok = RoomEvents.subscribe(room_id)
     end
 
-    {:ok,
-     assign(socket,
-       room_id: room_id,
-       room: room,
-       add_game_error: nil,
-       move_error: nil,
-       edit_error: nil,
-       selected_game_id: nil,
-       game: nil,
-       game_revision: nil,
-       current_path: [],
-       selected_square: nil,
-       root_position: nil,
-       position: nil,
-       create_game_error: nil
-     )}
+    socket =
+      assign(socket,
+        room_id: room_id,
+        room: room,
+        add_game_error: nil,
+        move_error: nil,
+        edit_error: nil,
+        selected_game_id: nil,
+        game: nil,
+        game_revision: nil,
+        current_path: [],
+        selected_square: nil,
+        root_position: nil,
+        position: nil,
+        create_game_error: nil
+      )
+
+    socket =
+      case Map.get(params, "game_id") do
+        nil ->
+          socket
+
+        game_id ->
+          select_game(socket, game_id)
+      end
+
+    {:ok, socket}
   end
 
   @impl true
@@ -113,26 +124,7 @@ defmodule Web.RoomLive do
         %{"game_id" => game_id},
         socket
       ) do
-    case Games.get(game_id) do
-      {:ok, game, revision} ->
-        subscribe_to_game(socket, game_id)
-        root = Game.root(game)
-        {:ok, root_position} = PositionStore.get(Node.position_id(root))
-
-        socket =
-          socket
-          |> assign(
-            selected_game_id: game_id,
-            game_revision: revision,
-            root_position: root_position
-          )
-          |> assign_current_occurrence(game, [])
-
-        {:noreply, socket}
-
-      :not_found ->
-        {:noreply, socket}
-    end
+    {:noreply, select_game(socket, game_id)}
   end
 
   @impl true
@@ -847,5 +839,32 @@ defmodule Web.RoomLive do
     path
     |> String.split(",")
     |> Enum.map(&String.to_integer/1)
+  end
+
+  defp select_game(socket, game_id) do
+    if game_id in socket.assigns.room.game_ids do
+      case Games.get(game_id) do
+        {:ok, game, revision} ->
+          subscribe_to_game(socket, game_id)
+
+          root = Game.root(game)
+
+          {:ok, root_position} =
+            PositionStore.get(Node.position_id(root))
+
+          socket
+          |> assign(
+            selected_game_id: game_id,
+            game_revision: revision,
+            root_position: root_position
+          )
+          |> assign_current_occurrence(game, [])
+
+        :not_found ->
+          socket
+      end
+    else
+      socket
+    end
   end
 end

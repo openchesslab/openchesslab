@@ -1926,4 +1926,47 @@ defmodule Web.RoomLiveTest do
     assert {:ok, room} = Rooms.get(room_id)
     refute game_id in room.game_ids
   end
+
+  test "selects a game supplied in the room URL", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_playable_game()
+
+    assert {:ok, _room} = Rooms.start_room(room_id)
+    assert :ok = Rooms.add_game(room_id, game_id)
+
+    {:ok, view, _html} =
+      live(
+        conn,
+        "/rooms/#{room_id}?game_id=#{game_id}"
+      )
+
+    assert has_element?(
+             view,
+             "#selected-game-id",
+             game_id
+           )
+
+    assert has_element?(
+             view,
+             "#selected-game-revision",
+             "Revision 1"
+           )
+  end
+
+  test "does not select a game that is not in the room", %{
+    conn: conn,
+    room_id: room_id
+  } do
+    game_id = insert_playable_game()
+
+    {:ok, view, _html} =
+      live(
+        conn,
+        "/rooms/#{room_id}?game_id=#{game_id}"
+      )
+
+    refute has_element?(view, "#selected-game")
+  end
 end

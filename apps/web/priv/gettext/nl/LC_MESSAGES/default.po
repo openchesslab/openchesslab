@@ -182,3 +182,9 @@ msgstr "Partijen"
 
 msgid "No games."
 msgstr "Geen partijen."
+
+msgid "Room ID"
+msgstr "Ruimte-ID"
+
+msgid "Open in room"
+msgstr "Open in ruimte"
