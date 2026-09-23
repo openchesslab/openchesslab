@@ -57,4 +57,39 @@ defmodule PositionDB.Storage.Disk.LayoutTest do
            ) ==
              {99, 999_999 * 67}
   end
+
+  describe "segment_filename/1" do
+    test "uses a stable zero-padded segment name" do
+      assert Layout.segment_filename(0) ==
+               "segment-00000000.dat"
+
+      assert Layout.segment_filename(1) ==
+               "segment-00000001.dat"
+
+      assert Layout.segment_filename(42) ==
+               "segment-00000042.dat"
+    end
+
+    test "does not impose an eight-digit segment limit" do
+      assert Layout.segment_filename(100_000_000) ==
+               "segment-100000000.dat"
+    end
+  end
+
+  describe "segment_path/2" do
+    test "places a segment inside the storage directory" do
+      directory =
+        Path.join([
+          "var",
+          "openchesslab",
+          "positions"
+        ])
+
+      assert Layout.segment_path(directory, 12) ==
+               Path.join(
+                 directory,
+                 "segment-00000012.dat"
+               )
+    end
+  end
 end

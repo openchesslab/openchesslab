@@ -38,4 +38,24 @@ defmodule PositionDB.Storage.Disk.Layout do
       slot * record_size
     }
   end
+
+  @spec segment_filename(segment()) :: String.t()
+  def segment_filename(segment)
+      when is_integer(segment) and segment >= 0 do
+    segment
+    |> Integer.to_string()
+    |> String.pad_leading(8, "0")
+    |> then(&"segment-#{&1}.dat")
+  end
+
+  @spec segment_path(Path.t(), segment()) :: Path.t()
+  def segment_path(directory, segment)
+      when is_binary(directory) and
+             is_integer(segment) and
+             segment >= 0 do
+    Path.join(
+      directory,
+      segment_filename(segment)
+    )
+  end
 end
