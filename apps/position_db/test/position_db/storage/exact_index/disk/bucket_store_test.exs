@@ -127,6 +127,142 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStoreTest do
              {:error, :partial_entry}
   end
 
+  describe "append/4" do
+    test "appends an entry that can be read back", %{
+      store: store
+    } do
+      hash = <<1, 2, 3, 4>>
+
+      assert :ok =
+               BucketStore.append(
+                 store,
+                 3,
+                 hash,
+                 10
+               )
+
+      assert BucketStore.get(
+               store,
+               3,
+               0
+             ) ==
+               {:ok, hash, 10}
+    end
+
+    test "appends multiple entries to the same bucket", %{
+      store: store
+    } do
+      hash_1 = <<1, 2, 3, 4>>
+      hash_2 = <<5, 6, 7, 8>>
+
+      assert :ok =
+               BucketStore.append(
+                 store,
+                 3,
+                 hash_1,
+                 10
+               )
+
+      assert :ok =
+               BucketStore.append(
+                 store,
+                 3,
+                 hash_2,
+                 20
+               )
+
+      assert BucketStore.get(
+               store,
+               3,
+               0
+             ) ==
+               {:ok, hash_1, 10}
+
+      assert BucketStore.get(
+               store,
+               3,
+               1
+             ) ==
+               {:ok, hash_2, 20}
+    end
+
+    test "keeps buckets separate", %{
+      store: store
+    } do
+      hash_1 = <<1, 2, 3, 4>>
+      hash_2 = <<5, 6, 7, 8>>
+
+      assert :ok =
+               BucketStore.append(
+                 store,
+                 1,
+                 hash_1,
+                 10
+               )
+
+      assert :ok =
+               BucketStore.append(
+                 store,
+                 2,
+                 hash_2,
+                 20
+               )
+
+      assert BucketStore.get(
+               store,
+               1,
+               0
+             ) ==
+               {:ok, hash_1, 10}
+
+      assert BucketStore.get(
+               store,
+               2,
+               0
+             ) ==
+               {:ok, hash_2, 20}
+    end
+
+    test "rejects hashes with the wrong size", %{
+      store: store
+    } do
+      assert BucketStore.append(
+               store,
+               0,
+               <<1, 2, 3>>,
+               1
+             ) ==
+               {:error, :invalid_hash_size}
+    end
+
+    test "does not append to a bucket containing a partial entry", %{
+      directory: directory,
+      store: store
+    } do
+      path =
+        Layout.bucket_path(
+          directory,
+          0
+        )
+
+      File.write!(
+        path,
+        <<1, 2, 3>>
+      )
+
+      assert BucketStore.append(
+               store,
+               0,
+               <<1, 2, 3, 4>>,
+               1
+             ) ==
+               {:error, :partial_entry}
+
+      assert File.read!(path) ==
+               <<1, 2, 3>>
+    end
+  end
+
   defp write_bucket(
          directory,
          bucket,
