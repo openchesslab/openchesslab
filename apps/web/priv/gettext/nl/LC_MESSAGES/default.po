@@ -113,3 +113,51 @@ msgstr "Partij niet gevonden."
 
 msgid "Game changed. Try again."
 msgstr "De partij is gewijzigd. Probeer opnieuw."
+
+msgid "Room"
+msgstr "Ruimte"
+
+msgid "Game ID"
+msgstr "Partij-ID"
+
+msgid "Add game"
+msgstr "Partij toevoegen"
+
+msgid "No games in this room."
+msgstr "Geen partijen in deze ruimte."
+
+msgid "Select"
+msgstr "Selecteren"
+
+msgid "Remove"
+msgstr "Verwijderen"
+
+msgid "Revision"
+msgstr "Revisie"
+
+msgid "Path"
+msgstr "Pad"
+
+msgid "From"
+msgstr "Van"
+
+msgid "To"
+msgstr "Naar"
+
+msgid "Play move"
+msgstr "Zet spelen"
+
+msgid "No comment"
+msgstr "Geen commentaar"
+
+msgid "Save comment"
+msgstr "Commentaar opslaan"
+
+msgid "Promote variation"
+msgstr "Variant promoveren"
+
+msgid "Remove subtree"
+msgstr "Subboom verwijderen"
+
+msgid "Parent"
+msgstr "Bovenliggende stelling"

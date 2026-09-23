@@ -343,7 +343,12 @@ defmodule Web.RoomLive do
         edit_position(socket, draft)
 
       {:error, :invalid_en_passant} ->
-        {:noreply, assign(socket, :edit_error, "Invalid en passant square.")}
+        {:noreply,
+         assign(
+           socket,
+           :edit_error,
+           gettext("Invalid en passant square.")
+         )}
     end
   end
 
@@ -463,17 +468,17 @@ defmodule Web.RoomLive do
   def render(assigns) do
     ~H"""
     <main>
-      <h1>Room {@room_id}</h1>
+      <h1>{gettext("Room")} {@room_id}</h1>
 
       <form id="add-game-form" phx-submit="add_game">
         <input
           type="text"
           name="game[id]"
-          placeholder="Game ID"
+          placeholder={gettext("Game ID")}
           required
         />
         <button type="submit">
-          Add game
+          {gettext("Add game")}
         </button>
       </form>
 
@@ -482,7 +487,7 @@ defmodule Web.RoomLive do
       <% end %>
 
       <%= if @room.game_ids == [] do %>
-        <p>No games in this room.</p>
+        <p>{gettext("No games in this room.")}</p>
       <% else %>
         <ul>
           <li :for={game_id <- @room.game_ids}>
@@ -494,7 +499,7 @@ defmodule Web.RoomLive do
               phx-click="select_game"
               phx-value-game_id={game_id}
             >
-              Select
+              {gettext("Select")}
             </button>
 
             <button
@@ -503,7 +508,7 @@ defmodule Web.RoomLive do
               phx-click="remove_game"
               phx-value-game_id={game_id}
             >
-              Remove
+              {gettext("Remove")}
             </button>
           </li>
         </ul>
@@ -517,11 +522,11 @@ defmodule Web.RoomLive do
             </p>
 
             <p id="selected-game-revision">
-              Revision {@game_revision}
+              {gettext("Revision")} {@game_revision}
             </p>
 
             <p id="current-path">
-              Path {inspect(@current_path)}
+              {gettext("Path")} {inspect(@current_path)}
             </p>
 
             <MoveTree.move_tree
@@ -541,19 +546,19 @@ defmodule Web.RoomLive do
               <input
                 type="text"
                 name="move[from]"
-                placeholder="From"
+                placeholder={gettext("From")}
                 required
               />
 
               <input
                 type="text"
                 name="move[to]"
-                placeholder="To"
+                placeholder={gettext("To")}
                 required
               />
 
               <button type="submit">
-                Play move
+                {gettext("Play move")}
               </button>
             </form>
 
@@ -567,7 +572,7 @@ defmodule Web.RoomLive do
               <%= if comment = Node.comment(current_node) do %>
                 {comment}
               <% else %>
-                No comment
+                {gettext("No comment")}
               <% end %>
             </div>
 
@@ -575,7 +580,7 @@ defmodule Web.RoomLive do
               <textarea name="comment[text]">{Node.comment(current_node)}</textarea>
 
               <button type="submit">
-                Save comment
+                {gettext("Save comment")}
               </button>
             </form>
 
@@ -585,7 +590,7 @@ defmodule Web.RoomLive do
               type="button"
               phx-click="promote_variation"
             >
-              Promote variation
+              {gettext("Promote variation")}
             </button>
 
             <button
@@ -594,7 +599,7 @@ defmodule Web.RoomLive do
               type="button"
               phx-click="remove_subtree"
             >
-              Remove subtree
+              {gettext("Remove subtree")}
             </button>
 
             <button
@@ -603,7 +608,7 @@ defmodule Web.RoomLive do
               type="button"
               phx-click="navigate_parent"
             >
-              Parent
+              {gettext("Parent")}
             </button>
 
             <button
