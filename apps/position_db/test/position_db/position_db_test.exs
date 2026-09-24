@@ -14,6 +14,58 @@ defmodule PositionDBTest do
   alias PositionDB.PropertyIndex.Memory, as: PropertyIndexMemory
   alias PositionDB.Query
 
+  defmodule FailingPropertyIndex do
+    @behaviour PositionDB.PropertyIndex.Backend
+
+    @impl PositionDB.PropertyIndex.Backend
+    def add(
+          %{fail_on: :add},
+          _property,
+          _position_id
+        ) do
+      {:error, :disk_failure}
+    end
+
+    def add(
+          state,
+          _property,
+          _position_id
+        ) do
+      {:ok, state}
+    end
+
+    @impl PositionDB.PropertyIndex.Backend
+    def advance(
+          %{fail_on: :advance},
+          _position_id
+        ) do
+      {:error, :disk_failure}
+    end
+
+    def advance(
+          state,
+          _position_id
+        ) do
+      {:ok, state}
+    end
+
+    @impl PositionDB.PropertyIndex.Backend
+    def lookup(
+          _state,
+          _property
+        ) do
+      {:ok, []}
+    end
+
+    @impl PositionDB.PropertyIndex.Backend
+    def cardinality(
+          _state,
+          _property
+        ) do
+      {:ok, 0}
+    end
+  end
+
   defmodule TrackingPropertyIndex do
     @behaviour PositionDB.PropertyIndex.Backend
 
@@ -739,5 +791,65 @@ defmodule PositionDBTest do
 
     assert db.indexer.index ==
              property_index
+  end
+
+  test "propagates property posting errors while appending" do
+    property_index =
+      PropertyIndex.new(
+        FailingPropertyIndex,
+        %{
+          fail_on: :add
+        }
+      )
+
+    db =
+      PositionDB.new(
+        key_function: & &1.id,
+        properties: [
+          {:open_files, & &1.open_files}
+        ],
+        property_index: property_index
+      )
+
+    position = %{
+      id: :position_1,
+      open_files: [:a]
+    }
+
+    assert PositionDB.append(
+             db,
+             position
+           ) ==
+             {:error, :disk_failure}
+  end
+
+  test "propagates property progress errors while appending" do
+    property_index =
+      PropertyIndex.new(
+        FailingPropertyIndex,
+        %{
+          fail_on: :advance
+        }
+      )
+
+    db =
+      PositionDB.new(
+        key_function: & &1.id,
+        properties: [
+          {:open_files, & &1.open_files}
+        ],
+        property_index: property_index
+      )
+
+    position = %{
+      id: :position_1,
+      open_files: [:a]
+    }
+
+    assert PositionDB.append(
+             db,
+             position
+           ) ==
+             {:error, :disk_failure}
   end
 end

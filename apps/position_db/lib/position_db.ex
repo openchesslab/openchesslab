@@ -141,28 +141,31 @@ defmodule PositionDB do
          position,
          position_id
        ) do
-    indexer =
-      PositionIndexer.index(
-        db.indexer,
-        position_id,
-        position
-      )
+    case PositionIndexer.index(
+           db.indexer,
+           position_id,
+           position
+         ) do
+      %PositionIndexer{} = indexer ->
+        equivalence =
+          EquivalenceContext.add(
+            db.equivalence,
+            position,
+            position_id
+          )
 
-    equivalence =
-      EquivalenceContext.add(
-        db.equivalence,
-        position,
-        position_id
-      )
+        {
+          %{
+            db
+            | store: store,
+              indexer: indexer,
+              equivalence: equivalence
+          },
+          position_id
+        }
 
-    {
-      %{
-        db
-        | store: store,
-          indexer: indexer,
-          equivalence: equivalence
-      },
-      position_id
-    }
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 end
