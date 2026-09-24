@@ -135,18 +135,25 @@ defmodule PositionDB.Storage.ExactIndex.Disk do
     end
   end
 
-  defp key_hash(
-         %__MODULE__{} = index,
-         key
-       ) do
-    case index.hash_module.hash(key) do
+  @doc false
+  @spec key_hash(t(), binary()) ::
+          {:ok, binary()}
+          | {:error, term()}
+  def key_hash(
+        %__MODULE__{
+          hash_module: hash_module,
+          hash_size: hash_size
+        },
+        key
+      )
+      when is_binary(key) do
+    case hash_module.hash(key) do
       {:ok, hash}
       when is_binary(hash) ->
-        if byte_size(hash) ==
-             index.hash_size do
+        if byte_size(hash) == hash_size do
           {:ok, hash}
         else
-          {:error, {:invalid_hash_size, index.hash_size, byte_size(hash)}}
+          {:error, {:invalid_hash_size, hash_size, byte_size(hash)}}
         end
 
       {:ok, _hash} ->
