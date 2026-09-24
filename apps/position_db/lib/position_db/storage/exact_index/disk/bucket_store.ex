@@ -3,6 +3,7 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStore do
   Reads and appends fixed-size entries in exact-index bucket files.
   """
 
+  alias PositionDB.Storage.Disk.Durability
   alias PositionDB.Storage.ExactIndex.Disk.Entry
   alias PositionDB.Storage.ExactIndex.Disk.Layout
 
@@ -125,6 +126,57 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStore do
              ) do
         append_entry(
           path,
+          Entry.encode(
+            hash,
+            position_id
+          )
+        )
+      end
+    else
+      {:error, :invalid_hash_size}
+    end
+  end
+
+  @spec append_durable(
+          t(),
+          non_neg_integer(),
+          binary(),
+          pos_integer()
+        ) ::
+          :ok
+          | {:error, :invalid_hash_size}
+          | {:error, :partial_entry}
+          | {:error, term()}
+  def append_durable(
+        %__MODULE__{} = store,
+        bucket,
+        hash,
+        position_id
+      )
+      when is_integer(bucket) and
+             bucket >= 0 and
+             is_binary(hash) and
+             is_integer(position_id) and
+             position_id > 0 do
+    if byte_size(hash) == store.hash_size do
+      path =
+        Layout.bucket_path(
+          store.directory,
+          bucket
+        )
+
+      entry_size =
+        Entry.size(store.hash_size)
+
+      with {:ok, bucket_state} <-
+             bucket_state(
+               path,
+               entry_size
+             ) do
+        append_entry_durable(
+          store.directory,
+          path,
+          bucket_state,
           Entry.encode(
             hash,
             position_id
@@ -300,5 +352,77 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStore do
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  defp bucket_state(
+         path,
+         entry_size
+       ) do
+    case File.stat(path) do
+      {:ok, %{size: size}} ->
+        if rem(size, entry_size) == 0 do
+          {:ok, :existing}
+        else
+          {:error, :partial_entry}
+        end
+
+      {:error, :enoent} ->
+        {:ok, :new}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp append_entry_durable(
+         directory,
+         path,
+         bucket_state,
+         entry
+       ) do
+    case :file.open(
+           path,
+           [:append, :binary, :raw]
+         ) do
+      {:ok, file} ->
+        result =
+          try do
+            with :ok <-
+                   :file.write(
+                     file,
+                     entry
+                   ),
+                 :ok <-
+                   :file.sync(file) do
+              :ok
+            end
+          after
+            :file.close(file)
+          end
+
+        with :ok <- result do
+          sync_bucket_directory(
+            directory,
+            bucket_state
+          )
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp sync_bucket_directory(
+         directory,
+         :new
+       ) do
+    Durability.sync_directory(directory)
+  end
+
+  defp sync_bucket_directory(
+         _directory,
+         :existing
+       ) do
+    :ok
   end
 end

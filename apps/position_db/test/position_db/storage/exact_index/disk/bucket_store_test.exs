@@ -263,6 +263,106 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStoreTest do
     end
   end
 
+  describe "append_durable/4" do
+    test "durably appends an entry to a new bucket", %{
+      directory: directory,
+      store: store
+    } do
+      hash = <<1, 2, 3, 4>>
+
+      assert :ok =
+               BucketStore.append_durable(
+                 store,
+                 3,
+                 hash,
+                 10
+               )
+
+      path =
+        Layout.bucket_path(
+          directory,
+          3
+        )
+
+      assert File.read!(path) ==
+               Entry.encode(
+                 hash,
+                 10
+               )
+
+      assert BucketStore.get(
+               store,
+               3,
+               0
+             ) ==
+               {:ok, hash, 10}
+    end
+
+    test "durably appends to an existing bucket", %{
+      store: store
+    } do
+      hash_1 = <<1, 2, 3, 4>>
+      hash_2 = <<5, 6, 7, 8>>
+
+      assert :ok =
+               BucketStore.append_durable(
+                 store,
+                 3,
+                 hash_1,
+                 10
+               )
+
+      assert :ok =
+               BucketStore.append_durable(
+                 store,
+                 3,
+                 hash_2,
+                 20
+               )
+
+      assert BucketStore.get(
+               store,
+               3,
+               0
+             ) ==
+               {:ok, hash_1, 10}
+
+      assert BucketStore.get(
+               store,
+               3,
+               1
+             ) ==
+               {:ok, hash_2, 20}
+    end
+
+    test "does not durably append to a bucket containing a partial entry", %{
+      directory: directory,
+      store: store
+    } do
+      path =
+        Layout.bucket_path(
+          directory,
+          0
+        )
+
+      File.write!(
+        path,
+        <<1, 2, 3>>
+      )
+
+      assert BucketStore.append_durable(
+               store,
+               0,
+               <<1, 2, 3, 4>>,
+               1
+             ) ==
+               {:error, :partial_entry}
+
+      assert File.read!(path) ==
+               <<1, 2, 3>>
+    end
+  end
+
   describe "lookup/3" do
     test "returns no candidates for a missing bucket", %{
       store: store

@@ -119,7 +119,7 @@ defmodule PositionDB.Storage.ExactIndex.Disk do
       if position_id in candidates do
         {:ok, index}
       else
-        case BucketStore.append(
+        case BucketStore.append_durable(
                index.bucket_store,
                bucket,
                hash,
