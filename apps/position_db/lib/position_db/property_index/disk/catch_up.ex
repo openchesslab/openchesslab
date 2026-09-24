@@ -181,10 +181,7 @@ defmodule PositionDB.PropertyIndex.Disk.CatchUp do
            position
          ) do
       %PositionIndexer{} = indexer ->
-        advance(
-          indexer,
-          position_id
-        )
+        {:ok, indexer}
 
       {:error, reason} ->
         {:error, reason}

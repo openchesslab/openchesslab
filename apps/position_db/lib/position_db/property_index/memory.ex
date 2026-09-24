@@ -48,6 +48,16 @@ defmodule PositionDB.PropertyIndex.Memory do
   end
 
   @impl PositionDB.PropertyIndex.Backend
+  def advance(
+        %__MODULE__{} = index,
+        position_id
+      )
+      when is_integer(position_id) and
+             position_id > 0 do
+    {:ok, index}
+  end
+
+  @impl PositionDB.PropertyIndex.Backend
   def lookup(
         %__MODULE__{} = index,
         property

@@ -53,6 +53,14 @@ defmodule PositionDB.PropertyIndexBackendTest do
     end
 
     @impl PositionDB.PropertyIndex.Backend
+    def advance(
+          _backend,
+          _property
+        ) do
+      {:error, :disk_failure}
+    end
+
+    @impl PositionDB.PropertyIndex.Backend
     def lookup(
           _backend,
           _property

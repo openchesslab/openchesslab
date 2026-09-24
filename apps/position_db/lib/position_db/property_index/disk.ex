@@ -112,6 +112,7 @@ defmodule PositionDB.PropertyIndex.Disk do
     end
   end
 
+  @impl PositionDB.PropertyIndex.Backend
   @spec add(
           t(),
           property(),
@@ -203,6 +204,7 @@ defmodule PositionDB.PropertyIndex.Disk do
     end
   end
 
+  @impl PositionDB.PropertyIndex.Backend
   @spec lookup(
           t(),
           property()
@@ -225,6 +227,7 @@ defmodule PositionDB.PropertyIndex.Disk do
     end
   end
 
+  @impl PositionDB.PropertyIndex.Backend
   @spec cardinality(
           t(),
           property()
@@ -255,6 +258,7 @@ defmodule PositionDB.PropertyIndex.Disk do
     indexed_through_id
   end
 
+  @impl PositionDB.PropertyIndex.Backend
   @spec advance(
           t(),
           non_neg_integer()

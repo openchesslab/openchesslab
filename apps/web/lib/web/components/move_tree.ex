@@ -59,7 +59,6 @@ defmodule Web.Components.MoveTree do
         child_index={0}
         locale={@locale}
       />
-
       <div
         :for={{child, child_index} <- @variations}
         id={"move-tree-variation-#{path_id(@path ++ [child_index])}"}

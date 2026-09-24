@@ -88,22 +88,24 @@ defmodule PositionDB.PositionIndexer do
         position_id,
         position
       ) do
-    case index_properties(
-           properties_for(
-             indexer,
-             position
+    with {:ok, index} <-
+           index_properties(
+             properties_for(
+               indexer,
+               position
+             ),
+             indexer.index,
+             position_id
            ),
-           indexer.index,
-           position_id
-         ) do
-      {:ok, index} ->
-        %{
-          indexer
-          | index: index
-        }
-
-      {:error, reason} ->
-        {:error, reason}
+         {:ok, index} <-
+           PropertyIndex.advance_result(
+             index,
+             position_id
+           ) do
+      %{
+        indexer
+        | index: index
+      }
     end
   end
 

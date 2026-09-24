@@ -100,6 +100,35 @@ defmodule PositionDB.PropertyIndex do
     end
   end
 
+  @spec advance_result(
+          t(),
+          position_id()
+        ) ::
+          {:ok, t()}
+          | {:error, term()}
+  def advance_result(
+        %__MODULE__{
+          backend_module: backend_module,
+          backend: backend
+        } = index,
+        position_id
+      ) do
+    case backend_module.advance(
+           backend,
+           position_id
+         ) do
+      {:ok, next_backend} ->
+        {:ok,
+         %{
+           index
+           | backend: next_backend
+         }}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
   @spec lookup(
           t(),
           property()

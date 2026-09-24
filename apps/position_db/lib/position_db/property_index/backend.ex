@@ -15,6 +15,13 @@ defmodule PositionDB.PropertyIndex.Backend do
               {:ok, t()}
               | {:error, term()}
 
+  @callback advance(
+              t(),
+              position_id()
+            ) ::
+              {:ok, t()}
+              | {:error, term()}
+
   @callback lookup(
               t(),
               property()
