@@ -8,6 +8,7 @@ defmodule PositionDB.Storage.Disk.ExactIndexBuilder do
   This avoids lookup-before-append work during a full rebuild.
   """
 
+  alias PositionDB.Storage.Disk.Durability
   alias PositionDB.Storage.Disk.RecordStore
   alias PositionDB.Storage.ExactIndex.Disk, as: ExactIndex
   alias PositionDB.Storage.ExactIndex.Disk.BucketStore
@@ -32,7 +33,9 @@ defmodule PositionDB.Storage.Disk.ExactIndexBuilder do
              record_store,
              exact_index,
              scan
-           ) do
+           ),
+         :ok <-
+           sync_index(exact_index) do
       {:ok, exact_index}
     end
   end
@@ -125,5 +128,47 @@ defmodule PositionDB.Storage.Disk.ExactIndexBuilder do
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  defp sync_index(%ExactIndex{} = exact_index) do
+    directory =
+      exact_index.bucket_store.directory
+
+    with {:ok, filenames} <-
+           File.ls(directory),
+         :ok <-
+           sync_files(
+             directory,
+             filenames
+           ),
+         :ok <-
+           Durability.sync_directory(directory) do
+      :ok
+    end
+  end
+
+  defp sync_files(
+         directory,
+         filenames
+       ) do
+    Enum.reduce_while(
+      filenames,
+      :ok,
+      fn filename, :ok ->
+        path =
+          Path.join(
+            directory,
+            filename
+          )
+
+        case Durability.sync_file(path) do
+          :ok ->
+            {:cont, :ok}
+
+          {:error, reason} ->
+            {:halt, {:error, reason}}
+        end
+      end
+    )
   end
 end

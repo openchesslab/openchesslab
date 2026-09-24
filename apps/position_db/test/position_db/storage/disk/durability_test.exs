@@ -155,4 +155,45 @@ defmodule PositionDB.Storage.Disk.DurabilityTest do
     assert File.dir?(source)
     refute File.exists?(destination)
   end
+
+  test "syncs an existing regular file", %{
+    root: root
+  } do
+    path =
+      Path.join(
+        root,
+        "data"
+      )
+
+    File.write!(
+      path,
+      <<"value">>
+    )
+
+    assert Durability.sync_file(path) ==
+             :ok
+
+    assert File.read!(path) ==
+             <<"value">>
+  end
+
+  test "rejects a directory as a regular file", %{
+    root: root
+  } do
+    assert Durability.sync_file(root) ==
+             {:error, :not_a_regular_file}
+  end
+
+  test "rejects a missing regular file", %{
+    root: root
+  } do
+    path =
+      Path.join(
+        root,
+        "missing"
+      )
+
+    assert Durability.sync_file(path) ==
+             {:error, :enoent}
+  end
 end

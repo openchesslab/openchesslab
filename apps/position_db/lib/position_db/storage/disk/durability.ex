@@ -77,6 +77,35 @@ defmodule PositionDB.Storage.Disk.Durability do
     end
   end
 
+  @spec sync_file(Path.t()) ::
+          :ok
+          | {:error, term()}
+  def sync_file(path)
+      when is_binary(path) do
+    with :ok <-
+           validate_regular_file(path) do
+      case :file.open(
+             path,
+             [
+               :read,
+               :write,
+               :binary,
+               :raw
+             ]
+           ) do
+        {:ok, file} ->
+          try do
+            :file.sync(file)
+          after
+            :file.close(file)
+          end
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
   defp validate_directory(directory) do
     case File.stat(directory) do
       {:ok, %{type: :directory}} ->
@@ -84,6 +113,19 @@ defmodule PositionDB.Storage.Disk.Durability do
 
       {:ok, _stat} ->
         {:error, :not_a_directory}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp validate_regular_file(path) do
+    case File.stat(path) do
+      {:ok, %{type: :regular}} ->
+        :ok
+
+      {:ok, _stat} ->
+        {:error, :not_a_regular_file}
 
       {:error, reason} ->
         {:error, reason}
