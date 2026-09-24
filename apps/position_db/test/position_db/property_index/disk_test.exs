@@ -503,5 +503,126 @@ defmodule PositionDB.PropertyIndex.DiskTest do
 
       assert Disk.indexed_through(index) == 0
     end
+
+    test "recovers all properties for a position when a later posting is partial in the same bucket",
+         %{
+           directory: directory
+         } do
+      assert {:ok, index} =
+               Disk.create(
+                 directory,
+                 codec: TestCodec,
+                 bucket_count: 1
+               )
+
+      assert {:ok, first_key} =
+               TestCodec.encode(
+                 :color,
+                 :white
+               )
+
+      assert {:ok, second_key} =
+               TestCodec.encode(
+                 :selected,
+                 true
+               )
+
+      first_entry =
+        Entry.encode(
+          first_key,
+          10
+        )
+
+      second_entry =
+        Entry.encode(
+          second_key,
+          10
+        )
+
+      path =
+        Layout.bucket_path(
+          directory,
+          0
+        )
+
+      File.write!(
+        path,
+        <<
+          first_entry::binary,
+          binary_part(
+            second_entry,
+            0,
+            5
+          )::binary
+        >>
+      )
+
+      assert {:ok, index} =
+               Disk.recover_adds(
+                 index,
+                 [
+                   {:color, :white},
+                   {:selected, true}
+                 ],
+                 10
+               )
+
+      assert Disk.lookup(
+               index,
+               {:color, :white}
+             ) ==
+               {:ok, [10]}
+
+      assert Disk.lookup(
+               index,
+               {:selected, true}
+             ) ==
+               {:ok, [10]}
+
+      assert File.read!(path) ==
+               <<
+                 first_entry::binary,
+                 second_entry::binary
+               >>
+    end
+
+    test "recovering all properties for a position does not advance progress",
+         %{
+           directory: directory
+         } do
+      assert {:ok, index} =
+               Disk.create(
+                 directory,
+                 codec: TestCodec,
+                 bucket_count: 1
+               )
+
+      assert {:ok, index} =
+               Disk.recover_adds(
+                 index,
+                 [
+                   {:color, :white},
+                   {:selected, true}
+                 ],
+                 10
+               )
+
+      assert Disk.lookup(
+               index,
+               {:color, :white}
+             ) ==
+               {:ok, [10]}
+
+      assert Disk.lookup(
+               index,
+               {:selected, true}
+             ) ==
+               {:ok, [10]}
+
+      assert Disk.indexed_through(index) == 0
+
+      assert IndexProgressStore.read(directory) ==
+               {:ok, 0}
+    end
   end
 end

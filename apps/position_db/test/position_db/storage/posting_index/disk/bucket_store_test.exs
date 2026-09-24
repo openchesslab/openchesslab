@@ -551,4 +551,162 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStoreTest do
                >>
     end
   end
+
+  describe "recover_pending_appends/3" do
+    test "recovers a later partial posting when an earlier expected posting is in the same bucket",
+         %{
+           directory: directory,
+           store: store
+         } do
+      first =
+        Entry.encode(
+          <<"first">>,
+          10
+        )
+
+      second =
+        Entry.encode(
+          <<"second">>,
+          10
+        )
+
+      path =
+        Layout.bucket_path(
+          directory,
+          3
+        )
+
+      File.write!(
+        path,
+        <<
+          first::binary,
+          binary_part(
+            second,
+            0,
+            5
+          )::binary
+        >>
+      )
+
+      assert :ok =
+               BucketStore.recover_pending_appends(
+                 store,
+                 3,
+                 [
+                   {<<"first">>, 10},
+                   {<<"second">>, 10}
+                 ]
+               )
+
+      assert File.read!(path) ==
+               <<
+                 first::binary,
+                 second::binary
+               >>
+    end
+
+    test "restores all missing expected postings after a matching partial tail",
+         %{
+           directory: directory,
+           store: store
+         } do
+      first =
+        Entry.encode(
+          <<"first">>,
+          10
+        )
+
+      second =
+        Entry.encode(
+          <<"second">>,
+          10
+        )
+
+      third =
+        Entry.encode(
+          <<"third">>,
+          10
+        )
+
+      path =
+        Layout.bucket_path(
+          directory,
+          3
+        )
+
+      File.write!(
+        path,
+        <<
+          first::binary,
+          binary_part(
+            second,
+            0,
+            7
+          )::binary
+        >>
+      )
+
+      assert :ok =
+               BucketStore.recover_pending_appends(
+                 store,
+                 3,
+                 [
+                   {<<"first">>, 10},
+                   {<<"second">>, 10},
+                   {<<"third">>, 10}
+                 ]
+               )
+
+      assert File.read!(path) ==
+               <<
+                 first::binary,
+                 second::binary,
+                 third::binary
+               >>
+    end
+
+    test "refuses a partial tail unrelated to every expected posting",
+         %{
+           directory: directory,
+           store: store
+         } do
+      first =
+        Entry.encode(
+          <<"first">>,
+          10
+        )
+
+      path =
+        Layout.bucket_path(
+          directory,
+          3
+        )
+
+      corrupted =
+        <<
+          first::binary,
+          255,
+          254,
+          253
+        >>
+
+      File.write!(
+        path,
+        corrupted
+      )
+
+      assert BucketStore.recover_pending_appends(
+               store,
+               3,
+               [
+                 {<<"first">>, 10},
+                 {<<"second">>, 10}
+               ]
+             ) ==
+               {:error, :unexpected_partial_entry}
+
+      assert File.read!(path) ==
+               corrupted
+    end
+  end
 end

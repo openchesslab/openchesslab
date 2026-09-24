@@ -166,16 +166,38 @@ defmodule PositionDB.PropertyIndex.Disk do
       )
       when is_integer(position_id) and
              position_id > 0 do
-    with {:ok, key} <-
-           encode_property(
+    recover_adds(
+      index,
+      [property],
+      position_id
+    )
+  end
+
+  @spec recover_adds(
+          t(),
+          [property()],
+          pos_integer()
+        ) ::
+          {:ok, t()}
+          | {:error, term()}
+  def recover_adds(
+        %__MODULE__{} = index,
+        properties,
+        position_id
+      )
+      when is_list(properties) and
+             is_integer(position_id) and
+             position_id > 0 do
+    with {:ok, postings} <-
+           encode_properties(
              index,
-             property
+             properties,
+             position_id
            ),
          :ok <-
-           PostingIndex.recover_pending_append(
+           PostingIndex.recover_pending_appends(
              index.posting_index,
-             key,
-             position_id
+             postings
            ) do
       {:ok, index}
     end
@@ -345,6 +367,44 @@ defmodule PositionDB.PropertyIndex.Disk do
 
       {:error, :eexist} ->
         {:error, :property_index_exists}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp encode_properties(
+         index,
+         properties,
+         position_id
+       ) do
+    Enum.reduce_while(
+      properties,
+      {:ok, []},
+      fn property, {:ok, postings} ->
+        case encode_property(
+               index,
+               property
+             ) do
+          {:ok, key} ->
+            {:cont,
+             {:ok,
+              [
+                {
+                  key,
+                  position_id
+                }
+                | postings
+              ]}}
+
+          {:error, reason} ->
+            {:halt, {:error, reason}}
+        end
+      end
+    )
+    |> case do
+      {:ok, postings} ->
+        {:ok, Enum.reverse(postings)}
 
       {:error, reason} ->
         {:error, reason}

@@ -146,17 +146,54 @@ defmodule PositionDB.Storage.PostingIndex.Disk do
       when is_binary(key) and
              is_integer(position_id) and
              position_id > 0 do
-    bucket =
+    recover_pending_appends(
+      index,
+      [
+        {
+          key,
+          position_id
+        }
+      ]
+    )
+  end
+
+  @spec recover_pending_appends(
+          t(),
+          [{binary(), pos_integer()}]
+        ) ::
+          :ok
+          | {:error, term()}
+  def recover_pending_appends(
+        %__MODULE__{} = index,
+        postings
+      )
+      when is_list(postings) do
+    postings
+    |> Enum.uniq()
+    |> Enum.group_by(fn {key, _position_id} ->
       bucket_for_key(
         index,
         key
       )
+    end)
+    |> Enum.sort_by(fn {bucket, _postings} ->
+      bucket
+    end)
+    |> Enum.reduce_while(
+      :ok,
+      fn {bucket, bucket_postings}, :ok ->
+        case BucketStore.recover_pending_appends(
+               index.bucket_store,
+               bucket,
+               bucket_postings
+             ) do
+          :ok ->
+            {:cont, :ok}
 
-    BucketStore.recover_pending_append(
-      index.bucket_store,
-      bucket,
-      key,
-      position_id
+          {:error, reason} ->
+            {:halt, {:error, reason}}
+        end
+      end
     )
   end
 

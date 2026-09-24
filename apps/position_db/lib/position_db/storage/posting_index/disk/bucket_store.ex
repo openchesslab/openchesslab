@@ -80,17 +80,6 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
   Recovery scans only the affected bucket file to locate variable-size
   entry boundaries.
   """
-  @spec recover_pending_append(
-          t(),
-          non_neg_integer(),
-          binary(),
-          position_id()
-        ) ::
-          :ok
-          | {:error, :unexpected_partial_entry}
-          | {:error, :partial_entry}
-          | {:error, :invalid_position_id}
-          | {:error, term()}
   def recover_pending_append(
         %__MODULE__{} = store,
         bucket,
@@ -102,26 +91,80 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
              is_binary(key) and
              is_integer(position_id) and
              position_id > 0 do
+    recover_pending_appends(
+      store,
+      bucket,
+      [
+        {
+          key,
+          position_id
+        }
+      ]
+    )
+  end
+
+  @type posting :: {binary(), position_id()}
+
+  @doc """
+  Recovers all expected posting entries for one logical indexing unit.
+
+  Complete expected entries are preserved. If the bucket ends in a
+  partial entry, that tail is only truncated when it matches a prefix
+  of one of the expected entries.
+
+  Missing expected entries are then appended durably.
+  """
+  @spec recover_pending_appends(
+          t(),
+          non_neg_integer(),
+          [posting()]
+        ) ::
+          :ok
+          | {:error, :unexpected_partial_entry}
+          | {:error, :partial_entry}
+          | {:error, :invalid_position_id}
+          | {:error, term()}
+  def recover_pending_appends(
+        %__MODULE__{} = store,
+        bucket,
+        postings
+      )
+      when is_integer(bucket) and
+             bucket >= 0 and
+             is_list(postings) and
+             postings != [] do
+    expected =
+      postings
+      |> Enum.uniq()
+      |> Enum.map(fn {key, position_id}
+                     when is_binary(key) and
+                            is_integer(position_id) and
+                            position_id > 0 ->
+        {
+          {key, position_id},
+          Entry.encode(
+            key,
+            position_id
+          )
+        }
+      end)
+
     path =
       Layout.bucket_path(
         store.directory,
         bucket
       )
 
-    entry =
-      Entry.encode(
-        key,
-        position_id
-      )
-
     case File.stat(path) do
-      {:ok, %{type: :regular, size: size}} ->
-        recover_existing_bucket(
+      {:ok,
+       %{
+         type: :regular,
+         size: size
+       }} ->
+        recover_expected_entries(
           store,
           path,
-          key,
-          position_id,
-          entry,
+          expected,
           size
         )
 
@@ -129,12 +172,12 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
         {:error, :not_a_regular_file}
 
       {:error, :enoent} ->
-        persist_pending_entry(
+        persist_missing_entries(
           store,
           path,
           :new,
-          entry,
-          false
+          expected,
+          %{}
         )
 
       {:error, reason} ->
@@ -331,220 +374,6 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
     :ok
   end
 
-  defp recover_existing_bucket(
-         store,
-         path,
-         key,
-         position_id,
-         entry,
-         size
-       ) do
-    case inspect_bucket(
-           path,
-           size,
-           key,
-           position_id
-         ) do
-      {:ok, found?} ->
-        persist_pending_entry(
-          store,
-          path,
-          :existing,
-          entry,
-          found?
-        )
-
-      {:partial, offset, partial, found?} ->
-        with :ok <-
-               validate_partial_entry(
-                 partial,
-                 entry
-               ),
-             :ok <-
-               truncate_bucket(
-                 path,
-                 offset
-               ),
-             :ok <-
-               persist_pending_entry(
-                 store,
-                 path,
-                 :existing,
-                 entry,
-                 found?
-               ) do
-          :ok
-        end
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  defp inspect_bucket(
-         path,
-         size,
-         key,
-         position_id
-       ) do
-    case :file.open(
-           path,
-           [:read, :binary, :raw]
-         ) do
-      {:ok, file} ->
-        try do
-          inspect_entries(
-            file,
-            0,
-            size,
-            key,
-            position_id,
-            false
-          )
-        after
-          :file.close(file)
-        end
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  defp inspect_entries(
-         _file,
-         offset,
-         size,
-         _key,
-         _position_id,
-         found?
-       )
-       when offset == size do
-    {:ok, found?}
-  end
-
-  defp inspect_entries(
-         file,
-         offset,
-         size,
-         key,
-         position_id,
-         found?
-       )
-       when offset < size do
-    header_size =
-      Entry.header_size()
-
-    remaining =
-      size - offset
-
-    if remaining < header_size do
-      with {:ok, partial} <-
-             read_exact(
-               file,
-               offset,
-               remaining
-             ) do
-        {:partial, offset, partial, found?}
-      end
-    else
-      inspect_entry(
-        file,
-        offset,
-        size,
-        key,
-        position_id,
-        found?
-      )
-    end
-  end
-
-  defp inspect_entry(
-         file,
-         offset,
-         size,
-         key,
-         position_id,
-         found?
-       ) do
-    header_size =
-      Entry.header_size()
-
-    with {:ok, header} <-
-           read_exact(
-             file,
-             offset,
-             header_size
-           ),
-         {:ok, key_size, stored_position_id} <-
-           Entry.decode_header(header) do
-      entry_size =
-        header_size + key_size
-
-      remaining =
-        size - offset
-
-      if remaining < entry_size do
-        with {:ok, partial} <-
-               read_exact(
-                 file,
-                 offset,
-                 remaining
-               ) do
-          {:partial, offset, partial, found?}
-        end
-      else
-        inspect_complete_entry(
-          file,
-          offset,
-          size,
-          key,
-          position_id,
-          found?,
-          key_size,
-          stored_position_id,
-          entry_size
-        )
-      end
-    end
-  end
-
-  defp inspect_complete_entry(
-         file,
-         offset,
-         size,
-         key,
-         position_id,
-         found?,
-         key_size,
-         stored_position_id,
-         entry_size
-       ) do
-    key_offset =
-      offset +
-        Entry.header_size()
-
-    with {:ok, stored_key} <-
-           read_exact(
-             file,
-             key_offset,
-             key_size
-           ) do
-      found? =
-        found? or
-          (stored_key == key and
-             stored_position_id == position_id)
-
-      inspect_entries(
-        file,
-        offset + entry_size,
-        size,
-        key,
-        position_id,
-        found?
-      )
-    end
-  end
-
   defp read_exact(
          _file,
          _offset,
@@ -576,75 +405,6 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
 
       {:error, reason} ->
         {:error, reason}
-    end
-  end
-
-  defp persist_pending_entry(
-         store,
-         path,
-         bucket_state,
-         entry,
-         found?
-       ) do
-    with :ok <-
-           ensure_pending_entry(
-             store,
-             path,
-             bucket_state,
-             entry,
-             found?
-           ),
-         :ok <-
-           Durability.sync_directory(store.directory) do
-      :ok
-    end
-  end
-
-  defp ensure_pending_entry(
-         _store,
-         path,
-         _bucket_state,
-         _entry,
-         true
-       ) do
-    Durability.sync_file(path)
-  end
-
-  defp ensure_pending_entry(
-         store,
-         path,
-         bucket_state,
-         entry,
-         false
-       ) do
-    append_entry_durable(
-      store.directory,
-      path,
-      bucket_state,
-      entry
-    )
-  end
-
-  defp validate_partial_entry(
-         partial,
-         entry
-       ) do
-    if byte_size(partial) <=
-         byte_size(entry) do
-      expected =
-        binary_part(
-          entry,
-          0,
-          byte_size(partial)
-        )
-
-      if partial == expected do
-        :ok
-      else
-        {:error, :unexpected_partial_entry}
-      end
-    else
-      {:error, :unexpected_partial_entry}
     end
   end
 
@@ -680,6 +440,343 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
 
       {:error, reason} ->
         {:error, reason}
+    end
+  end
+
+  defp recover_expected_entries(
+         store,
+         path,
+         expected,
+         size
+       ) do
+    expected_pairs =
+      Map.new(
+        expected,
+        fn {pair, _entry} ->
+          {
+            pair,
+            true
+          }
+        end
+      )
+
+    case inspect_expected_entries(
+           path,
+           size,
+           expected_pairs
+         ) do
+      {:ok, found} ->
+        persist_missing_entries(
+          store,
+          path,
+          :existing,
+          expected,
+          found
+        )
+
+      {:partial, offset, partial, found} ->
+        with :ok <-
+               validate_expected_partial(
+                 partial,
+                 expected
+               ),
+             :ok <-
+               truncate_bucket(
+                 path,
+                 offset
+               ),
+             :ok <-
+               persist_missing_entries(
+                 store,
+                 path,
+                 :existing,
+                 expected,
+                 found
+               ) do
+          :ok
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp inspect_expected_entries(
+         path,
+         size,
+         expected
+       ) do
+    case :file.open(
+           path,
+           [:read, :binary, :raw]
+         ) do
+      {:ok, file} ->
+        try do
+          inspect_expected_entries(
+            file,
+            0,
+            size,
+            expected,
+            %{}
+          )
+        after
+          :file.close(file)
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp inspect_expected_entries(
+         _file,
+         offset,
+         size,
+         _expected,
+         found
+       )
+       when offset == size do
+    {:ok, found}
+  end
+
+  defp inspect_expected_entries(
+         file,
+         offset,
+         size,
+         expected,
+         found
+       )
+       when offset < size do
+    header_size =
+      Entry.header_size()
+
+    remaining =
+      size - offset
+
+    if remaining <
+         header_size do
+      with {:ok, partial} <-
+             read_exact(
+               file,
+               offset,
+               remaining
+             ) do
+        {:partial, offset, partial, found}
+      end
+    else
+      inspect_expected_entry(
+        file,
+        offset,
+        size,
+        expected,
+        found
+      )
+    end
+  end
+
+  defp inspect_expected_entry(
+         file,
+         offset,
+         size,
+         expected,
+         found
+       ) do
+    header_size =
+      Entry.header_size()
+
+    with {:ok, header} <-
+           read_exact(
+             file,
+             offset,
+             header_size
+           ),
+         {:ok, key_size, position_id} <-
+           Entry.decode_header(header) do
+      entry_size =
+        header_size +
+          key_size
+
+      remaining =
+        size - offset
+
+      if remaining <
+           entry_size do
+        with {:ok, partial} <-
+               read_exact(
+                 file,
+                 offset,
+                 remaining
+               ) do
+          {:partial, offset, partial, found}
+        end
+      else
+        inspect_complete_expected_entry(
+          file,
+          offset,
+          size,
+          expected,
+          found,
+          key_size,
+          position_id,
+          entry_size
+        )
+      end
+    end
+  end
+
+  defp inspect_complete_expected_entry(
+         file,
+         offset,
+         size,
+         expected,
+         found,
+         key_size,
+         position_id,
+         entry_size
+       ) do
+    key_offset =
+      offset +
+        Entry.header_size()
+
+    with {:ok, key} <-
+           read_exact(
+             file,
+             key_offset,
+             key_size
+           ) do
+      pair =
+        {
+          key,
+          position_id
+        }
+
+      found =
+        if Map.has_key?(
+             expected,
+             pair
+           ) do
+          Map.put(
+            found,
+            pair,
+            true
+          )
+        else
+          found
+        end
+
+      inspect_expected_entries(
+        file,
+        offset + entry_size,
+        size,
+        expected,
+        found
+      )
+    end
+  end
+
+  defp validate_expected_partial(
+         partial,
+         expected
+       ) do
+    matches? =
+      Enum.any?(
+        expected,
+        fn {_pair, entry} ->
+          partial_matches_entry?(
+            partial,
+            entry
+          )
+        end
+      )
+
+    if matches? do
+      :ok
+    else
+      {:error, :unexpected_partial_entry}
+    end
+  end
+
+  defp partial_matches_entry?(
+         partial,
+         entry
+       ) do
+    partial_size =
+      byte_size(partial)
+
+    partial_size <=
+      byte_size(entry) and
+      partial ==
+        binary_part(
+          entry,
+          0,
+          partial_size
+        )
+  end
+
+  defp persist_missing_entries(
+         store,
+         path,
+         bucket_state,
+         expected,
+         found
+       ) do
+    missing =
+      Enum.reject(
+        expected,
+        fn {pair, _entry} ->
+          Map.has_key?(
+            found,
+            pair
+          )
+        end
+      )
+
+    with :ok <-
+           append_missing_entries(
+             store,
+             path,
+             bucket_state,
+             missing
+           ),
+         :ok <-
+           Durability.sync_file(path),
+         :ok <-
+           Durability.sync_directory(store.directory) do
+      :ok
+    end
+  end
+
+  defp append_missing_entries(
+         _store,
+         _path,
+         _bucket_state,
+         []
+       ) do
+    :ok
+  end
+
+  defp append_missing_entries(
+         store,
+         path,
+         bucket_state,
+         [
+           {_pair, entry}
+           | rest
+         ]
+       ) do
+    with :ok <-
+           append_entry_durable(
+             store.directory,
+             path,
+             bucket_state,
+             entry
+           ) do
+      append_missing_entries(
+        store,
+        path,
+        :existing,
+        rest
+      )
     end
   end
 end
