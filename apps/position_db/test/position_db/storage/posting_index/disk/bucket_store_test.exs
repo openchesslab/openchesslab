@@ -257,4 +257,298 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStoreTest do
                {:error, :invalid_position_id}
     end
   end
+
+  describe "recover_pending_append/4" do
+    test "restores an entry when the bucket does not exist", %{
+      directory: directory,
+      store: store
+    } do
+      assert :ok =
+               BucketStore.recover_pending_append(
+                 store,
+                 3,
+                 <<"key-a">>,
+                 10
+               )
+
+      path =
+        Layout.bucket_path(
+          directory,
+          3
+        )
+
+      assert File.read!(path) ==
+               Entry.encode(
+                 <<"key-a">>,
+                 10
+               )
+    end
+
+    test "does not duplicate an already complete pending entry", %{
+      directory: directory,
+      store: store
+    } do
+      entry =
+        Entry.encode(
+          <<"key-a">>,
+          10
+        )
+
+      path =
+        Layout.bucket_path(
+          directory,
+          3
+        )
+
+      File.write!(
+        path,
+        entry
+      )
+
+      assert :ok =
+               BucketStore.recover_pending_append(
+                 store,
+                 3,
+                 <<"key-a">>,
+                 10
+               )
+
+      assert File.read!(path) ==
+               entry
+    end
+
+    test "appends when the position id exists under a different key", %{
+      directory: directory,
+      store: store
+    } do
+      previous =
+        Entry.encode(
+          <<"collision-a">>,
+          10
+        )
+
+      pending =
+        Entry.encode(
+          <<"collision-b">>,
+          10
+        )
+
+      path =
+        Layout.bucket_path(
+          directory,
+          3
+        )
+
+      File.write!(
+        path,
+        previous
+      )
+
+      assert :ok =
+               BucketStore.recover_pending_append(
+                 store,
+                 3,
+                 <<"collision-b">>,
+                 10
+               )
+
+      assert File.read!(path) ==
+               <<
+                 previous::binary,
+                 pending::binary
+               >>
+    end
+
+    test "replaces a matching partial header with the complete pending entry",
+         %{
+           directory: directory,
+           store: store
+         } do
+      previous =
+        Entry.encode(
+          <<"previous">>,
+          9
+        )
+
+      pending =
+        Entry.encode(
+          <<"key-a">>,
+          10
+        )
+
+      partial =
+        binary_part(
+          pending,
+          0,
+          5
+        )
+
+      path =
+        Layout.bucket_path(
+          directory,
+          3
+        )
+
+      File.write!(
+        path,
+        <<
+          previous::binary,
+          partial::binary
+        >>
+      )
+
+      assert :ok =
+               BucketStore.recover_pending_append(
+                 store,
+                 3,
+                 <<"key-a">>,
+                 10
+               )
+
+      assert File.read!(path) ==
+               <<
+                 previous::binary,
+                 pending::binary
+               >>
+    end
+
+    test "replaces a matching partial key with the complete pending entry",
+         %{
+           directory: directory,
+           store: store
+         } do
+      previous =
+        Entry.encode(
+          <<"previous">>,
+          9
+        )
+
+      pending =
+        Entry.encode(
+          <<"a-longer-key">>,
+          10
+        )
+
+      partial_size =
+        Entry.header_size() + 4
+
+      partial =
+        binary_part(
+          pending,
+          0,
+          partial_size
+        )
+
+      path =
+        Layout.bucket_path(
+          directory,
+          3
+        )
+
+      File.write!(
+        path,
+        <<
+          previous::binary,
+          partial::binary
+        >>
+      )
+
+      assert :ok =
+               BucketStore.recover_pending_append(
+                 store,
+                 3,
+                 <<"a-longer-key">>,
+                 10
+               )
+
+      assert File.read!(path) ==
+               <<
+                 previous::binary,
+                 pending::binary
+               >>
+    end
+
+    test "refuses to truncate an unrelated partial tail", %{
+      directory: directory,
+      store: store
+    } do
+      previous =
+        Entry.encode(
+          <<"previous">>,
+          9
+        )
+
+      path =
+        Layout.bucket_path(
+          directory,
+          3
+        )
+
+      corrupted =
+        <<
+          previous::binary,
+          255,
+          254,
+          253
+        >>
+
+      File.write!(
+        path,
+        corrupted
+      )
+
+      assert BucketStore.recover_pending_append(
+               store,
+               3,
+               <<"key-a">>,
+               10
+             ) ==
+               {:error, :unexpected_partial_entry}
+
+      assert File.read!(path) ==
+               corrupted
+    end
+
+    test "appends the pending entry to an existing complete bucket", %{
+      directory: directory,
+      store: store
+    } do
+      previous =
+        Entry.encode(
+          <<"previous">>,
+          9
+        )
+
+      pending =
+        Entry.encode(
+          <<"key-a">>,
+          10
+        )
+
+      path =
+        Layout.bucket_path(
+          directory,
+          3
+        )
+
+      File.write!(
+        path,
+        previous
+      )
+
+      assert :ok =
+               BucketStore.recover_pending_append(
+                 store,
+                 3,
+                 <<"key-a">>,
+                 10
+               )
+
+      assert File.read!(path) ==
+               <<
+                 previous::binary,
+                 pending::binary
+               >>
+    end
+  end
 end
