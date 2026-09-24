@@ -3,6 +3,7 @@ defmodule PositionDB.Storage.Disk.RecordStore do
   Reads and appends fixed-size records in disk segments.
   """
 
+  alias PositionDB.Storage.Disk.Durability
   alias PositionDB.Storage.Disk.Layout
 
   @type t :: %__MODULE__{
@@ -133,7 +134,12 @@ defmodule PositionDB.Storage.Disk.RecordStore do
                path,
                offset
              ) do
-        append_record(path, record)
+        append_record(
+          store,
+          path,
+          offset,
+          record
+        )
       end
     else
       {:error, :invalid_record_size}
@@ -379,21 +385,56 @@ defmodule PositionDB.Storage.Disk.RecordStore do
     end
   end
 
-  defp append_record(path, record) do
+  defp append_record(
+         store,
+         path,
+         offset,
+         record
+       ) do
     case :file.open(
            path,
            [:append, :binary, :raw]
          ) do
       {:ok, file} ->
-        try do
-          :file.write(file, record)
-        after
-          :file.close(file)
+        result =
+          try do
+            with :ok <-
+                   :file.write(
+                     file,
+                     record
+                   ),
+                 :ok <-
+                   :file.sync(file) do
+              :ok
+            end
+          after
+            :file.close(file)
+          end
+
+        with :ok <- result do
+          sync_segment_directory(
+            store.directory,
+            offset
+          )
         end
 
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  defp sync_segment_directory(
+         directory,
+         0
+       ) do
+    Durability.sync_directory(directory)
+  end
+
+  defp sync_segment_directory(
+         _directory,
+         _offset
+       ) do
+    :ok
   end
 
   defp read_record(

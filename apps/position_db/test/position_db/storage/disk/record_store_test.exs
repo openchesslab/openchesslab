@@ -228,6 +228,49 @@ defmodule PositionDB.Storage.Disk.RecordStoreTest do
              ) ==
                {:error, :previous_segment_incomplete}
     end
+
+    test "creates segment files at segment boundaries", %{
+      directory: directory,
+      store: store
+    } do
+      assert :ok =
+               RecordStore.append(
+                 store,
+                 1,
+                 "aaaa"
+               )
+
+      first_segment =
+        Layout.segment_path(
+          directory,
+          0
+        )
+
+      assert File.read!(first_segment) ==
+               "aaaa"
+
+      assert :ok =
+               RecordStore.append(store, 2, "bbbb")
+
+      assert :ok =
+               RecordStore.append(store, 3, "cccc")
+
+      assert :ok =
+               RecordStore.append(
+                 store,
+                 4,
+                 "dddd"
+               )
+
+      second_segment =
+        Layout.segment_path(
+          directory,
+          1
+        )
+
+      assert File.read!(second_segment) ==
+               "dddd"
+    end
   end
 
   describe "cardinality/1" do
