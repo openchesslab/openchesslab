@@ -11,6 +11,48 @@ defmodule Analysis.GamesTest do
   alias Chess.PositionDraft
   alias Chess.Square
 
+  defmodule FailingPositionStore do
+    use GenServer
+
+    def start_link(mode) do
+      GenServer.start_link(
+        __MODULE__,
+        mode,
+        name: Analysis.PositionStore
+      )
+    end
+
+    @impl true
+    def init(mode) do
+      {:ok, mode}
+    end
+
+    @impl true
+    def handle_call(
+          {:append, _position},
+          _from,
+          state
+        ) do
+      {:reply, {:error, :disk_failure}, state}
+    end
+
+    def handle_call(
+          {:get, _position_id},
+          _from,
+          :get_failure = state
+        ) do
+      {:reply, {:error, :disk_failure}, state}
+    end
+
+    def handle_call(
+          {:get, _position_id},
+          _from,
+          state
+        ) do
+      {:reply, {:ok, Position.starting_position()}, state}
+    end
+  end
+
   defp game_with_variations(game_id) do
     Game.new(game_id, 1)
     |> Game.add_child([], transition("e2", "e4"), 2)
@@ -27,6 +69,32 @@ defmodule Analysis.GamesTest do
       Square.from_algebraic(from),
       Square.from_algebraic(to)
     )
+  end
+
+  defp with_failing_position_store(
+         mode,
+         fun
+       ) do
+    :ok =
+      Supervisor.terminate_child(
+        Analysis.Supervisor,
+        PositionStore
+      )
+
+    {:ok, pid} =
+      FailingPositionStore.start_link(mode)
+
+    try do
+      fun.()
+    after
+      GenServer.stop(pid)
+
+      {:ok, _pid} =
+        Supervisor.restart_child(
+          Analysis.Supervisor,
+          PositionStore
+        )
+    end
   end
 
   setup do
@@ -623,5 +691,87 @@ defmodule Analysis.GamesTest do
     assert {:ok, 1} = Games.insert(game)
 
     assert {game, 1} in Games.list()
+  end
+
+  test "does not create a game when storing the initial position fails",
+       %{
+         game_id: game_id
+       } do
+    with_failing_position_store(
+      :append_failure,
+      fn ->
+        assert Games.create(game_id) ==
+                 {:error, {:position_store, :disk_failure}}
+
+        assert Games.get(game_id) ==
+                 :not_found
+      end
+    )
+  end
+
+  test "does not update a game when reading its position fails",
+       %{
+         game_id: game_id
+       } do
+    game =
+      Game.new(
+        game_id,
+        1
+      )
+
+    assert {:ok, 1} =
+             Games.insert(game)
+
+    with_failing_position_store(
+      :get_failure,
+      fn ->
+        assert Games.play(
+                 game_id,
+                 [],
+                 move("e2", "e4")
+               ) ==
+                 {:error, {:position_store, :disk_failure}}
+
+        assert {:ok, ^game, 1} =
+                 Games.get(game_id)
+      end
+    )
+  end
+
+  test "does not update a game when storing an edited position fails",
+       %{
+         game_id: game_id
+       } do
+    position =
+      Position.starting_position()
+
+    game =
+      Game.new(
+        game_id,
+        1
+      )
+
+    assert {:ok, 1} =
+             Games.insert(game)
+
+    draft =
+      position
+      |> PositionDraft.new()
+      |> PositionDraft.remove_piece(Square.from_algebraic("e2"))
+
+    with_failing_position_store(
+      :append_failure,
+      fn ->
+        assert Games.edit(
+                 game_id,
+                 [],
+                 draft
+               ) ==
+                 {:error, {:position_store, :disk_failure}}
+
+        assert {:ok, ^game, 1} =
+                 Games.get(game_id)
+      end
+    )
   end
 end

@@ -13,21 +13,32 @@ defmodule Analysis.Games do
 
   @store Analysis.GameStore.Runtime
 
+  @type position_store_error ::
+          {:position_store, term()}
+
   @spec create(Game.id()) ::
           {:ok, Game.t(), pos_integer()}
-          | {:error, :already_exists}
+          | {:error,
+             :already_exists
+             | position_store_error()}
   def create(game_id) do
-    position_id =
-      Position.starting_position()
-      |> PositionStore.append()
+    case append_position(Position.starting_position()) do
+      {:ok, position_id} ->
+        game =
+          Game.new(
+            game_id,
+            position_id
+          )
 
-    game = Game.new(game_id, position_id)
+        case insert(game) do
+          {:ok, revision} ->
+            {:ok, game, revision}
 
-    case insert(game) do
-      {:ok, revision} ->
-        {:ok, game, revision}
+          {:error, :already_exists} = error ->
+            error
+        end
 
-      {:error, :already_exists} = error ->
+      {:error, _reason} = error ->
         error
     end
   end
@@ -56,7 +67,8 @@ defmodule Analysis.Games do
              | :node_not_found
              | :position_not_found
              | :illegal_move
-             | :conflict}
+             | :conflict
+             | position_store_error()}
   def play(game_id, path, %Move{} = move) do
     case get(game_id) do
       {:ok, game, revision} ->
@@ -73,7 +85,8 @@ defmodule Analysis.Games do
              :game_not_found
              | :node_not_found
              | {:invalid_position, [atom()]}
-             | :conflict}
+             | :conflict
+             | position_store_error()}
   def edit(game_id, path, %PositionDraft{} = draft) do
     case get(game_id) do
       {:ok, game, revision} ->
@@ -130,12 +143,28 @@ defmodule Analysis.Games do
     end
   end
 
-  defp play(game, revision, path, move) do
-    with %Node{} = node <- Game.node_at(game, path),
-         {:ok, position} <- PositionStore.get(Node.position_id(node)),
-         {:ok, next_position} <- Position.apply_move(position, move) do
-      position_id = PositionStore.append(next_position)
-      transition = Transition.move(move)
+  defp play(
+         game,
+         revision,
+         path,
+         move
+       ) do
+    with %Node{} = node <-
+           Game.node_at(
+             game,
+             path
+           ),
+         {:ok, position} <-
+           get_position(Node.position_id(node)),
+         {:ok, next_position} <-
+           Position.apply_move(
+             position,
+             move
+           ),
+         {:ok, position_id} <-
+           append_position(next_position) do
+      transition =
+        Transition.move(move)
 
       updated_game =
         Game.add_child(
@@ -148,11 +177,18 @@ defmodule Analysis.Games do
       child_index =
         updated_game
         |> Game.node_at(path)
-        |> Node.child_index(transition, position_id)
+        |> Node.child_index(
+          transition,
+          position_id
+        )
 
-      resulting_path = path ++ [child_index]
+      resulting_path =
+        path ++ [child_index]
 
-      case persist(updated_game, revision) do
+      case persist(
+             updated_game,
+             revision
+           ) do
         {:ok, new_revision} ->
           {:ok, updated_game, new_revision, resulting_path}
 
@@ -167,6 +203,9 @@ defmodule Analysis.Games do
         {:error, :position_not_found}
 
       {:error, :illegal_move} = error ->
+        error
+
+      {:error, {:position_store, _reason}} = error ->
         error
     end
   end
@@ -199,11 +238,23 @@ defmodule Analysis.Games do
     end
   end
 
-  defp edit(game, revision, path, draft) do
-    with %Node{} <- Game.node_at(game, path),
-         {:ok, position} <- PositionDraft.apply(draft) do
-      position_id = PositionStore.append(position)
-      transition = Transition.edit()
+  defp edit(
+         game,
+         revision,
+         path,
+         draft
+       ) do
+    with %Node{} <-
+           Game.node_at(
+             game,
+             path
+           ),
+         {:ok, position} <-
+           PositionDraft.apply(draft),
+         {:ok, position_id} <-
+           append_position(position) do
+      transition =
+        Transition.edit()
 
       updated_game =
         Game.add_child(
@@ -216,11 +267,18 @@ defmodule Analysis.Games do
       child_index =
         updated_game
         |> Game.node_at(path)
-        |> Node.child_index(transition, position_id)
+        |> Node.child_index(
+          transition,
+          position_id
+        )
 
-      resulting_path = path ++ [child_index]
+      resulting_path =
+        path ++ [child_index]
 
-      case persist(updated_game, revision) do
+      case persist(
+             updated_game,
+             revision
+           ) do
         {:ok, new_revision} ->
           {:ok, updated_game, new_revision, resulting_path}
 
@@ -231,8 +289,36 @@ defmodule Analysis.Games do
       nil ->
         {:error, :node_not_found}
 
+      {:error, {:position_store, _reason}} = error ->
+        error
+
       {:error, reasons} ->
         {:error, {:invalid_position, reasons}}
+    end
+  end
+
+  defp append_position(position) do
+    case PositionStore.append(position) do
+      position_id
+      when is_integer(position_id) and
+             position_id > 0 ->
+        {:ok, position_id}
+
+      {:error, reason} ->
+        {:error, {:position_store, reason}}
+    end
+  end
+
+  defp get_position(position_id) do
+    case PositionStore.get(position_id) do
+      {:ok, position} ->
+        {:ok, position}
+
+      :not_found ->
+        :not_found
+
+      {:error, reason} ->
+        {:error, {:position_store, reason}}
     end
   end
 end
