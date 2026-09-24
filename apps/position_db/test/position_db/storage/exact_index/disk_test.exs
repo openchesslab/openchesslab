@@ -2,6 +2,7 @@ defmodule PositionDB.Storage.ExactIndex.DiskTest do
   use ExUnit.Case, async: true
 
   alias PositionDB.Storage.ExactIndex.Disk
+  alias PositionDB.Storage.ExactIndex.Disk.Entry
   alias PositionDB.Storage.ExactIndex.Disk.Layout
 
   defmodule TestHash do
@@ -292,5 +293,53 @@ defmodule PositionDB.Storage.ExactIndex.DiskTest do
              <<"a">>
            ) ==
              {:error, {:invalid_hash_size, 4, 3}}
+  end
+
+  test "recovers a partial pending exact-index entry", %{
+    directory: directory,
+    index: index
+  } do
+    assert {:ok, hash} =
+             TestHash.hash(<<"a">>)
+
+    bucket =
+      Layout.bucket(
+        hash,
+        16
+      )
+
+    path =
+      Layout.bucket_path(
+        directory,
+        bucket
+      )
+
+    entry =
+      Entry.encode(
+        hash,
+        10
+      )
+
+    File.write!(
+      path,
+      binary_part(
+        entry,
+        0,
+        6
+      )
+    )
+
+    assert :ok =
+             Disk.recover_pending_append(
+               index,
+               <<"a">>,
+               10
+             )
+
+    assert Disk.lookup(
+             index,
+             <<"a">>
+           ) ==
+             {:ok, [10]}
   end
 end

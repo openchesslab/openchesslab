@@ -166,4 +166,42 @@ defmodule PositionDB.Storage.ExactIndex.Disk do
         {:error, :invalid_hash}
     end
   end
+
+  @doc """
+  Recovers the exact-index side of one interrupted disk append.
+  """
+  @spec recover_pending_append(
+          t(),
+          binary(),
+          pos_integer()
+        ) ::
+          :ok
+          | {:error, term()}
+  def recover_pending_append(
+        %__MODULE__{} = index,
+        key,
+        position_id
+      )
+      when is_binary(key) and
+             is_integer(position_id) and
+             position_id > 0 do
+    with {:ok, hash} <-
+           key_hash(
+             index,
+             key
+           ) do
+      bucket =
+        Layout.bucket(
+          hash,
+          index.bucket_count
+        )
+
+      BucketStore.recover_pending_append(
+        index.bucket_store,
+        bucket,
+        hash,
+        position_id
+      )
+    end
+  end
 end
