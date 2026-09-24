@@ -381,6 +381,8 @@ defmodule PositionDB.Storage.DiskTest do
 
       assert Disk.cardinality(storage) ==
                {:ok, 0}
+
+      assert storage.next_id == 1
     end
 
     test "refuses to create storage in an existing directory", %{
@@ -778,6 +780,8 @@ defmodule PositionDB.Storage.DiskTest do
                :position_a
              ) ==
                {:ok, 1}
+
+      assert reopened.next_id == 2
     end
 
     test "recovers an append interrupted before the record write", %{
@@ -810,6 +814,8 @@ defmodule PositionDB.Storage.DiskTest do
                1
              ) ==
                :not_found
+
+      assert reopened.next_id == 1
     end
 
     test "recovers an append interrupted during the record write", %{
@@ -981,6 +987,43 @@ defmodule PositionDB.Storage.DiskTest do
                <<"aaaa">>
              ) ==
                {:ok, [1]}
+    end
+
+    test "derives the next position id from persisted records", %{
+      root: root
+    } do
+      directory =
+        create_test_storage(root)
+
+      assert {:ok, storage} =
+               Disk.open(
+                 directory,
+                 codec: TestCodec,
+                 hash: TestHash
+               )
+
+      assert :ok =
+               RecordStore.append(
+                 storage.record_store,
+                 1,
+                 <<"aaaa">>
+               )
+
+      assert :ok =
+               RecordStore.append(
+                 storage.record_store,
+                 2,
+                 <<"bbbb">>
+               )
+
+      assert {:ok, reopened} =
+               Disk.open(
+                 directory,
+                 codec: TestCodec,
+                 hash: TestHash
+               )
+
+      assert reopened.next_id == 3
     end
   end
 

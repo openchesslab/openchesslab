@@ -30,14 +30,16 @@ defmodule PositionDB.Storage.Disk do
           directory: Path.t(),
           record_store: RecordStore.t(),
           exact_index: ExactIndex.t(),
-          codec_module: module()
+          codec_module: module(),
+          next_id: pos_integer()
         }
 
   defstruct [
     :directory,
     :record_store,
     :exact_index,
-    :codec_module
+    :codec_module,
+    next_id: 1
   ]
 
   @spec create(Path.t(), keyword()) ::
@@ -170,7 +172,8 @@ defmodule PositionDB.Storage.Disk do
       directory: directory,
       record_store: record_store,
       exact_index: exact_index,
-      codec_module: codec_module
+      codec_module: codec_module,
+      next_id: 1
     }
   end
 
@@ -333,8 +336,12 @@ defmodule PositionDB.Storage.Disk do
 
   defp validate_open_storage(%__MODULE__{} = storage) do
     case RecordStore.cardinality(storage.record_store) do
-      {:ok, _cardinality} ->
-        {:ok, storage}
+      {:ok, cardinality} ->
+        {:ok,
+         %{
+           storage
+           | next_id: cardinality + 1
+         }}
 
       {:error, reason} ->
         {:error, reason}
