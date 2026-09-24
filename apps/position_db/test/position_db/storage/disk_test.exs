@@ -2,6 +2,7 @@ defmodule PositionDB.Storage.DiskTest do
   use ExUnit.Case, async: true
 
   alias PositionDB.Storage.Disk
+  alias PositionDB.Storage.Disk.AppendMarker
   alias PositionDB.Storage.Disk.Manifest
   alias PositionDB.Storage.Disk.ManifestStore
   alias PositionDB.Storage.Disk.RecordStore
@@ -721,6 +722,43 @@ defmodule PositionDB.Storage.DiskTest do
                :ignored_application_key,
                :position_a
              ) ==
+               {:ok, 1}
+    end
+
+    test "detects an append interrupted before the exact index update", %{
+      root: root
+    } do
+      directory =
+        create_test_storage(root)
+
+      assert {:ok, storage} =
+               Disk.open(
+                 directory,
+                 codec: TestCodec,
+                 hash: TestHash
+               )
+
+      assert :ok =
+               AppendMarker.create(
+                 directory,
+                 1
+               )
+
+      assert :ok =
+               RecordStore.append(
+                 storage.record_store,
+                 1,
+                 <<"aaaa">>
+               )
+
+      assert Disk.open(
+               directory,
+               codec: TestCodec,
+               hash: TestHash
+             ) ==
+               {:error, {:incomplete_append, 1}}
+
+      assert AppendMarker.read(directory) ==
                {:ok, 1}
     end
   end

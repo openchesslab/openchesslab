@@ -17,6 +17,7 @@ defmodule PositionDB.Storage.Disk do
   The current storage behaviour does not expose disk I/O errors.
   """
 
+  alias PositionDB.Storage.Disk.AppendMarker
   alias PositionDB.Storage.Disk.Durability
   alias PositionDB.Storage.Disk.ExactIndexRebuilder
   alias PositionDB.Storage.Disk.ExactLookup
@@ -26,12 +27,14 @@ defmodule PositionDB.Storage.Disk do
   alias PositionDB.Storage.ExactIndex.Disk, as: ExactIndex
 
   @type t :: %__MODULE__{
+          directory: Path.t(),
           record_store: RecordStore.t(),
           exact_index: ExactIndex.t(),
           codec_module: module()
         }
 
   defstruct [
+    :directory,
     :record_store,
     :exact_index,
     :codec_module
@@ -105,7 +108,9 @@ defmodule PositionDB.Storage.Disk do
            validate_storage_directory(
              exact_index_directory(directory),
              :exact_index
-           ) do
+           ),
+         :ok <-
+           ensure_no_incomplete_append(directory) do
       storage =
         new(
           directory,
@@ -161,6 +166,7 @@ defmodule PositionDB.Storage.Disk do
       )
 
     %__MODULE__{
+      directory: directory,
       record_store: record_store,
       exact_index: exact_index,
       codec_module: codec_module
@@ -359,5 +365,18 @@ defmodule PositionDB.Storage.Disk do
       directory,
       "exact-index"
     )
+  end
+
+  defp ensure_no_incomplete_append(directory) do
+    case AppendMarker.read(directory) do
+      :none ->
+        :ok
+
+      {:ok, position_id} ->
+        {:error, {:incomplete_append, position_id}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 end
