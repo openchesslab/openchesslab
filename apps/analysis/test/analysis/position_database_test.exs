@@ -127,6 +127,53 @@ defmodule Analysis.PositionDatabaseTest do
              id_2
   end
 
+  test "open_or_create creates a database when none exists",
+       %{
+         directory: directory
+       } do
+    assert {:ok, db} =
+             PositionDatabase.open_or_create(
+               directory,
+               records_per_segment: 3,
+               exact_bucket_count: 16,
+               property_bucket_count: 16
+             )
+
+    assert PositionStore.cardinality(db.store) ==
+             0
+  end
+
+  test "open_or_create reopens an existing database",
+       %{
+         directory: directory
+       } do
+    assert {:ok, db} =
+             create_database(directory)
+
+    position =
+      Position.starting_position()
+
+    {_db, position_id} =
+      PositionDB.append(
+        db,
+        position
+      )
+
+    assert {:ok, reopened} =
+             PositionDatabase.open_or_create(
+               directory,
+               records_per_segment: 999,
+               exact_bucket_count: 999,
+               property_bucket_count: 999
+             )
+
+    assert PositionDB.get(
+             reopened,
+             position_id
+           ) ==
+             {:ok, position}
+  end
+
   defp create_database(directory) do
     PositionDatabase.create(
       directory,

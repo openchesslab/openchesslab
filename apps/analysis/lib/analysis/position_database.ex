@@ -14,6 +14,29 @@ defmodule Analysis.PositionDatabase do
   alias PositionDB.Storage.Disk, as: StorageDisk
   alias PositionDB.Storage.Disk.Durability
 
+  @spec open_or_create(Path.t(), keyword()) ::
+          {:ok, PositionDB.t()}
+          | {:error, term()}
+  def open_or_create(directory, opts)
+      when is_binary(directory) do
+    case File.stat(directory) do
+      {:ok, %{type: :directory}} ->
+        open(directory)
+
+      {:ok, _stat} ->
+        {:error, :invalid_position_database_directory}
+
+      {:error, :enoent} ->
+        create(
+          directory,
+          opts
+        )
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
   @spec create(Path.t(), keyword()) ::
           {:ok, PositionDB.t()}
           | {:error, term()}
