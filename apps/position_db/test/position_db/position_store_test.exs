@@ -5,10 +5,16 @@ defmodule PositionDB.PositionStoreTest do
 
   defp key(position), do: :erlang.phash2(position)
 
+  defmodule FailingStorage do
+    def put(_storage, _key, _position) do
+      {:error, :disk_failure}
+    end
+  end
+
   test "new position gets an id" do
     store = PositionStore.new(&key/1)
 
-    {store, position_id} = PositionStore.put(store, :position_a)
+    {:ok, store, position_id} = PositionStore.put(store, :position_a)
 
     assert position_id == 1
     assert PositionStore.get(store, position_id) == {:ok, :position_a}
@@ -17,8 +23,8 @@ defmodule PositionDB.PositionStoreTest do
   test "different positions get different ids" do
     store = PositionStore.new(&key/1)
 
-    {store, id_a} = PositionStore.put(store, :position_a)
-    {_store, id_b} = PositionStore.put(store, :position_b)
+    {:ok, store, id_a} = PositionStore.put(store, :position_a)
+    {:ok, _store, id_b} = PositionStore.put(store, :position_b)
 
     assert id_a == 1
     assert id_b == 2
@@ -27,8 +33,8 @@ defmodule PositionDB.PositionStoreTest do
   test "same position gets the same id" do
     store = PositionStore.new(&key/1)
 
-    {store, id_1} = PositionStore.put(store, :position_a)
-    {_store, id_2} = PositionStore.put(store, :position_a)
+    {:ok, store, id_1} = PositionStore.put(store, :position_a)
+    {:ok, _store, id_2} = PositionStore.put(store, :position_a)
 
     assert id_1 == id_2
   end
@@ -36,7 +42,7 @@ defmodule PositionDB.PositionStoreTest do
   test "find returns the id of an existing position" do
     store = PositionStore.new(&key/1)
 
-    {store, position_id} = PositionStore.put(store, :position_a)
+    {:ok, store, position_id} = PositionStore.put(store, :position_a)
 
     assert PositionStore.find(store, :position_a) == {:ok, position_id}
     assert PositionStore.find(store, :position_b) == :not_found
@@ -45,9 +51,9 @@ defmodule PositionDB.PositionStoreTest do
   test "scans position IDs in ascending order" do
     store = PositionStore.new(& &1)
 
-    {store, 1} = PositionStore.put(store, :position_1)
-    {store, 2} = PositionStore.put(store, :position_2)
-    {store, 3} = PositionStore.put(store, :position_3)
+    {:ok, store, 1} = PositionStore.put(store, :position_1)
+    {:ok, store, 2} = PositionStore.put(store, :position_2)
+    {:ok, store, 3} = PositionStore.put(store, :position_3)
 
     state = PositionStore.scan(store)
 
@@ -70,8 +76,8 @@ defmodule PositionDB.PositionStoreTest do
 
     assert PositionStore.cardinality(store) == 0
 
-    {store, _} = PositionStore.put(store, :position_1)
-    {store, _} = PositionStore.put(store, :position_2)
+    {:ok, store, _} = PositionStore.put(store, :position_1)
+    {:ok, store, _} = PositionStore.put(store, :position_2)
 
     assert PositionStore.cardinality(store) == 2
   end
@@ -79,9 +85,24 @@ defmodule PositionDB.PositionStoreTest do
   test "counts unique positions" do
     store = PositionStore.new(& &1)
 
-    {store, _} = PositionStore.put(store, :position)
-    {store, _} = PositionStore.put(store, :position)
+    {:ok, store, _} = PositionStore.put(store, :position)
+    {:ok, store, _} = PositionStore.put(store, :position)
 
     assert PositionStore.cardinality(store) == 1
+  end
+
+  test "propagates storage put errors" do
+    store =
+      PositionStore.new(
+        & &1,
+        FailingStorage,
+        :storage
+      )
+
+    assert PositionStore.put(
+             store,
+             :position
+           ) ==
+             {:error, :disk_failure}
   end
 end

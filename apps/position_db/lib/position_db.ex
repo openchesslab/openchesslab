@@ -42,32 +42,38 @@ defmodule PositionDB do
   end
 
   def append(db, position) do
-    {store, position_id} =
-      PositionStore.put(db.store, position)
+    case PositionStore.put(
+           db.store,
+           position
+         ) do
+      {:ok, store, position_id} ->
+        indexer =
+          PositionIndexer.index(
+            db.indexer,
+            position_id,
+            position
+          )
 
-    indexer =
-      PositionIndexer.index(
-        db.indexer,
-        position_id,
-        position
-      )
+        equivalence =
+          EquivalenceContext.add(
+            db.equivalence,
+            position,
+            position_id
+          )
 
-    equivalence =
-      EquivalenceContext.add(
-        db.equivalence,
-        position,
-        position_id
-      )
+        {
+          %{
+            db
+            | store: store,
+              indexer: indexer,
+              equivalence: equivalence
+          },
+          position_id
+        }
 
-    {
-      %{
-        db
-        | store: store,
-          indexer: indexer,
-          equivalence: equivalence
-      },
-      position_id
-    }
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 
   def get(db, position_id) do

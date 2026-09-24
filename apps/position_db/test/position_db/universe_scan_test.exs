@@ -8,9 +8,9 @@ defmodule PositionDB.UniverseScanTest do
   test "scans all position IDs in ascending order" do
     store = PositionStore.new(& &1)
 
-    {store, 1} = PositionStore.put(store, :position_1)
-    {store, 2} = PositionStore.put(store, :position_2)
-    {store, 3} = PositionStore.put(store, :position_3)
+    {:ok, store, 1} = PositionStore.put(store, :position_1)
+    {:ok, store, 2} = PositionStore.put(store, :position_2)
+    {:ok, store, 3} = PositionStore.put(store, :position_3)
 
     executor = UniverseScan.new(store)
 

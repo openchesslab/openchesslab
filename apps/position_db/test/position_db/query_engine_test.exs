@@ -10,7 +10,7 @@ defmodule PositionDB.QueryEngineTest do
 
   defp store_with_ids(ids) do
     Enum.reduce(ids, PositionStore.new(& &1), fn id, store ->
-      {store, _position_id} = PositionStore.put(store, id)
+      {:ok, store, _position_id} = PositionStore.put(store, id)
       store
     end)
   end
@@ -127,15 +127,15 @@ defmodule PositionDB.QueryEngineTest do
   end
 
   test "not query returns positions outside the child result" do
-    {store, _} =
+    {:ok, store, _} =
       PositionStore.put(
         PositionStore.new(& &1),
         :position_1
       )
 
-    {store, _} = PositionStore.put(store, :position_2)
-    {store, _} = PositionStore.put(store, :position_3)
-    {store, _} = PositionStore.put(store, :position_4)
+    {:ok, store, _} = PositionStore.put(store, :position_2)
+    {:ok, store, _} = PositionStore.put(store, :position_3)
+    {:ok, store, _} = PositionStore.put(store, :position_4)
 
     index =
       PropertyIndex.new()
@@ -156,15 +156,15 @@ defmodule PositionDB.QueryEngineTest do
   end
 
   test "not can be combined with and" do
-    {store, _} =
+    {:ok, store, _} =
       PositionStore.put(
         PositionStore.new(& &1),
         :position_1
       )
 
-    {store, _} = PositionStore.put(store, :position_2)
-    {store, _} = PositionStore.put(store, :position_3)
-    {store, _} = PositionStore.put(store, :position_4)
+    {:ok, store, _} = PositionStore.put(store, :position_2)
+    {:ok, store, _} = PositionStore.put(store, :position_3)
+    {:ok, store, _} = PositionStore.put(store, :position_4)
 
     index =
       PropertyIndex.new()
@@ -252,8 +252,8 @@ defmodule PositionDB.QueryEngineTest do
   test "executes true as the universe" do
     store = PositionStore.new(& &1)
 
-    {store, id_1} = PositionStore.put(store, :position_1)
-    {store, id_2} = PositionStore.put(store, :position_2)
+    {:ok, store, id_1} = PositionStore.put(store, :position_1)
+    {:ok, store, id_2} = PositionStore.put(store, :position_2)
 
     index = PropertyIndex.new()
 
@@ -271,8 +271,8 @@ defmodule PositionDB.QueryEngineTest do
   test "executes false as an empty result" do
     store = PositionStore.new(& &1)
 
-    {store, _id_1} = PositionStore.put(store, :position_1)
-    {store, _id_2} = PositionStore.put(store, :position_2)
+    {:ok, store, _id_1} = PositionStore.put(store, :position_1)
+    {:ok, store, _id_2} = PositionStore.put(store, :position_2)
 
     index = PropertyIndex.new()
 
@@ -290,8 +290,8 @@ defmodule PositionDB.QueryEngineTest do
   test "executes an empty AND as the universe" do
     store = PositionStore.new(& &1)
 
-    {store, id_1} = PositionStore.put(store, :position_1)
-    {store, id_2} = PositionStore.put(store, :position_2)
+    {:ok, store, id_1} = PositionStore.put(store, :position_1)
+    {:ok, store, id_2} = PositionStore.put(store, :position_2)
 
     index = PropertyIndex.new()
 
@@ -309,8 +309,8 @@ defmodule PositionDB.QueryEngineTest do
   test "executes an empty OR as an empty result" do
     store = PositionStore.new(& &1)
 
-    {store, _id_1} = PositionStore.put(store, :position_1)
-    {store, _id_2} = PositionStore.put(store, :position_2)
+    {:ok, store, _id_1} = PositionStore.put(store, :position_1)
+    {:ok, store, _id_2} = PositionStore.put(store, :position_2)
 
     index = PropertyIndex.new()
 
@@ -338,10 +338,10 @@ defmodule PositionDB.QueryEngineTest do
 
     store = PositionStore.new(& &1)
 
-    {store, _id_1} = PositionStore.put(store, :position_1)
-    {store, _id_2} = PositionStore.put(store, :position_2)
-    {store, _id_3} = PositionStore.put(store, :position_3)
-    {store, _id_4} = PositionStore.put(store, :position_4)
+    {:ok, store, _id_1} = PositionStore.put(store, :position_1)
+    {:ok, store, _id_2} = PositionStore.put(store, :position_2)
+    {:ok, store, _id_3} = PositionStore.put(store, :position_3)
+    {:ok, store, _id_4} = PositionStore.put(store, :position_4)
 
     query =
       Query.all([
@@ -544,9 +544,9 @@ defmodule PositionDB.QueryEngineTest do
 
     store = PositionStore.new(& &1)
 
-    {store, id_1} = PositionStore.put(store, position)
-    {store, id_2} = PositionStore.put(store, swapped_position)
-    {store, id_3} = PositionStore.put(store, unrelated_position)
+    {:ok, store, id_1} = PositionStore.put(store, position)
+    {:ok, store, id_2} = PositionStore.put(store, swapped_position)
+    {:ok, store, id_3} = PositionStore.put(store, unrelated_position)
 
     equivalence_index =
       EquivalenceIndex.new()

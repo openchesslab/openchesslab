@@ -10,7 +10,7 @@ defmodule PositionDB.EquivalenceScanTest do
     store = PositionStore.new(& &1)
 
     Enum.reduce(positions, {store, []}, fn position, {store, ids} ->
-      {store, position_id} = PositionStore.put(store, position)
+      {:ok, store, position_id} = PositionStore.put(store, position)
       {store, ids ++ [position_id]}
     end)
   end

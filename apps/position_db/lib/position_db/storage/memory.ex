@@ -37,7 +37,7 @@ defmodule PositionDB.Storage.Memory do
   def put(%__MODULE__{} = storage, key, position) do
     case find(storage, key, position) do
       {:ok, position_id} ->
-        {storage, position_id}
+        {:ok, storage, position_id}
 
       :not_found ->
         position_id = storage.next_id
@@ -60,7 +60,7 @@ defmodule PositionDB.Storage.Memory do
             next_id: position_id + 1
         }
 
-        {storage, position_id}
+        {:ok, storage, position_id}
     end
   end
 

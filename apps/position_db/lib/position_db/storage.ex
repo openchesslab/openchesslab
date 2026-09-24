@@ -20,7 +20,8 @@ defmodule PositionDB.Storage do
   @type scan_state :: term()
 
   @callback put(t(), key(), position()) ::
-              {t(), position_id()}
+              {:ok, t(), position_id()}
+              | {:error, term()}
 
   @callback get(t(), position_id()) ::
               {:ok, position()} | :not_found

@@ -58,21 +58,27 @@ defmodule PositionDB.PositionStore do
   end
 
   @spec put(t(), term()) ::
-          {t(), position_id()}
+          {:ok, t(), position_id()}
+          | {:error, term()}
   def put(%__MODULE__{} = store, position) do
-    key = store.key_function.(position)
+    key =
+      store.key_function.(position)
 
-    {storage, position_id} =
-      store.storage_module.put(
-        store.storage,
-        key,
-        position
-      )
+    case store.storage_module.put(
+           store.storage,
+           key,
+           position
+         ) do
+      {:ok, storage, position_id} ->
+        {:ok,
+         %{
+           store
+           | storage: storage
+         }, position_id}
 
-    {
-      %{store | storage: storage},
-      position_id
-    }
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 
   @spec get(t(), position_id()) ::

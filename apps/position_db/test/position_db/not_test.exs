@@ -11,12 +11,12 @@ defmodule PositionDB.NotTest do
   test "returns universe IDs not present in child" do
     store = PositionStore.new(& &1)
 
-    {store, 1} = PositionStore.put(store, :position_1)
-    {store, 2} = PositionStore.put(store, :position_2)
-    {store, 3} = PositionStore.put(store, :position_3)
-    {store, 4} = PositionStore.put(store, :position_4)
-    {store, 5} = PositionStore.put(store, :position_5)
-    {store, 6} = PositionStore.put(store, :position_6)
+    {:ok, store, 1} = PositionStore.put(store, :position_1)
+    {:ok, store, 2} = PositionStore.put(store, :position_2)
+    {:ok, store, 3} = PositionStore.put(store, :position_3)
+    {:ok, store, 4} = PositionStore.put(store, :position_4)
+    {:ok, store, 5} = PositionStore.put(store, :position_5)
+    {:ok, store, 6} = PositionStore.put(store, :position_6)
 
     index =
       PropertyIndex.new()
@@ -38,8 +38,8 @@ defmodule PositionDB.NotTest do
   test "returns all universe IDs when child is empty" do
     store = PositionStore.new(& &1)
 
-    {store, 1} = PositionStore.put(store, :position_1)
-    {store, 2} = PositionStore.put(store, :position_2)
+    {:ok, store, 1} = PositionStore.put(store, :position_1)
+    {:ok, store, 2} = PositionStore.put(store, :position_2)
 
     index = PropertyIndex.new()
 
@@ -56,8 +56,8 @@ defmodule PositionDB.NotTest do
   test "returns no IDs when child contains the entire universe" do
     store = PositionStore.new(& &1)
 
-    {store, 1} = PositionStore.put(store, :position_1)
-    {store, 2} = PositionStore.put(store, :position_2)
+    {:ok, store, 1} = PositionStore.put(store, :position_1)
+    {:ok, store, 2} = PositionStore.put(store, :position_2)
 
     index =
       PropertyIndex.new()

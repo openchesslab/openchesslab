@@ -6,7 +6,7 @@ defmodule PositionDB.Storage.MemoryTest do
   test "stores and retrieves a position" do
     storage = Memory.new()
 
-    {storage, position_id} =
+    {:ok, storage, position_id} =
       Memory.put(
         storage,
         :key_a,
@@ -25,14 +25,14 @@ defmodule PositionDB.Storage.MemoryTest do
   test "returns the same id for the same exact position" do
     storage = Memory.new()
 
-    {storage, id_1} =
+    {:ok, storage, id_1} =
       Memory.put(
         storage,
         :key_a,
         :position_a
       )
 
-    {_storage, id_2} =
+    {:ok, _storage, id_2} =
       Memory.put(
         storage,
         :key_a,
@@ -45,14 +45,14 @@ defmodule PositionDB.Storage.MemoryTest do
   test "supports different positions with the same key" do
     storage = Memory.new()
 
-    {storage, id_1} =
+    {:ok, storage, id_1} =
       Memory.put(
         storage,
         :collision,
         :position_a
       )
 
-    {storage, id_2} =
+    {:ok, storage, id_2} =
       Memory.put(
         storage,
         :collision,
@@ -79,14 +79,14 @@ defmodule PositionDB.Storage.MemoryTest do
   test "scans stored position ids" do
     storage = Memory.new()
 
-    {storage, 1} =
+    {:ok, storage, 1} =
       Memory.put(
         storage,
         :a,
         :position_a
       )
 
-    {storage, 2} =
+    {:ok, storage, 2} =
       Memory.put(
         storage,
         :b,
@@ -108,14 +108,14 @@ defmodule PositionDB.Storage.MemoryTest do
   test "returns the number of unique positions" do
     storage = Memory.new()
 
-    {storage, _id} =
+    {:ok, storage, _id} =
       Memory.put(
         storage,
         :a,
         :position_a
       )
 
-    {storage, _id} =
+    {:ok, storage, _id} =
       Memory.put(
         storage,
         :a,

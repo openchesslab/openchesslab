@@ -8,7 +8,7 @@ defmodule PositionDB.QueryPlannerTest do
 
   defp store_with_ids(ids) do
     Enum.reduce(ids, PositionStore.new(& &1), fn id, store ->
-      {store, _position_id} = PositionStore.put(store, id)
+      {:ok, store, _position_id} = PositionStore.put(store, id)
       store
     end)
   end
@@ -335,8 +335,8 @@ defmodule PositionDB.QueryPlannerTest do
   test "orders equivalent queries by candidate cardinality" do
     store = PositionStore.new(& &1)
 
-    {store, id_1} = PositionStore.put(store, :candidate_1)
-    {store, id_2} = PositionStore.put(store, :candidate_2)
+    {:ok, store, id_1} = PositionStore.put(store, :candidate_1)
+    {:ok, store, id_2} = PositionStore.put(store, :candidate_2)
 
     equivalence_index =
       PositionDB.EquivalenceIndex.new()
