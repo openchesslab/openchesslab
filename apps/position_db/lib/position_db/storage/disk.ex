@@ -108,9 +108,7 @@ defmodule PositionDB.Storage.Disk do
            validate_storage_directory(
              exact_index_directory(directory),
              :exact_index
-           ),
-         :ok <-
-           ensure_no_incomplete_append(directory) do
+           ) do
       storage =
         new(
           directory,
@@ -120,7 +118,10 @@ defmodule PositionDB.Storage.Disk do
           hash: hash_module
         )
 
-      validate_open_storage(storage)
+      with :ok <-
+             recover_pending_append(storage) do
+        validate_open_storage(storage)
+      end
     end
   end
 
@@ -367,16 +368,59 @@ defmodule PositionDB.Storage.Disk do
     )
   end
 
-  defp ensure_no_incomplete_append(directory) do
-    case AppendMarker.read(directory) do
+  defp recover_pending_append(%__MODULE__{} = storage) do
+    case AppendMarker.read(storage.directory) do
       :none ->
         :ok
 
       {:ok, position_id} ->
-        {:error, {:incomplete_append, position_id}}
+        recover_pending_append(
+          storage,
+          position_id
+        )
 
       {:error, reason} ->
         {:error, reason}
+    end
+  end
+
+  defp recover_pending_append(
+         %__MODULE__{} = storage,
+         position_id
+       ) do
+    case RecordStore.recover_pending_append(
+           storage.record_store,
+           position_id
+         ) do
+      {:ok, record} ->
+        recover_indexed_append(
+          storage,
+          record,
+          position_id
+        )
+
+      :not_found ->
+        AppendMarker.clear(storage.directory)
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp recover_indexed_append(
+         %__MODULE__{} = storage,
+         record,
+         position_id
+       ) do
+    with :ok <-
+           ExactIndex.recover_pending_append(
+             storage.exact_index,
+             record,
+             position_id
+           ),
+         :ok <-
+           AppendMarker.clear(storage.directory) do
+      :ok
     end
   end
 end

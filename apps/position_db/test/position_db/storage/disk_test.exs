@@ -7,6 +7,8 @@ defmodule PositionDB.Storage.DiskTest do
   alias PositionDB.Storage.Disk.ManifestStore
   alias PositionDB.Storage.Disk.RecordStore
   alias PositionDB.Storage.ExactIndex.Disk, as: ExactIndex
+  alias PositionDB.Storage.ExactIndex.Disk.Entry
+  alias PositionDB.Storage.ExactIndex.Disk.Layout, as: ExactIndexLayout
 
   defmodule OtherFormatCodec do
     @behaviour PositionDB.Storage.RecordCodec
@@ -725,7 +727,7 @@ defmodule PositionDB.Storage.DiskTest do
                {:ok, 1}
     end
 
-    test "detects an append interrupted before the exact index update", %{
+    test "recovers an append interrupted before the exact index update", %{
       root: root
     } do
       directory =
@@ -751,15 +753,234 @@ defmodule PositionDB.Storage.DiskTest do
                  <<"aaaa">>
                )
 
-      assert Disk.open(
-               directory,
-               codec: TestCodec,
-               hash: TestHash
-             ) ==
-               {:error, {:incomplete_append, 1}}
+      assert {:ok, reopened} =
+               Disk.open(
+                 directory,
+                 codec: TestCodec,
+                 hash: TestHash
+               )
 
       assert AppendMarker.read(directory) ==
+               :none
+
+      assert Disk.cardinality(reopened) ==
                {:ok, 1}
+
+      assert Disk.get(
+               reopened,
+               1
+             ) ==
+               {:ok, :position_a}
+
+      assert Disk.find(
+               reopened,
+               :ignored_application_key,
+               :position_a
+             ) ==
+               {:ok, 1}
+    end
+
+    test "recovers an append interrupted before the record write", %{
+      root: root
+    } do
+      directory =
+        create_test_storage(root)
+
+      assert :ok =
+               AppendMarker.create(
+                 directory,
+                 1
+               )
+
+      assert {:ok, reopened} =
+               Disk.open(
+                 directory,
+                 codec: TestCodec,
+                 hash: TestHash
+               )
+
+      assert AppendMarker.read(directory) ==
+               :none
+
+      assert Disk.cardinality(reopened) ==
+               {:ok, 0}
+
+      assert Disk.get(
+               reopened,
+               1
+             ) ==
+               :not_found
+    end
+
+    test "recovers an append interrupted during the record write", %{
+      root: root
+    } do
+      directory =
+        create_test_storage(root)
+
+      assert :ok =
+               AppendMarker.create(
+                 directory,
+                 1
+               )
+
+      record_path =
+        Path.join([
+          directory,
+          "records",
+          "segment-00000000.dat"
+        ])
+
+      File.write!(
+        record_path,
+        <<"aa">>
+      )
+
+      assert {:ok, reopened} =
+               Disk.open(
+                 directory,
+                 codec: TestCodec,
+                 hash: TestHash
+               )
+
+      assert AppendMarker.read(directory) ==
+               :none
+
+      assert File.read!(record_path) ==
+               <<>>
+
+      assert Disk.cardinality(reopened) ==
+               {:ok, 0}
+    end
+
+    test "recovers an append interrupted during the exact index write", %{
+      root: root
+    } do
+      directory =
+        create_test_storage(root)
+
+      assert {:ok, storage} =
+               Disk.open(
+                 directory,
+                 codec: TestCodec,
+                 hash: TestHash
+               )
+
+      assert :ok =
+               AppendMarker.create(
+                 directory,
+                 1
+               )
+
+      assert :ok =
+               RecordStore.append(
+                 storage.record_store,
+                 1,
+                 <<"aaaa">>
+               )
+
+      assert {:ok, hash} =
+               TestHash.hash(<<"aaaa">>)
+
+      bucket =
+        ExactIndexLayout.bucket(
+          hash,
+          16
+        )
+
+      bucket_path =
+        ExactIndexLayout.bucket_path(
+          Path.join(
+            directory,
+            "exact-index"
+          ),
+          bucket
+        )
+
+      entry =
+        Entry.encode(
+          hash,
+          1
+        )
+
+      File.write!(
+        bucket_path,
+        binary_part(
+          entry,
+          0,
+          5
+        )
+      )
+
+      assert {:ok, reopened} =
+               Disk.open(
+                 directory,
+                 codec: TestCodec,
+                 hash: TestHash
+               )
+
+      assert AppendMarker.read(directory) ==
+               :none
+
+      assert File.read!(bucket_path) ==
+               entry
+
+      assert Disk.find(
+               reopened,
+               :ignored_application_key,
+               :position_a
+             ) ==
+               {:ok, 1}
+    end
+
+    test "recovers an append interrupted after the exact index update", %{
+      root: root
+    } do
+      directory =
+        create_test_storage(root)
+
+      assert {:ok, storage} =
+               Disk.open(
+                 directory,
+                 codec: TestCodec,
+                 hash: TestHash
+               )
+
+      assert :ok =
+               AppendMarker.create(
+                 directory,
+                 1
+               )
+
+      assert :ok =
+               RecordStore.append(
+                 storage.record_store,
+                 1,
+                 <<"aaaa">>
+               )
+
+      assert {:ok, _exact_index} =
+               ExactIndex.add(
+                 storage.exact_index,
+                 <<"aaaa">>,
+                 1
+               )
+
+      assert {:ok, reopened} =
+               Disk.open(
+                 directory,
+                 codec: TestCodec,
+                 hash: TestHash
+               )
+
+      assert AppendMarker.read(directory) ==
+               :none
+
+      assert ExactIndex.lookup(
+               reopened.exact_index,
+               <<"aaaa">>
+             ) ==
+               {:ok, [1]}
     end
   end
 
