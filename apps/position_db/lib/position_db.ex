@@ -75,34 +75,31 @@ defmodule PositionDB do
   end
 
   def append(db, position) do
+    previous_cardinality =
+      PositionStore.cardinality(db.store)
+
     case PositionStore.put(
            db.store,
            position
          ) do
       {:ok, store, position_id} ->
-        indexer =
-          PositionIndexer.index(
-            db.indexer,
-            position_id,
-            position
-          )
-
-        equivalence =
-          EquivalenceContext.add(
-            db.equivalence,
+        if PositionStore.cardinality(store) ==
+             previous_cardinality do
+          {
+            %{
+              db
+              | store: store
+            },
+            position_id
+          }
+        else
+          index_new_position(
+            db,
+            store,
             position,
             position_id
           )
-
-        {
-          %{
-            db
-            | store: store,
-              indexer: indexer,
-              equivalence: equivalence
-          },
-          position_id
-        }
+        end
 
       {:error, reason} ->
         {:error, reason}
@@ -124,5 +121,36 @@ defmodule PositionDB do
       query,
       db.equivalence
     )
+  end
+
+  defp index_new_position(
+         db,
+         store,
+         position,
+         position_id
+       ) do
+    indexer =
+      PositionIndexer.index(
+        db.indexer,
+        position_id,
+        position
+      )
+
+    equivalence =
+      EquivalenceContext.add(
+        db.equivalence,
+        position,
+        position_id
+      )
+
+    {
+      %{
+        db
+        | store: store,
+          indexer: indexer,
+          equivalence: equivalence
+      },
+      position_id
+    }
   end
 end

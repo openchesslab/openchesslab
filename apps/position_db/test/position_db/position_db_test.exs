@@ -7,9 +7,58 @@ defmodule PositionDBTest do
   alias Chess.PositionProperties
   alias Chess.PositionTransform
   alias Chess.Square
-
   alias PositionDB
+  alias PositionDB.PositionIndexer
+  alias PositionDB.PositionStore
+  alias PositionDB.PropertyIndex
   alias PositionDB.Query
+
+  defmodule TrackingPropertyIndex do
+    @behaviour PositionDB.PropertyIndex.Backend
+
+    @impl PositionDB.PropertyIndex.Backend
+    def add(
+          state,
+          property,
+          position_id
+        ) do
+      send(
+        state.test_pid,
+        {:property_add, property, position_id}
+      )
+
+      {:ok, state}
+    end
+
+    @impl PositionDB.PropertyIndex.Backend
+    def advance(
+          state,
+          position_id
+        ) do
+      send(
+        state.test_pid,
+        {:property_advance, position_id}
+      )
+
+      {:ok, state}
+    end
+
+    @impl PositionDB.PropertyIndex.Backend
+    def lookup(
+          _state,
+          _property
+        ) do
+      {:ok, []}
+    end
+
+    @impl PositionDB.PropertyIndex.Backend
+    def cardinality(
+          _state,
+          _property
+        ) do
+      {:ok, 0}
+    end
+  end
 
   defp new_db do
     PositionDB.new(
@@ -591,5 +640,85 @@ defmodule PositionDBTest do
                Query.match_all()
              )
            ) == ids
+  end
+
+  test "does not index an exact duplicate again" do
+    properties = [
+      {:open_files, & &1.open_files}
+    ]
+
+    db =
+      PositionDB.new(
+        key_function: & &1.id,
+        properties: properties
+      )
+
+    property_index =
+      PropertyIndex.new(
+        TrackingPropertyIndex,
+        %{
+          test_pid: self()
+        }
+      )
+
+    db = %{
+      db
+      | indexer:
+          PositionIndexer.new(
+            properties,
+            property_index
+          )
+    }
+
+    position = %{
+      id: :position_1,
+      open_files: [:a, :e]
+    }
+
+    {db, position_id} =
+      PositionDB.append(
+        db,
+        position
+      )
+
+    assert_receive {
+      :property_add,
+      {:open_files, :a},
+      ^position_id
+    }
+
+    assert_receive {
+      :property_add,
+      {:open_files, :e},
+      ^position_id
+    }
+
+    assert_receive {
+      :property_advance,
+      ^position_id
+    }
+
+    {db, duplicate_id} =
+      PositionDB.append(
+        db,
+        position
+      )
+
+    assert duplicate_id ==
+             position_id
+
+    assert PositionStore.cardinality(db.store) ==
+             1
+
+    refute_receive {
+      :property_add,
+      _property,
+      _position_id
+    }
+
+    refute_receive {
+      :property_advance,
+      _position_id
+    }
   end
 end
