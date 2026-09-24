@@ -39,6 +39,23 @@ defmodule PositionDB.Storage.Disk.Durability do
     end
   end
 
+  @spec remove_directory(Path.t()) ::
+          :ok
+          | {:error, term()}
+  def remove_directory(directory)
+      when is_binary(directory) do
+    parent =
+      Path.dirname(directory)
+
+    case File.rm_rf(directory) do
+      {:ok, _paths} ->
+        sync_directory(parent)
+
+      {:error, reason, path} ->
+        {:error, {:remove_directory_failed, path, reason}}
+    end
+  end
+
   @doc """
   Renames two sibling paths and durably persists the directory
   entry change.

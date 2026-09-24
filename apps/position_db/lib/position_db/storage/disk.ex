@@ -18,6 +18,7 @@ defmodule PositionDB.Storage.Disk do
   """
 
   alias PositionDB.Storage.Disk.Durability
+  alias PositionDB.Storage.Disk.ExactIndexRebuilder
   alias PositionDB.Storage.Disk.ExactLookup
   alias PositionDB.Storage.Disk.Manifest
   alias PositionDB.Storage.Disk.ManifestStore
@@ -98,6 +99,8 @@ defmodule PositionDB.Storage.Disk do
              records_directory(directory),
              :records
            ),
+         :ok <-
+           ExactIndexRebuilder.recover(exact_index_directory(directory)),
          :ok <-
            validate_storage_directory(
              exact_index_directory(directory),

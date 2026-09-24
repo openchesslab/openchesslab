@@ -196,4 +196,42 @@ defmodule PositionDB.Storage.Disk.DurabilityTest do
     assert Durability.sync_file(path) ==
              {:error, :enoent}
   end
+
+  test "durably removes a directory", %{
+    root: root
+  } do
+    directory =
+      Path.join(
+        root,
+        "removed"
+      )
+
+    File.mkdir!(directory)
+
+    File.write!(
+      Path.join(
+        directory,
+        "data"
+      ),
+      <<"value">>
+    )
+
+    assert Durability.remove_directory(directory) ==
+             :ok
+
+    refute File.exists?(directory)
+  end
+
+  test "removing a missing directory is idempotent", %{
+    root: root
+  } do
+    directory =
+      Path.join(
+        root,
+        "missing"
+      )
+
+    assert Durability.remove_directory(directory) ==
+             :ok
+  end
 end
