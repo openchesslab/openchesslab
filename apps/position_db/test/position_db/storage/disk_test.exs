@@ -459,4 +459,210 @@ defmodule PositionDB.Storage.DiskTest do
       refute File.exists?(directory)
     end
   end
+
+  describe "open/2" do
+    test "reopens a disk store using its persisted physical layout", %{
+      root: root
+    } do
+      directory =
+        Path.join(
+          root,
+          "reopen"
+        )
+
+      assert {:ok, _created} =
+               Disk.create(
+                 directory,
+                 codec: TestCodec,
+                 records_per_segment: 3,
+                 bucket_count: 16,
+                 hash: TestHash
+               )
+
+      assert {:ok, storage} =
+               Disk.open(
+                 directory,
+                 codec: TestCodec,
+                 hash: TestHash
+               )
+
+      assert storage.record_store.record_size ==
+               4
+
+      assert storage.record_store.records_per_segment ==
+               3
+
+      assert storage.exact_index.hash_size ==
+               4
+
+      assert storage.exact_index.bucket_count ==
+               16
+
+      assert Disk.cardinality(storage) ==
+               {:ok, 0}
+    end
+
+    test "requires a persisted manifest", %{
+      root: root
+    } do
+      directory =
+        Path.join(
+          root,
+          "no-manifest"
+        )
+
+      File.mkdir!(directory)
+
+      assert Disk.open(
+               directory,
+               codec: TestCodec,
+               hash: TestHash
+             ) ==
+               {:error, :manifest_not_found}
+    end
+
+    test "rejects a different record format", %{
+      root: root
+    } do
+      directory =
+        create_test_storage(root)
+
+      assert Disk.open(
+               directory,
+               codec: OtherFormatCodec,
+               hash: TestHash
+             ) ==
+               {:error,
+                {:storage_format_mismatch, :record_format_id, <<"test-position-v1">>,
+                 <<"other-position-v1">>}}
+    end
+
+    test "rejects a different record size", %{
+      root: root
+    } do
+      directory =
+        create_test_storage(root)
+
+      assert Disk.open(
+               directory,
+               codec: WrongSizeCodec,
+               hash: TestHash
+             ) ==
+               {:error, {:storage_format_mismatch, :record_size, 4, 8}}
+    end
+
+    test "rejects a different exact hash format", %{
+      root: root
+    } do
+      directory =
+        create_test_storage(root)
+
+      assert Disk.open(
+               directory,
+               codec: TestCodec,
+               hash: OtherFormatHash
+             ) ==
+               {:error,
+                {:storage_format_mismatch, :exact_hash_format_id, <<"test-exact-hash-v1">>,
+                 <<"other-exact-hash-v1">>}}
+    end
+
+    test "rejects a different exact hash size", %{
+      root: root
+    } do
+      directory =
+        create_test_storage(root)
+
+      assert Disk.open(
+               directory,
+               codec: TestCodec,
+               hash: WrongSizeHash
+             ) ==
+               {:error, {:storage_format_mismatch, :exact_hash_size, 4, 8}}
+    end
+
+    test "rejects storage with a missing records directory", %{
+      root: root
+    } do
+      directory =
+        create_test_storage(root)
+
+      File.rm_rf!(
+        Path.join(
+          directory,
+          "records"
+        )
+      )
+
+      assert Disk.open(
+               directory,
+               codec: TestCodec,
+               hash: TestHash
+             ) ==
+               {:error, {:missing_storage_directory, :records}}
+    end
+
+    test "rejects storage with a missing exact index directory", %{
+      root: root
+    } do
+      directory =
+        create_test_storage(root)
+
+      File.rm_rf!(
+        Path.join(
+          directory,
+          "exact-index"
+        )
+      )
+
+      assert Disk.open(
+               directory,
+               codec: TestCodec,
+               hash: TestHash
+             ) ==
+               {:error, {:missing_storage_directory, :exact_index}}
+    end
+
+    test "detects corrupt record segments while opening", %{
+      root: root
+    } do
+      directory =
+        create_test_storage(root)
+
+      File.write!(
+        Path.join([
+          directory,
+          "records",
+          "segment-00000000.dat"
+        ]),
+        <<"abc">>
+      )
+
+      assert Disk.open(
+               directory,
+               codec: TestCodec,
+               hash: TestHash
+             ) ==
+               {:error, {:invalid_segment_size, 0, 3}}
+    end
+  end
+
+  defp create_test_storage(root) do
+    directory =
+      Path.join(
+        root,
+        "open-#{System.unique_integer([:positive])}"
+      )
+
+    assert {:ok, _storage} =
+             Disk.create(
+               directory,
+               codec: TestCodec,
+               records_per_segment: 3,
+               bucket_count: 16,
+               hash: TestHash
+             )
+
+    directory
+  end
 end

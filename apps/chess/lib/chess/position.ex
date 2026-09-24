@@ -665,7 +665,7 @@ defmodule Chess.Position do
          {^color, :rook} <- piece_at(position, rook_from),
          true <- castling_path_clear?(position, right),
          false <- in_check?(position, color),
-         false <- attacked?(position, opponent, castling_cross_square(color)),
+         false <- attacked?(position, opponent, castling_cross_square(right)),
          false <- attacked?(position, opponent, king_to) do
       position =
         position
@@ -721,12 +721,20 @@ defmodule Chess.Position do
       piece_at(position, 59) == nil
   end
 
-  defp castling_cross_square(:white) do
+  defp castling_cross_square(:white_kingside) do
     5
   end
 
-  defp castling_cross_square(:black) do
+  defp castling_cross_square(:white_queenside) do
+    3
+  end
+
+  defp castling_cross_square(:black_kingside) do
     61
+  end
+
+  defp castling_cross_square(:black_queenside) do
+    59
   end
 
   defp attacked?(position, color, square) do

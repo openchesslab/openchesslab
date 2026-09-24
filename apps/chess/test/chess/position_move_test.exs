@@ -1675,6 +1675,70 @@ defmodule Chess.PositionMoveTest do
                MapSet.new([:white_kingside, :white_queenside])
              )
     end
+
+    test "queenside castling is not blocked by an attacked kingside cross square" do
+      positions = [
+        {
+          Position.new(castling_rights: MapSet.new([:white_queenside]))
+          |> Position.put_piece(square("e1"), {:white, :king})
+          |> Position.put_piece(square("a1"), {:white, :rook})
+          |> Position.put_piece(square("f8"), {:black, :rook}),
+          Move.new(square("e1"), square("c1"))
+        },
+        {
+          Position.new(
+            side_to_move: :black,
+            castling_rights: MapSet.new([:black_queenside])
+          )
+          |> Position.put_piece(square("e8"), {:black, :king})
+          |> Position.put_piece(square("a8"), {:black, :rook})
+          |> Position.put_piece(square("f1"), {:white, :rook}),
+          Move.new(square("e8"), square("c8"))
+        }
+      ]
+
+      Enum.each(positions, fn {position, move} ->
+        assert {:ok, _position} =
+                 Position.apply_move(
+                   position,
+                   move
+                 )
+      end)
+    end
+
+    test "cannot castle queenside through an attacked square" do
+      position =
+        Position.new(castling_rights: MapSet.new([:white_queenside]))
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("a1"), {:white, :rook})
+        |> Position.put_piece(square("d8"), {:black, :rook})
+        |> Position.put_piece(square("h8"), {:black, :king})
+
+      moves =
+        Position.legal_moves(position)
+
+      refute Move.new(
+               square("e1"),
+               square("c1")
+             ) in moves
+    end
+
+    test "can castle queenside when only f1 is attacked" do
+      position =
+        Position.new(castling_rights: MapSet.new([:white_queenside]))
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("a1"), {:white, :rook})
+        |> Position.put_piece(square("f8"), {:black, :rook})
+        |> Position.put_piece(square("h8"), {:black, :king})
+
+      moves =
+        Position.legal_moves(position)
+
+      assert Move.new(
+               square("e1"),
+               square("c1")
+             ) in moves
+    end
   end
 
   describe "castling rights after castling" do
