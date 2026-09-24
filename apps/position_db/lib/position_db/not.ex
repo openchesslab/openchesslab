@@ -88,6 +88,14 @@ defmodule PositionDB.Not do
 
   defp load_universe(state), do: state
 
+  defp load_child(
+         %__MODULE__{
+           child: {:error, _reason}
+         } = state
+       ) do
+    state
+  end
+
   defp load_child(%__MODULE__{child: :done} = state) do
     state
   end
@@ -100,10 +108,23 @@ defmodule PositionDB.Not do
        ) do
     case QueryExecutor.next(child) do
       {:ok, position_id, next_child} ->
-        %{state | child: next_child, child_id: position_id}
+        %{
+          state
+          | child: next_child,
+            child_id: position_id
+        }
 
       :done ->
-        %{state | child: :done}
+        %{
+          state
+          | child: :done
+        }
+
+      {:error, reason} ->
+        %{
+          state
+          | child: {:error, reason}
+        }
     end
   end
 

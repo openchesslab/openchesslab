@@ -7,6 +7,7 @@ defmodule PositionDB.QueryEngine do
   alias PositionDB.Empty
   alias PositionDB.EquivalenceContext
   alias PositionDB.EquivalenceScan
+  alias PositionDB.Error
   alias PositionDB.Not
   alias PositionDB.Or
   alias PositionDB.PositionStore
@@ -40,12 +41,18 @@ defmodule PositionDB.QueryEngine do
       )
 
     executor =
-      build_executor(
-        index,
-        store,
-        planned_query,
-        equivalence
-      )
+      case planned_query do
+        {:error, reason} ->
+          Error.new(reason)
+
+        planned_query ->
+          build_executor(
+            index,
+            store,
+            planned_query,
+            equivalence
+          )
+      end
 
     QueryResult.new(executor)
   end

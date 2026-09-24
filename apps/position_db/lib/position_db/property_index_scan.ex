@@ -1,38 +1,85 @@
 defmodule PositionDB.PropertyIndexScan do
   @moduledoc """
-  Executes a scan over position IDs matching a property.
+  Executes a lazy scan over position IDs matching a property.
   """
 
   alias PositionDB.PropertyIndex
   alias PositionDB.QueryExecutor
 
+  @type property ::
+          {atom(), term()}
+
   @type t :: %__MODULE__{
-          ids: [non_neg_integer()]
+          index: PropertyIndex.t(),
+          property: property(),
+          ids:
+            [pos_integer()]
+            | nil
         }
 
-  defstruct ids: []
+  defstruct [
+    :index,
+    :property,
+    ids: nil
+  ]
 
-  @spec new(PropertyIndex.t(), {atom(), term()}) :: QueryExecutor.t()
-  def new(index, property) do
-    state = %__MODULE__{
-      ids:
-        index
-        |> PropertyIndex.lookup(property)
-        |> MapSet.to_list()
-        |> Enum.sort()
-    }
-
-    QueryExecutor.new(__MODULE__, state)
+  @spec new(
+          PropertyIndex.t(),
+          property()
+        ) ::
+          QueryExecutor.t()
+  def new(
+        %PropertyIndex{} = index,
+        property
+      ) do
+    QueryExecutor.new(
+      __MODULE__,
+      %__MODULE__{
+        index: index,
+        property: property
+      }
+    )
   end
 
   @spec next(t()) ::
-          {:ok, non_neg_integer(), t()}
+          {:ok, pos_integer(), t()}
           | :done
-  def next(%__MODULE__{ids: [position_id | rest]} = state) do
-    {:ok, position_id, %{state | ids: rest}}
+          | {:error, term()}
+  def next(
+        %__MODULE__{
+          ids: nil
+        } = state
+      ) do
+    case PropertyIndex.lookup_ids(
+           state.index,
+           state.property
+         ) do
+      {:ok, ids} ->
+        next(%{
+          state
+          | ids: ids
+        })
+
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 
-  def next(%__MODULE__{ids: []}) do
+  def next(
+        %__MODULE__{
+          ids: [position_id | rest]
+        } = state
+      ) do
+    {:ok, position_id,
+     %{
+       state
+       | ids: rest
+     }}
+  end
+
+  def next(%__MODULE__{
+        ids: []
+      }) do
     :done
   end
 end

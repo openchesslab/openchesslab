@@ -16,6 +16,8 @@ defmodule PositionDB.PropertyIndex.Disk do
   alias PositionDB.Storage.PostingIndex.Disk.Manifest
   alias PositionDB.Storage.PostingIndex.Disk.ManifestStore
 
+  @behaviour PositionDB.PropertyIndex.Backend
+
   @type property :: {atom(), term()}
 
   @type t :: %__MODULE__{
