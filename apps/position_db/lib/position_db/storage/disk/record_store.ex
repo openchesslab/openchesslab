@@ -146,6 +146,63 @@ defmodule PositionDB.Storage.Disk.RecordStore do
     end
   end
 
+  @doc """
+  Recovers the authoritative record side of an interrupted append.
+
+  A complete pending record is made durable again and returned.
+
+  A partial pending record is truncated back to its original
+  segment size and treated as not appended.
+
+  Recovery refuses to modify a segment when data exists beyond
+  the pending record.
+  """
+  @spec recover_pending_append(
+          t(),
+          pos_integer()
+        ) ::
+          {:ok, binary()}
+          | :not_found
+          | {:error, term()}
+  def recover_pending_append(
+        %__MODULE__{} = store,
+        position_id
+      )
+      when is_integer(position_id) and
+             position_id > 0 do
+    {segment, offset} =
+      Layout.location(
+        position_id,
+        store.record_size,
+        store.records_per_segment
+      )
+
+    path =
+      Layout.segment_path(
+        store.directory,
+        segment
+      )
+
+    expected_size =
+      offset +
+        store.record_size
+
+    with :ok <-
+           validate_previous_segment(
+             store,
+             segment,
+             offset
+           ) do
+      recover_segment_append(
+        store,
+        position_id,
+        path,
+        offset,
+        expected_size
+      )
+    end
+  end
+
   @spec cardinality(t()) ::
           {:ok, non_neg_integer()}
           | {:error, :non_contiguous_segments}
@@ -456,6 +513,116 @@ defmodule PositionDB.Storage.Disk.RecordStore do
 
       :eof ->
         :not_found
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp recover_segment_append(
+         store,
+         position_id,
+         path,
+         offset,
+         expected_size
+       ) do
+    case File.stat(path) do
+      {:ok, %{size: ^offset}} ->
+        :not_found
+
+      {:ok, %{size: ^expected_size}} ->
+        recover_complete_record(
+          store,
+          position_id,
+          path,
+          offset
+        )
+
+      {:ok, %{size: size}}
+      when size > offset and
+             size < expected_size ->
+        case truncate_segment(
+               path,
+               offset
+             ) do
+          :ok ->
+            :not_found
+
+          {:error, reason} ->
+            {:error, reason}
+        end
+
+      {:ok, %{size: size}}
+      when size < offset ->
+        {:error, {:unexpected_segment_size, offset, size}}
+
+      {:ok, %{size: size}}
+      when size > expected_size ->
+        {:error, {:unexpected_segment_size, expected_size, size}}
+
+      {:error, :enoent}
+      when offset == 0 ->
+        :not_found
+
+      {:error, :enoent} ->
+        {:error, {:unexpected_segment_size, offset, 0}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp recover_complete_record(
+         store,
+         position_id,
+         path,
+         offset
+       ) do
+    with {:ok, record} <-
+           get(
+             store,
+             position_id
+           ),
+         :ok <-
+           Durability.sync_file(path),
+         :ok <-
+           sync_segment_directory(
+             store.directory,
+             offset
+           ) do
+      {:ok, record}
+    end
+  end
+
+  defp truncate_segment(
+         path,
+         offset
+       ) do
+    case :file.open(
+           path,
+           [
+             :read,
+             :write,
+             :binary,
+             :raw
+           ]
+         ) do
+      {:ok, file} ->
+        try do
+          with {:ok, ^offset} <-
+                 :file.position(
+                   file,
+                   offset
+                 ),
+               :ok <-
+                 :file.truncate(file),
+               :ok <-
+                 :file.sync(file) do
+            :ok
+          end
+        after
+          :file.close(file)
+        end
 
       {:error, reason} ->
         {:error, reason}

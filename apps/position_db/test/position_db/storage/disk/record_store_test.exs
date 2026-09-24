@@ -273,6 +273,143 @@ defmodule PositionDB.Storage.Disk.RecordStoreTest do
     end
   end
 
+  describe "recover_pending_append/2" do
+    test "returns not_found when the pending record was not written", %{
+      store: store
+    } do
+      assert RecordStore.recover_pending_append(
+               store,
+               1
+             ) ==
+               :not_found
+    end
+
+    test "returns a complete pending record", %{
+      store: store
+    } do
+      assert :ok =
+               RecordStore.append(
+                 store,
+                 1,
+                 "aaaa"
+               )
+
+      assert RecordStore.recover_pending_append(
+               store,
+               1
+             ) ==
+               {:ok, "aaaa"}
+
+      assert RecordStore.get(
+               store,
+               1
+             ) ==
+               {:ok, "aaaa"}
+    end
+
+    test "truncates a partial pending record", %{
+      directory: directory,
+      store: store
+    } do
+      path =
+        Layout.segment_path(
+          directory,
+          0
+        )
+
+      File.write!(
+        path,
+        <<"aaaa", "bb">>
+      )
+
+      assert RecordStore.recover_pending_append(
+               store,
+               2
+             ) ==
+               :not_found
+
+      assert File.read!(path) ==
+               "aaaa"
+
+      assert RecordStore.cardinality(store) ==
+               {:ok, 1}
+    end
+
+    test "truncates a partial pending record at a segment boundary", %{
+      directory: directory,
+      store: store
+    } do
+      assert :ok =
+               RecordStore.append(
+                 store,
+                 1,
+                 "aaaa"
+               )
+
+      assert :ok =
+               RecordStore.append(
+                 store,
+                 2,
+                 "bbbb"
+               )
+
+      assert :ok =
+               RecordStore.append(
+                 store,
+                 3,
+                 "cccc"
+               )
+
+      path =
+        Layout.segment_path(
+          directory,
+          1
+        )
+
+      File.write!(
+        path,
+        "dd"
+      )
+
+      assert RecordStore.recover_pending_append(
+               store,
+               4
+             ) ==
+               :not_found
+
+      assert File.read!(path) ==
+               ""
+
+      assert RecordStore.cardinality(store) ==
+               {:ok, 3}
+    end
+
+    test "does not truncate records beyond the pending position", %{
+      directory: directory,
+      store: store
+    } do
+      path =
+        Layout.segment_path(
+          directory,
+          0
+        )
+
+      File.write!(
+        path,
+        <<"aaaa", "bbbb", "cccc">>
+      )
+
+      assert RecordStore.recover_pending_append(
+               store,
+               2
+             ) ==
+               {:error, {:unexpected_segment_size, 8, 12}}
+
+      assert File.read!(path) ==
+               <<"aaaa", "bbbb", "cccc">>
+    end
+  end
+
   describe "cardinality/1" do
     test "returns zero for an empty store", %{
       store: store
