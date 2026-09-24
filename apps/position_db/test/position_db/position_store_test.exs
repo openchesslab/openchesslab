@@ -9,6 +9,14 @@ defmodule PositionDB.PositionStoreTest do
     def put(_storage, _key, _position) do
       {:error, :disk_failure}
     end
+
+    def get(_storage, _position_id) do
+      {:error, :disk_failure}
+    end
+
+    def find(_storage, _key, _position) do
+      {:error, :disk_failure}
+    end
   end
 
   test "new position gets an id" do
@@ -100,6 +108,36 @@ defmodule PositionDB.PositionStoreTest do
       )
 
     assert PositionStore.put(
+             store,
+             :position
+           ) ==
+             {:error, :disk_failure}
+  end
+
+  test "propagates storage get errors" do
+    store =
+      PositionStore.new(
+        & &1,
+        FailingStorage,
+        :storage
+      )
+
+    assert PositionStore.get(
+             store,
+             1
+           ) ==
+             {:error, :disk_failure}
+  end
+
+  test "propagates storage find errors" do
+    store =
+      PositionStore.new(
+        & &1,
+        FailingStorage,
+        :storage
+      )
+
+    assert PositionStore.find(
              store,
              :position
            ) ==

@@ -24,10 +24,14 @@ defmodule PositionDB.Storage do
               | {:error, term()}
 
   @callback get(t(), position_id()) ::
-              {:ok, position()} | :not_found
+              {:ok, position()}
+              | :not_found
+              | {:error, term()}
 
   @callback find(t(), key(), position()) ::
-              {:ok, position_id()} | :not_found
+              {:ok, position_id()}
+              | :not_found
+              | {:error, term()}
 
   @callback scan(t()) :: scan_state()
 

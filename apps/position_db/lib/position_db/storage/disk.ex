@@ -12,10 +12,9 @@ defmodule PositionDB.Storage.Disk do
   key. This keeps the exact index rebuildable from the durable
   record store without depending on application-level key
   functions.
-
-  This module does not yet implement `PositionDB.Storage`.
-  The current storage behaviour does not expose disk I/O errors.
   """
+
+  @behaviour PositionDB.Storage
 
   alias PositionDB.Storage.Disk.AppendMarker
   alias PositionDB.Storage.Disk.Durability
@@ -182,6 +181,7 @@ defmodule PositionDB.Storage.Disk do
     }
   end
 
+  @impl PositionDB.Storage
   @spec get(t(), pos_integer()) ::
           {:ok, term()}
           | :not_found
@@ -207,6 +207,7 @@ defmodule PositionDB.Storage.Disk do
     end
   end
 
+  @impl PositionDB.Storage
   @spec find(t(), term(), term()) ::
           {:ok, pos_integer()}
           | :not_found
@@ -228,6 +229,7 @@ defmodule PositionDB.Storage.Disk do
     end
   end
 
+  @impl PositionDB.Storage
   @spec put(t(), term(), term()) ::
           {:ok, t(), pos_integer()}
           | {:error, term()}
@@ -262,11 +264,13 @@ defmodule PositionDB.Storage.Disk do
     end
   end
 
+  @impl PositionDB.Storage
   @spec cardinality(t()) :: non_neg_integer()
   def cardinality(%__MODULE__{} = storage) do
     storage.next_id - 1
   end
 
+  @impl PositionDB.Storage
   @spec scan(t()) :: scan_state()
   def scan(%__MODULE__{} = storage) do
     %{
@@ -275,6 +279,7 @@ defmodule PositionDB.Storage.Disk do
     }
   end
 
+  @impl PositionDB.Storage
   @spec scan_next(scan_state()) ::
           {:ok, pos_integer(), scan_state()}
           | :done

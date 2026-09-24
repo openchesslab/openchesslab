@@ -82,7 +82,9 @@ defmodule PositionDB.PositionStore do
   end
 
   @spec get(t(), position_id()) ::
-          {:ok, term()} | :not_found
+          {:ok, term()}
+          | :not_found
+          | {:error, term()}
   def get(%__MODULE__{} = store, position_id) do
     store.storage_module.get(
       store.storage,
@@ -91,9 +93,12 @@ defmodule PositionDB.PositionStore do
   end
 
   @spec find(t(), term()) ::
-          {:ok, position_id()} | :not_found
+          {:ok, position_id()}
+          | :not_found
+          | {:error, term()}
   def find(%__MODULE__{} = store, position) do
-    key = store.key_function.(position)
+    key =
+      store.key_function.(position)
 
     store.storage_module.find(
       store.storage,
