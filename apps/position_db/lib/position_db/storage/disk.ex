@@ -8,9 +8,10 @@ defmodule PositionDB.Storage.Disk do
   Combines fixed-size position records, the disk-backed exact
   index and a record codec.
 
-  Exact-index matches are treated as candidates. Exact position
-  identity is established by comparing the complete encoded
-  record.
+  The encoded record itself is used as the physical exact-index
+  key. This keeps the exact index rebuildable from the durable
+  record store without depending on application-level key
+  functions.
 
   This module does not yet implement `PositionDB.Storage`.
   The current storage behaviour does not expose disk I/O errors.
@@ -187,16 +188,15 @@ defmodule PositionDB.Storage.Disk do
     end
   end
 
-  @spec find(t(), binary(), term()) ::
+  @spec find(t(), term(), term()) ::
           {:ok, pos_integer()}
           | :not_found
           | {:error, term()}
   def find(
         %__MODULE__{} = storage,
-        key,
+        _key,
         position
-      )
-      when is_binary(key) do
+      ) do
     with {:ok, record} <-
            encode_position(
              storage,
@@ -206,7 +206,7 @@ defmodule PositionDB.Storage.Disk do
         storage.record_store,
         ExactIndex,
         storage.exact_index,
-        key,
+        record,
         record
       )
     end

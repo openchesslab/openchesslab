@@ -145,10 +145,10 @@ defmodule PositionDB.Storage.DiskTest do
     def hash_size, do: 4
 
     @impl PositionDB.Storage.ExactKeyHash
-    def hash(<<"collision-a">>),
+    def hash(<<"aaaa">>),
       do: {:ok, <<0, 0, 0, 1>>}
 
-    def hash(<<"collision-b">>),
+    def hash(<<"bbbb">>),
       do: {:ok, <<0, 0, 0, 1>>}
 
     def hash(_key),
@@ -232,14 +232,14 @@ defmodule PositionDB.Storage.DiskTest do
     assert {:ok, exact_index} =
              ExactIndex.add(
                storage.exact_index,
-               <<"collision-a">>,
+               <<"aaaa">>,
                1
              )
 
     assert {:ok, exact_index} =
              ExactIndex.add(
                exact_index,
-               <<"collision-b">>,
+               <<"bbbb">>,
                2
              )
 
@@ -248,7 +248,7 @@ defmodule PositionDB.Storage.DiskTest do
 
     assert Disk.find(
              storage,
-             <<"collision-b">>,
+             :application_level_key,
              :position_b
            ) ==
              {:ok, 2}
@@ -268,7 +268,7 @@ defmodule PositionDB.Storage.DiskTest do
     assert {:ok, exact_index} =
              ExactIndex.add(
                storage.exact_index,
-               <<"collision-a">>,
+               <<"aaaa">>,
                1
              )
 
@@ -277,7 +277,7 @@ defmodule PositionDB.Storage.DiskTest do
 
     assert Disk.find(
              storage,
-             <<"collision-b">>,
+             :some_other_logical_key,
              :position_b
            ) ==
              :not_found
