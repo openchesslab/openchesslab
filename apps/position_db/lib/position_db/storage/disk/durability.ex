@@ -94,6 +94,50 @@ defmodule PositionDB.Storage.Disk.Durability do
     end
   end
 
+  @doc """
+  Atomically replaces a sibling regular file on Unix and durably
+  persists the directory entry change.
+
+  On Windows the destination is removed first because replacing an
+  existing file with rename is not consistently supported. Disk
+  durability guarantees target Linux; the Windows path exists for
+  development compatibility.
+  """
+  @spec replace_sibling_file(
+          Path.t(),
+          Path.t()
+        ) ::
+          :ok
+          | {:error, term()}
+  def replace_sibling_file(
+        source,
+        destination
+      )
+      when is_binary(source) and
+             is_binary(destination) do
+    parent =
+      Path.dirname(source)
+
+    if parent ==
+         Path.dirname(destination) do
+      with :ok <-
+             validate_regular_file(source),
+           :ok <-
+             validate_replacement_destination(destination),
+           :ok <-
+             replace_file(
+               source,
+               destination
+             ),
+           :ok <-
+             sync_directory(parent) do
+        :ok
+      end
+    else
+      {:error, :different_parent_directories}
+    end
+  end
+
   @spec sync_file(Path.t()) ::
           :ok
           | {:error, term()}
@@ -163,6 +207,69 @@ defmodule PositionDB.Storage.Disk.Durability do
         after
           :file.close(file)
         end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp validate_replacement_destination(path) do
+    case File.stat(path) do
+      {:ok, %{type: :regular}} ->
+        :ok
+
+      {:ok, _stat} ->
+        {:error, :not_a_regular_file}
+
+      {:error, :enoent} ->
+        :ok
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp replace_file(
+         source,
+         destination
+       ) do
+    case :os.type() do
+      {:unix, _name} ->
+        File.rename(
+          source,
+          destination
+        )
+
+      {:win32, _name} ->
+        replace_file_windows(
+          source,
+          destination
+        )
+    end
+  end
+
+  defp replace_file_windows(
+         source,
+         destination
+       ) do
+    with :ok <-
+           remove_replacement_destination(destination),
+         :ok <-
+           File.rename(
+             source,
+             destination
+           ) do
+      :ok
+    end
+  end
+
+  defp remove_replacement_destination(path) do
+    case File.rm(path) do
+      :ok ->
+        :ok
+
+      {:error, :enoent} ->
+        :ok
 
       {:error, reason} ->
         {:error, reason}

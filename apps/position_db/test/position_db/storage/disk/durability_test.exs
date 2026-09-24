@@ -234,4 +234,88 @@ defmodule PositionDB.Storage.Disk.DurabilityTest do
     assert Durability.remove_directory(directory) ==
              :ok
   end
+
+  test "durably replaces a sibling regular file", %{
+    root: root
+  } do
+    source =
+      Path.join(
+        root,
+        "source"
+      )
+
+    destination =
+      Path.join(
+        root,
+        "destination"
+      )
+
+    File.write!(
+      source,
+      <<"new">>
+    )
+
+    File.write!(
+      destination,
+      <<"old">>
+    )
+
+    assert Durability.replace_sibling_file(
+             source,
+             destination
+           ) ==
+             :ok
+
+    refute File.exists?(source)
+
+    assert File.read!(destination) ==
+             <<"new">>
+  end
+
+  test "rejects file replacement across different parent directories", %{
+    root: root
+  } do
+    left =
+      Path.join(
+        root,
+        "left"
+      )
+
+    right =
+      Path.join(
+        root,
+        "right"
+      )
+
+    File.mkdir!(left)
+    File.mkdir!(right)
+
+    source =
+      Path.join(
+        left,
+        "source"
+      )
+
+    destination =
+      Path.join(
+        right,
+        "destination"
+      )
+
+    File.write!(
+      source,
+      <<"new">>
+    )
+
+    assert Durability.replace_sibling_file(
+             source,
+             destination
+           ) ==
+             {:error, :different_parent_directories}
+
+    assert File.read!(source) ==
+             <<"new">>
+
+    refute File.exists?(destination)
+  end
 end
