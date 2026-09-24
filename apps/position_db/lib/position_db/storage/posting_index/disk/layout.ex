@@ -1,9 +1,23 @@
 defmodule PositionDB.Storage.PostingIndex.Disk.Layout do
   @moduledoc """
-  Maps posting-index buckets to physical index files.
+  Maps posting-index hashes to physical index buckets.
   """
 
   @type bucket :: non_neg_integer()
+
+  @spec bucket(binary(), pos_integer()) :: bucket()
+  def bucket(hash, bucket_count)
+      when is_binary(hash) and
+             byte_size(hash) >= 4 and
+             is_integer(bucket_count) and
+             bucket_count > 0 do
+    <<prefix::unsigned-big-32, _::binary>> = hash
+
+    rem(
+      prefix,
+      bucket_count
+    )
+  end
 
   @spec bucket_filename(bucket()) :: String.t()
   def bucket_filename(bucket)
