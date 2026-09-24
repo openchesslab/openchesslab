@@ -645,6 +645,84 @@ defmodule PositionDB.Storage.DiskTest do
              ) ==
                {:error, {:invalid_segment_size, 0, 3}}
     end
+
+    test "recovers an interrupted exact index replacement", %{
+      root: root
+    } do
+      directory =
+        create_test_storage(root)
+
+      assert {:ok, storage} =
+               Disk.open(
+                 directory,
+                 codec: TestCodec,
+                 hash: TestHash
+               )
+
+      assert :ok =
+               RecordStore.append(
+                 storage.record_store,
+                 1,
+                 <<"aaaa">>
+               )
+
+      active =
+        Path.join(
+          directory,
+          "exact-index"
+        )
+
+      rebuild =
+        active <>
+          ".rebuild"
+
+      backup =
+        active <>
+          ".backup"
+
+      File.mkdir!(rebuild)
+
+      replacement =
+        ExactIndex.new(
+          rebuild,
+          bucket_count: 16,
+          hash: TestHash
+        )
+
+      assert {:ok, _replacement} =
+               ExactIndex.add(
+                 replacement,
+                 <<"aaaa">>,
+                 1
+               )
+
+      File.rename!(
+        active,
+        backup
+      )
+
+      refute File.exists?(active)
+      assert File.dir?(rebuild)
+      assert File.dir?(backup)
+
+      assert {:ok, reopened} =
+               Disk.open(
+                 directory,
+                 codec: TestCodec,
+                 hash: TestHash
+               )
+
+      assert File.dir?(active)
+      refute File.exists?(rebuild)
+      refute File.exists?(backup)
+
+      assert Disk.find(
+               reopened,
+               :ignored_application_key,
+               :position_a
+             ) ==
+               {:ok, 1}
+    end
   end
 
   defp create_test_storage(root) do
