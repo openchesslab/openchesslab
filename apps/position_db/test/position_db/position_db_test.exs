@@ -54,6 +54,56 @@ defmodule PositionDBTest do
     assert Enum.to_list(result) == [position_id]
   end
 
+  test "uses a supplied storage backend" do
+    storage =
+      PositionDB.Storage.Memory.new()
+
+    db =
+      PositionDB.new(
+        key_function: & &1,
+        properties: [],
+        storage: {
+          PositionDB.Storage.Memory,
+          storage
+        }
+      )
+
+    assert db.store.storage_module ==
+             PositionDB.Storage.Memory
+
+    assert db.store.storage ==
+             storage
+  end
+
+  test "appends through a supplied storage backend" do
+    storage =
+      PositionDB.Storage.Memory.new()
+
+    db =
+      PositionDB.new(
+        key_function: & &1,
+        properties: [],
+        storage: {
+          PositionDB.Storage.Memory,
+          storage
+        }
+      )
+
+    {db, position_id} =
+      PositionDB.append(
+        db,
+        :position
+      )
+
+    assert position_id == 1
+
+    assert PositionDB.get(
+             db,
+             position_id
+           ) ==
+             {:ok, :position}
+  end
+
   test "stores an identical position only once" do
     position =
       Position.new()

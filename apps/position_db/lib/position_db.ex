@@ -21,17 +21,50 @@ defmodule PositionDB do
   ]
 
   def new(options) do
-    key_function = Keyword.fetch!(options, :key_function)
-    properties = Keyword.fetch!(options, :properties)
+    key_function =
+      Keyword.fetch!(
+        options,
+        :key_function
+      )
+
+    properties =
+      Keyword.fetch!(
+        options,
+        :properties
+      )
 
     equivalence_function =
-      Keyword.get(options, :equivalence_function, key_function)
+      Keyword.get(
+        options,
+        :equivalence_function,
+        key_function
+      )
 
     matcher =
-      Keyword.get(options, :matcher, &(&1 == &2))
+      Keyword.get(
+        options,
+        :matcher,
+        &(&1 == &2)
+      )
+
+    store =
+      case Keyword.fetch(
+             options,
+             :storage
+           ) do
+        {:ok, {storage_module, storage}} ->
+          PositionStore.new(
+            key_function,
+            storage_module,
+            storage
+          )
+
+        :error ->
+          PositionStore.new(key_function)
+      end
 
     %__MODULE__{
-      store: PositionStore.new(key_function),
+      store: store,
       indexer: PositionIndexer.new(properties),
       equivalence:
         EquivalenceContext.new(
