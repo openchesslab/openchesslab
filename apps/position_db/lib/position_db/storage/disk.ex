@@ -2,8 +2,8 @@ defmodule PositionDB.Storage.Disk do
   @moduledoc """
   Disk-backed position storage.
 
-  Position records are currently read-only. New empty disk stores
-  can be initialized with `create/2`.
+  Position records are currently read-only. Disk stores can be
+  initialized with `create/2` and reopened with `open/2`.
 
   Combines fixed-size position records, the disk-backed exact
   index and a record codec.
@@ -63,6 +63,54 @@ defmodule PositionDB.Storage.Disk do
              manifest
            ) do
       {:ok, storage}
+    end
+  end
+
+  @spec open(Path.t(), keyword()) ::
+          {:ok, t()}
+          | {:error, term()}
+  def open(directory, opts)
+      when is_binary(directory) do
+    codec_module =
+      Keyword.fetch!(
+        opts,
+        :codec
+      )
+
+    hash_module =
+      Keyword.fetch!(
+        opts,
+        :hash
+      )
+
+    with {:ok, manifest} <-
+           ManifestStore.read(directory),
+         :ok <-
+           validate_runtime_formats(
+             manifest,
+             codec_module,
+             hash_module
+           ),
+         :ok <-
+           validate_storage_directory(
+             records_directory(directory),
+             :records
+           ),
+         :ok <-
+           validate_storage_directory(
+             exact_index_directory(directory),
+             :exact_index
+           ) do
+      storage =
+        new(
+          directory,
+          codec: codec_module,
+          records_per_segment: manifest.records_per_segment,
+          bucket_count: manifest.exact_bucket_count,
+          hash: hash_module
+        )
+
+      validate_open_storage(storage)
     end
   end
 
@@ -202,6 +250,84 @@ defmodule PositionDB.Storage.Disk do
       exact_hash_size: storage.exact_index.hash_size,
       exact_bucket_count: storage.exact_index.bucket_count
     }
+  end
+
+  defp validate_runtime_formats(
+         %Manifest{} = manifest,
+         codec_module,
+         hash_module
+       ) do
+    with :ok <-
+           validate_format_value(
+             :record_format_id,
+             manifest.record_format_id,
+             codec_module.format_id()
+           ),
+         :ok <-
+           validate_format_value(
+             :record_size,
+             manifest.record_size,
+             codec_module.record_size()
+           ),
+         :ok <-
+           validate_format_value(
+             :exact_hash_format_id,
+             manifest.exact_hash_format_id,
+             hash_module.format_id()
+           ),
+         :ok <-
+           validate_format_value(
+             :exact_hash_size,
+             manifest.exact_hash_size,
+             hash_module.hash_size()
+           ) do
+      :ok
+    end
+  end
+
+  defp validate_format_value(
+         _field,
+         value,
+         value
+       ) do
+    :ok
+  end
+
+  defp validate_format_value(
+         field,
+         persisted,
+         configured
+       ) do
+    {:error, {:storage_format_mismatch, field, persisted, configured}}
+  end
+
+  defp validate_storage_directory(
+         path,
+         name
+       ) do
+    case File.stat(path) do
+      {:ok, %{type: :directory}} ->
+        :ok
+
+      {:ok, _stat} ->
+        {:error, {:invalid_storage_directory, name}}
+
+      {:error, :enoent} ->
+        {:error, {:missing_storage_directory, name}}
+
+      {:error, reason} ->
+        {:error, {:storage_directory_error, name, reason}}
+    end
+  end
+
+  defp validate_open_storage(%__MODULE__{} = storage) do
+    case RecordStore.cardinality(storage.record_store) do
+      {:ok, _cardinality} ->
+        {:ok, storage}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 
   defp create_root_directory(directory) do
