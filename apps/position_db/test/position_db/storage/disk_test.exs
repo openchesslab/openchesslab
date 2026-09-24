@@ -311,28 +311,28 @@ defmodule PositionDB.Storage.DiskTest do
              {:error, :invalid_position}
   end
 
-  test "returns persisted cardinality", %{
+  test "returns the committed cardinality", %{
     storage: storage
   } do
-    assert Disk.cardinality(storage) ==
-             {:ok, 0}
+    assert Disk.cardinality(storage) == 0
 
-    assert :ok =
-             RecordStore.append(
-               storage.record_store,
-               1,
-               <<"aaaa">>
+    assert {:ok, storage, 1} =
+             Disk.put(
+               storage,
+               :key_a,
+               :position_a
              )
 
-    assert :ok =
-             RecordStore.append(
-               storage.record_store,
-               2,
-               <<"bbbb">>
+    assert Disk.cardinality(storage) == 1
+
+    assert {:ok, storage, 2} =
+             Disk.put(
+               storage,
+               :key_b,
+               :position_b
              )
 
-    assert Disk.cardinality(storage) ==
-             {:ok, 2}
+    assert Disk.cardinality(storage) == 2
   end
 
   describe "put/3" do
@@ -361,8 +361,7 @@ defmodule PositionDB.Storage.DiskTest do
              ) ==
                {:ok, 1}
 
-      assert Disk.cardinality(storage) ==
-               {:ok, 1}
+      assert Disk.cardinality(storage) == 1
 
       assert AppendMarker.read(storage.directory) ==
                :none
@@ -387,8 +386,7 @@ defmodule PositionDB.Storage.DiskTest do
 
       assert duplicate.next_id == 2
 
-      assert Disk.cardinality(duplicate) ==
-               {:ok, 1}
+      assert Disk.cardinality(duplicate) == 1
 
       assert ExactIndex.lookup(
                duplicate.exact_index,
@@ -430,8 +428,7 @@ defmodule PositionDB.Storage.DiskTest do
              ) ==
                {:ok, 2}
 
-      assert Disk.cardinality(storage) ==
-               {:ok, 2}
+      assert Disk.cardinality(storage) == 2
     end
 
     test "does not start an append when position encoding fails", %{
@@ -522,8 +519,7 @@ defmodule PositionDB.Storage.DiskTest do
                   exact_bucket_count: 16
                 }}
 
-      assert Disk.cardinality(storage) ==
-               {:ok, 0}
+      assert Disk.cardinality(storage) == 0
 
       assert storage.next_id == 1
     end
@@ -646,8 +642,7 @@ defmodule PositionDB.Storage.DiskTest do
       assert storage.exact_index.bucket_count ==
                16
 
-      assert Disk.cardinality(storage) ==
-               {:ok, 0}
+      assert Disk.cardinality(storage) == 0
     end
 
     test "requires a persisted manifest", %{
@@ -908,8 +903,7 @@ defmodule PositionDB.Storage.DiskTest do
       assert AppendMarker.read(directory) ==
                :none
 
-      assert Disk.cardinality(reopened) ==
-               {:ok, 1}
+      assert Disk.cardinality(reopened) == 1
 
       assert Disk.get(
                reopened,
@@ -949,8 +943,7 @@ defmodule PositionDB.Storage.DiskTest do
       assert AppendMarker.read(directory) ==
                :none
 
-      assert Disk.cardinality(reopened) ==
-               {:ok, 0}
+      assert Disk.cardinality(reopened) == 0
 
       assert Disk.get(
                reopened,
@@ -998,8 +991,7 @@ defmodule PositionDB.Storage.DiskTest do
       assert File.read!(record_path) ==
                <<>>
 
-      assert Disk.cardinality(reopened) ==
-               {:ok, 0}
+      assert Disk.cardinality(reopened) == 0
     end
 
     test "persists positions written through put", %{
@@ -1217,6 +1209,73 @@ defmodule PositionDB.Storage.DiskTest do
                )
 
       assert reopened.next_id == 3
+    end
+  end
+
+  describe "scan/1" do
+    test "scans an empty disk store", %{
+      storage: storage
+    } do
+      scan =
+        Disk.scan(storage)
+
+      assert Disk.scan_next(scan) ==
+               :done
+    end
+
+    test "scans committed position ids in order", %{
+      storage: storage
+    } do
+      assert {:ok, storage, 1} =
+               Disk.put(
+                 storage,
+                 :key_a,
+                 :position_a
+               )
+
+      assert {:ok, storage, 2} =
+               Disk.put(
+                 storage,
+                 :key_b,
+                 :position_b
+               )
+
+      scan =
+        Disk.scan(storage)
+
+      assert {:ok, 1, scan} =
+               Disk.scan_next(scan)
+
+      assert {:ok, 2, scan} =
+               Disk.scan_next(scan)
+
+      assert :done =
+               Disk.scan_next(scan)
+    end
+
+    test "does not scan an uncommitted pending append", %{
+      storage: storage
+    } do
+      assert :ok =
+               AppendMarker.create(
+                 storage.directory,
+                 1
+               )
+
+      assert :ok =
+               RecordStore.append(
+                 storage.record_store,
+                 1,
+                 <<"aaaa">>
+               )
+
+      assert Disk.cardinality(storage) == 0
+
+      scan =
+        Disk.scan(storage)
+
+      assert Disk.scan_next(scan) ==
+               :done
     end
   end
 

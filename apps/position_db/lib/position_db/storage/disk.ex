@@ -34,6 +34,11 @@ defmodule PositionDB.Storage.Disk do
           next_id: pos_integer()
         }
 
+  @type scan_state :: %{
+          next_id: pos_integer(),
+          last_id: non_neg_integer()
+        }
+
   defstruct [
     :directory,
     :record_store,
@@ -257,11 +262,42 @@ defmodule PositionDB.Storage.Disk do
     end
   end
 
-  @spec cardinality(t()) ::
-          {:ok, non_neg_integer()}
-          | {:error, term()}
+  @spec cardinality(t()) :: non_neg_integer()
   def cardinality(%__MODULE__{} = storage) do
-    RecordStore.cardinality(storage.record_store)
+    storage.next_id - 1
+  end
+
+  @spec scan(t()) :: scan_state()
+  def scan(%__MODULE__{} = storage) do
+    %{
+      next_id: 1,
+      last_id: storage.next_id - 1
+    }
+  end
+
+  @spec scan_next(scan_state()) ::
+          {:ok, pos_integer(), scan_state()}
+          | :done
+  def scan_next(
+        %{
+          next_id: next_id,
+          last_id: last_id
+        } = state
+      )
+      when next_id <= last_id do
+    {:ok, next_id,
+     %{
+       state
+       | next_id: next_id + 1
+     }}
+  end
+
+  def scan_next(%{
+        next_id: next_id,
+        last_id: last_id
+      })
+      when next_id > last_id do
+    :done
   end
 
   defp encode_position(
