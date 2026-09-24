@@ -2,6 +2,7 @@ defmodule PositionDB do
   alias PositionDB.EquivalenceContext
   alias PositionDB.PositionIndexer
   alias PositionDB.PositionStore
+  alias PositionDB.PropertyIndex
   alias PositionDB.QueryEngine
 
   @type position_id :: non_neg_integer()
@@ -31,6 +32,13 @@ defmodule PositionDB do
       Keyword.fetch!(
         options,
         :properties
+      )
+
+    property_index =
+      Keyword.get_lazy(
+        options,
+        :property_index,
+        &PropertyIndex.new/0
       )
 
     equivalence_function =
@@ -65,7 +73,11 @@ defmodule PositionDB do
 
     %__MODULE__{
       store: store,
-      indexer: PositionIndexer.new(properties),
+      indexer:
+        PositionIndexer.new(
+          properties,
+          property_index
+        ),
       equivalence:
         EquivalenceContext.new(
           equivalence_function,

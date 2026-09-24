@@ -11,6 +11,7 @@ defmodule PositionDBTest do
   alias PositionDB.PositionIndexer
   alias PositionDB.PositionStore
   alias PositionDB.PropertyIndex
+  alias PositionDB.PropertyIndex.Memory, as: PropertyIndexMemory
   alias PositionDB.Query
 
   defmodule TrackingPropertyIndex do
@@ -720,5 +721,23 @@ defmodule PositionDBTest do
       :property_advance,
       _position_id
     }
+  end
+
+  test "uses a supplied property index" do
+    property_index =
+      PropertyIndex.new(
+        PropertyIndexMemory,
+        PropertyIndexMemory.new()
+      )
+
+    db =
+      PositionDB.new(
+        key_function: & &1,
+        properties: [],
+        property_index: property_index
+      )
+
+    assert db.indexer.index ==
+             property_index
   end
 end
