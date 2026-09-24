@@ -9,6 +9,9 @@ defmodule PositionDB.PositionIndexer do
   @type property ::
           {atom(), (term() -> term())}
 
+  @type indexed_property ::
+          {atom(), term()}
+
   @type t :: %__MODULE__{
           properties: [property()],
           index: PropertyIndex.t()
@@ -41,6 +44,38 @@ defmodule PositionDB.PositionIndexer do
     }
   end
 
+  @spec properties_for(
+          t(),
+          term()
+        ) ::
+          [indexed_property()]
+  def properties_for(
+        %__MODULE__{} = indexer,
+        position
+      ) do
+    Enum.flat_map(
+      indexer.properties,
+      fn {name, property} ->
+        case property.(position) do
+          values
+          when is_list(values) ->
+            Enum.map(
+              values,
+              &{name, &1}
+            )
+
+          value ->
+            [
+              {
+                name,
+                value
+              }
+            ]
+        end
+      end
+    )
+  end
+
   @spec index(
           t(),
           position_id(),
@@ -54,10 +89,12 @@ defmodule PositionDB.PositionIndexer do
         position
       ) do
     case index_properties(
-           indexer.properties,
+           properties_for(
+             indexer,
+             position
+           ),
            indexer.index,
-           position_id,
-           position
+           position_id
          ) do
       {:ok, index} ->
         %{
@@ -73,49 +110,12 @@ defmodule PositionDB.PositionIndexer do
   defp index_properties(
          properties,
          index,
-         position_id,
-         position
+         position_id
        ) do
     Enum.reduce_while(
       properties,
       {:ok, index},
-      fn {name, property}, {:ok, index} ->
-        values =
-          case property.(position) do
-            values
-            when is_list(values) ->
-              values
-
-            value ->
-              [value]
-          end
-
-        case index_values(
-               values,
-               index,
-               name,
-               position_id
-             ) do
-          {:ok, next_index} ->
-            {:cont, {:ok, next_index}}
-
-          {:error, reason} ->
-            {:halt, {:error, reason}}
-        end
-      end
-    )
-  end
-
-  defp index_values(
-         values,
-         index,
-         name,
-         position_id
-       ) do
-    Enum.reduce_while(
-      values,
-      {:ok, index},
-      fn value, {:ok, index} ->
+      fn {name, value}, {:ok, index} ->
         case PropertyIndex.add_result(
                index,
                {name, value},
