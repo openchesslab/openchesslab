@@ -335,6 +335,149 @@ defmodule PositionDB.Storage.DiskTest do
              {:ok, 2}
   end
 
+  describe "put/3" do
+    test "stores a new position", %{
+      storage: storage
+    } do
+      assert {:ok, storage, 1} =
+               Disk.put(
+                 storage,
+                 :logical_key,
+                 :position_a
+               )
+
+      assert storage.next_id == 2
+
+      assert Disk.get(
+               storage,
+               1
+             ) ==
+               {:ok, :position_a}
+
+      assert Disk.find(
+               storage,
+               :logical_key,
+               :position_a
+             ) ==
+               {:ok, 1}
+
+      assert Disk.cardinality(storage) ==
+               {:ok, 1}
+
+      assert AppendMarker.read(storage.directory) ==
+               :none
+    end
+
+    test "returns the existing id for an exact duplicate", %{
+      storage: storage
+    } do
+      assert {:ok, storage, 1} =
+               Disk.put(
+                 storage,
+                 :key_a,
+                 :position_a
+               )
+
+      assert {:ok, duplicate, 1} =
+               Disk.put(
+                 storage,
+                 :different_key,
+                 :position_a
+               )
+
+      assert duplicate.next_id == 2
+
+      assert Disk.cardinality(duplicate) ==
+               {:ok, 1}
+
+      assert ExactIndex.lookup(
+               duplicate.exact_index,
+               <<"aaaa">>
+             ) ==
+               {:ok, [1]}
+    end
+
+    test "stores different positions with the same exact hash", %{
+      storage: storage
+    } do
+      assert {:ok, storage, 1} =
+               Disk.put(
+                 storage,
+                 :key_a,
+                 :position_a
+               )
+
+      assert {:ok, storage, 2} =
+               Disk.put(
+                 storage,
+                 :key_b,
+                 :position_b
+               )
+
+      assert storage.next_id == 3
+
+      assert Disk.find(
+               storage,
+               :key_a,
+               :position_a
+             ) ==
+               {:ok, 1}
+
+      assert Disk.find(
+               storage,
+               :key_b,
+               :position_b
+             ) ==
+               {:ok, 2}
+
+      assert Disk.cardinality(storage) ==
+               {:ok, 2}
+    end
+
+    test "does not start an append when position encoding fails", %{
+      storage: storage
+    } do
+      assert Disk.put(
+               storage,
+               :key,
+               :invalid_position
+             ) ==
+               {:error, :invalid_position}
+
+      assert AppendMarker.read(storage.directory) ==
+               :none
+
+      assert storage.next_id == 1
+    end
+
+    test "refuses puts while an earlier append is pending", %{
+      storage: storage
+    } do
+      assert {:ok, storage, 1} =
+               Disk.put(
+                 storage,
+                 :key,
+                 :position_a
+               )
+
+      assert :ok =
+               AppendMarker.create(
+                 storage.directory,
+                 2
+               )
+
+      assert Disk.put(
+               storage,
+               :key,
+               :position_a
+             ) ==
+               {:error, {:incomplete_append, 2}}
+
+      assert AppendMarker.read(storage.directory) ==
+               {:ok, 2}
+    end
+  end
+
   describe "create/2" do
     test "creates an empty disk store and persists its manifest", %{
       root: root
@@ -857,6 +1000,56 @@ defmodule PositionDB.Storage.DiskTest do
 
       assert Disk.cardinality(reopened) ==
                {:ok, 0}
+    end
+
+    test "persists positions written through put", %{
+      root: root
+    } do
+      directory =
+        Path.join(
+          root,
+          "put-reopen"
+        )
+
+      assert {:ok, storage} =
+               Disk.create(
+                 directory,
+                 codec: TestCodec,
+                 records_per_segment: 3,
+                 bucket_count: 16,
+                 hash: TestHash
+               )
+
+      assert {:ok, storage, 1} =
+               Disk.put(
+                 storage,
+                 :key,
+                 :position_a
+               )
+
+      assert storage.next_id == 2
+
+      assert {:ok, reopened} =
+               Disk.open(
+                 directory,
+                 codec: TestCodec,
+                 hash: TestHash
+               )
+
+      assert reopened.next_id == 2
+
+      assert Disk.get(
+               reopened,
+               1
+             ) ==
+               {:ok, :position_a}
+
+      assert Disk.find(
+               reopened,
+               :key,
+               :position_a
+             ) ==
+               {:ok, 1}
     end
 
     test "recovers an append interrupted during the exact index write", %{

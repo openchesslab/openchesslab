@@ -2,8 +2,8 @@ defmodule PositionDB.Storage.Disk do
   @moduledoc """
   Disk-backed position storage.
 
-  Position records are currently read-only. Disk stores can be
-  initialized with `create/2` and reopened with `open/2`.
+  Disk stores can be initialized with `create/2`, reopened with
+  `open/2` and updated with crash-durable `put/3` operations.
 
   Combines fixed-size position records, the disk-backed exact
   index and a record codec.
@@ -216,13 +216,44 @@ defmodule PositionDB.Storage.Disk do
              storage,
              position
            ) do
-      ExactLookup.find(
-        storage.record_store,
-        ExactIndex,
-        storage.exact_index,
-        record,
+      find_record(
+        storage,
         record
       )
+    end
+  end
+
+  @spec put(t(), term(), term()) ::
+          {:ok, t(), pos_integer()}
+          | {:error, term()}
+  def put(
+        %__MODULE__{} = storage,
+        _key,
+        position
+      ) do
+    with :ok <-
+           ensure_no_pending_append(storage),
+         {:ok, record} <-
+           encode_position(
+             storage,
+             position
+           ) do
+      case find_record(
+             storage,
+             record
+           ) do
+        {:ok, position_id} ->
+          {:ok, storage, position_id}
+
+        :not_found ->
+          append_new_position(
+            storage,
+            record
+          )
+
+        {:error, reason} ->
+          {:error, reason}
+      end
     end
   end
 
@@ -428,6 +459,67 @@ defmodule PositionDB.Storage.Disk do
          :ok <-
            AppendMarker.clear(storage.directory) do
       :ok
+    end
+  end
+
+  defp find_record(
+         %__MODULE__{} = storage,
+         record
+       ) do
+    ExactLookup.find(
+      storage.record_store,
+      ExactIndex,
+      storage.exact_index,
+      record,
+      record
+    )
+  end
+
+  defp append_new_position(
+         %__MODULE__{} = storage,
+         record
+       ) do
+    position_id =
+      storage.next_id
+
+    with :ok <-
+           AppendMarker.create(
+             storage.directory,
+             position_id
+           ),
+         :ok <-
+           RecordStore.append(
+             storage.record_store,
+             position_id,
+             record
+           ),
+         {:ok, exact_index} <-
+           ExactIndex.add(
+             storage.exact_index,
+             record,
+             position_id
+           ),
+         :ok <-
+           AppendMarker.clear(storage.directory) do
+      {:ok,
+       %{
+         storage
+         | exact_index: exact_index,
+           next_id: position_id + 1
+       }, position_id}
+    end
+  end
+
+  defp ensure_no_pending_append(%__MODULE__{} = storage) do
+    case AppendMarker.read(storage.directory) do
+      :none ->
+        :ok
+
+      {:ok, position_id} ->
+        {:error, {:incomplete_append, position_id}}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 end
