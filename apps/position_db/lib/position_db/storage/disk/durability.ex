@@ -1,0 +1,112 @@
+defmodule PositionDB.Storage.Disk.Durability do
+  @moduledoc """
+  Provides durable filesystem transitions for disk storage.
+
+  On Unix systems, directory metadata is explicitly synced after
+  operations that create or rename directory entries.
+
+  Windows is supported as a development platform, but the durable
+  filesystem guarantees of disk storage target Linux.
+  """
+
+  @spec sync_directory(Path.t()) ::
+          :ok
+          | {:error, term()}
+  def sync_directory(directory)
+      when is_binary(directory) do
+    with :ok <-
+           validate_directory(directory) do
+      case :os.type() do
+        {:unix, _name} ->
+          sync_unix_directory(directory)
+
+        {:win32, _name} ->
+          :ok
+      end
+    end
+  end
+
+  @spec create_directory(Path.t()) ::
+          :ok
+          | {:error, term()}
+  def create_directory(directory)
+      when is_binary(directory) do
+    with :ok <-
+           File.mkdir(directory),
+         :ok <-
+           sync_directory(Path.dirname(directory)) do
+      :ok
+    end
+  end
+
+  @doc """
+  Renames two sibling paths and durably persists the directory
+  entry change.
+
+  Exact-index lifecycle directories are deliberately siblings,
+  keeping the rename on the same parent directory.
+  """
+  @spec rename_sibling(
+          Path.t(),
+          Path.t()
+        ) ::
+          :ok
+          | {:error, term()}
+  def rename_sibling(
+        source,
+        destination
+      )
+      when is_binary(source) and
+             is_binary(destination) do
+    parent =
+      Path.dirname(source)
+
+    if parent ==
+         Path.dirname(destination) do
+      with :ok <-
+             File.rename(
+               source,
+               destination
+             ),
+           :ok <-
+             sync_directory(parent) do
+        :ok
+      end
+    else
+      {:error, :different_parent_directories}
+    end
+  end
+
+  defp validate_directory(directory) do
+    case File.stat(directory) do
+      {:ok, %{type: :directory}} ->
+        :ok
+
+      {:ok, _stat} ->
+        {:error, :not_a_directory}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp sync_unix_directory(directory) do
+    case :file.open(
+           directory,
+           [
+             :read,
+             :directory
+           ]
+         ) do
+      {:ok, file} ->
+        try do
+          :file.sync(file)
+        after
+          :file.close(file)
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+end

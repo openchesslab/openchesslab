@@ -17,6 +17,7 @@ defmodule PositionDB.Storage.Disk do
   The current storage behaviour does not expose disk I/O errors.
   """
 
+  alias PositionDB.Storage.Disk.Durability
   alias PositionDB.Storage.Disk.ExactLookup
   alias PositionDB.Storage.Disk.Manifest
   alias PositionDB.Storage.Disk.ManifestStore
@@ -55,9 +56,9 @@ defmodule PositionDB.Storage.Disk do
          :ok <-
            create_root_directory(directory),
          :ok <-
-           File.mkdir(records_directory(directory)),
+           Durability.create_directory(records_directory(directory)),
          :ok <-
-           File.mkdir(exact_index_directory(directory)),
+           Durability.create_directory(exact_index_directory(directory)),
          :ok <-
            ManifestStore.create(
              directory,
@@ -331,7 +332,7 @@ defmodule PositionDB.Storage.Disk do
   end
 
   defp create_root_directory(directory) do
-    case File.mkdir(directory) do
+    case Durability.create_directory(directory) do
       :ok ->
         :ok
 

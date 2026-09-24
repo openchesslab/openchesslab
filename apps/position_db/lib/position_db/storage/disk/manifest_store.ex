@@ -6,6 +6,7 @@ defmodule PositionDB.Storage.Disk.ManifestStore do
   manifest is never overwritten.
   """
 
+  alias PositionDB.Storage.Disk.Durability
   alias PositionDB.Storage.Disk.Manifest
 
   @manifest_filename "manifest.dat"
@@ -20,11 +21,15 @@ defmodule PositionDB.Storage.Disk.ManifestStore do
       )
       when is_binary(directory) do
     with {:ok, encoded} <-
-           Manifest.encode(manifest) do
-      create_file(
-        manifest_path(directory),
-        encoded
-      )
+           Manifest.encode(manifest),
+         :ok <-
+           create_file(
+             manifest_path(directory),
+             encoded
+           ),
+         :ok <-
+           Durability.sync_directory(directory) do
+      :ok
     end
   end
 
