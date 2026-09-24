@@ -5,20 +5,41 @@ defmodule Analysis.Application do
 
   @impl true
   def start(_type, _args) do
-    children = [
-      Analysis.RoomEvents,
-      Analysis.GameEvents,
-      Analysis.PositionStore,
-      {Analysis.GameStore.Memory, name: Analysis.GameStore.Runtime},
-      {Horde.Registry, name: Analysis.RoomRegistry, keys: :unique, members: :auto},
-      {Horde.DynamicSupervisor,
-       name: Analysis.RoomSupervisor, strategy: :one_for_one, members: :auto}
-    ]
-
     Supervisor.start_link(
-      children,
+      children(),
       strategy: :one_for_one,
       name: Analysis.Supervisor
     )
+  end
+
+  @doc false
+  def children do
+    position_store_options =
+      Application.get_env(
+        :analysis,
+        Analysis.PositionStore,
+        []
+      )
+
+    [
+      Analysis.RoomEvents,
+      Analysis.GameEvents,
+      {
+        Analysis.PositionStore,
+        position_store_options
+      },
+      {
+        Analysis.GameStore.Memory,
+        name: Analysis.GameStore.Runtime
+      },
+      {
+        Horde.Registry,
+        name: Analysis.RoomRegistry, keys: :unique, members: :auto
+      },
+      {
+        Horde.DynamicSupervisor,
+        name: Analysis.RoomSupervisor, strategy: :one_for_one, members: :auto
+      }
+    ]
   end
 end
