@@ -23,6 +23,7 @@ defmodule PositionDB.QueryExecutor do
   @spec next(t()) ::
           {:ok, position_id(), t()}
           | :done
+          | {:error, term()}
   def next(%__MODULE__{module: module, state: state} = executor) do
     case module.next(state) do
       {:ok, position_id, next_state} ->
@@ -30,6 +31,9 @@ defmodule PositionDB.QueryExecutor do
 
       :done ->
         :done
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 end

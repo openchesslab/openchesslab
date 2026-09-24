@@ -105,4 +105,38 @@ defmodule PositionDB.OrTest do
 
     assert first_order_counts == second_order_counts
   end
+
+  test "propagates a left executor error without evaluating the right" do
+    left =
+      QueryExecutor.new(
+        TrackingExecutor,
+        {
+          self(),
+          :left,
+          {:error, :disk_failure}
+        }
+      )
+
+    right =
+      QueryExecutor.new(
+        TrackingExecutor,
+        {
+          self(),
+          :right,
+          {:ok, 1, :next}
+        }
+      )
+
+    executor =
+      Or.new(
+        left,
+        right
+      )
+
+    assert QueryExecutor.next(executor) ==
+             {:error, :disk_failure}
+
+    assert_receive {:next_called, :left}
+    refute_receive {:next_called, :right}
+  end
 end

@@ -7,9 +7,14 @@ defmodule PositionDB.Not do
 
   @type position_id :: non_neg_integer()
 
+  @type child ::
+          QueryExecutor.t()
+          | :done
+          | {:error, term()}
+
   @type t :: %__MODULE__{
-          universe: QueryExecutor.t() | :done,
-          child: QueryExecutor.t() | :done,
+          universe: child(),
+          child: child(),
           universe_id: position_id() | nil,
           child_id: position_id() | nil
         }
@@ -40,9 +45,26 @@ defmodule PositionDB.Not do
   end
 
   defp maybe_load_child(%__MODULE__{universe: :done} = state), do: state
+
+  defp maybe_load_child(
+         %__MODULE__{
+           universe: {:error, _reason}
+         } = state
+       ) do
+    state
+  end
+
   defp maybe_load_child(state), do: load_child(state)
 
   defp load_universe(%__MODULE__{universe: :done} = state) do
+    state
+  end
+
+  defp load_universe(
+         %__MODULE__{
+           universe: {:error, _reason}
+         } = state
+       ) do
     state
   end
 
@@ -58,6 +80,9 @@ defmodule PositionDB.Not do
 
       :done ->
         %{state | universe: :done}
+
+      {:error, reason} ->
+        %{state | universe: {:error, reason}}
     end
   end
 
@@ -83,6 +108,18 @@ defmodule PositionDB.Not do
   end
 
   defp load_child(state), do: state
+
+  defp find_next(%__MODULE__{
+         universe: {:error, reason}
+       }) do
+    {:error, reason}
+  end
+
+  defp find_next(%__MODULE__{
+         child: {:error, reason}
+       }) do
+    {:error, reason}
+  end
 
   defp find_next(%__MODULE__{universe: :done}), do: :done
 

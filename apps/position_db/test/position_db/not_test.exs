@@ -131,4 +131,38 @@ defmodule PositionDB.NotTest do
              child: 999
            }
   end
+
+  test "propagates a universe error without evaluating the child" do
+    universe =
+      QueryExecutor.new(
+        TrackingExecutor,
+        {
+          self(),
+          :universe,
+          {:error, :disk_failure}
+        }
+      )
+
+    child =
+      QueryExecutor.new(
+        TrackingExecutor,
+        {
+          self(),
+          :child,
+          {:ok, 1, :next}
+        }
+      )
+
+    executor =
+      Not.new(
+        universe,
+        child
+      )
+
+    assert QueryExecutor.next(executor) ==
+             {:error, :disk_failure}
+
+    assert_receive {:next_called, :universe}
+    refute_receive {:next_called, :child}
+  end
 end

@@ -1,4 +1,5 @@
 defimpl Enumerable, for: PositionDB.QueryResult do
+  alias PositionDB.QueryExecutionError
   alias PositionDB.QueryExecutor
 
   def reduce(result, acc, fun) do
@@ -22,6 +23,10 @@ defimpl Enumerable, for: PositionDB.QueryResult do
 
       :done ->
         {:done, acc}
+
+      {:error, reason} ->
+        raise QueryExecutionError,
+          reason: reason
     end
   end
 

@@ -177,4 +177,38 @@ defmodule PositionDB.AndTest do
     assert first_order_counts == %{small: 1, large: 1}
     assert second_order_counts == %{small: 1, large: 2}
   end
+
+  test "propagates a left executor error without evaluating the right" do
+    left =
+      QueryExecutor.new(
+        TrackingExecutor,
+        {
+          self(),
+          :left,
+          {:error, :disk_failure}
+        }
+      )
+
+    right =
+      QueryExecutor.new(
+        TrackingExecutor,
+        {
+          self(),
+          :right,
+          {:ok, 1, :next}
+        }
+      )
+
+    executor =
+      And.new(
+        left,
+        right
+      )
+
+    assert QueryExecutor.next(executor) ==
+             {:error, :disk_failure}
+
+    assert_receive {:next_called, :left}
+    refute_receive {:next_called, :right}
+  end
 end

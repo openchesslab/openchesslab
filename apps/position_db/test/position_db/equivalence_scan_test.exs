@@ -15,6 +15,15 @@ defmodule PositionDB.EquivalenceScanTest do
     end)
   end
 
+  defmodule FailingGetStorage do
+    def get(
+          _storage,
+          _position_id
+        ) do
+      {:error, :disk_failure}
+    end
+  end
+
   test "returns done when there are no candidates" do
     index = EquivalenceIndex.new()
     {store, _ids} = setup_store([])
@@ -155,5 +164,33 @@ defmodule PositionDB.EquivalenceScanTest do
       )
 
     assert QueryExecutor.next(executor) == :done
+  end
+
+  test "propagates storage read errors" do
+    index =
+      EquivalenceIndex.new()
+      |> EquivalenceIndex.add(
+        :key,
+        1
+      )
+
+    store =
+      PositionStore.new(
+        & &1,
+        FailingGetStorage,
+        :storage
+      )
+
+    executor =
+      EquivalenceScan.new(
+        index,
+        store,
+        fn _position -> :key end,
+        fn _query, _candidate -> true end,
+        :query
+      )
+
+    assert QueryExecutor.next(executor) ==
+             {:error, :disk_failure}
   end
 end

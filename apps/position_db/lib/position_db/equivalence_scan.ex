@@ -48,6 +48,7 @@ defmodule PositionDB.EquivalenceScan do
   @spec next(map()) ::
           {:ok, position_id(), map()}
           | :done
+          | {:error, term()}
   def next(%{candidate_ids: []}) do
     :done
   end
@@ -70,6 +71,9 @@ defmodule PositionDB.EquivalenceScan do
 
       :not_found ->
         next(%{state | candidate_ids: rest})
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 end
