@@ -135,6 +135,31 @@ defmodule Analysis.PositionStoreTest do
     assert PositionStore.server() == :position_store_owner
   end
 
+  test "reports ready when the position store is reachable" do
+    assert PositionStore.ready?()
+  end
+
+  test "reports not ready when the configured position store is unavailable" do
+    previous =
+      Application.get_env(
+        :analysis,
+        PositionStore,
+        :not_configured
+      )
+
+    on_exit(fn ->
+      restore_position_store_config(previous)
+    end)
+
+    Application.put_env(
+      :analysis,
+      PositionStore,
+      server: :unavailable_position_store
+    )
+
+    refute PositionStore.ready?()
+  end
+
   defp restore_position_store_config(:not_configured) do
     Application.delete_env(
       :analysis,

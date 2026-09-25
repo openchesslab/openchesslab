@@ -45,6 +45,20 @@ defmodule Analysis.PositionStore do
     )
   end
 
+  @spec ready?() :: boolean()
+  def ready? do
+    try do
+      GenServer.call(
+        server(),
+        :ping,
+        1_000
+      ) == :ok
+    catch
+      :exit, _reason ->
+        false
+    end
+  end
+
   @spec get(PositionDB.position_id()) ::
           {:ok, Chess.Position.t()}
           | :not_found
@@ -81,6 +95,15 @@ defmodule Analysis.PositionStore do
       :error ->
         {:ok, new_memory_db()}
     end
+  end
+
+  @impl true
+  def handle_call(
+        :ping,
+        _from,
+        db
+      ) do
+    {:reply, :ok, db}
   end
 
   @impl true
