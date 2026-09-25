@@ -97,6 +97,43 @@ defmodule Analysis.GamesTest do
     end
   end
 
+  defmodule RecordingGameStore do
+    @behaviour Analysis.GameStore
+
+    def insert(store, game) do
+      send(self(), {:game_store_insert, store, game})
+      {:ok, 42}
+    end
+
+    def get(store, game_id) do
+      send(self(), {:game_store_get, store, game_id})
+      :not_found
+    end
+
+    def list(store) do
+      send(self(), {:game_store_list, store})
+      []
+    end
+
+    def update(store, game, revision) do
+      send(
+        self(),
+        {:game_store_update, store, game, revision}
+      )
+
+      {:ok, revision + 1}
+    end
+
+    def delete(store, game_id, revision) do
+      send(
+        self(),
+        {:game_store_delete, store, game_id, revision}
+      )
+
+      :ok
+    end
+  end
+
   setup do
     game_id = "game-#{System.unique_integer([:positive])}"
 
@@ -773,5 +810,51 @@ defmodule Analysis.GamesTest do
                  Games.get(game_id)
       end
     )
+  end
+
+  test "uses the configured game store adapter", %{
+    game_id: game_id
+  } do
+    previous =
+      Application.get_env(
+        :analysis,
+        Analysis.GameStore,
+        :not_configured
+      )
+
+    on_exit(fn ->
+      case previous do
+        :not_configured ->
+          Application.delete_env(
+            :analysis,
+            Analysis.GameStore
+          )
+
+        value ->
+          Application.put_env(
+            :analysis,
+            Analysis.GameStore,
+            value
+          )
+      end
+    end)
+
+    Application.put_env(
+      :analysis,
+      Analysis.GameStore,
+      adapter: RecordingGameStore,
+      store: :configured_game_store
+    )
+
+    game = Game.new(game_id, 42)
+
+    assert {:ok, 42} =
+             Games.insert(game)
+
+    assert_received {
+      :game_store_insert,
+      :configured_game_store,
+      ^game
+    }
   end
 end

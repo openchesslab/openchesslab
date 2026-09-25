@@ -196,6 +196,15 @@ defmodule Analysis.ApplicationTest do
            } in AnalysisApplication.children()
   end
 
+  test "starts the in-memory game store runtime" do
+    assert {
+             Analysis.GameStore.Memory,
+             [
+               name: Analysis.GameStore.Runtime
+             ]
+           } in AnalysisApplication.children()
+  end
+
   defp restore_config(key, :not_configured) do
     Application.delete_env(
       :analysis,

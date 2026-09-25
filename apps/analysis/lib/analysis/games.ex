@@ -3,15 +3,13 @@ defmodule Analysis.Games do
 
   alias Analysis.Game
   alias Analysis.GameEvents
-  alias Analysis.GameStore.Memory
+  alias Analysis.GameStore
   alias Analysis.Node
   alias Analysis.PositionStore
   alias Analysis.Transition
   alias Chess.Move
   alias Chess.Position
   alias Chess.PositionDraft
-
-  @store Analysis.GameStore.Runtime
 
   @type position_store_error ::
           {:position_store, term()}
@@ -46,18 +44,18 @@ defmodule Analysis.Games do
   @spec insert(Game.t()) ::
           {:ok, pos_integer()} | {:error, :already_exists}
   def insert(%Game{} = game) do
-    Memory.insert(@store, game)
+    GameStore.insert(game)
   end
 
   @spec get(Game.id()) ::
           {:ok, Game.t(), pos_integer()} | :not_found
   def get(game_id) do
-    Memory.get(@store, game_id)
+    GameStore.get(game_id)
   end
 
   @spec list() :: [{Game.t(), pos_integer()}]
   def list do
-    Memory.list(@store)
+    GameStore.list()
   end
 
   @spec play(Game.id(), Game.path(), Move.t()) ::
@@ -218,7 +216,7 @@ defmodule Analysis.Games do
   end
 
   defp persist(game, revision) do
-    case Memory.update(@store, game, revision) do
+    case GameStore.update(game, revision) do
       {:ok, new_revision} ->
         :ok = GameEvents.publish_changed(game.id)
         {:ok, new_revision}
