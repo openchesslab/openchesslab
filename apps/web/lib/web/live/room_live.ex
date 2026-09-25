@@ -31,6 +31,7 @@ defmodule Web.RoomLive do
         add_game_error: nil,
         move_error: nil,
         edit_error: nil,
+        position_error: nil,
         selected_game_id: nil,
         game: nil,
         game_revision: nil,
@@ -492,6 +493,12 @@ defmodule Web.RoomLive do
     <main>
       <h1>{gettext("Room")} {@room_id}</h1>
 
+      <%= if @position_error do %>
+        <p id="position-error" role="alert">
+          {@position_error}
+        </p>
+      <% end %>
+
       <form id="create-game-form" phx-submit="create_game">
         <input
           type="text"
@@ -761,17 +768,44 @@ defmodule Web.RoomLive do
     end
   end
 
-  defp assign_current_occurrence(socket, game, path) do
-    node = Game.node_at(game, path)
-    position_id = Node.position_id(node)
+  defp assign_current_occurrence(
+         socket,
+         game,
+         path
+       ) do
+    node =
+      Game.node_at(
+        game,
+        path
+      )
 
-    {:ok, position} = PositionStore.get(position_id)
+    position_id =
+      Node.position_id(node)
 
-    assign(socket,
-      game: game,
-      current_path: path,
-      position: position
-    )
+    case PositionStore.get(position_id) do
+      {:ok, position} ->
+        assign(
+          socket,
+          game: game,
+          current_path: path,
+          position: position,
+          position_error: nil
+        )
+
+      :not_found ->
+        assign(
+          socket,
+          :position_error,
+          gettext("Position not found.")
+        )
+
+      {:error, _reason} ->
+        assign(
+          socket,
+          :position_error,
+          gettext("Position storage is temporarily unavailable.")
+        )
+    end
   end
 
   defp parse_piece(color, piece) do
@@ -854,24 +888,49 @@ defmodule Web.RoomLive do
     |> Enum.map(&String.to_integer/1)
   end
 
-  defp select_game(socket, game_id) do
+  defp select_game(
+         socket,
+         game_id
+       ) do
     if game_id in socket.assigns.room.game_ids do
       case Games.get(game_id) do
         {:ok, game, revision} ->
-          subscribe_to_game(socket, game_id)
+          root =
+            Game.root(game)
 
-          root = Game.root(game)
+          case PositionStore.get(Node.position_id(root)) do
+            {:ok, root_position} ->
+              subscribe_to_game(
+                socket,
+                game_id
+              )
 
-          {:ok, root_position} =
-            PositionStore.get(Node.position_id(root))
+              socket
+              |> assign(
+                selected_game_id: game_id,
+                game_revision: revision,
+                root_position: root_position,
+                position_error: nil
+              )
+              |> assign_current_occurrence(
+                game,
+                []
+              )
 
-          socket
-          |> assign(
-            selected_game_id: game_id,
-            game_revision: revision,
-            root_position: root_position
-          )
-          |> assign_current_occurrence(game, [])
+            :not_found ->
+              assign(
+                socket,
+                :position_error,
+                gettext("Position not found.")
+              )
+
+            {:error, _reason} ->
+              assign(
+                socket,
+                :position_error,
+                gettext("Position storage is temporarily unavailable.")
+              )
+          end
 
         :not_found ->
           socket

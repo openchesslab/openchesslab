@@ -14,17 +14,17 @@ defmodule Web.RoomLiveTest do
   defmodule FailingPositionStore do
     use GenServer
 
-    def start_link do
+    def start_link(mode \\ :append_failure) do
       GenServer.start_link(
         __MODULE__,
-        nil,
+        mode,
         name: Analysis.PositionStore
       )
     end
 
     @impl true
-    def init(state) do
-      {:ok, state}
+    def init(mode) do
+      {:ok, mode}
     end
 
     @impl true
@@ -34,6 +34,22 @@ defmodule Web.RoomLiveTest do
           state
         ) do
       {:reply, {:error, :disk_failure}, state}
+    end
+
+    def handle_call(
+          {:get, _position_id},
+          _from,
+          :get_failure = state
+        ) do
+      {:reply, {:error, :disk_failure}, state}
+    end
+
+    def handle_call(
+          {:get, _position_id},
+          _from,
+          :not_found = state
+        ) do
+      {:reply, :not_found, state}
     end
 
     def handle_call(
@@ -54,6 +70,32 @@ defmodule Web.RoomLiveTest do
 
     {:ok, pid} =
       FailingPositionStore.start_link()
+
+    try do
+      fun.()
+    after
+      GenServer.stop(pid)
+
+      {:ok, _pid} =
+        Supervisor.restart_child(
+          Analysis.Supervisor,
+          PositionStore
+        )
+    end
+  end
+
+  defp with_failing_position_store(
+         mode,
+         fun
+       ) do
+    :ok =
+      Supervisor.terminate_child(
+        Analysis.Supervisor,
+        PositionStore
+      )
+
+    {:ok, pid} =
+      FailingPositionStore.start_link(mode)
 
     try do
       fun.()
@@ -2181,5 +2223,111 @@ defmodule Web.RoomLiveTest do
       assert {:ok, ^game, 1} =
                Games.get(game_id)
     end)
+  end
+
+  test "shows a storage error when selecting a game cannot load its position",
+       %{
+         conn: conn,
+         room_id: room_id
+       } do
+    game_id =
+      "game-#{System.unique_integer([:positive])}"
+
+    game =
+      Game.new(
+        game_id,
+        1
+      )
+
+    assert {:ok, 1} =
+             Games.insert(game)
+
+    assert {:ok, _room} =
+             Rooms.start_room(room_id)
+
+    assert :ok =
+             Rooms.add_game(
+               room_id,
+               game_id
+             )
+
+    {:ok, view, _html} =
+      live(
+        conn,
+        "/rooms/#{room_id}"
+      )
+
+    with_failing_position_store(
+      :get_failure,
+      fn ->
+        view
+        |> element("#select-game-#{game_id}")
+        |> render_click()
+
+        assert has_element?(
+                 view,
+                 "#position-error",
+                 "Position storage is temporarily unavailable."
+               )
+
+        refute has_element?(
+                 view,
+                 "#selected-game"
+               )
+      end
+    )
+  end
+
+  test "shows an error when selecting a game whose position is missing",
+       %{
+         conn: conn,
+         room_id: room_id
+       } do
+    game_id =
+      "game-#{System.unique_integer([:positive])}"
+
+    game =
+      Game.new(
+        game_id,
+        1
+      )
+
+    assert {:ok, 1} =
+             Games.insert(game)
+
+    assert {:ok, _room} =
+             Rooms.start_room(room_id)
+
+    assert :ok =
+             Rooms.add_game(
+               room_id,
+               game_id
+             )
+
+    {:ok, view, _html} =
+      live(
+        conn,
+        "/rooms/#{room_id}"
+      )
+
+    with_failing_position_store(
+      :not_found,
+      fn ->
+        view
+        |> element("#select-game-#{game_id}")
+        |> render_click()
+
+        assert has_element?(
+                 view,
+                 "#position-error",
+                 "Position not found."
+               )
+
+        refute has_element?(
+                 view,
+                 "#selected-game"
+               )
+      end
+    )
   end
 end
