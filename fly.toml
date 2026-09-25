@@ -16,13 +16,17 @@ primary_region = 'ams'
   DNS_CLUSTER_QUERY = 'openchesslab.internal'
   POSITION_STORE_OWNER = 'true'
 
+[processes]
+  app = "env POSITION_STORE_OWNER=true /app/bin/openchesslab start"
+  replica = "env POSITION_STORE_OWNER=false /app/bin/openchesslab start"
+
 [http_service]
   internal_port = 8080
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 1
-  processes = ['app']
+  processes = ['app', 'replica']
   
 [[vm]]
   memory = '1gb'
