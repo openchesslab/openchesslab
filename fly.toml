@@ -15,14 +15,15 @@ primary_region = 'ams'
   PHX_HOST = 'openchesslab.fly.dev'
   DNS_CLUSTER_QUERY = 'openchesslab.internal'
   POSITION_STORE_OWNER = 'true'
+  GAME_STORE_OWNER = 'true'
   POSITION_STORE_DIRECTORY = '/data/position-db'
   POSITION_STORE_RECORDS_PER_SEGMENT = '1000000'
   POSITION_STORE_EXACT_BUCKET_COUNT = '1048576'
   POSITION_STORE_PROPERTY_BUCKET_COUNT = '65536'
 
 [processes]
-  app = "env POSITION_STORE_OWNER=true /app/bin/openchesslab start"
-  replica = "env POSITION_STORE_OWNER=false /app/bin/openchesslab start"
+  app = "env POSITION_STORE_OWNER=true GAME_STORE_OWNER=true /app/bin/openchesslab start"
+  replica = "env POSITION_STORE_OWNER=false GAME_STORE_OWNER=false /app/bin/openchesslab start"
 
 [http_service]
   internal_port = 8080
