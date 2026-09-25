@@ -19,7 +19,7 @@ defmodule Analysis.GameStore.DetsTest do
   end
 
   test "inserts and retrieves a game", %{path: path} do
-    {:ok, store} = Dets.start_link(path)
+    {:ok, store} = Dets.start_link(path: path)
     game = Game.new("game-1", :p0)
 
     assert {:ok, 1} = Dets.insert(store, game)
@@ -29,7 +29,7 @@ defmodule Analysis.GameStore.DetsTest do
   end
 
   test "does not overwrite an existing game", %{path: path} do
-    {:ok, store} = Dets.start_link(path)
+    {:ok, store} = Dets.start_link(path: path)
 
     game = Game.new("game-1", :p0)
     other = Game.new("game-1", :other)
@@ -43,7 +43,7 @@ defmodule Analysis.GameStore.DetsTest do
   end
 
   test "returns not_found for an unknown game", %{path: path} do
-    {:ok, store} = Dets.start_link(path)
+    {:ok, store} = Dets.start_link(path: path)
 
     assert :not_found = Dets.get(store, "missing")
 
@@ -51,7 +51,7 @@ defmodule Analysis.GameStore.DetsTest do
   end
 
   test "updates a game when the revision matches", %{path: path} do
-    {:ok, store} = Dets.start_link(path)
+    {:ok, store} = Dets.start_link(path: path)
 
     game = Game.new("game-1", :p0)
     {:ok, revision} = Dets.insert(store, game)
@@ -68,7 +68,7 @@ defmodule Analysis.GameStore.DetsTest do
   end
 
   test "rejects an update with a stale revision", %{path: path} do
-    {:ok, store} = Dets.start_link(path)
+    {:ok, store} = Dets.start_link(path: path)
 
     game = Game.new("game-1", :p0)
     {:ok, revision} = Dets.insert(store, game)
@@ -90,7 +90,7 @@ defmodule Analysis.GameStore.DetsTest do
   end
 
   test "returns not_found when updating an unknown game", %{path: path} do
-    {:ok, store} = Dets.start_link(path)
+    {:ok, store} = Dets.start_link(path: path)
 
     game = Game.new("missing", :p0)
 
@@ -101,7 +101,7 @@ defmodule Analysis.GameStore.DetsTest do
   end
 
   test "deletes a game when the revision matches", %{path: path} do
-    {:ok, store} = Dets.start_link(path)
+    {:ok, store} = Dets.start_link(path: path)
 
     game = Game.new("game-1", :p0)
     {:ok, revision} = Dets.insert(store, game)
@@ -113,7 +113,7 @@ defmodule Analysis.GameStore.DetsTest do
   end
 
   test "rejects deletion with a stale revision", %{path: path} do
-    {:ok, store} = Dets.start_link(path)
+    {:ok, store} = Dets.start_link(path: path)
 
     game = Game.new("game-1", :p0)
     {:ok, revision} = Dets.insert(store, game)
@@ -133,7 +133,7 @@ defmodule Analysis.GameStore.DetsTest do
   end
 
   test "returns not_found when deleting an unknown game", %{path: path} do
-    {:ok, store} = Dets.start_link(path)
+    {:ok, store} = Dets.start_link(path: path)
 
     assert {:error, :not_found} =
              Dets.delete(store, "missing", 1)
@@ -142,7 +142,7 @@ defmodule Analysis.GameStore.DetsTest do
   end
 
   test "persists a game and revision across store restarts", %{path: path} do
-    {:ok, store} = Dets.start_link(path)
+    {:ok, store} = Dets.start_link(path: path)
 
     game =
       Game.new(
@@ -164,7 +164,7 @@ defmodule Analysis.GameStore.DetsTest do
 
     GenServer.stop(store)
 
-    {:ok, store} = Dets.start_link(path)
+    {:ok, store} = Dets.start_link(path: path)
 
     assert {:ok, ^updated_game, 2} =
              Dets.get(store, "game-1")
@@ -183,7 +183,7 @@ defmodule Analysis.GameStore.DetsTest do
 
   describe "list/1" do
     test "returns all stored games with their revisions", %{path: path} do
-      {:ok, store} = Dets.start_link(path)
+      {:ok, store} = Dets.start_link(path: path)
 
       game_1 = Game.new("game-1", :p0)
       game_2 = Game.new("game-2", :p1)
@@ -201,7 +201,7 @@ defmodule Analysis.GameStore.DetsTest do
     end
 
     test "returns the current revision", %{path: path} do
-      {:ok, store} = Dets.start_link(path)
+      {:ok, store} = Dets.start_link(path: path)
 
       game = Game.new("game-1", :p0)
 
@@ -221,7 +221,7 @@ defmodule Analysis.GameStore.DetsTest do
     end
 
     test "returns an empty list for an empty store", %{path: path} do
-      {:ok, store} = Dets.start_link(path)
+      {:ok, store} = Dets.start_link(path: path)
 
       assert Dets.list(store) == []
 

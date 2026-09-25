@@ -26,6 +26,13 @@ defmodule Analysis.Application do
         []
       )
 
+    game_store_options =
+      Application.get_env(
+        :analysis,
+        GameStore,
+        []
+      )
+
     [
       dns_cluster_child(),
       Analysis.RoomEvents,
@@ -40,7 +47,7 @@ defmodule Analysis.Application do
       }
     ] ++
       position_store_children(position_store_options) ++
-      game_store_children() ++
+      game_store_children(game_store_options) ++
       [
         {
           Horde.Registry,
@@ -70,12 +77,32 @@ defmodule Analysis.Application do
     end
   end
 
-  defp game_store_children do
+  defp game_store_children(options) do
     if GameStoreOwner.owner?() do
+      adapter =
+        Keyword.get(
+          options,
+          :adapter,
+          Analysis.GameStore.Memory
+        )
+
+      store =
+        Keyword.get(
+          options,
+          :store,
+          GameStore.clustered_store()
+        )
+
+      adapter_options =
+        options
+        |> Keyword.delete(:adapter)
+        |> Keyword.delete(:store)
+        |> Keyword.put_new(:name, store)
+
       [
         {
-          Analysis.GameStore.Memory,
-          name: GameStore.clustered_store()
+          adapter,
+          adapter_options
         }
       ]
     else

@@ -145,3 +145,19 @@ position_store_options =
 config :analysis,
        Analysis.PositionStore,
        position_store_options
+
+game_store_options =
+  case System.get_env("GAME_STORE_PATH") do
+    nil ->
+      []
+
+    path ->
+      [
+        adapter: Analysis.GameStore.Dets,
+        path: path
+      ]
+  end
+
+config :analysis,
+       Analysis.GameStore,
+       game_store_options

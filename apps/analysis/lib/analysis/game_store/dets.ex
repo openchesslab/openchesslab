@@ -12,9 +12,15 @@ defmodule Analysis.GameStore.Dets do
   @type revision :: pos_integer()
   @type store :: GenServer.server()
 
-  @spec start_link(Path.t()) :: GenServer.on_start()
-  def start_link(path) do
-    GenServer.start_link(__MODULE__, path)
+  @spec start_link(keyword()) :: GenServer.on_start()
+  def start_link(opts) when is_list(opts) do
+    path = Keyword.fetch!(opts, :path)
+
+    GenServer.start_link(
+      __MODULE__,
+      path,
+      Keyword.take(opts, [:name])
+    )
   end
 
   @impl Analysis.GameStore

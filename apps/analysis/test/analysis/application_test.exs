@@ -29,6 +29,13 @@ defmodule Analysis.ApplicationTest do
         :not_configured
       )
 
+    previous_game_store =
+      Application.get_env(
+        :analysis,
+        GameStore,
+        :not_configured
+      )
+
     on_exit(fn ->
       restore_config(
         PositionStore,
@@ -44,6 +51,11 @@ defmodule Analysis.ApplicationTest do
         GameStoreOwner,
         previous_game_store_owner
       )
+
+      restore_config(
+        GameStore,
+        previous_game_store
+      )
     end)
 
     Application.delete_env(
@@ -54,6 +66,11 @@ defmodule Analysis.ApplicationTest do
     Application.delete_env(
       :analysis,
       GameStoreOwner
+    )
+
+    Application.delete_env(
+      :analysis,
+      GameStore
     )
 
     :ok
@@ -71,6 +88,80 @@ defmodule Analysis.ApplicationTest do
                server: PositionStore.clustered_server()
              ]
            } in AnalysisApplication.children()
+  end
+
+  test "starts the configured game store adapter" do
+    Application.put_env(
+      :analysis,
+      GameStore,
+      adapter: Analysis.GameStore.Dets,
+      path: "games.dets"
+    )
+
+    assert {
+             Analysis.GameStore.Dets,
+             options
+           } =
+             Enum.find(
+               AnalysisApplication.children(),
+               fn
+                 {Analysis.GameStore.Dets, _options} -> true
+                 _child -> false
+               end
+             )
+
+    assert Keyword.get(options, :path) == "games.dets"
+
+    assert Keyword.get(options, :name) ==
+             GameStore.clustered_store()
+  end
+
+  test "does not start the configured game store adapter on a non-owner node" do
+    Application.put_env(
+      :analysis,
+      GameStore,
+      adapter: Analysis.GameStore.Dets,
+      path: "games.dets"
+    )
+
+    Application.put_env(
+      :analysis,
+      GameStoreOwner,
+      owner: false
+    )
+
+    refute Enum.any?(
+             AnalysisApplication.children(),
+             fn
+               {Analysis.GameStore.Dets, _options} -> true
+               _child -> false
+             end
+           )
+  end
+
+  test "preserves an explicitly configured game store" do
+    Application.put_env(
+      :analysis,
+      GameStore,
+      adapter: Analysis.GameStore.Dets,
+      path: "games.dets",
+      store: :custom_game_store
+    )
+
+    assert {
+             Analysis.GameStore.Dets,
+             options
+           } =
+             Enum.find(
+               AnalysisApplication.children(),
+               fn
+                 {Analysis.GameStore.Dets, _options} -> true
+                 _child -> false
+               end
+             )
+
+    assert Keyword.get(options, :path) == "games.dets"
+    assert Keyword.get(options, :name) == :custom_game_store
   end
 
   test "starts the position store registry" do
