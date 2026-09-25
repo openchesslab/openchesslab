@@ -33,3 +33,8 @@ primary_region = 'ams'
   cpu_kind = 'shared'
   cpus = 1
   memory_mb = 1024
+
+[[mounts]]
+  source = "position_db"
+  destination = "/data"
+  processes = ["app"]
