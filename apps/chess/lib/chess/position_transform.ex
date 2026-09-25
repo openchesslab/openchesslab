@@ -31,8 +31,7 @@ defmodule Chess.PositionTransform do
 
   defp swap_castling_rights(rights) do
     rights
-    |> Enum.map(&swap_castling_right/1)
-    |> MapSet.new()
+    |> MapSet.new(&swap_castling_right/1)
   end
 
   defp swap_castling_right(:white_kingside), do: :black_kingside

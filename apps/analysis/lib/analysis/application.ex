@@ -95,8 +95,7 @@ defmodule Analysis.Application do
 
       adapter_options =
         options
-        |> Keyword.delete(:adapter)
-        |> Keyword.delete(:store)
+        |> Keyword.drop([:adapter, :store])
         |> Keyword.put_new(:name, store)
 
       [
