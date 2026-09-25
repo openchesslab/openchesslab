@@ -7,8 +7,7 @@ app = 'openchesslab'
 primary_region = 'ams'
 
 [build]
-  builder = 'heroku/buildpacks:20'
-  buildpacks = ['https://cnb-shim.herokuapp.com/v1/hashnuke/elixir']
+  dockerfile = 'Dockerfile'
 
 [env]
   PORT = '8080'
