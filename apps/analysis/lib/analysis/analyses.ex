@@ -4,6 +4,7 @@ defmodule Analysis.Analyses do
   alias Analysis.AnalysisEvents
   alias Analysis.AnalysisStore
   alias Analysis.Game
+  alias Analysis.GameReplay
   alias Analysis.Node
   alias Analysis.PositionStore
   alias Analysis.Transition
@@ -154,9 +155,9 @@ defmodule Analysis.Analyses do
   defp do_create_from_game(analysis_id, game) do
     with {:ok, initial_position} <- get_game_initial_position(game),
          {:ok, mainline} <-
-           validate_game_moves(
-             initial_position,
-             Game.moves(game)
+           replay_game(
+             game,
+             initial_position
            ),
          {:ok, analysis} <-
            build_analysis_from_game(
@@ -184,27 +185,16 @@ defmodule Analysis.Analyses do
     end
   end
 
-  defp validate_game_moves(initial_position, moves) do
-    moves
-    |> Enum.with_index(1)
-    |> Enum.reduce_while(
-      {:ok, initial_position, []},
-      fn {move, ply}, {:ok, position, mainline} ->
-        case Position.apply_move(position, move) do
-          {:ok, next_position} ->
-            {:cont, {:ok, next_position, [{move, next_position} | mainline]}}
+  defp replay_game(game, initial_position) do
+    case GameReplay.replay(
+           game,
+           initial_position
+         ) do
+      {:ok, mainline} ->
+        {:ok, mainline}
 
-          {:error, :illegal_move} ->
-            {:halt, {:error, {:invalid_game, {:illegal_move, ply}}}}
-        end
-      end
-    )
-    |> case do
-      {:ok, _final_position, mainline} ->
-        {:ok, Enum.reverse(mainline)}
-
-      {:error, _reason} = error ->
-        error
+      {:error, {:illegal_move, ply}} ->
+        {:error, {:invalid_game, {:illegal_move, ply}}}
     end
   end
 
