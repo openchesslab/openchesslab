@@ -491,13 +491,13 @@ defmodule Web.RoomLive do
     ~H"""
     <main>
       <h1>{gettext("Room")} {@room_id}</h1>
-
+      
       <%= if @position_error do %>
         <p id="position-error" role="alert">
           {@position_error}
         </p>
       <% end %>
-
+      
       <form id="create-analysis-form" phx-submit="create_analysis">
         <input
           type="text"
@@ -509,13 +509,13 @@ defmodule Web.RoomLive do
           {gettext("Create analysis")}
         </button>
       </form>
-
+      
       <%= if @create_analysis_error do %>
         <p id="create-analysis-error" role="alert">
           {@create_analysis_error}
         </p>
       <% end %>
-
+      
       <form id="add-analysis-form" phx-submit="add_analysis">
         <input
           type="text"
@@ -527,11 +527,11 @@ defmodule Web.RoomLive do
           {gettext("Add analysis")}
         </button>
       </form>
-
+      
       <%= if @add_analysis_error do %>
         <p role="alert">{@add_analysis_error}</p>
       <% end %>
-
+      
       <%= if @room.analysis_ids == [] do %>
         <p>{gettext("No analyses in this room.")}</p>
       <% else %>
@@ -546,7 +546,7 @@ defmodule Web.RoomLive do
             >
               {gettext("Select")}
             </button>
-
+            
             <button
               id={"remove-analysis-#{analysis_id}"}
               type="button"
@@ -557,23 +557,23 @@ defmodule Web.RoomLive do
             </button>
           </li>
         </ul>
-
+        
         <%= if @selected_analysis_id do %>
           <section id="selected-analysis">
             <h2>{gettext("Selected analysis")}</h2>
-
+            
             <p id="selected-analysis-id">
               {@selected_analysis_id}
             </p>
-
+            
             <p id="selected-analysis-revision">
               {gettext("Revision")} {@analysis_revision}
             </p>
-
+            
             <p id="current-path">
               {gettext("Path")} {inspect(@current_path)}
             </p>
-
+            
             <MoveTree.move_tree
               analysis={@analysis}
               root_position={@root_position}
@@ -600,11 +600,11 @@ defmodule Web.RoomLive do
                 {gettext("Play move")}
               </button>
             </form>
-
+            
             <%= if @move_error do %>
               <p id="move-error" role="alert">{@move_error}</p>
             <% end %>
-            <% current_node = Analysis.Analysis.node_at(@analysis, @current_path) %>
+             <% current_node = Analysis.Analysis.node_at(@analysis, @current_path) %>
             <div id="current-comment">
               <%= if comment = Node.comment(current_node) do %>
                 {comment}
@@ -612,14 +612,14 @@ defmodule Web.RoomLive do
                 {gettext("No comment")}
               <% end %>
             </div>
-
+            
             <form id="comment-form" phx-submit="set_comment">
               <textarea name="comment[text]">{Node.comment(current_node)}</textarea>
               <button type="submit">
                 {gettext("Save comment")}
               </button>
             </form>
-
+            
             <button
               :if={promotable_path?(@current_path)}
               id="promote-variation"
@@ -628,7 +628,7 @@ defmodule Web.RoomLive do
             >
               {gettext("Promote variation")}
             </button>
-
+            
             <button
               :if={@current_path != []}
               id="remove-subtree"
@@ -637,7 +637,7 @@ defmodule Web.RoomLive do
             >
               {gettext("Remove subtree")}
             </button>
-
+            
             <button
               :if={@current_path != []}
               id="navigate-parent"
@@ -646,7 +646,7 @@ defmodule Web.RoomLive do
             >
               {gettext("Parent")}
             </button>
-
+            
             <button
               :for={{child, index} <- Enum.with_index(Node.children(current_node))}
               id={"navigate-child-#{index}"}

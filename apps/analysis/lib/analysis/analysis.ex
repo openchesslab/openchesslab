@@ -1,4 +1,5 @@
 defmodule Analysis.Analysis do
+  alias Analysis.Game
   alias Analysis.GameStart
   alias Analysis.MoveContext
   alias Analysis.Node
@@ -6,11 +7,13 @@ defmodule Analysis.Analysis do
   @type id :: term()
   @type path :: [non_neg_integer()]
   @type position_id :: term()
+  @type source_game_id :: Game.id() | nil
 
   @type t :: %__MODULE__{
           id: id(),
           root: Node.t(),
           start: GameStart.t(),
+          source_game_id: source_game_id(),
           metadata: map()
         }
 
@@ -18,6 +21,7 @@ defmodule Analysis.Analysis do
   defstruct id: nil,
             root: nil,
             start: nil,
+            source_game_id: nil,
             metadata: %{}
 
   @spec new(id(), position_id()) :: t()
@@ -55,11 +59,41 @@ defmodule Analysis.Analysis do
     }
   end
 
+  @spec new(
+          id(),
+          position_id(),
+          Game.id(),
+          GameStart.t(),
+          map()
+        ) :: t()
+  def new(
+        id,
+        initial_position_id,
+        source_game_id,
+        %GameStart{} = start,
+        metadata
+      )
+      when is_map(metadata) do
+    %__MODULE__{
+      id: id,
+      root: Node.new(initial_position_id),
+      start: start,
+      source_game_id: source_game_id,
+      metadata: metadata
+    }
+  end
+
   @spec root(t()) :: Node.t()
   def root(%__MODULE__{root: root}), do: root
 
   @spec start(t()) :: GameStart.t()
   def start(%__MODULE__{start: start}), do: start
+
+  @spec source_game_id(t()) :: source_game_id()
+  def source_game_id(%__MODULE__{source_game_id: source_game_id}) do
+    source_game_id
+  end
+
   @spec move_context(t(), :white | :black, path()) :: MoveContext.t()
   def move_context(
         %__MODULE__{start: start},
