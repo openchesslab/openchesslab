@@ -3,6 +3,7 @@ defmodule Analysis.Analyses do
 
   alias Analysis.AnalysisEvents
   alias Analysis.AnalysisStore
+  alias Analysis.Game
   alias Analysis.Node
   alias Analysis.PositionStore
   alias Analysis.Transition
@@ -37,6 +38,23 @@ defmodule Analysis.Analyses do
 
       {:error, _reason} = error ->
         error
+    end
+  end
+
+  @spec create_from_game(Analysis.Analysis.id(), Game.t()) ::
+          {:ok, Analysis.Analysis.t(), pos_integer()}
+          | {:error,
+             :already_exists
+             | {:invalid_game, {:position_not_found, term()}}
+             | {:invalid_game, {:illegal_move, pos_integer()}}
+             | position_store_error()}
+  def create_from_game(analysis_id, %Game{} = game) do
+    case get(analysis_id) do
+      {:ok, _analysis, _revision} ->
+        {:error, :already_exists}
+
+      :not_found ->
+        do_create_from_game(analysis_id, game)
     end
   end
 
@@ -130,6 +148,107 @@ defmodule Analysis.Analyses do
 
       :not_found ->
         {:error, :analysis_not_found}
+    end
+  end
+
+  defp do_create_from_game(analysis_id, game) do
+    with {:ok, initial_position} <- get_game_initial_position(game),
+         {:ok, mainline} <-
+           validate_game_moves(
+             initial_position,
+             Game.moves(game)
+           ),
+         {:ok, analysis} <-
+           build_analysis_from_game(
+             analysis_id,
+             game,
+             mainline
+           ),
+         {:ok, revision} <- insert(analysis) do
+      {:ok, analysis, revision}
+    end
+  end
+
+  defp get_game_initial_position(game) do
+    position_id = Game.initial_position_id(game)
+
+    case get_position(position_id) do
+      {:ok, position} ->
+        {:ok, position}
+
+      :not_found ->
+        {:error, {:invalid_game, {:position_not_found, position_id}}}
+
+      {:error, _reason} = error ->
+        error
+    end
+  end
+
+  defp validate_game_moves(initial_position, moves) do
+    moves
+    |> Enum.with_index(1)
+    |> Enum.reduce_while(
+      {:ok, initial_position, []},
+      fn {move, ply}, {:ok, position, mainline} ->
+        case Position.apply_move(position, move) do
+          {:ok, next_position} ->
+            {:cont, {:ok, next_position, [{move, next_position} | mainline]}}
+
+          {:error, :illegal_move} ->
+            {:halt, {:error, {:invalid_game, {:illegal_move, ply}}}}
+        end
+      end
+    )
+    |> case do
+      {:ok, _final_position, mainline} ->
+        {:ok, Enum.reverse(mainline)}
+
+      {:error, _reason} = error ->
+        error
+    end
+  end
+
+  defp build_analysis_from_game(
+         analysis_id,
+         game,
+         mainline
+       ) do
+    analysis =
+      Analysis.Analysis.new(
+        analysis_id,
+        Game.initial_position_id(game),
+        Game.id(game),
+        Game.start(game),
+        %{}
+      )
+
+    mainline
+    |> Enum.reduce_while(
+      {:ok, analysis, []},
+      fn {move, position}, {:ok, analysis, path} ->
+        case append_position(position) do
+          {:ok, position_id} ->
+            analysis =
+              Analysis.Analysis.add_child(
+                analysis,
+                path,
+                Transition.move(move),
+                position_id
+              )
+
+            {:cont, {:ok, analysis, path ++ [0]}}
+
+          {:error, _reason} = error ->
+            {:halt, error}
+        end
+      end
+    )
+    |> case do
+      {:ok, analysis, _path} ->
+        {:ok, analysis}
+
+      {:error, _reason} = error ->
+        error
     end
   end
 

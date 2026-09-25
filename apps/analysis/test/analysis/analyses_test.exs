@@ -3,6 +3,8 @@ defmodule Analysis.AnalysesTest do
 
   alias Analysis.Analysis, as: AnalysisModel
   alias Analysis.Analyses
+  alias Analysis.Game
+  alias Analysis.GameStart
   alias Analysis.Node
   alias Analysis.PositionStore
   alias Analysis.Transition
@@ -166,6 +168,133 @@ defmodule Analysis.AnalysesTest do
 
       assert {:error, :already_exists} =
                Analyses.create(analysis_id)
+    end
+  end
+
+  describe "create_from_game/2" do
+    test "creates an analysis containing the canonical main line", %{
+      analysis_id: analysis_id
+    } do
+      initial_position_id =
+        PositionStore.append(Position.starting_position())
+
+      e4 = move("e2", "e4")
+      e5 = move("e7", "e5")
+
+      game =
+        Game.new(
+          "game-1",
+          initial_position_id,
+          [e4, e5],
+          %{
+            white: "White",
+            black: "Black"
+          }
+        )
+
+      assert {:ok, analysis, 1} =
+               Analyses.create_from_game(
+                 analysis_id,
+                 game
+               )
+
+      assert AnalysisModel.source_game_id(analysis) ==
+               "game-1"
+
+      assert AnalysisModel.start(analysis) ==
+               GameStart.standard()
+
+      assert Node.position_id(AnalysisModel.root(analysis)) == initial_position_id
+
+      assert Node.transition(
+               AnalysisModel.node_at(
+                 analysis,
+                 [0]
+               )
+             ) == Transition.move(e4)
+
+      assert Node.transition(
+               AnalysisModel.node_at(
+                 analysis,
+                 [0, 0]
+               )
+             ) == Transition.move(e5)
+
+      assert analysis.metadata == %{}
+
+      assert {:ok, ^analysis, 1} =
+               Analyses.get(analysis_id)
+    end
+
+    test "preserves the canonical game start context", %{
+      analysis_id: analysis_id
+    } do
+      initial_position_id =
+        PositionStore.append(Position.starting_position())
+
+      start = GameStart.new(37)
+
+      game =
+        Game.new(
+          "game-1",
+          initial_position_id,
+          start,
+          [move("e2", "e4")],
+          %{}
+        )
+
+      assert {:ok, analysis, 1} =
+               Analyses.create_from_game(
+                 analysis_id,
+                 game
+               )
+
+      assert AnalysisModel.start(analysis) == start
+    end
+
+    test "rejects a canonical game with an illegal move", %{
+      analysis_id: analysis_id
+    } do
+      initial_position_id =
+        PositionStore.append(Position.starting_position())
+
+      game =
+        Game.new(
+          "game-1",
+          initial_position_id,
+          [
+            move("e2", "e4"),
+            move("e7", "e4")
+          ]
+        )
+
+      assert Analyses.create_from_game(
+               analysis_id,
+               game
+             ) ==
+               {:error, {:invalid_game, {:illegal_move, 2}}}
+
+      assert Analyses.get(analysis_id) ==
+               :not_found
+    end
+
+    test "rejects a game whose initial position is missing", %{
+      analysis_id: analysis_id
+    } do
+      game =
+        Game.new(
+          "game-1",
+          999_999_999
+        )
+
+      assert Analyses.create_from_game(
+               analysis_id,
+               game
+             ) ==
+               {:error, {:invalid_game, {:position_not_found, 999_999_999}}}
+
+      assert Analyses.get(analysis_id) ==
+               :not_found
     end
   end
 
