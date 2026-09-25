@@ -25,6 +25,7 @@ defmodule Analysis.Application do
       )
 
     [
+      dns_cluster_child(),
       Analysis.RoomEvents,
       Analysis.GameEvents,
       {
@@ -64,5 +65,19 @@ defmodule Analysis.Application do
     else
       []
     end
+  end
+
+  defp dns_cluster_child do
+    query =
+      Application.get_env(
+        :analysis,
+        :dns_cluster_query,
+        :ignore
+      )
+
+    {
+      DNSCluster,
+      query: query
+    }
   end
 end

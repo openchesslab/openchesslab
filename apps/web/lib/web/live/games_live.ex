@@ -48,7 +48,7 @@ defmodule Web.GamesLive do
     ~H"""
     <main>
       <h1>{gettext("Games")}</h1>
-      
+
       <%= if @games == [] do %>
         <p id="no-games">{gettext("No games.")}</p>
       <% else %>
@@ -58,7 +58,7 @@ defmodule Web.GamesLive do
             <span class="game-revision">
               {gettext("Revision")} {revision}
             </span>
-            
+
             <form id={"open-game-#{game.id}"} phx-submit="open_game">
               <input
                 type="hidden"
@@ -77,7 +77,7 @@ defmodule Web.GamesLive do
             </form>
           </li>
         </ul>
-        
+
         <%= if @open_game_error do %>
           <p id="open-game-error" role="alert">
             {@open_game_error}

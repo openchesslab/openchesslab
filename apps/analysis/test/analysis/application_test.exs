@@ -139,6 +139,63 @@ defmodule Analysis.ApplicationTest do
            } in AnalysisApplication.children()
   end
 
+  test "starts DNS clustering disabled by default" do
+    previous =
+      Application.get_env(
+        :analysis,
+        :dns_cluster_query,
+        :not_configured
+      )
+
+    on_exit(fn ->
+      restore_config(
+        :dns_cluster_query,
+        previous
+      )
+    end)
+
+    Application.delete_env(
+      :analysis,
+      :dns_cluster_query
+    )
+
+    assert {
+             DNSCluster,
+             [
+               query: :ignore
+             ]
+           } in AnalysisApplication.children()
+  end
+
+  test "passes the configured DNS cluster query" do
+    previous =
+      Application.get_env(
+        :analysis,
+        :dns_cluster_query,
+        :not_configured
+      )
+
+    on_exit(fn ->
+      restore_config(
+        :dns_cluster_query,
+        previous
+      )
+    end)
+
+    Application.put_env(
+      :analysis,
+      :dns_cluster_query,
+      "openchesslab.internal"
+    )
+
+    assert {
+             DNSCluster,
+             [
+               query: "openchesslab.internal"
+             ]
+           } in AnalysisApplication.children()
+  end
+
   defp restore_config(key, :not_configured) do
     Application.delete_env(
       :analysis,
