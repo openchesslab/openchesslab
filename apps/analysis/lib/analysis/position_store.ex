@@ -15,7 +15,12 @@ defmodule Analysis.PositionStore do
     GenServer.start_link(
       __MODULE__,
       opts,
-      name: @name
+      name:
+        Keyword.get(
+          opts,
+          :server,
+          @name
+        )
     )
   end
 

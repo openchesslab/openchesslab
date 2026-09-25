@@ -4,6 +4,16 @@ defmodule Analysis.PositionStoreTest do
   alias Analysis.PositionStore
   alias Chess.Position
 
+  test "registers under the configured server name" do
+    server =
+      :"position-store-#{System.unique_integer([:positive])}"
+
+    assert {:ok, pid} =
+             PositionStore.start_link(server: server)
+
+    assert Process.whereis(server) == pid
+  end
+
   test "appends and gets a position" do
     position = Position.starting_position()
 
