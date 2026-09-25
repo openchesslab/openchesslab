@@ -24,6 +24,12 @@ defmodule Web.Router do
   end
 
   scope "/", Web do
+    pipe_through(:api)
+
+    get("/health", HealthController, :show)
+  end
+
+  scope "/", Web do
     pipe_through(:browser)
 
     live_session :default,

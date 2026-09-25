@@ -32,6 +32,13 @@ primary_region = 'ams'
   min_machines_running = 1
   processes = ['app', 'replica']
   
+[[http_service.checks]]
+  grace_period = "5s"
+  interval = "15s"
+  method = "GET"
+  timeout = "2s"
+  path = "/health"
+
 [[vm]]
   memory = '1gb'
   cpu_kind = 'shared'
