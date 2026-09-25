@@ -10,6 +10,14 @@ defmodule Analysis.PositionStore do
 
   @name __MODULE__
 
+  @registry Analysis.PositionStoreRegistry
+  @registry_key :position_store
+
+  @spec clustered_server() :: GenServer.server()
+  def clustered_server do
+    {:via, Horde.Registry, {@registry, @registry_key}}
+  end
+
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts \\ []) do
     GenServer.start_link(

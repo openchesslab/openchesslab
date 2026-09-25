@@ -44,6 +44,17 @@ defmodule Analysis.ApplicationTest do
            } in AnalysisApplication.children()
   end
 
+  test "starts the position store registry" do
+    assert {
+             Horde.Registry,
+             [
+               name: Analysis.PositionStoreRegistry,
+               keys: :unique,
+               members: :auto
+             ]
+           } in AnalysisApplication.children()
+  end
+
   test "passes configured options to the position store" do
     options = [
       directory: "positions",

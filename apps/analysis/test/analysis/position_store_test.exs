@@ -14,6 +14,18 @@ defmodule Analysis.PositionStoreTest do
     assert Process.whereis(server) == pid
   end
 
+  test "provides a cluster-wide server reference" do
+    assert PositionStore.clustered_server() ==
+             {
+               :via,
+               Horde.Registry,
+               {
+                 Analysis.PositionStoreRegistry,
+                 :position_store
+               }
+             }
+  end
+
   test "appends and gets a position" do
     position = Position.starting_position()
 

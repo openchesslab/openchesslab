@@ -25,6 +25,10 @@ defmodule Analysis.Application do
       Analysis.RoomEvents,
       Analysis.GameEvents,
       {
+        Horde.Registry,
+        name: Analysis.PositionStoreRegistry, keys: :unique, members: :auto
+      },
+      {
         Analysis.PositionStore,
         position_store_options
       },
