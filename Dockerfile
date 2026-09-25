@@ -24,10 +24,11 @@ COPY apps/chess/mix.exs apps/chess/mix.exs
 COPY apps/position_db/mix.exs apps/position_db/mix.exs
 COPY apps/web/mix.exs apps/web/mix.exs
 
+COPY config config
+
 RUN mix deps.get --only prod
 RUN mix deps.compile
 
-COPY config config
 COPY apps apps
 COPY rel rel
 
@@ -35,7 +36,7 @@ RUN mix compile
 
 RUN mix esbuild web --minify
 
-RUN mix phx.digest apps/web/priv/static
+RUN cd apps/web && mix phx.digest priv/static
 
 RUN mix release openchesslab
 
