@@ -1,0 +1,139 @@
+# flyctl launch added from .elixir_ls/.gitignore
+.elixir_ls/**/*
+
+# flyctl launch added from .gitignore
+# The directory Mix will write compiled artifacts to.
+_build
+
+# If you run "mix test --cover", coverage assets end up here.
+cover
+
+# The directory Mix downloads your dependencies sources to.
+deps
+
+# Where third-party dependencies like ExDoc output generated docs.
+doc
+
+# Temporary files, for example, from tests.
+tmp
+
+# If the VM crashes, it generates a dump, let's ignore it too.
+**/erl_crash.dump
+
+# Also ignore archive artifacts (built via "mix archive.build").
+**/*.ez
+
+
+# flyctl launch added from apps/analysis/.gitignore
+# The directory Mix will write compiled artifacts to.
+apps/analysis/_build
+
+# If you run "mix test --cover", coverage assets end up here.
+apps/analysis/cover
+
+# The directory Mix downloads your dependencies sources to.
+apps/analysis/deps
+
+# Where third-party dependencies like ExDoc output generated docs.
+apps/analysis/doc
+
+# Temporary files, for example, from tests.
+apps/analysis/tmp
+
+# If the VM crashes, it generates a dump, let's ignore it too.
+apps/analysis/**/erl_crash.dump
+
+# Also ignore archive artifacts (built via "mix archive.build").
+apps/analysis/**/*.ez
+
+# Ignore package tarball (built via "mix hex.build").
+apps/analysis/**/analysis-*.tar
+
+
+# flyctl launch added from apps/chess/.gitignore
+# The directory Mix will write compiled artifacts to.
+apps/chess/_build
+
+# If you run "mix test --cover", coverage assets end up here.
+apps/chess/cover
+
+# The directory Mix downloads your dependencies sources to.
+apps/chess/deps
+
+# Where third-party dependencies like ExDoc output generated docs.
+apps/chess/doc
+
+# Temporary files, for example, from tests.
+apps/chess/tmp
+
+# If the VM crashes, it generates a dump, let's ignore it too.
+apps/chess/**/erl_crash.dump
+
+# Also ignore archive artifacts (built via "mix archive.build").
+apps/chess/**/*.ez
+
+# Ignore package tarball (built via "mix hex.build").
+apps/chess/**/chess-*.tar
+
+
+# flyctl launch added from apps/position_db/.gitignore
+# The directory Mix will write compiled artifacts to.
+apps/position_db/_build
+
+# If you run "mix test --cover", coverage assets end up here.
+apps/position_db/cover
+
+# The directory Mix downloads your dependencies sources to.
+apps/position_db/deps
+
+# Where third-party dependencies like ExDoc output generated docs.
+apps/position_db/doc
+
+# Temporary files, for example, from tests.
+apps/position_db/tmp
+
+# If the VM crashes, it generates a dump, let's ignore it too.
+apps/position_db/**/erl_crash.dump
+
+# Also ignore archive artifacts (built via "mix archive.build").
+apps/position_db/**/*.ez
+
+# Ignore package tarball (built via "mix hex.build").
+apps/position_db/**/position_db-*.tar
+
+
+# flyctl launch added from apps/web/.gitignore
+# The directory Mix will write compiled artifacts to.
+apps/web/_build
+
+# If you run "mix test --cover", coverage assets end up here.
+apps/web/cover
+
+# The directory Mix downloads your dependencies sources to.
+apps/web/deps
+
+# Where third-party dependencies like ExDoc output generated docs.
+apps/web/doc
+
+# Temporary files, for example, from tests.
+apps/web/tmp
+
+# If the VM crashes, it generates a dump, let's ignore it too.
+apps/web/**/erl_crash.dump
+
+# Also ignore archive artifacts (built via "mix archive.build").
+apps/web/**/*.ez
+
+# Ignore package tarball (built via "mix hex.build").
+apps/web/**/web-*.tar
+
+# Ignore assets that are produced by build tools.
+apps/web/priv/static/assets
+
+# Ignore digested assets cache.
+apps/web/priv/static/cache_manifest.json
+
+# In case you use Node.js/npm, you want to ignore these.
+apps/web/**/npm-debug.log
+apps/web/assets/node_modules
+fly.toml
