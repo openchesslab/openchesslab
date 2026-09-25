@@ -56,6 +56,20 @@ if config_env() == :prod do
       ip: {0, 0, 0, 0, 0, 0, 0, 0}
     ],
     secret_key_base: secret_key_base
+
+  if System.get_env("DNS_CLUSTER_QUERY") do
+    unless System.get_env("RELEASE_NODE") do
+      raise """
+      RELEASE_NODE must be configured when DNS_CLUSTER_QUERY is enabled
+      """
+    end
+
+    unless System.get_env("RELEASE_COOKIE") do
+      raise """
+      RELEASE_COOKIE must be configured when DNS_CLUSTER_QUERY is enabled
+      """
+    end
+  end
 end
 
 config :analysis,
