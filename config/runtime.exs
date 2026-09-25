@@ -74,3 +74,22 @@ end
 
 config :analysis,
   dns_cluster_query: System.get_env("DNS_CLUSTER_QUERY") || :ignore
+
+position_store_owner =
+  case System.get_env("POSITION_STORE_OWNER") do
+    nil ->
+      true
+
+    "true" ->
+      true
+
+    "false" ->
+      false
+
+    value ->
+      raise """
+      POSITION_STORE_OWNER must be true or false, got: #{inspect(value)}
+      """
+  end
+
+config :analysis, Analysis.PositionStoreOwner, owner: position_store_owner
