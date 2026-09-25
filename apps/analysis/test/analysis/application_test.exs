@@ -40,7 +40,7 @@ defmodule Analysis.ApplicationTest do
     :ok
   end
 
-  test "starts the position store with no options by default" do
+  test "starts the position store with the cluster-wide server by default" do
     Application.delete_env(
       :analysis,
       PositionStore
@@ -48,7 +48,9 @@ defmodule Analysis.ApplicationTest do
 
     assert {
              PositionStore,
-             []
+             [
+               server: PositionStore.clustered_server()
+             ]
            } in AnalysisApplication.children()
   end
 
@@ -102,6 +104,27 @@ defmodule Analysis.ApplicationTest do
       records_per_segment: 100,
       exact_bucket_count: 200,
       property_bucket_count: 300
+    ]
+
+    Application.put_env(
+      :analysis,
+      PositionStore,
+      options
+    )
+
+    assert {
+             PositionStore,
+             Keyword.put(
+               options,
+               :server,
+               PositionStore.clustered_server()
+             )
+           } in AnalysisApplication.children()
+  end
+
+  test "preserves an explicitly configured position store server" do
+    options = [
+      server: :custom_position_store
     ]
 
     Application.put_env(

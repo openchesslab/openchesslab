@@ -93,7 +93,7 @@ defmodule Analysis.PositionStoreTest do
              {:ok, position_id}
   end
 
-  test "uses itself as the server by default" do
+  test "uses the cluster-wide server by default" do
     previous =
       Application.get_env(
         :analysis,
@@ -110,7 +110,8 @@ defmodule Analysis.PositionStoreTest do
       PositionStore
     )
 
-    assert PositionStore.server() == PositionStore
+    assert PositionStore.server() ==
+             PositionStore.clustered_server()
   end
 
   test "uses the configured server" do

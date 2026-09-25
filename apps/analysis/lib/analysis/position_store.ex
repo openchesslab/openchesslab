@@ -41,7 +41,7 @@ defmodule Analysis.PositionStore do
     )
     |> Keyword.get(
       :server,
-      @name
+      clustered_server()
     )
   end
 

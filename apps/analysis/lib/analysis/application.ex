@@ -54,7 +54,11 @@ defmodule Analysis.Application do
       [
         {
           PositionStore,
-          options
+          Keyword.put_new(
+            options,
+            :server,
+            PositionStore.clustered_server()
+          )
         }
       ]
     else

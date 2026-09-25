@@ -18,7 +18,7 @@ defmodule Analysis.GamesTest do
       GenServer.start_link(
         __MODULE__,
         mode,
-        name: Analysis.PositionStore
+        name: Analysis.PositionStore.clustered_server()
       )
     end
 
