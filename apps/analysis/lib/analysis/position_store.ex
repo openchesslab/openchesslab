@@ -19,13 +19,26 @@ defmodule Analysis.PositionStore do
     )
   end
 
+  @spec server() :: GenServer.server()
+  def server do
+    Application.get_env(
+      :analysis,
+      __MODULE__,
+      []
+    )
+    |> Keyword.get(
+      :server,
+      @name
+    )
+  end
+
   @spec get(PositionDB.position_id()) ::
           {:ok, Chess.Position.t()}
           | :not_found
           | {:error, term()}
   def get(position_id) do
     GenServer.call(
-      @name,
+      server(),
       {:get, position_id}
     )
   end
@@ -35,7 +48,7 @@ defmodule Analysis.PositionStore do
           | {:error, term()}
   def append(position) do
     GenServer.call(
-      @name,
+      server(),
       {:append, position}
     )
   end

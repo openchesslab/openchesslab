@@ -70,4 +70,60 @@ defmodule Analysis.PositionStoreTest do
            ) ==
              {:ok, position_id}
   end
+
+  test "uses itself as the server by default" do
+    previous =
+      Application.get_env(
+        :analysis,
+        PositionStore,
+        :not_configured
+      )
+
+    on_exit(fn ->
+      restore_position_store_config(previous)
+    end)
+
+    Application.delete_env(
+      :analysis,
+      PositionStore
+    )
+
+    assert PositionStore.server() == PositionStore
+  end
+
+  test "uses the configured server" do
+    previous =
+      Application.get_env(
+        :analysis,
+        PositionStore,
+        :not_configured
+      )
+
+    on_exit(fn ->
+      restore_position_store_config(previous)
+    end)
+
+    Application.put_env(
+      :analysis,
+      PositionStore,
+      server: :position_store_owner
+    )
+
+    assert PositionStore.server() == :position_store_owner
+  end
+
+  defp restore_position_store_config(:not_configured) do
+    Application.delete_env(
+      :analysis,
+      PositionStore
+    )
+  end
+
+  defp restore_position_store_config(value) do
+    Application.put_env(
+      :analysis,
+      PositionStore,
+      value
+    )
+  end
 end
