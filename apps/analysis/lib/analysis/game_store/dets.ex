@@ -86,6 +86,15 @@ defmodule Analysis.GameStore.Dets do
 
   @impl true
   def handle_call(
+        :ping,
+        _from,
+        table
+      ) do
+    {:reply, :ok, table}
+  end
+
+  @impl true
+  def handle_call(
         {:insert, %Game{id: id} = game},
         _from,
         table

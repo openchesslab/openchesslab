@@ -35,6 +35,20 @@ defmodule Analysis.GameStore do
     {:via, Horde.Registry, {@registry, @registry_key}}
   end
 
+  @spec ready?() :: boolean()
+  def ready? do
+    try do
+      GenServer.call(
+        store(),
+        :ping,
+        1_000
+      ) == :ok
+    catch
+      :exit, _reason ->
+        false
+    end
+  end
+
   @spec insert(Game.t()) ::
           {:ok, revision()}
           | {:error, :already_exists}

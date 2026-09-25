@@ -83,6 +83,15 @@ defmodule Analysis.GameStore.Memory do
 
   @impl true
   def handle_call(
+        :ping,
+        _from,
+        games
+      ) do
+    {:reply, :ok, games}
+  end
+
+  @impl true
+  def handle_call(
         {:insert, %Game{id: id} = game},
         _from,
         games

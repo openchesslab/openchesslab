@@ -85,4 +85,23 @@ defmodule Analysis.GameStoreTest do
 
     assert store == GameStore.clustered_store()
   end
+
+  test "reports ready when the game store is reachable" do
+    Application.delete_env(
+      :analysis,
+      GameStore
+    )
+
+    assert GameStore.ready?()
+  end
+
+  test "reports not ready when the configured game store is unavailable" do
+    Application.put_env(
+      :analysis,
+      GameStore,
+      store: :unavailable_game_store
+    )
+
+    refute GameStore.ready?()
+  end
 end
