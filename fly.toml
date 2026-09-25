@@ -13,6 +13,8 @@ primary_region = 'ams'
   PORT = '8080'
   PHX_SERVER = 'true'
   PHX_HOST = 'openchesslab.fly.dev'
+  DNS_CLUSTER_QUERY = 'openchesslab.internal'
+  POSITION_STORE_OWNER = 'true'
 
 [http_service]
   internal_port = 8080
