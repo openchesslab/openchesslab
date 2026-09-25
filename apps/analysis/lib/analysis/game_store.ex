@@ -4,7 +4,9 @@ defmodule Analysis.GameStore do
   alias Analysis.Game
 
   @default_adapter Analysis.GameStore.Memory
-  @default_store Analysis.GameStore.Runtime
+
+  @registry Analysis.GameStoreRegistry
+  @registry_key :game_store
 
   @type store :: GenServer.server()
   @type revision :: pos_integer()
@@ -27,6 +29,11 @@ defmodule Analysis.GameStore do
   @callback delete(store(), Game.id(), revision()) ::
               :ok
               | {:error, :not_found | :conflict}
+
+  @spec clustered_store() :: GenServer.server()
+  def clustered_store do
+    {:via, Horde.Registry, {@registry, @registry_key}}
+  end
 
   @spec insert(Game.t()) ::
           {:ok, revision()}
@@ -81,7 +88,7 @@ defmodule Analysis.GameStore do
     config()
     |> Keyword.get(
       :store,
-      @default_store
+      clustered_store()
     )
   end
 

@@ -2,6 +2,8 @@ defmodule Analysis.ApplicationTest do
   use ExUnit.Case, async: false
 
   alias Analysis.Application, as: AnalysisApplication
+  alias Analysis.GameStore
+  alias Analysis.GameStoreOwner
   alias Analysis.PositionStore
   alias Analysis.PositionStoreOwner
 
@@ -20,6 +22,13 @@ defmodule Analysis.ApplicationTest do
         :not_configured
       )
 
+    previous_game_store_owner =
+      Application.get_env(
+        :analysis,
+        GameStoreOwner,
+        :not_configured
+      )
+
     on_exit(fn ->
       restore_config(
         PositionStore,
@@ -30,11 +39,21 @@ defmodule Analysis.ApplicationTest do
         PositionStoreOwner,
         previous_position_store_owner
       )
+
+      restore_config(
+        GameStoreOwner,
+        previous_game_store_owner
+      )
     end)
 
     Application.delete_env(
       :analysis,
       PositionStoreOwner
+    )
+
+    Application.delete_env(
+      :analysis,
+      GameStoreOwner
     )
 
     :ok
@@ -196,11 +215,55 @@ defmodule Analysis.ApplicationTest do
            } in AnalysisApplication.children()
   end
 
-  test "starts the in-memory game store runtime" do
+  test "starts the game store registry" do
+    assert {
+             Horde.Registry,
+             [
+               name: Analysis.GameStoreRegistry,
+               keys: :unique,
+               members: :auto
+             ]
+           } in AnalysisApplication.children()
+  end
+
+  test "starts the game store with the cluster-wide store by default" do
     assert {
              Analysis.GameStore.Memory,
              [
-               name: Analysis.GameStore.Runtime
+               name: GameStore.clustered_store()
+             ]
+           } in AnalysisApplication.children()
+  end
+
+  test "does not start the game store on a non-owner node" do
+    Application.put_env(
+      :analysis,
+      GameStoreOwner,
+      owner: false
+    )
+
+    refute Enum.any?(
+             AnalysisApplication.children(),
+             fn
+               {Analysis.GameStore.Memory, _options} -> true
+               _child -> false
+             end
+           )
+  end
+
+  test "starts the game store registry on a non-owner node" do
+    Application.put_env(
+      :analysis,
+      GameStoreOwner,
+      owner: false
+    )
+
+    assert {
+             Horde.Registry,
+             [
+               name: Analysis.GameStoreRegistry,
+               keys: :unique,
+               members: :auto
              ]
            } in AnalysisApplication.children()
   end

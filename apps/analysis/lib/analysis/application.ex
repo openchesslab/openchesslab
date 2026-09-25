@@ -3,6 +3,8 @@ defmodule Analysis.Application do
 
   use Application
 
+  alias Analysis.GameStore
+  alias Analysis.GameStoreOwner
   alias Analysis.PositionStore
   alias Analysis.PositionStoreOwner
 
@@ -31,14 +33,15 @@ defmodule Analysis.Application do
       {
         Horde.Registry,
         name: Analysis.PositionStoreRegistry, keys: :unique, members: :auto
+      },
+      {
+        Horde.Registry,
+        name: Analysis.GameStoreRegistry, keys: :unique, members: :auto
       }
     ] ++
       position_store_children(position_store_options) ++
+      game_store_children() ++
       [
-        {
-          Analysis.GameStore.Memory,
-          name: Analysis.GameStore.Runtime
-        },
         {
           Horde.Registry,
           name: Analysis.RoomRegistry, keys: :unique, members: :auto
@@ -60,6 +63,19 @@ defmodule Analysis.Application do
             :server,
             PositionStore.clustered_server()
           )
+        }
+      ]
+    else
+      []
+    end
+  end
+
+  defp game_store_children do
+    if GameStoreOwner.owner?() do
+      [
+        {
+          Analysis.GameStore.Memory,
+          name: GameStore.clustered_store()
         }
       ]
     else
