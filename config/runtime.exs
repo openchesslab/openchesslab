@@ -93,3 +93,36 @@ position_store_owner =
   end
 
 config :analysis, Analysis.PositionStoreOwner, owner: position_store_owner
+
+position_store_options =
+  case System.get_env("POSITION_STORE_DIRECTORY") do
+    nil ->
+      []
+
+    directory ->
+      [
+        directory: directory,
+        records_per_segment:
+          System.get_env(
+            "POSITION_STORE_RECORDS_PER_SEGMENT",
+            "1000000"
+          )
+          |> String.to_integer(),
+        exact_bucket_count:
+          System.get_env(
+            "POSITION_STORE_EXACT_BUCKET_COUNT",
+            "1048576"
+          )
+          |> String.to_integer(),
+        property_bucket_count:
+          System.get_env(
+            "POSITION_STORE_PROPERTY_BUCKET_COUNT",
+            "65536"
+          )
+          |> String.to_integer()
+      ]
+  end
+
+config :analysis,
+       Analysis.PositionStore,
+       position_store_options
