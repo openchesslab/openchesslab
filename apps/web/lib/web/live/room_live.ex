@@ -475,6 +475,14 @@ defmodule Web.RoomLive do
            :create_game_error,
            gettext("Game already exists.")
          )}
+
+      {:error, {:position_store, _reason}} ->
+        {:noreply,
+         assign(
+           socket,
+           :create_game_error,
+           gettext("Position storage is temporarily unavailable.")
+         )}
     end
   end
 
@@ -483,7 +491,7 @@ defmodule Web.RoomLive do
     ~H"""
     <main>
       <h1>{gettext("Room")} {@room_id}</h1>
-      
+
       <form id="create-game-form" phx-submit="create_game">
         <input
           type="text"
@@ -495,13 +503,13 @@ defmodule Web.RoomLive do
           {gettext("Create game")}
         </button>
       </form>
-      
+
       <%= if @create_game_error do %>
         <p id="create-game-error" role="alert">
           {@create_game_error}
         </p>
       <% end %>
-      
+
       <form id="add-game-form" phx-submit="add_game">
         <input
           type="text"
@@ -513,11 +521,11 @@ defmodule Web.RoomLive do
           {gettext("Add game")}
         </button>
       </form>
-      
+
       <%= if @add_game_error do %>
         <p role="alert">{@add_game_error}</p>
       <% end %>
-      
+
       <%= if @room.game_ids == [] do %>
         <p>{gettext("No games in this room.")}</p>
       <% else %>
@@ -532,7 +540,7 @@ defmodule Web.RoomLive do
             >
               {gettext("Select")}
             </button>
-            
+
             <button
               id={"remove-game-#{game_id}"}
               type="button"
@@ -543,23 +551,23 @@ defmodule Web.RoomLive do
             </button>
           </li>
         </ul>
-        
+
         <%= if @selected_game_id do %>
           <section id="selected-game">
             <h2>{gettext("Selected game")}</h2>
-            
+
             <p id="selected-game-id">
               {@selected_game_id}
             </p>
-            
+
             <p id="selected-game-revision">
               {gettext("Revision")} {@game_revision}
             </p>
-            
+
             <p id="current-path">
               {gettext("Path")} {inspect(@current_path)}
             </p>
-            
+
             <MoveTree.move_tree
               game={@game}
               root_position={@root_position}
@@ -586,11 +594,11 @@ defmodule Web.RoomLive do
                 {gettext("Play move")}
               </button>
             </form>
-            
+
             <%= if @move_error do %>
               <p id="move-error" role="alert">{@move_error}</p>
             <% end %>
-             <% current_node = Game.node_at(@game, @current_path) %>
+            <% current_node = Game.node_at(@game, @current_path) %>
             <div id="current-comment">
               <%= if comment = Node.comment(current_node) do %>
                 {comment}
@@ -598,14 +606,14 @@ defmodule Web.RoomLive do
                 {gettext("No comment")}
               <% end %>
             </div>
-            
+
             <form id="comment-form" phx-submit="set_comment">
               <textarea name="comment[text]">{Node.comment(current_node)}</textarea>
               <button type="submit">
                 {gettext("Save comment")}
               </button>
             </form>
-            
+
             <button
               :if={promotable_path?(@current_path)}
               id="promote-variation"
@@ -614,7 +622,7 @@ defmodule Web.RoomLive do
             >
               {gettext("Promote variation")}
             </button>
-            
+
             <button
               :if={@current_path != []}
               id="remove-subtree"
@@ -623,7 +631,7 @@ defmodule Web.RoomLive do
             >
               {gettext("Remove subtree")}
             </button>
-            
+
             <button
               :if={@current_path != []}
               id="navigate-parent"
@@ -632,7 +640,7 @@ defmodule Web.RoomLive do
             >
               {gettext("Parent")}
             </button>
-            
+
             <button
               :for={{child, index} <- Enum.with_index(Node.children(current_node))}
               id={"navigate-child-#{index}"}
@@ -703,6 +711,14 @@ defmodule Web.RoomLive do
 
       {:error, :conflict} ->
         {:noreply, assign(socket, :move_error, gettext("Game changed. Try again."))}
+
+      {:error, {:position_store, _reason}} ->
+        {:noreply,
+         assign(
+           socket,
+           :move_error,
+           gettext("Position storage is temporarily unavailable.")
+         )}
     end
   end
 
@@ -734,6 +750,14 @@ defmodule Web.RoomLive do
 
       {:error, :conflict} ->
         {:noreply, assign(socket, :edit_error, gettext("Game changed. Try again."))}
+
+      {:error, {:position_store, _reason}} ->
+        {:noreply,
+         assign(
+           socket,
+           :edit_error,
+           gettext("Position storage is temporarily unavailable.")
+         )}
     end
   end
 

@@ -188,3 +188,6 @@ msgstr "Ruimte-ID"
 
 msgid "Open in room"
 msgstr "Open in ruimte"
+
+msgid "Position storage is temporarily unavailable."
+msgstr "De stellingenopslag is tijdelijk niet beschikbaar."

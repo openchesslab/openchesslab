@@ -11,6 +11,63 @@ defmodule Web.RoomLiveTest do
   alias Chess.Position
   alias Chess.Square
 
+  defmodule FailingPositionStore do
+    use GenServer
+
+    def start_link do
+      GenServer.start_link(
+        __MODULE__,
+        nil,
+        name: Analysis.PositionStore
+      )
+    end
+
+    @impl true
+    def init(state) do
+      {:ok, state}
+    end
+
+    @impl true
+    def handle_call(
+          {:append, _position},
+          _from,
+          state
+        ) do
+      {:reply, {:error, :disk_failure}, state}
+    end
+
+    def handle_call(
+          {:get, _position_id},
+          _from,
+          state
+        ) do
+      {:reply, {:ok, Position.starting_position()}, state}
+    end
+  end
+
+  defp with_failing_position_store(fun) do
+    :ok =
+      Supervisor.terminate_child(
+        Analysis.Supervisor,
+        PositionStore
+      )
+
+    {:ok, pid} =
+      FailingPositionStore.start_link()
+
+    try do
+      fun.()
+    after
+      GenServer.stop(pid)
+
+      {:ok, _pid} =
+        Supervisor.restart_child(
+          Analysis.Supervisor,
+          PositionStore
+        )
+    end
+  end
+
   defp with_locale(conn, locale) do
     conn
     |> init_test_session(%{})
@@ -1968,5 +2025,161 @@ defmodule Web.RoomLiveTest do
       )
 
     refute has_element?(view, "#selected-game")
+  end
+
+  test "shows a storage error when creating a game fails",
+       %{
+         conn: conn,
+         room_id: room_id
+       } do
+    {:ok, view, _html} =
+      live(
+        conn,
+        "/rooms/#{room_id}"
+      )
+
+    game_id =
+      "game-#{System.unique_integer([:positive])}"
+
+    with_failing_position_store(fn ->
+      view
+      |> form(
+        "#create-game-form",
+        %{
+          "game" => %{
+            "id" => game_id
+          }
+        }
+      )
+      |> render_submit()
+
+      assert has_element?(
+               view,
+               "#create-game-error",
+               "Position storage is temporarily unavailable."
+             )
+
+      assert Games.get(game_id) ==
+               :not_found
+    end)
+  end
+
+  test "shows a storage error when storing a played position fails",
+       %{
+         conn: conn,
+         room_id: room_id
+       } do
+    game_id =
+      "game-#{System.unique_integer([:positive])}"
+
+    game =
+      Game.new(
+        game_id,
+        1
+      )
+
+    assert {:ok, 1} =
+             Games.insert(game)
+
+    assert {:ok, _room} =
+             Rooms.start_room(room_id)
+
+    assert :ok =
+             Rooms.add_game(
+               room_id,
+               game_id
+             )
+
+    with_failing_position_store(fn ->
+      {:ok, view, _html} =
+        live(
+          conn,
+          "/rooms/#{room_id}"
+        )
+
+      view
+      |> element("#select-game-#{game_id}")
+      |> render_click()
+
+      view
+      |> form(
+        "#play-move-form",
+        %{
+          "move" => %{
+            "from" => "e2",
+            "to" => "e4"
+          }
+        }
+      )
+      |> render_submit()
+
+      assert has_element?(
+               view,
+               "#move-error",
+               "Position storage is temporarily unavailable."
+             )
+
+      assert {:ok, ^game, 1} =
+               Games.get(game_id)
+    end)
+  end
+
+  test "shows a storage error when storing an edited position fails",
+       %{
+         conn: conn,
+         room_id: room_id
+       } do
+    game_id =
+      "game-#{System.unique_integer([:positive])}"
+
+    game =
+      Game.new(
+        game_id,
+        1
+      )
+
+    assert {:ok, 1} =
+             Games.insert(game)
+
+    assert {:ok, _room} =
+             Rooms.start_room(room_id)
+
+    assert :ok =
+             Rooms.add_game(
+               room_id,
+               game_id
+             )
+
+    with_failing_position_store(fn ->
+      {:ok, view, _html} =
+        live(
+          conn,
+          "/rooms/#{room_id}"
+        )
+
+      view
+      |> element("#select-game-#{game_id}")
+      |> render_click()
+
+      view
+      |> form(
+        "#remove-piece-form",
+        %{
+          "edit" => %{
+            "square" => "e2"
+          }
+        }
+      )
+      |> render_submit()
+
+      assert has_element?(
+               view,
+               "#edit-error",
+               "Position storage is temporarily unavailable."
+             )
+
+      assert {:ok, ^game, 1} =
+               Games.get(game_id)
+    end)
   end
 end
