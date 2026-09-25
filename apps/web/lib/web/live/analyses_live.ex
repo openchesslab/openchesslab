@@ -48,7 +48,7 @@ defmodule Web.AnalysesLive do
     ~H"""
     <main>
       <h1>{gettext("Analyses")}</h1>
-      
+
       <%= if @analyses == [] do %>
         <p id="no-analyses">{gettext("No analyses.")}</p>
       <% else %>
@@ -58,7 +58,7 @@ defmodule Web.AnalysesLive do
             <span class="analysis-revision">
               {gettext("Revision")} {revision}
             </span>
-            
+
             <form id={"open-analysis-#{analysis.id}"} phx-submit="open_analysis">
               <input
                 type="hidden"
@@ -77,7 +77,7 @@ defmodule Web.AnalysesLive do
             </form>
           </li>
         </ul>
-        
+
         <%= if @open_analysis_error do %>
           <p id="open-analysis-error" role="alert">
             {@open_analysis_error}
