@@ -7,7 +7,19 @@ defmodule Openchesslab.MixProject do
       version: "0.1.0",
       start_permanent: Mix.env() == :prod,
       listeners: [Phoenix.CodeReloader],
+      releases: releases(),
       deps: deps()
+    ]
+  end
+
+  # Run "mix help compile.app" to learn about applications.
+  defp releases do
+    [
+      openchesslab: [
+        applications: [
+          web: :permanent
+        ]
+      ]
     ]
   end
 
