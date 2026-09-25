@@ -31,14 +31,14 @@ defmodule Analysis.RoomServer do
     GenServer.call(server, :get)
   end
 
-  @spec add_game(server(), Room.game_id()) :: :ok
-  def add_game(server, game_id) do
-    GenServer.call(server, {:add_game, game_id})
+  @spec add_analysis(server(), Room.analysis_id()) :: :ok
+  def add_analysis(server, analysis_id) do
+    GenServer.call(server, {:add_analysis, analysis_id})
   end
 
-  @spec remove_game(server(), Room.game_id()) :: :ok
-  def remove_game(server, game_id) do
-    GenServer.call(server, {:remove_game, game_id})
+  @spec remove_analysis(server(), Room.analysis_id()) :: :ok
+  def remove_analysis(server, analysis_id) do
+    GenServer.call(server, {:remove_analysis, analysis_id})
   end
 
   @impl true
@@ -51,16 +51,16 @@ defmodule Analysis.RoomServer do
     {:reply, room, room}
   end
 
-  def handle_call({:add_game, game_id}, _from, room) do
-    updated_room = Room.add_game(room, game_id)
+  def handle_call({:add_analysis, analysis_id}, _from, room) do
+    updated_room = Room.add_analysis(room, analysis_id)
 
     publish_if_changed(room, updated_room)
 
     {:reply, :ok, updated_room}
   end
 
-  def handle_call({:remove_game, game_id}, _from, room) do
-    updated_room = Room.remove_game(room, game_id)
+  def handle_call({:remove_analysis, analysis_id}, _from, room) do
+    updated_room = Room.remove_analysis(room, analysis_id)
 
     publish_if_changed(room, updated_room)
 

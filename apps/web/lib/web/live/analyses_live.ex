@@ -1,44 +1,44 @@
-defmodule Web.GamesLive do
+defmodule Web.AnalysesLive do
   use Web, :live_view
 
-  alias Analysis.Games
+  alias Analysis.Analyses
   alias Analysis.Rooms
 
   @impl true
   def mount(_params, _session, socket) do
     {:ok,
      assign(socket,
-       games: Games.list(),
-       open_game_error: nil
+       analyses: Analyses.list(),
+       open_analysis_error: nil
      )}
   end
 
   @impl true
   def handle_event(
-        "open_game",
+        "open_analysis",
         %{
-          "game_id" => game_id,
+          "analysis_id" => analysis_id,
           "room" => %{"id" => room_id}
         },
         socket
       ) do
-    case Games.get(game_id) do
-      {:ok, _game, _revision} ->
+    case Analyses.get(analysis_id) do
+      {:ok, _analysis, _revision} ->
         {:ok, _room} = Rooms.start_room(room_id)
-        :ok = Rooms.add_game(room_id, game_id)
+        :ok = Rooms.add_analysis(room_id, analysis_id)
 
         {:noreply,
          push_navigate(
            socket,
-           to: ~p"/rooms/#{room_id}?game_id=#{game_id}"
+           to: ~p"/rooms/#{room_id}?analysis_id=#{analysis_id}"
          )}
 
       :not_found ->
         {:noreply,
          assign(
            socket,
-           :open_game_error,
-           gettext("Game not found.")
+           :open_analysis_error,
+           gettext("Analysis not found.")
          )}
     end
   end
@@ -47,23 +47,23 @@ defmodule Web.GamesLive do
   def render(assigns) do
     ~H"""
     <main>
-      <h1>{gettext("Games")}</h1>
+      <h1>{gettext("Analyses")}</h1>
 
-      <%= if @games == [] do %>
-        <p id="no-games">{gettext("No games.")}</p>
+      <%= if @analyses == [] do %>
+        <p id="no-analyses">{gettext("No analyses.")}</p>
       <% else %>
-        <ul id="games">
-          <li :for={{game, revision} <- @games} id={"game-#{game.id}"}>
-            <span class="game-id">{game.id}</span>
-            <span class="game-revision">
+        <ul id="analyses">
+          <li :for={{analysis, revision} <- @analyses} id={"analysis-#{analysis.id}"}>
+            <span class="analysis-id">{analysis.id}</span>
+            <span class="analysis-revision">
               {gettext("Revision")} {revision}
             </span>
 
-            <form id={"open-game-#{game.id}"} phx-submit="open_game">
+            <form id={"open-analysis-#{analysis.id}"} phx-submit="open_analysis">
               <input
                 type="hidden"
-                name="game_id"
-                value={game.id}
+                name="analysis_id"
+                value={analysis.id}
               />
               <input
                 type="text"
@@ -78,9 +78,9 @@ defmodule Web.GamesLive do
           </li>
         </ul>
 
-        <%= if @open_game_error do %>
-          <p id="open-game-error" role="alert">
-            {@open_game_error}
+        <%= if @open_analysis_error do %>
+          <p id="open-analysis-error" role="alert">
+            {@open_analysis_error}
           </p>
         <% end %>
       <% end %>

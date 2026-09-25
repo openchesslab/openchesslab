@@ -14,44 +14,44 @@ defmodule Analysis.RoomEventsTest do
     %{room_id: room_id}
   end
 
-  test "publishes an event when a game is added", %{room_id: room_id} do
+  test "publishes an event when an analysis is added", %{room_id: room_id} do
     assert {:ok, _room} = Rooms.start_room(room_id)
     assert :ok = RoomEvents.subscribe(room_id)
 
-    assert :ok = Rooms.add_game(room_id, "game-1")
+    assert :ok = Rooms.add_analysis(room_id, "analysis-1")
 
     assert_receive {:room_changed, ^room_id}
   end
 
-  test "does not publish an event when adding an existing game", %{
+  test "does not publish an event when adding an existing analysis", %{
     room_id: room_id
   } do
     assert {:ok, _room} = Rooms.start_room(room_id)
-    assert :ok = Rooms.add_game(room_id, "game-1")
+    assert :ok = Rooms.add_analysis(room_id, "analysis-1")
     assert :ok = RoomEvents.subscribe(room_id)
 
-    assert :ok = Rooms.add_game(room_id, "game-1")
+    assert :ok = Rooms.add_analysis(room_id, "analysis-1")
 
     refute_receive {:room_changed, ^room_id}
   end
 
-  test "publishes an event when a game is removed", %{room_id: room_id} do
+  test "publishes an event when an analysis is removed", %{room_id: room_id} do
     assert {:ok, _room} = Rooms.start_room(room_id)
-    assert :ok = Rooms.add_game(room_id, "game-1")
+    assert :ok = Rooms.add_analysis(room_id, "analysis-1")
     assert :ok = RoomEvents.subscribe(room_id)
 
-    assert :ok = Rooms.remove_game(room_id, "game-1")
+    assert :ok = Rooms.remove_analysis(room_id, "analysis-1")
 
     assert_receive {:room_changed, ^room_id}
   end
 
-  test "does not publish an event when removing a missing game", %{
+  test "does not publish an event when removing a missing analysis", %{
     room_id: room_id
   } do
     assert {:ok, _room} = Rooms.start_room(room_id)
     assert :ok = RoomEvents.subscribe(room_id)
 
-    assert :ok = Rooms.remove_game(room_id, "game-1")
+    assert :ok = Rooms.remove_analysis(room_id, "analysis-1")
 
     refute_receive {:room_changed, ^room_id}
   end
@@ -68,7 +68,7 @@ defmodule Analysis.RoomEventsTest do
 
     assert :ok = RoomEvents.subscribe(room_id)
 
-    assert :ok = Rooms.add_game(other_room_id, "game-1")
+    assert :ok = Rooms.add_analysis(other_room_id, "analysis-1")
 
     refute_receive {:room_changed, ^room_id}
     refute_receive {:room_changed, ^other_room_id}

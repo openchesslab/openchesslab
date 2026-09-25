@@ -1,32 +1,32 @@
-defmodule Analysis.GameStore do
+defmodule Analysis.AnalysisStore do
   @moduledoc false
 
-  alias Analysis.Game
+  alias Analysis.Analysis, as: AnalysisModel
 
-  @default_adapter Analysis.GameStore.Memory
+  @default_adapter Analysis.AnalysisStore.Memory
 
-  @registry Analysis.GameStoreRegistry
-  @registry_key :game_store
+  @registry Analysis.AnalysisStoreRegistry
+  @registry_key :analysis_store
 
   @type store :: GenServer.server()
   @type revision :: pos_integer()
 
-  @callback insert(store(), Game.t()) ::
+  @callback insert(store(), AnalysisModel.t()) ::
               {:ok, revision()}
               | {:error, :already_exists}
 
-  @callback get(store(), Game.id()) ::
-              {:ok, Game.t(), revision()}
+  @callback get(store(), AnalysisModel.id()) ::
+              {:ok, AnalysisModel.t(), revision()}
               | :not_found
 
   @callback list(store()) ::
-              [{Game.t(), revision()}]
+              [{AnalysisModel.t(), revision()}]
 
-  @callback update(store(), Game.t(), revision()) ::
+  @callback update(store(), AnalysisModel.t(), revision()) ::
               {:ok, revision()}
               | {:error, :not_found | :conflict}
 
-  @callback delete(store(), Game.id(), revision()) ::
+  @callback delete(store(), AnalysisModel.id(), revision()) ::
               :ok
               | {:error, :not_found | :conflict}
 
@@ -49,43 +49,43 @@ defmodule Analysis.GameStore do
     end
   end
 
-  @spec insert(Game.t()) ::
+  @spec insert(AnalysisModel.t()) ::
           {:ok, revision()}
           | {:error, :already_exists}
-  def insert(%Game{} = game) do
-    adapter().insert(store(), game)
+  def insert(%AnalysisModel{} = analysis) do
+    adapter().insert(store(), analysis)
   end
 
-  @spec get(Game.id()) ::
-          {:ok, Game.t(), revision()}
+  @spec get(AnalysisModel.id()) ::
+          {:ok, AnalysisModel.t(), revision()}
           | :not_found
-  def get(game_id) do
-    adapter().get(store(), game_id)
+  def get(analysis_id) do
+    adapter().get(store(), analysis_id)
   end
 
-  @spec list() :: [{Game.t(), revision()}]
+  @spec list() :: [{AnalysisModel.t(), revision()}]
   def list do
     adapter().list(store())
   end
 
-  @spec update(Game.t(), revision()) ::
+  @spec update(AnalysisModel.t(), revision()) ::
           {:ok, revision()}
           | {:error, :not_found | :conflict}
-  def update(%Game{} = game, expected_revision) do
+  def update(%AnalysisModel{} = analysis, expected_revision) do
     adapter().update(
       store(),
-      game,
+      analysis,
       expected_revision
     )
   end
 
-  @spec delete(Game.id(), revision()) ::
+  @spec delete(AnalysisModel.id(), revision()) ::
           :ok
           | {:error, :not_found | :conflict}
-  def delete(game_id, expected_revision) do
+  def delete(analysis_id, expected_revision) do
     adapter().delete(
       store(),
-      game_id,
+      analysis_id,
       expected_revision
     )
   end

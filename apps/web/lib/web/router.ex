@@ -36,7 +36,7 @@ defmodule Web.Router do
     live_session :default,
       on_mount: [{Web.LocaleLive, :default}] do
       live("/", PageLive, :index)
-      live("/games", GamesLive, :index)
+      live("/analyses", AnalysesLive, :index)
       live("/rooms/:room_id", RoomLive, :show)
     end
   end

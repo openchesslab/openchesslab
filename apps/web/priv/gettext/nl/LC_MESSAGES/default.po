@@ -3,8 +3,8 @@ msgstr ""
 "Language: nl\n"
 
 #: lib/web/live/room_live.ex
-msgid "Selected game"
-msgstr "Geselecteerde partij"
+msgid "Selected analysis"
+msgstr "Geselecteerde analyse"
 
 msgid "Edited position"
 msgstr "Bewerkte stelling"
@@ -108,23 +108,23 @@ msgstr "De stelling bestaat niet meer."
 msgid "Position not found."
 msgstr "Stelling niet gevonden."
 
-msgid "Game not found."
-msgstr "Partij niet gevonden."
+msgid "Analysis not found."
+msgstr "Analyse niet gevonden."
 
-msgid "Game changed. Try again."
-msgstr "De partij is gewijzigd. Probeer opnieuw."
+msgid "Analysis changed. Try again."
+msgstr "De analyse is gewijzigd. Probeer opnieuw."
 
 msgid "Room"
 msgstr "Ruimte"
 
-msgid "Game ID"
-msgstr "Partij-ID"
+msgid "Analysis ID"
+msgstr "Analyse-ID"
 
-msgid "Add game"
-msgstr "Partij toevoegen"
+msgid "Add analysis"
+msgstr "Analyse toevoegen"
 
-msgid "No games in this room."
-msgstr "Geen partijen in deze ruimte."
+msgid "No analyses in this room."
+msgstr "Geen analyses in deze ruimte."
 
 msgid "Select"
 msgstr "Selecteren"
@@ -171,17 +171,17 @@ msgstr "Een samenwerkingsplatform voor schaakanalyse, gebouwd met Phoenix LiveVi
 msgid "Set castling right"
 msgstr "Stel rokaderecht in"
 
-msgid "Create game"
-msgstr "Partij aanmaken"
+msgid "Create analysis"
+msgstr "Analyse aanmaken"
 
-msgid "Game already exists."
-msgstr "Partij bestaat al."
+msgid "Analysis already exists."
+msgstr "Analyse bestaat al."
 
-msgid "Games"
-msgstr "Partijen"
+msgid "Analyses"
+msgstr "Analyses"
 
-msgid "No games."
-msgstr "Geen partijen."
+msgid "No analyses."
+msgstr "Geen analyses."
 
 msgid "Room ID"
 msgstr "Ruimte-ID"

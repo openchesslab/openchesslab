@@ -7,11 +7,11 @@ defmodule Web.GettextTest do
         Gettext.dgettext(
           Web.Gettext,
           "default",
-          "Selected game"
+          "Selected analysis"
         )
       end)
 
-    assert translation == "Geselecteerde partij"
+    assert translation == "Geselecteerde analyse"
   end
 
   test "keeps English source text in English" do
@@ -20,10 +20,10 @@ defmodule Web.GettextTest do
         Gettext.dgettext(
           Web.Gettext,
           "default",
-          "Selected game"
+          "Selected analysis"
         )
       end)
 
-    assert translation == "Selected game"
+    assert translation == "Selected analysis"
   end
 end

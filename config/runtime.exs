@@ -94,8 +94,8 @@ position_store_owner =
 
 config :analysis, Analysis.PositionStoreOwner, owner: position_store_owner
 
-game_store_owner =
-  case System.get_env("GAME_STORE_OWNER") do
+analysis_store_owner =
+  case System.get_env("ANALYSIS_STORE_OWNER") do
     nil ->
       true
 
@@ -107,11 +107,11 @@ game_store_owner =
 
     value ->
       raise """
-      GAME_STORE_OWNER must be true or false, got: #{inspect(value)}
+      ANALYSIS_STORE_OWNER must be true or false, got: #{inspect(value)}
       """
   end
 
-config :analysis, Analysis.GameStoreOwner, owner: game_store_owner
+config :analysis, Analysis.AnalysisStoreOwner, owner: analysis_store_owner
 
 position_store_options =
   case System.get_env("POSITION_STORE_DIRECTORY") do
@@ -146,18 +146,18 @@ config :analysis,
        Analysis.PositionStore,
        position_store_options
 
-game_store_options =
-  case System.get_env("GAME_STORE_PATH") do
+analysis_store_options =
+  case System.get_env("ANALYSIS_STORE_PATH") do
     nil ->
       []
 
     path ->
       [
-        adapter: Analysis.GameStore.Dets,
+        adapter: Analysis.AnalysisStore.Dets,
         path: path
       ]
   end
 
 config :analysis,
-       Analysis.GameStore,
-       game_store_options
+       Analysis.AnalysisStore,
+       analysis_store_options

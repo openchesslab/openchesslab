@@ -1,11 +1,11 @@
-defmodule Analysis.GameStore.Dets do
+defmodule Analysis.AnalysisStore.Dets do
   @moduledoc false
 
   use GenServer
 
-  @behaviour Analysis.GameStore
+  @behaviour Analysis.AnalysisStore
 
-  alias Analysis.Game
+  alias Analysis.Analysis
 
   @table __MODULE__
 
@@ -23,47 +23,47 @@ defmodule Analysis.GameStore.Dets do
     )
   end
 
-  @impl Analysis.GameStore
-  @spec insert(store(), Game.t()) ::
+  @impl true
+  @spec insert(store(), Analysis.t()) ::
           {:ok, revision()}
           | {:error, :already_exists}
-  def insert(store, %Game{} = game) do
-    GenServer.call(store, {:insert, game})
+  def insert(store, %Analysis{} = analysis) do
+    GenServer.call(store, {:insert, analysis})
   end
 
-  @impl Analysis.GameStore
-  @spec get(store(), Game.id()) ::
-          {:ok, Game.t(), revision()}
+  @impl true
+  @spec get(store(), Analysis.id()) ::
+          {:ok, Analysis.t(), revision()}
           | :not_found
-  def get(store, game_id) do
-    GenServer.call(store, {:get, game_id})
+  def get(store, analysis_id) do
+    GenServer.call(store, {:get, analysis_id})
   end
 
-  @impl Analysis.GameStore
-  @spec list(store()) :: [{Game.t(), revision()}]
+  @impl true
+  @spec list(store()) :: [{Analysis.t(), revision()}]
   def list(store) do
     GenServer.call(store, :list)
   end
 
-  @impl Analysis.GameStore
-  @spec update(store(), Game.t(), revision()) ::
+  @impl true
+  @spec update(store(), Analysis.t(), revision()) ::
           {:ok, revision()}
           | {:error, :not_found | :conflict}
-  def update(store, %Game{} = game, expected_revision) do
+  def update(store, %Analysis{} = analysis, expected_revision) do
     GenServer.call(
       store,
-      {:update, game, expected_revision}
+      {:update, analysis, expected_revision}
     )
   end
 
-  @impl Analysis.GameStore
-  @spec delete(store(), Game.id(), revision()) ::
+  @impl true
+  @spec delete(store(), Analysis.id(), revision()) ::
           :ok
           | {:error, :not_found | :conflict}
-  def delete(store, game_id, expected_revision) do
+  def delete(store, analysis_id, expected_revision) do
     GenServer.call(
       store,
-      {:delete, game_id, expected_revision}
+      {:delete, analysis_id, expected_revision}
     )
   end
 
@@ -95,11 +95,11 @@ defmodule Analysis.GameStore.Dets do
 
   @impl true
   def handle_call(
-        {:insert, %Game{id: id} = game},
+        {:insert, %Analysis{id: id} = analysis},
         _from,
         table
       ) do
-    case :dets.insert_new(table, {id, 1, game}) do
+    case :dets.insert_new(table, {id, 1, analysis}) do
       true ->
         :ok = :dets.sync(table)
         {:reply, {:ok, 1}, table}
@@ -109,11 +109,11 @@ defmodule Analysis.GameStore.Dets do
     end
   end
 
-  def handle_call({:get, game_id}, _from, table) do
+  def handle_call({:get, analysis_id}, _from, table) do
     reply =
-      case :dets.lookup(table, game_id) do
-        [{^game_id, revision, game}] ->
-          {:ok, game, revision}
+      case :dets.lookup(table, analysis_id) do
+        [{^analysis_id, revision, analysis}] ->
+          {:ok, analysis, revision}
 
         [] ->
           :not_found
@@ -123,20 +123,20 @@ defmodule Analysis.GameStore.Dets do
   end
 
   def handle_call(:list, _from, table) do
-    games =
+    analyses =
       :dets.foldl(
-        fn {_id, revision, game}, acc ->
-          [{game, revision} | acc]
+        fn {_id, revision, analysis}, acc ->
+          [{analysis, revision} | acc]
         end,
         [],
         table
       )
 
-    {:reply, games, table}
+    {:reply, analyses, table}
   end
 
   def handle_call(
-        {:update, %Game{id: id} = game, expected_revision},
+        {:update, %Analysis{id: id} = analysis, expected_revision},
         _from,
         table
       ) do
@@ -144,17 +144,17 @@ defmodule Analysis.GameStore.Dets do
       [] ->
         {:reply, {:error, :not_found}, table}
 
-      [{^id, revision, _stored_game}]
+      [{^id, revision, _stored_analysis}]
       when revision != expected_revision ->
         {:reply, {:error, :conflict}, table}
 
-      [{^id, revision, _stored_game}] ->
+      [{^id, revision, _stored_analysis}] ->
         new_revision = revision + 1
 
         :ok =
           :dets.insert(
             table,
-            {id, new_revision, game}
+            {id, new_revision, analysis}
           )
 
         :ok = :dets.sync(table)
@@ -164,20 +164,20 @@ defmodule Analysis.GameStore.Dets do
   end
 
   def handle_call(
-        {:delete, game_id, expected_revision},
+        {:delete, analysis_id, expected_revision},
         _from,
         table
       ) do
-    case :dets.lookup(table, game_id) do
+    case :dets.lookup(table, analysis_id) do
       [] ->
         {:reply, {:error, :not_found}, table}
 
-      [{^game_id, revision, _game}]
+      [{^analysis_id, revision, _analysis}]
       when revision != expected_revision ->
         {:reply, {:error, :conflict}, table}
 
-      [{^game_id, _revision, _game}] ->
-        :ok = :dets.delete(table, game_id)
+      [{^analysis_id, _revision, _analysis}] ->
+        :ok = :dets.delete(table, analysis_id)
         :ok = :dets.sync(table)
 
         {:reply, :ok, table}

@@ -1,4 +1,4 @@
-defmodule Analysis.GameStoreOwner do
+defmodule Analysis.AnalysisStoreOwner do
   @moduledoc false
 
   @spec owner?() :: boolean()

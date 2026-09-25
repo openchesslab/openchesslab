@@ -15,50 +15,50 @@ defmodule Analysis.RoomServerTest do
     room = RoomServer.get(server)
 
     assert Room.id(room) == "room-1"
-    assert Room.game_ids(room) == []
+    assert Room.analysis_ids(room) == []
   end
 
-  test "adds a game", %{server: server} do
-    assert :ok = RoomServer.add_game(server, "game-1")
+  test "adds an analysis", %{server: server} do
+    assert :ok = RoomServer.add_analysis(server, "analysis-1")
 
     room = RoomServer.get(server)
 
-    assert Room.game_ids(room) == ["game-1"]
+    assert Room.analysis_ids(room) == ["analysis-1"]
   end
 
-  test "removes a game", %{server: server} do
-    :ok = RoomServer.add_game(server, "game-1")
-    :ok = RoomServer.add_game(server, "game-2")
+  test "removes an analysis", %{server: server} do
+    :ok = RoomServer.add_analysis(server, "analysis-1")
+    :ok = RoomServer.add_analysis(server, "analysis-2")
 
-    assert :ok = RoomServer.remove_game(server, "game-1")
+    assert :ok = RoomServer.remove_analysis(server, "analysis-1")
 
     room = RoomServer.get(server)
 
-    assert Room.game_ids(room) == ["game-2"]
+    assert Room.analysis_ids(room) == ["analysis-2"]
   end
 
   test "multiple callers observe the same room state", %{server: server} do
     parent = self()
 
     spawn(fn ->
-      :ok = RoomServer.add_game(server, "game-1")
-      send(parent, :game_added)
+      :ok = RoomServer.add_analysis(server, "analysis-1")
+      send(parent, :analysis_added)
     end)
 
-    assert_receive :game_added
+    assert_receive :analysis_added
 
     room = RoomServer.get(server)
 
-    assert Room.game_ids(room) == ["game-1"]
+    assert Room.analysis_ids(room) == ["analysis-1"]
   end
 
   test "serializes concurrent changes", %{server: server} do
     tasks =
-      for game_number <- 1..20 do
+      for analysis_number <- 1..20 do
         Task.async(fn ->
-          RoomServer.add_game(
+          RoomServer.add_analysis(
             server,
-            "game-#{game_number}"
+            "analysis-#{analysis_number}"
           )
         end)
       end
@@ -68,10 +68,10 @@ defmodule Analysis.RoomServerTest do
 
     room = RoomServer.get(server)
 
-    assert MapSet.new(Room.game_ids(room)) ==
+    assert MapSet.new(Room.analysis_ids(room)) ==
              MapSet.new(
-               for game_number <- 1..20 do
-                 "game-#{game_number}"
+               for analysis_number <- 1..20 do
+                 "analysis-#{analysis_number}"
                end
              )
   end

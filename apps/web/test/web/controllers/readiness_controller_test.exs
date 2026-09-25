@@ -1,7 +1,7 @@
 defmodule Web.ReadinessControllerTest do
   use Web.ConnCase, async: false
 
-  alias Analysis.GameStore
+  alias Analysis.AnalysisStore
   alias Analysis.PositionStore
 
   test "GET /ready returns ready when required stores are reachable",
@@ -39,23 +39,23 @@ defmodule Web.ReadinessControllerTest do
            }
   end
 
-  test "GET /ready returns service unavailable when the game store is unavailable",
+  test "GET /ready returns service unavailable when the analysis store is unavailable",
        %{conn: conn} do
     previous =
       Application.get_env(
         :analysis,
-        GameStore,
+        AnalysisStore,
         :not_configured
       )
 
     on_exit(fn ->
-      restore_game_store_config(previous)
+      restore_analysis_store_config(previous)
     end)
 
     Application.put_env(
       :analysis,
-      GameStore,
-      store: :unavailable_game_store
+      AnalysisStore,
+      store: :unavailable_analysis_store
     )
 
     conn = get(conn, "/ready")
@@ -80,17 +80,17 @@ defmodule Web.ReadinessControllerTest do
     )
   end
 
-  defp restore_game_store_config(:not_configured) do
+  defp restore_analysis_store_config(:not_configured) do
     Application.delete_env(
       :analysis,
-      GameStore
+      AnalysisStore
     )
   end
 
-  defp restore_game_store_config(value) do
+  defp restore_analysis_store_config(value) do
     Application.put_env(
       :analysis,
-      GameStore,
+      AnalysisStore,
       value
     )
   end

@@ -17,7 +17,7 @@ defmodule Analysis.RoomsTest do
     assert {:ok, room} = Rooms.start_room(room_id)
 
     assert room.id == room_id
-    assert room.game_ids == []
+    assert room.analysis_ids == []
   end
 
   test "starting an existing room is idempotent", %{room_id: room_id} do
@@ -39,32 +39,32 @@ defmodule Analysis.RoomsTest do
     assert :not_found = Rooms.get(room_id)
   end
 
-  test "adds a game", %{room_id: room_id} do
+  test "adds an analysis", %{room_id: room_id} do
     assert {:ok, _room} = Rooms.start_room(room_id)
 
-    assert :ok = Rooms.add_game(room_id, "game-1")
+    assert :ok = Rooms.add_analysis(room_id, "analysis-1")
 
     assert {:ok, room} = Rooms.get(room_id)
-    assert room.game_ids == ["game-1"]
+    assert room.analysis_ids == ["analysis-1"]
   end
 
-  test "removes a game", %{room_id: room_id} do
+  test "removes an analysis", %{room_id: room_id} do
     assert {:ok, _room} = Rooms.start_room(room_id)
 
-    assert :ok = Rooms.add_game(room_id, "game-1")
-    assert :ok = Rooms.add_game(room_id, "game-2")
-    assert :ok = Rooms.remove_game(room_id, "game-1")
+    assert :ok = Rooms.add_analysis(room_id, "analysis-1")
+    assert :ok = Rooms.add_analysis(room_id, "analysis-2")
+    assert :ok = Rooms.remove_analysis(room_id, "analysis-1")
 
     assert {:ok, room} = Rooms.get(room_id)
-    assert room.game_ids == ["game-2"]
+    assert room.analysis_ids == ["analysis-2"]
   end
 
   test "operations on an unknown room return not_found", %{room_id: room_id} do
     assert {:error, :not_found} =
-             Rooms.add_game(room_id, "game-1")
+             Rooms.add_analysis(room_id, "analysis-1")
 
     assert {:error, :not_found} =
-             Rooms.remove_game(room_id, "game-1")
+             Rooms.remove_analysis(room_id, "analysis-1")
   end
 
   test "stops a room", %{room_id: room_id} do
@@ -80,7 +80,7 @@ defmodule Analysis.RoomsTest do
 
   test "restarts a crashed room with fresh ephemeral state", %{room_id: room_id} do
     assert {:ok, _room} = Rooms.start_room(room_id)
-    assert :ok = Rooms.add_game(room_id, "game-1")
+    assert :ok = Rooms.add_analysis(room_id, "analysis-1")
 
     [{pid, _value}] =
       Horde.Registry.lookup(Analysis.RoomRegistry, room_id)
@@ -93,7 +93,7 @@ defmodule Analysis.RoomsTest do
     assert {:ok, room} = eventually_get_room(room_id)
 
     assert room.id == room_id
-    assert room.game_ids == []
+    assert room.analysis_ids == []
 
     [{new_pid, _value}] =
       Horde.Registry.lookup(Analysis.RoomRegistry, room_id)
@@ -103,7 +103,7 @@ defmodule Analysis.RoomsTest do
 
   test "does not restart an explicitly stopped room", %{room_id: room_id} do
     assert {:ok, _room} = Rooms.start_room(room_id)
-    assert :ok = Rooms.add_game(room_id, "game-1")
+    assert :ok = Rooms.add_analysis(room_id, "analysis-1")
 
     [{pid, _value}] =
       Horde.Registry.lookup(Analysis.RoomRegistry, room_id)

@@ -1,5 +1,4 @@
 defmodule Analysis do
-  alias Analysis.Game
   alias Analysis.Node
   alias Analysis.Transition
   alias Chess.Move
@@ -7,34 +6,34 @@ defmodule Analysis do
   alias Chess.PositionDraft
 
   @spec play(
-          Game.t(),
+          Analysis.Analysis.t(),
           PositionDB.t(),
-          Game.path(),
+          Analysis.Analysis.path(),
           Move.t()
         ) ::
-          {:ok, Game.t(), PositionDB.t(), Game.path()}
+          {:ok, Analysis.Analysis.t(), PositionDB.t(), Analysis.Analysis.path()}
           | {:error, :node_not_found | :position_not_found | :illegal_move}
-  def play(game, db, path, move) do
-    with %Node{} = node <- Game.node_at(game, path),
+  def play(analysis, db, path, move) do
+    with %Node{} = node <- Analysis.Analysis.node_at(analysis, path),
          {:ok, position} <- PositionDB.get(db, Node.position_id(node)),
          {:ok, next_position} <- Position.apply_move(position, move) do
       {db, position_id} = PositionDB.append(db, next_position)
       transition = Transition.move(move)
 
-      game =
-        Game.add_child(
-          game,
+      analysis =
+        Analysis.Analysis.add_child(
+          analysis,
           path,
           transition,
           position_id
         )
 
       child_index =
-        game
-        |> Game.node_at(path)
+        analysis
+        |> Analysis.Analysis.node_at(path)
         |> Node.child_index(transition, position_id)
 
-      {:ok, game, db, path ++ [child_index]}
+      {:ok, analysis, db, path ++ [child_index]}
     else
       nil ->
         {:error, :node_not_found}
@@ -48,35 +47,35 @@ defmodule Analysis do
   end
 
   @spec edit(
-          Game.t(),
+          Analysis.Analysis.t(),
           PositionDB.t(),
-          Game.path(),
+          Analysis.Analysis.path(),
           PositionDraft.t()
         ) ::
-          {:ok, Game.t(), PositionDB.t(), Game.path()}
+          {:ok, Analysis.Analysis.t(), PositionDB.t(), Analysis.Analysis.path()}
           | {:error,
              :node_not_found
              | {:invalid_position, [atom()]}}
-  def edit(game, db, path, %PositionDraft{} = draft) do
-    with %Node{} <- Game.node_at(game, path),
+  def edit(analysis, db, path, %PositionDraft{} = draft) do
+    with %Node{} <- Analysis.Analysis.node_at(analysis, path),
          {:ok, position} <- PositionDraft.apply(draft) do
       {db, position_id} = PositionDB.append(db, position)
       transition = Transition.edit()
 
-      game =
-        Game.add_child(
-          game,
+      analysis =
+        Analysis.Analysis.add_child(
+          analysis,
           path,
           transition,
           position_id
         )
 
       child_index =
-        game
-        |> Game.node_at(path)
+        analysis
+        |> Analysis.Analysis.node_at(path)
         |> Node.child_index(transition, position_id)
 
-      {:ok, game, db, path ++ [child_index]}
+      {:ok, analysis, db, path ++ [child_index]}
     else
       nil ->
         {:error, :node_not_found}

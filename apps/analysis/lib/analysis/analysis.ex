@@ -1,4 +1,4 @@
-defmodule Analysis.Game do
+defmodule Analysis.Analysis do
   alias Analysis.GameStart
   alias Analysis.MoveContext
   alias Analysis.Node
@@ -80,27 +80,27 @@ defmodule Analysis.Game do
   end
 
   @spec reconcile_path(t(), t(), path()) :: path()
-  def reconcile_path(%__MODULE__{} = old_game, %__MODULE__{} = new_game, path)
+  def reconcile_path(%__MODULE__{} = old_analysis, %__MODULE__{} = new_analysis, path)
       when is_list(path) do
     old_nodes =
       path
       |> prefixes()
-      |> Enum.map(&node_at(old_game, &1))
+      |> Enum.map(&node_at(old_analysis, &1))
 
-    new_root = root(new_game)
+    new_root = root(new_analysis)
 
     follow_occurrences(new_root, tl(old_nodes), [])
   end
 
   @spec add_child(t(), path(), Analysis.Transition.t(), position_id()) :: t()
-  def add_child(%__MODULE__{} = game, path, transition, position_id)
+  def add_child(%__MODULE__{} = analysis, path, transition, position_id)
       when is_list(path) do
-    case add_child_at(game.root, path, transition, position_id) do
+    case add_child_at(analysis.root, path, transition, position_id) do
       {:ok, root} ->
-        %{game | root: root}
+        %{analysis | root: root}
 
       :not_found ->
-        game
+        analysis
     end
   end
 
@@ -111,12 +111,12 @@ defmodule Analysis.Game do
     {:error, :root}
   end
 
-  def promote(%__MODULE__{} = game, path) when is_list(path) do
+  def promote(%__MODULE__{} = analysis, path) when is_list(path) do
     {parent_path, [child_index]} = Enum.split(path, -1)
 
-    case promote_child_at(game.root, parent_path, child_index) do
+    case promote_child_at(analysis.root, parent_path, child_index) do
       {:ok, root} ->
-        {:ok, %{game | root: root}, parent_path ++ [0]}
+        {:ok, %{analysis | root: root}, parent_path ++ [0]}
 
       :not_found ->
         {:error, :node_not_found}
@@ -130,12 +130,12 @@ defmodule Analysis.Game do
     {:error, :root}
   end
 
-  def remove(%__MODULE__{} = game, path) when is_list(path) do
+  def remove(%__MODULE__{} = analysis, path) when is_list(path) do
     {parent_path, [child_index]} = Enum.split(path, -1)
 
-    case remove_child_at(game.root, parent_path, child_index) do
+    case remove_child_at(analysis.root, parent_path, child_index) do
       {:ok, root} ->
-        {:ok, %{game | root: root}, parent_path}
+        {:ok, %{analysis | root: root}, parent_path}
 
       :not_found ->
         {:error, :node_not_found}
@@ -145,15 +145,15 @@ defmodule Analysis.Game do
   @spec set_comment(t(), path(), String.t() | nil) ::
           {:ok, t()}
           | {:error, :node_not_found}
-  def set_comment(%__MODULE__{} = game, path, comment)
+  def set_comment(%__MODULE__{} = analysis, path, comment)
       when is_list(path) and (is_binary(comment) or is_nil(comment)) do
     comment = normalize_comment(comment)
 
-    case update_node_at(game.root, path, fn node ->
+    case update_node_at(analysis.root, path, fn node ->
            %{node | comment: comment}
          end) do
       {:ok, root} ->
-        {:ok, %{game | root: root}}
+        {:ok, %{analysis | root: root}}
 
       :not_found ->
         {:error, :node_not_found}

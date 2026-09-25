@@ -37,24 +37,24 @@ defmodule Analysis.Rooms do
     end
   end
 
-  @spec add_game(Room.id(), Room.game_id()) ::
+  @spec add_analysis(Room.id(), Room.analysis_id()) ::
           :ok | {:error, :not_found}
-  def add_game(room_id, game_id) do
+  def add_analysis(room_id, analysis_id) do
     case lookup(room_id) do
       {:ok, pid} ->
-        RoomServer.add_game(pid, game_id)
+        RoomServer.add_analysis(pid, analysis_id)
 
       :not_found ->
         {:error, :not_found}
     end
   end
 
-  @spec remove_game(Room.id(), Room.game_id()) ::
+  @spec remove_analysis(Room.id(), Room.analysis_id()) ::
           :ok | {:error, :not_found}
-  def remove_game(room_id, game_id) do
+  def remove_analysis(room_id, analysis_id) do
     case lookup(room_id) do
       {:ok, pid} ->
-        RoomServer.remove_game(pid, game_id)
+        RoomServer.remove_analysis(pid, analysis_id)
 
       :not_found ->
         {:error, :not_found}

@@ -2,8 +2,8 @@ defmodule Analysis.ApplicationTest do
   use ExUnit.Case, async: false
 
   alias Analysis.Application, as: AnalysisApplication
-  alias Analysis.GameStore
-  alias Analysis.GameStoreOwner
+  alias Analysis.AnalysisStore
+  alias Analysis.AnalysisStoreOwner
   alias Analysis.PositionStore
   alias Analysis.PositionStoreOwner
 
@@ -22,17 +22,17 @@ defmodule Analysis.ApplicationTest do
         :not_configured
       )
 
-    previous_game_store_owner =
+    previous_analysis_store_owner =
       Application.get_env(
         :analysis,
-        GameStoreOwner,
+        AnalysisStoreOwner,
         :not_configured
       )
 
-    previous_game_store =
+    previous_analysis_store =
       Application.get_env(
         :analysis,
-        GameStore,
+        AnalysisStore,
         :not_configured
       )
 
@@ -48,13 +48,13 @@ defmodule Analysis.ApplicationTest do
       )
 
       restore_config(
-        GameStoreOwner,
-        previous_game_store_owner
+        AnalysisStoreOwner,
+        previous_analysis_store_owner
       )
 
       restore_config(
-        GameStore,
-        previous_game_store
+        AnalysisStore,
+        previous_analysis_store
       )
     end)
 
@@ -65,12 +65,12 @@ defmodule Analysis.ApplicationTest do
 
     Application.delete_env(
       :analysis,
-      GameStoreOwner
+      AnalysisStoreOwner
     )
 
     Application.delete_env(
       :analysis,
-      GameStore
+      AnalysisStore
     )
 
     :ok
@@ -90,78 +90,78 @@ defmodule Analysis.ApplicationTest do
            } in AnalysisApplication.children()
   end
 
-  test "starts the configured game store adapter" do
+  test "starts the configured analysis store adapter" do
     Application.put_env(
       :analysis,
-      GameStore,
-      adapter: Analysis.GameStore.Dets,
-      path: "games.dets"
+      AnalysisStore,
+      adapter: Analysis.AnalysisStore.Dets,
+      path: "analyses.dets"
     )
 
     assert {
-             Analysis.GameStore.Dets,
+             Analysis.AnalysisStore.Dets,
              options
            } =
              Enum.find(
                AnalysisApplication.children(),
                fn
-                 {Analysis.GameStore.Dets, _options} -> true
+                 {Analysis.AnalysisStore.Dets, _options} -> true
                  _child -> false
                end
              )
 
-    assert Keyword.get(options, :path) == "games.dets"
+    assert Keyword.get(options, :path) == "analyses.dets"
 
     assert Keyword.get(options, :name) ==
-             GameStore.clustered_store()
+             AnalysisStore.clustered_store()
   end
 
-  test "does not start the configured game store adapter on a non-owner node" do
+  test "does not start the configured analysis store adapter on a non-owner node" do
     Application.put_env(
       :analysis,
-      GameStore,
-      adapter: Analysis.GameStore.Dets,
-      path: "games.dets"
+      AnalysisStore,
+      adapter: Analysis.AnalysisStore.Dets,
+      path: "analyses.dets"
     )
 
     Application.put_env(
       :analysis,
-      GameStoreOwner,
+      AnalysisStoreOwner,
       owner: false
     )
 
     refute Enum.any?(
              AnalysisApplication.children(),
              fn
-               {Analysis.GameStore.Dets, _options} -> true
+               {Analysis.AnalysisStore.Dets, _options} -> true
                _child -> false
              end
            )
   end
 
-  test "preserves an explicitly configured game store" do
+  test "preserves an explicitly configured analysis store" do
     Application.put_env(
       :analysis,
-      GameStore,
-      adapter: Analysis.GameStore.Dets,
-      path: "games.dets",
-      store: :custom_game_store
+      AnalysisStore,
+      adapter: Analysis.AnalysisStore.Dets,
+      path: "analyses.dets",
+      store: :custom_analysis_store
     )
 
     assert {
-             Analysis.GameStore.Dets,
+             Analysis.AnalysisStore.Dets,
              options
            } =
              Enum.find(
                AnalysisApplication.children(),
                fn
-                 {Analysis.GameStore.Dets, _options} -> true
+                 {Analysis.AnalysisStore.Dets, _options} -> true
                  _child -> false
                end
              )
 
-    assert Keyword.get(options, :path) == "games.dets"
-    assert Keyword.get(options, :name) == :custom_game_store
+    assert Keyword.get(options, :path) == "analyses.dets"
+    assert Keyword.get(options, :name) == :custom_analysis_store
   end
 
   test "starts the position store registry" do
@@ -306,53 +306,53 @@ defmodule Analysis.ApplicationTest do
            } in AnalysisApplication.children()
   end
 
-  test "starts the game store registry" do
+  test "starts the analysis store registry" do
     assert {
              Horde.Registry,
              [
-               name: Analysis.GameStoreRegistry,
+               name: Analysis.AnalysisStoreRegistry,
                keys: :unique,
                members: :auto
              ]
            } in AnalysisApplication.children()
   end
 
-  test "starts the game store with the cluster-wide store by default" do
+  test "starts the analysis store with the cluster-wide store by default" do
     assert {
-             Analysis.GameStore.Memory,
+             Analysis.AnalysisStore.Memory,
              [
-               name: GameStore.clustered_store()
+               name: AnalysisStore.clustered_store()
              ]
            } in AnalysisApplication.children()
   end
 
-  test "does not start the game store on a non-owner node" do
+  test "does not start the analysis store on a non-owner node" do
     Application.put_env(
       :analysis,
-      GameStoreOwner,
+      AnalysisStoreOwner,
       owner: false
     )
 
     refute Enum.any?(
              AnalysisApplication.children(),
              fn
-               {Analysis.GameStore.Memory, _options} -> true
+               {Analysis.AnalysisStore.Memory, _options} -> true
                _child -> false
              end
            )
   end
 
-  test "starts the game store registry on a non-owner node" do
+  test "starts the analysis store registry on a non-owner node" do
     Application.put_env(
       :analysis,
-      GameStoreOwner,
+      AnalysisStoreOwner,
       owner: false
     )
 
     assert {
              Horde.Registry,
              [
-               name: Analysis.GameStoreRegistry,
+               name: Analysis.AnalysisStoreRegistry,
                keys: :unique,
                members: :auto
              ]

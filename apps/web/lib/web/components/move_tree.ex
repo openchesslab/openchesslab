@@ -1,27 +1,26 @@
 defmodule Web.Components.MoveTree do
   use Web, :html
 
-  alias Analysis.Game
   alias Analysis.MoveContext
   alias Analysis.Node
   alias Analysis.PositionStore
   alias Web.ChessNotation
 
-  attr(:game, :any, required: true)
+  attr(:analysis, :any, required: true)
   attr(:root_position, :any, required: true)
   attr(:locale, :string, required: true)
 
   def move_tree(assigns) do
     assigns =
       assigns
-      |> assign(:root, Game.root(assigns.game))
+      |> assign(:root, Analysis.Analysis.root(assigns.analysis))
       |> assign(:root_side, assigns.root_position.side_to_move)
 
     ~H"""
     <div id="move-tree">
       <div id="move-tree-main">
         <.continuation
-          game={@game}
+          analysis={@analysis}
           node={@root}
           position={@root_position}
           root_side={@root_side}
@@ -33,7 +32,7 @@ defmodule Web.Components.MoveTree do
     """
   end
 
-  attr(:game, :any, required: true)
+  attr(:analysis, :any, required: true)
   attr(:node, :any, required: true)
   attr(:position, :any, required: true)
   attr(:root_side, :atom, required: true)
@@ -51,7 +50,7 @@ defmodule Web.Components.MoveTree do
     ~H"""
     <%= if @main_child do %>
       <.move
-        game={@game}
+        analysis={@analysis}
         child={@main_child}
         position={@position}
         root_side={@root_side}
@@ -65,7 +64,7 @@ defmodule Web.Components.MoveTree do
         class="move-tree-variation"
       >
         <.move
-          game={@game}
+          analysis={@analysis}
           child={child}
           position={@position}
           root_side={@root_side}
@@ -78,7 +77,7 @@ defmodule Web.Components.MoveTree do
     """
   end
 
-  attr(:game, :any, required: true)
+  attr(:analysis, :any, required: true)
   attr(:child, :any, required: true)
   attr(:position, :any, required: true)
   attr(:root_side, :atom, required: true)
@@ -90,8 +89,8 @@ defmodule Web.Components.MoveTree do
     path = assigns.parent_path ++ [assigns.child_index]
 
     context =
-      Game.move_context(
-        assigns.game,
+      Analysis.Analysis.move_context(
+        assigns.analysis,
         assigns.root_side,
         assigns.parent_path
       )
@@ -128,7 +127,7 @@ defmodule Web.Components.MoveTree do
 
     <.continuation
       :if={@child_position}
-      game={@game}
+      analysis={@analysis}
       node={@child}
       position={@child_position}
       root_side={@root_side}

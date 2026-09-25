@@ -1,9 +1,8 @@
 defmodule Web.RoomLive do
   use Web, :live_view
 
-  alias Analysis.Game
-  alias Analysis.GameEvents
-  alias Analysis.Games
+  alias Analysis.AnalysisEvents
+  alias Analysis.Analyses
   alias Analysis.Node
   alias Analysis.PositionStore
   alias Analysis.RoomEvents
@@ -28,27 +27,27 @@ defmodule Web.RoomLive do
       assign(socket,
         room_id: room_id,
         room: room,
-        add_game_error: nil,
+        add_analysis_error: nil,
         move_error: nil,
         edit_error: nil,
         position_error: nil,
-        selected_game_id: nil,
-        game: nil,
-        game_revision: nil,
+        selected_analysis_id: nil,
+        analysis: nil,
+        analysis_revision: nil,
         current_path: [],
         selected_square: nil,
         root_position: nil,
         position: nil,
-        create_game_error: nil
+        create_analysis_error: nil
       )
 
     socket =
-      case Map.get(params, "game_id") do
+      case Map.get(params, "analysis_id") do
         nil ->
           socket
 
-        game_id ->
-          select_game(socket, game_id)
+        analysis_id ->
+          select_analysis(socket, analysis_id)
       end
 
     {:ok, socket}
@@ -67,22 +66,22 @@ defmodule Web.RoomLive do
 
   @impl true
   def handle_info(
-        {:game_changed, game_id},
-        %{assigns: %{selected_game_id: game_id}} = socket
+        {:analysis_changed, analysis_id},
+        %{assigns: %{selected_analysis_id: analysis_id}} = socket
       ) do
-    case Games.get(game_id) do
-      {:ok, game, revision} ->
+    case Analyses.get(analysis_id) do
+      {:ok, analysis, revision} ->
         current_path =
-          Game.reconcile_path(
-            socket.assigns.game,
-            game,
+          Analysis.Analysis.reconcile_path(
+            socket.assigns.analysis,
+            analysis,
             socket.assigns.current_path
           )
 
         socket =
           socket
-          |> assign(:game_revision, revision)
-          |> assign_current_occurrence(game, current_path)
+          |> assign(:analysis_revision, revision)
+          |> assign_current_occurrence(analysis, current_path)
 
         {:noreply, socket}
 
@@ -93,52 +92,52 @@ defmodule Web.RoomLive do
 
   @impl true
   def handle_event(
-        "add_game",
-        %{"game" => %{"id" => game_id}},
+        "add_analysis",
+        %{"analysis" => %{"id" => analysis_id}},
         socket
       ) do
-    case Games.get(game_id) do
-      {:ok, _game, _revision} ->
-        :ok = Rooms.add_game(socket.assigns.room_id, game_id)
+    case Analyses.get(analysis_id) do
+      {:ok, _analysis, _revision} ->
+        :ok = Rooms.add_analysis(socket.assigns.room_id, analysis_id)
 
-        {:noreply, assign(socket, :add_game_error, nil)}
+        {:noreply, assign(socket, :add_analysis_error, nil)}
 
       :not_found ->
-        {:noreply, assign(socket, :add_game_error, gettext("Game not found."))}
+        {:noreply, assign(socket, :add_analysis_error, gettext("Analysis not found."))}
     end
   end
 
   @impl true
   def handle_event(
-        "remove_game",
-        %{"game_id" => game_id},
+        "remove_analysis",
+        %{"analysis_id" => analysis_id},
         socket
       ) do
-    :ok = Rooms.remove_game(socket.assigns.room_id, game_id)
+    :ok = Rooms.remove_analysis(socket.assigns.room_id, analysis_id)
 
     {:noreply, socket}
   end
 
   @impl true
   def handle_event(
-        "select_game",
-        %{"game_id" => game_id},
+        "select_analysis",
+        %{"analysis_id" => analysis_id},
         socket
       ) do
-    {:noreply, select_game(socket, game_id)}
+    {:noreply, select_analysis(socket, analysis_id)}
   end
 
   @impl true
   def handle_event(
         "navigate_child",
         %{"index" => index},
-        %{assigns: %{game: game, current_path: path}} = socket
+        %{assigns: %{analysis: analysis, current_path: path}} = socket
       ) do
     child_index = String.to_integer(index)
     new_path = path ++ [child_index]
 
-    if Game.node_at(game, new_path) do
-      {:noreply, assign_current_occurrence(socket, game, new_path)}
+    if Analysis.Analysis.node_at(analysis, new_path) do
+      {:noreply, assign_current_occurrence(socket, analysis, new_path)}
     else
       {:noreply, socket}
     end
@@ -163,7 +162,7 @@ defmodule Web.RoomLive do
     {:noreply,
      assign_current_occurrence(
        socket,
-       socket.assigns.game,
+       socket.assigns.analysis,
        new_path
      )}
   end
@@ -348,15 +347,15 @@ defmodule Web.RoomLive do
         _params,
         socket
       ) do
-    case Games.promote(
-           socket.assigns.selected_game_id,
+    case Analyses.promote(
+           socket.assigns.selected_analysis_id,
            socket.assigns.current_path
          ) do
-      {:ok, game, revision, resulting_path} ->
+      {:ok, analysis, revision, resulting_path} ->
         socket =
           socket
-          |> assign(:game_revision, revision)
-          |> assign_current_occurrence(game, resulting_path)
+          |> assign(:analysis_revision, revision)
+          |> assign_current_occurrence(analysis, resulting_path)
 
         {:noreply, socket}
 
@@ -366,7 +365,7 @@ defmodule Web.RoomLive do
       {:error, :root} ->
         {:noreply, socket}
 
-      {:error, :game_not_found} ->
+      {:error, :analysis_not_found} ->
         {:noreply, socket}
 
       {:error, :conflict} ->
@@ -380,15 +379,15 @@ defmodule Web.RoomLive do
         _params,
         socket
       ) do
-    case Games.remove(
-           socket.assigns.selected_game_id,
+    case Analyses.remove(
+           socket.assigns.selected_analysis_id,
            socket.assigns.current_path
          ) do
-      {:ok, game, revision, resulting_path} ->
+      {:ok, analysis, revision, resulting_path} ->
         socket =
           socket
-          |> assign(:game_revision, revision)
-          |> assign_current_occurrence(game, resulting_path)
+          |> assign(:analysis_revision, revision)
+          |> assign_current_occurrence(analysis, resulting_path)
 
         {:noreply, socket}
 
@@ -398,7 +397,7 @@ defmodule Web.RoomLive do
       {:error, :root} ->
         {:noreply, socket}
 
-      {:error, :game_not_found} ->
+      {:error, :analysis_not_found} ->
         {:noreply, socket}
 
       {:error, :conflict} ->
@@ -412,17 +411,17 @@ defmodule Web.RoomLive do
         %{"comment" => %{"text" => comment}},
         socket
       ) do
-    case Games.set_comment(
-           socket.assigns.selected_game_id,
+    case Analyses.set_comment(
+           socket.assigns.selected_analysis_id,
            socket.assigns.current_path,
            comment
          ) do
-      {:ok, game, revision} ->
+      {:ok, analysis, revision} ->
         socket =
           socket
-          |> assign(:game_revision, revision)
+          |> assign(:analysis_revision, revision)
           |> assign_current_occurrence(
-            game,
+            analysis,
             socket.assigns.current_path
           )
 
@@ -431,7 +430,7 @@ defmodule Web.RoomLive do
       {:error, :node_not_found} ->
         {:noreply, socket}
 
-      {:error, :game_not_found} ->
+      {:error, :analysis_not_found} ->
         {:noreply, socket}
 
       {:error, :conflict} ->
@@ -443,12 +442,12 @@ defmodule Web.RoomLive do
   def handle_event(
         "navigate_path",
         %{"path" => encoded_path},
-        %{assigns: %{game: game}} = socket
+        %{assigns: %{analysis: analysis}} = socket
       ) do
     path = parse_path(encoded_path)
 
-    if Game.node_at(game, path) do
-      {:noreply, assign_current_occurrence(socket, game, path)}
+    if Analysis.Analysis.node_at(analysis, path) do
+      {:noreply, assign_current_occurrence(socket, analysis, path)}
     else
       {:noreply, socket}
     end
@@ -456,32 +455,32 @@ defmodule Web.RoomLive do
 
   @impl true
   def handle_event(
-        "create_game",
-        %{"game" => %{"id" => game_id}},
+        "create_analysis",
+        %{"analysis" => %{"id" => analysis_id}},
         socket
       ) do
-    case Games.create(game_id) do
-      {:ok, _game, _revision} ->
-        :ok = Rooms.add_game(socket.assigns.room_id, game_id)
+    case Analyses.create(analysis_id) do
+      {:ok, _analysis, _revision} ->
+        :ok = Rooms.add_analysis(socket.assigns.room_id, analysis_id)
 
         {:noreply,
          assign(socket,
-           create_game_error: nil
+           create_analysis_error: nil
          )}
 
       {:error, :already_exists} ->
         {:noreply,
          assign(
            socket,
-           :create_game_error,
-           gettext("Game already exists.")
+           :create_analysis_error,
+           gettext("Analysis already exists.")
          )}
 
       {:error, {:position_store, _reason}} ->
         {:noreply,
          assign(
            socket,
-           :create_game_error,
+           :create_analysis_error,
            gettext("Position storage is temporarily unavailable.")
          )}
     end
@@ -499,76 +498,76 @@ defmodule Web.RoomLive do
         </p>
       <% end %>
 
-      <form id="create-game-form" phx-submit="create_game">
+      <form id="create-analysis-form" phx-submit="create_analysis">
         <input
           type="text"
-          name="game[id]"
-          placeholder={gettext("Game ID")}
+          name="analysis[id]"
+          placeholder={gettext("Analysis ID")}
           required
         />
         <button type="submit">
-          {gettext("Create game")}
+          {gettext("Create analysis")}
         </button>
       </form>
 
-      <%= if @create_game_error do %>
-        <p id="create-game-error" role="alert">
-          {@create_game_error}
+      <%= if @create_analysis_error do %>
+        <p id="create-analysis-error" role="alert">
+          {@create_analysis_error}
         </p>
       <% end %>
 
-      <form id="add-game-form" phx-submit="add_game">
+      <form id="add-analysis-form" phx-submit="add_analysis">
         <input
           type="text"
-          name="game[id]"
-          placeholder={gettext("Game ID")}
+          name="analysis[id]"
+          placeholder={gettext("Analysis ID")}
           required
         />
         <button type="submit">
-          {gettext("Add game")}
+          {gettext("Add analysis")}
         </button>
       </form>
 
-      <%= if @add_game_error do %>
-        <p role="alert">{@add_game_error}</p>
+      <%= if @add_analysis_error do %>
+        <p role="alert">{@add_analysis_error}</p>
       <% end %>
 
-      <%= if @room.game_ids == [] do %>
-        <p>{gettext("No games in this room.")}</p>
+      <%= if @room.analysis_ids == [] do %>
+        <p>{gettext("No analyses in this room.")}</p>
       <% else %>
         <ul>
-          <li :for={game_id <- @room.game_ids}>
-            <span>{game_id}</span>
+          <li :for={analysis_id <- @room.analysis_ids}>
+            <span>{analysis_id}</span>
             <button
-              id={"select-game-#{game_id}"}
+              id={"select-analysis-#{analysis_id}"}
               type="button"
-              phx-click="select_game"
-              phx-value-game_id={game_id}
+              phx-click="select_analysis"
+              phx-value-analysis_id={analysis_id}
             >
               {gettext("Select")}
             </button>
 
             <button
-              id={"remove-game-#{game_id}"}
+              id={"remove-analysis-#{analysis_id}"}
               type="button"
-              phx-click="remove_game"
-              phx-value-game_id={game_id}
+              phx-click="remove_analysis"
+              phx-value-analysis_id={analysis_id}
             >
               {gettext("Remove")}
             </button>
           </li>
         </ul>
 
-        <%= if @selected_game_id do %>
-          <section id="selected-game">
-            <h2>{gettext("Selected game")}</h2>
+        <%= if @selected_analysis_id do %>
+          <section id="selected-analysis">
+            <h2>{gettext("Selected analysis")}</h2>
 
-            <p id="selected-game-id">
-              {@selected_game_id}
+            <p id="selected-analysis-id">
+              {@selected_analysis_id}
             </p>
 
-            <p id="selected-game-revision">
-              {gettext("Revision")} {@game_revision}
+            <p id="selected-analysis-revision">
+              {gettext("Revision")} {@analysis_revision}
             </p>
 
             <p id="current-path">
@@ -576,7 +575,7 @@ defmodule Web.RoomLive do
             </p>
 
             <MoveTree.move_tree
-              game={@game}
+              analysis={@analysis}
               root_position={@root_position}
               locale={@locale}
             /> <ChessBoard.chess_board position={@position} />
@@ -605,7 +604,7 @@ defmodule Web.RoomLive do
             <%= if @move_error do %>
               <p id="move-error" role="alert">{@move_error}</p>
             <% end %>
-            <% current_node = Game.node_at(@game, @current_path) %>
+            <% current_node = Analysis.Analysis.node_at(@analysis, @current_path) %>
             <div id="current-comment">
               <%= if comment = Node.comment(current_node) do %>
                 {comment}
@@ -668,39 +667,39 @@ defmodule Web.RoomLive do
     """
   end
 
-  defp subscribe_to_game(socket, game_id) do
+  defp subscribe_to_analysis(socket, analysis_id) do
     if connected?(socket) do
-      case socket.assigns.selected_game_id do
+      case socket.assigns.selected_analysis_id do
         nil ->
           :ok
 
-        ^game_id ->
+        ^analysis_id ->
           :ok
 
-        previous_game_id ->
-          :ok = GameEvents.unsubscribe(previous_game_id)
+        previous_analysis_id ->
+          :ok = AnalysisEvents.unsubscribe(previous_analysis_id)
       end
 
-      :ok = GameEvents.subscribe(game_id)
+      :ok = AnalysisEvents.subscribe(analysis_id)
     end
 
     :ok
   end
 
   defp play_move(socket, move) do
-    case Games.play(
-           socket.assigns.selected_game_id,
+    case Analyses.play(
+           socket.assigns.selected_analysis_id,
            socket.assigns.current_path,
            move
          ) do
-      {:ok, game, revision, resulting_path} ->
+      {:ok, analysis, revision, resulting_path} ->
         socket =
           socket
           |> assign(
-            game_revision: revision,
+            analysis_revision: revision,
             move_error: nil
           )
-          |> assign_current_occurrence(game, resulting_path)
+          |> assign_current_occurrence(analysis, resulting_path)
 
         {:noreply, socket}
 
@@ -713,11 +712,11 @@ defmodule Web.RoomLive do
       {:error, :position_not_found} ->
         {:noreply, assign(socket, :move_error, gettext("Position not found."))}
 
-      {:error, :game_not_found} ->
-        {:noreply, assign(socket, :move_error, gettext("Game not found."))}
+      {:error, :analysis_not_found} ->
+        {:noreply, assign(socket, :move_error, gettext("Analysis not found."))}
 
       {:error, :conflict} ->
-        {:noreply, assign(socket, :move_error, gettext("Game changed. Try again."))}
+        {:noreply, assign(socket, :move_error, gettext("Analysis changed. Try again."))}
 
       {:error, {:position_store, _reason}} ->
         {:noreply,
@@ -730,19 +729,19 @@ defmodule Web.RoomLive do
   end
 
   defp edit_position(socket, draft) do
-    case Games.edit(
-           socket.assigns.selected_game_id,
+    case Analyses.edit(
+           socket.assigns.selected_analysis_id,
            socket.assigns.current_path,
            draft
          ) do
-      {:ok, game, revision, resulting_path} ->
+      {:ok, analysis, revision, resulting_path} ->
         socket =
           socket
           |> assign(
-            game_revision: revision,
+            analysis_revision: revision,
             edit_error: nil
           )
-          |> assign_current_occurrence(game, resulting_path)
+          |> assign_current_occurrence(analysis, resulting_path)
 
         {:noreply, socket}
 
@@ -752,11 +751,11 @@ defmodule Web.RoomLive do
       {:error, :node_not_found} ->
         {:noreply, assign(socket, :edit_error, gettext("Position no longer exists."))}
 
-      {:error, :game_not_found} ->
-        {:noreply, assign(socket, :edit_error, gettext("Game not found."))}
+      {:error, :analysis_not_found} ->
+        {:noreply, assign(socket, :edit_error, gettext("Analysis not found."))}
 
       {:error, :conflict} ->
-        {:noreply, assign(socket, :edit_error, gettext("Game changed. Try again."))}
+        {:noreply, assign(socket, :edit_error, gettext("Analysis changed. Try again."))}
 
       {:error, {:position_store, _reason}} ->
         {:noreply,
@@ -770,12 +769,12 @@ defmodule Web.RoomLive do
 
   defp assign_current_occurrence(
          socket,
-         game,
+         analysis,
          path
        ) do
     node =
-      Game.node_at(
-        game,
+      Analysis.Analysis.node_at(
+        analysis,
         path
       )
 
@@ -786,7 +785,7 @@ defmodule Web.RoomLive do
       {:ok, position} ->
         assign(
           socket,
-          game: game,
+          analysis: analysis,
           current_path: path,
           position: position,
           position_error: nil
@@ -888,32 +887,32 @@ defmodule Web.RoomLive do
     |> Enum.map(&String.to_integer/1)
   end
 
-  defp select_game(
+  defp select_analysis(
          socket,
-         game_id
+         analysis_id
        ) do
-    if game_id in socket.assigns.room.game_ids do
-      case Games.get(game_id) do
-        {:ok, game, revision} ->
+    if analysis_id in socket.assigns.room.analysis_ids do
+      case Analyses.get(analysis_id) do
+        {:ok, analysis, revision} ->
           root =
-            Game.root(game)
+            Analysis.Analysis.root(analysis)
 
           case PositionStore.get(Node.position_id(root)) do
             {:ok, root_position} ->
-              subscribe_to_game(
+              subscribe_to_analysis(
                 socket,
-                game_id
+                analysis_id
               )
 
               socket
               |> assign(
-                selected_game_id: game_id,
-                game_revision: revision,
+                selected_analysis_id: analysis_id,
+                analysis_revision: revision,
                 root_position: root_position,
                 position_error: nil
               )
               |> assign_current_occurrence(
-                game,
+                analysis,
                 []
               )
 

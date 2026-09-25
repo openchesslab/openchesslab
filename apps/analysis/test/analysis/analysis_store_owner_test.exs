@@ -1,13 +1,13 @@
-defmodule Analysis.GameStoreOwnerTest do
+defmodule Analysis.AnalysisStoreOwnerTest do
   use ExUnit.Case, async: false
 
-  alias Analysis.GameStoreOwner
+  alias Analysis.AnalysisStoreOwner
 
   setup do
     previous =
       Application.get_env(
         :analysis,
-        GameStoreOwner,
+        AnalysisStoreOwner,
         :not_configured
       )
 
@@ -16,13 +16,13 @@ defmodule Analysis.GameStoreOwnerTest do
         :not_configured ->
           Application.delete_env(
             :analysis,
-            GameStoreOwner
+            AnalysisStoreOwner
           )
 
         value ->
           Application.put_env(
             :analysis,
-            GameStoreOwner,
+            AnalysisStoreOwner,
             value
           )
       end
@@ -31,22 +31,22 @@ defmodule Analysis.GameStoreOwnerTest do
     :ok
   end
 
-  test "owns the game store by default" do
+  test "owns the analysis store by default" do
     Application.delete_env(
       :analysis,
-      GameStoreOwner
+      AnalysisStoreOwner
     )
 
-    assert GameStoreOwner.owner?()
+    assert AnalysisStoreOwner.owner?()
   end
 
   test "can be configured as a non-owner" do
     Application.put_env(
       :analysis,
-      GameStoreOwner,
+      AnalysisStoreOwner,
       owner: false
     )
 
-    refute GameStoreOwner.owner?()
+    refute AnalysisStoreOwner.owner?()
   end
 end
