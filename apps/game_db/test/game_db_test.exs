@@ -260,4 +260,101 @@ defmodule GameDBTest do
 
     assert GameDB.cardinality(db) == 0
   end
+
+  test "scans occurrences for a position incrementally" do
+    db =
+      GameDB.new(
+        Memory,
+        Memory.new()
+      )
+
+    {db, game_1} =
+      GameDB.put(
+        db,
+        <<"game-1">>,
+        :game_1,
+        [10, 20, 10]
+      )
+
+    {db, game_2} =
+      GameDB.put(
+        db,
+        <<"game-2">>,
+        :game_2,
+        [30, 10]
+      )
+
+    scan =
+      GameDB.scan_occurrences(
+        db,
+        10
+      )
+
+    assert {
+             :ok,
+             first,
+             scan
+           } =
+             GameDB.scan_occurrences_next(scan)
+
+    assert {
+             :ok,
+             second,
+             scan
+           } =
+             GameDB.scan_occurrences_next(scan)
+
+    assert {
+             :ok,
+             third,
+             scan
+           } =
+             GameDB.scan_occurrences_next(scan)
+
+    assert :done =
+             GameDB.scan_occurrences_next(scan)
+
+    assert MapSet.new([
+             first,
+             second,
+             third
+           ]) ==
+             MapSet.new([
+               Occurrence.new(
+                 1,
+                 game_1,
+                 0,
+                 10
+               ),
+               Occurrence.new(
+                 3,
+                 game_1,
+                 2,
+                 10
+               ),
+               Occurrence.new(
+                 5,
+                 game_2,
+                 1,
+                 10
+               )
+             ])
+  end
+
+  test "finishes an occurrence scan for a position without occurrences" do
+    db =
+      GameDB.new(
+        Memory,
+        Memory.new()
+      )
+
+    scan =
+      GameDB.scan_occurrences(
+        db,
+        999
+      )
+
+    assert :done =
+             GameDB.scan_occurrences_next(scan)
+  end
 end

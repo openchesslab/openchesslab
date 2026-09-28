@@ -23,6 +23,11 @@ defmodule GameDB do
   @type fingerprint :: Storage.fingerprint()
   @type position_id :: Storage.position_id()
   @type occurrence_id :: Storage.occurrence_id()
+  @opaque occurrence_scan ::
+            {
+              storage_module(),
+              Storage.occurrence_scan_state()
+            }
 
   @enforce_keys [
     :storage_module,
@@ -166,6 +171,58 @@ defmodule GameDB do
       storage,
       position_id
     )
+  end
+
+  @spec scan_occurrences(
+          t(),
+          position_id()
+        ) ::
+          occurrence_scan()
+  def scan_occurrences(
+        %__MODULE__{
+          storage_module: storage_module,
+          storage: storage
+        },
+        position_id
+      ) do
+    {
+      storage_module,
+      storage_module.scan_occurrences(
+        storage,
+        position_id
+      )
+    }
+  end
+
+  @spec scan_occurrences_next(occurrence_scan()) ::
+          {:ok, Occurrence.t(), occurrence_scan()}
+          | :done
+          | {:error, term()}
+  def scan_occurrences_next({
+        storage_module,
+        scan_state
+      }) do
+    case storage_module.scan_occurrences_next(scan_state) do
+      {
+        :ok,
+        occurrence,
+        next_scan_state
+      } ->
+        {
+          :ok,
+          occurrence,
+          {
+            storage_module,
+            next_scan_state
+          }
+        }
+
+      :done ->
+        :done
+
+      {:error, _reason} = error ->
+        error
+    end
   end
 
   @spec get_occurrence(
