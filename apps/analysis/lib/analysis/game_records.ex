@@ -14,6 +14,7 @@ defmodule Analysis.GameRecords do
   alias Analysis.GameStart
   alias Analysis.GameStore
   alias Analysis.PositionStore
+  alias GameDB.Occurrence
 
   @type create_error ::
           :already_exists
@@ -24,6 +25,12 @@ defmodule Analysis.GameRecords do
   @type load_error ::
           {:game_not_found, GameDB.game_id()}
           | {:game_store, term()}
+
+  @type occurrence_match ::
+          {GameRecord.t(), Occurrence.t()}
+
+  @type occurrence_query_error ::
+          {:game_store, term()}
 
   @spec create(
           GameRecord.id(),
@@ -85,6 +92,27 @@ defmodule Analysis.GameRecords do
           [GameRecord.t()]
   def list_by_game_id(game_id) do
     GameRecordStore.list_by_game_id(game_id)
+  end
+
+  @spec list_occurrences_by_position_id(GameDB.position_id()) ::
+          {:ok, [occurrence_match()]}
+          | {:error, occurrence_query_error()}
+  def list_occurrences_by_position_id(position_id) do
+    case GameStore.occurrences_by_position_id(position_id) do
+      {:ok, occurrences} ->
+        {:ok,
+         Enum.flat_map(
+           occurrences,
+           &records_for_occurrence/1
+         )}
+
+      {:error, reason} ->
+        {:error,
+         {
+           :game_store,
+           reason
+         }}
+    end
   end
 
   defp do_create(
@@ -320,5 +348,20 @@ defmodule Analysis.GameRecords do
            reason
          }}
     end
+  end
+
+  defp records_for_occurrence(
+         %Occurrence{
+           game_id: game_id
+         } = occurrence
+       ) do
+    game_id
+    |> list_by_game_id()
+    |> Enum.map(
+      &{
+        &1,
+        occurrence
+      }
+    )
   end
 end

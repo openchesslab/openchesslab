@@ -430,6 +430,167 @@ defmodule Analysis.GameRecordsTest do
               }}
   end
 
+  test "lists concrete game records for a position occurrence" do
+    position_id =
+      unique_id()
+
+    content =
+      GameContent.new(position_id)
+
+    assert {:ok, fingerprint} =
+             GameFingerprint.for_content(content)
+
+    assert {:ok, game_id} =
+             GameStore.put(
+               fingerprint,
+               content,
+               [position_id]
+             )
+
+    first =
+      GameRecord.new(
+        "record-#{unique_id()}",
+        game_id,
+        %{
+          event: "London"
+        }
+      )
+
+    second =
+      GameRecord.new(
+        "record-#{unique_id()}",
+        game_id,
+        %{
+          event: "Amsterdam"
+        }
+      )
+
+    assert :ok =
+             GameRecordStore.insert(first)
+
+    assert :ok =
+             GameRecordStore.insert(second)
+
+    assert {
+             :ok,
+             matches
+           } =
+             GameRecords.list_occurrences_by_position_id(position_id)
+
+    assert MapSet.new(
+             Enum.map(
+               matches,
+               fn {record, occurrence} ->
+                 {
+                   record,
+                   occurrence.game_id,
+                   occurrence.ply,
+                   occurrence.position_id
+                 }
+               end
+             )
+           ) ==
+             MapSet.new([
+               {
+                 first,
+                 game_id,
+                 0,
+                 position_id
+               },
+               {
+                 second,
+                 game_id,
+                 0,
+                 position_id
+               }
+             ])
+  end
+
+  test "preserves repeated occurrences of a position within a game" do
+    position_id =
+      unique_id()
+
+    middle_position_id =
+      unique_id()
+
+    content =
+      GameContent.new(
+        position_id,
+        [
+          move("g1", "f3"),
+          move("g8", "f6")
+        ]
+      )
+
+    assert {:ok, fingerprint} =
+             GameFingerprint.for_content(content)
+
+    assert {:ok, game_id} =
+             GameStore.put(
+               fingerprint,
+               content,
+               [
+                 position_id,
+                 middle_position_id,
+                 position_id
+               ]
+             )
+
+    record =
+      GameRecord.new(
+        "record-#{unique_id()}",
+        game_id
+      )
+
+    assert :ok =
+             GameRecordStore.insert(record)
+
+    assert {
+             :ok,
+             matches
+           } =
+             GameRecords.list_occurrences_by_position_id(position_id)
+
+    record_matches =
+      Enum.filter(
+        matches,
+        fn {matched_record, _occurrence} ->
+          matched_record ==
+            record
+        end
+      )
+
+    assert MapSet.new(
+             Enum.map(
+               record_matches,
+               fn {_record, occurrence} ->
+                 {
+                   occurrence.game_id,
+                   occurrence.ply,
+                   occurrence.position_id
+                 }
+               end
+             )
+           ) ==
+             MapSet.new([
+               {
+                 game_id,
+                 0,
+                 position_id
+               },
+               {
+                 game_id,
+                 2,
+                 position_id
+               }
+             ])
+  end
+
+  test "returns no concrete occurrences for an unknown position" do
+    assert GameRecords.list_occurrences_by_position_id(unique_id()) ==
+             {:ok, []}
+  end
+
   defp move(
          from,
          to
