@@ -2,8 +2,10 @@ defmodule Analysis.PositionStoreTest do
   use ExUnit.Case, async: false
 
   alias Analysis.PositionStore
+  alias Chess.Move
   alias Chess.Position
   alias Chess.PositionProperties
+  alias Chess.Square
   alias PositionDB.Query
 
   test "registers under the configured server name" do
@@ -67,7 +69,12 @@ defmodule Analysis.PositionStoreTest do
       property_bucket_count: 16
     ]
 
-    assert {:ok, db} =
+    assert {
+             :ok,
+             %PositionStore.State{
+               db: db
+             }
+           } =
              PositionStore.init(opts)
 
     position =
@@ -79,7 +86,12 @@ defmodule Analysis.PositionStoreTest do
         position
       )
 
-    assert {:ok, reopened} =
+    assert {
+             :ok,
+             %PositionStore.State{
+               db: reopened
+             }
+           } =
              PositionStore.init(opts)
 
     assert PositionDB.get(
@@ -162,41 +174,142 @@ defmodule Analysis.PositionStoreTest do
     refute PositionStore.ready?()
   end
 
-  test "queries stored positions by property" do
-    position =
-      Position.starting_position()
-
-    position_id =
-      PositionStore.append(position)
-
-    material =
-      PositionProperties.material(position)
-
-    assert {:ok, position_ids} =
-             PositionStore.query(
-               Query.property(
-                 :material,
-                 material
-               )
-             )
-
-    assert position_id in position_ids
-
-    assert Enum.all?(
-             position_ids,
-             fn position_id ->
-               assert {:ok, position} =
-                        PositionStore.get(position_id)
-
-               PositionProperties.material(position) ==
-                 material
-             end
-           )
+  test "returns an empty page for a query with no matches" do
+    assert PositionStore.query_page(
+             Query.match_none(),
+             10
+           ) ==
+             {
+               :ok,
+               [],
+               :done
+             }
   end
 
-  test "returns an empty result for a query with no matches" do
-    assert PositionStore.query(Query.match_none()) ==
-             {:ok, []}
+  test "pages through a position query without duplicates or omissions" do
+    use_isolated_position_store()
+
+    position_1 =
+      Position.starting_position()
+
+    {:ok, position_2} =
+      Position.apply_move(
+        position_1,
+        move("e2", "e4")
+      )
+
+    {:ok, position_3} =
+      Position.apply_move(
+        position_2,
+        move("e7", "e5")
+      )
+
+    ids =
+      Enum.map(
+        [
+          position_1,
+          position_2,
+          position_3
+        ],
+        &PositionStore.append/1
+      )
+
+    material =
+      PositionProperties.material(position_1)
+
+    query =
+      Query.property(
+        :material,
+        material
+      )
+
+    assert {
+             :ok,
+             first_page,
+             cursor
+           } =
+             PositionStore.query_page(
+               query,
+               2
+             )
+
+    assert is_reference(cursor)
+    assert length(first_page) == 2
+
+    assert {
+             :ok,
+             second_page,
+             :done
+           } =
+             PositionStore.next_query_page(
+               cursor,
+               2
+             )
+
+    all_ids =
+      first_page ++
+        second_page
+
+    assert length(all_ids) == 3
+
+    assert MapSet.new(all_ids) ==
+             MapSet.new(ids)
+
+    assert PositionStore.next_query_page(
+             cursor,
+             2
+           ) ==
+             {:error, :cursor_not_found}
+  end
+
+  test "does not create a cursor when the first page exhausts the query" do
+    use_isolated_position_store()
+
+    id =
+      PositionStore.append(Position.starting_position())
+
+    assert {
+             :ok,
+             [^id],
+             :done
+           } =
+             PositionStore.query_page(
+               Query.match_all(),
+               10
+             )
+  end
+
+  test "closes an unfinished query cursor" do
+    use_isolated_position_store()
+
+    PositionStore.append(Position.starting_position())
+
+    {:ok, second} =
+      Position.apply_move(
+        Position.starting_position(),
+        move("e2", "e4")
+      )
+
+    PositionStore.append(second)
+
+    assert {
+             :ok,
+             [_position_id],
+             cursor
+           } =
+             PositionStore.query_page(
+               Query.match_all(),
+               1
+             )
+
+    assert :ok =
+             PositionStore.close_query(cursor)
+
+    assert PositionStore.next_query_page(
+             cursor,
+             1
+           ) ==
+             {:error, :cursor_not_found}
   end
 
   defp restore_position_store_config(:not_configured) do
@@ -211,6 +324,40 @@ defmodule Analysis.PositionStoreTest do
       :analysis,
       PositionStore,
       value
+    )
+  end
+
+  defp use_isolated_position_store do
+    previous =
+      Application.get_env(
+        :analysis,
+        PositionStore,
+        :not_configured
+      )
+
+    server =
+      :"position-store-query-#{System.unique_integer([:positive])}"
+
+    start_supervised!({PositionStore, server: server})
+
+    Application.put_env(
+      :analysis,
+      PositionStore,
+      server: server
+    )
+
+    on_exit(fn ->
+      restore_position_store_config(previous)
+    end)
+  end
+
+  defp move(
+         from,
+         to
+       ) do
+    Move.new(
+      Square.from_algebraic(from),
+      Square.from_algebraic(to)
     )
   end
 end

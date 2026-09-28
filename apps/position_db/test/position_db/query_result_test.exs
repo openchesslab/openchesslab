@@ -63,4 +63,34 @@ defmodule PositionDB.QueryResultTest do
                    Enum.to_list(result)
                  end
   end
+
+  test "advances a query result explicitly" do
+    index =
+      PropertyIndex.new()
+      |> PropertyIndex.add(
+        {:open_files, :e},
+        1
+      )
+      |> PropertyIndex.add(
+        {:open_files, :e},
+        2
+      )
+
+    result =
+      QueryResult.new(
+        PropertyIndexScan.new(
+          index,
+          {:open_files, :e}
+        )
+      )
+
+    assert {:ok, 1, result} =
+             QueryResult.next(result)
+
+    assert {:ok, 2, result} =
+             QueryResult.next(result)
+
+    assert :done =
+             QueryResult.next(result)
+  end
 end
