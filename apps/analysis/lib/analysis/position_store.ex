@@ -8,6 +8,8 @@ defmodule Analysis.PositionStore do
   alias Chess.PositionKey
   alias Chess.PositionProperties
 
+  alias PositionDB.QueryExecutionError
+
   @name __MODULE__
 
   @registry Analysis.PositionStoreRegistry
@@ -70,6 +72,16 @@ defmodule Analysis.PositionStore do
     )
   end
 
+  @spec query(PositionDB.Query.t()) ::
+          {:ok, [PositionDB.position_id()]}
+          | {:error, term()}
+  def query(query) do
+    GenServer.call(
+      server(),
+      {:query, query}
+    )
+  end
+
   @spec append(Chess.Position.t()) ::
           PositionDB.position_id()
           | {:error, term()}
@@ -117,6 +129,31 @@ defmodule Analysis.PositionStore do
        db,
        position_id
      ), db}
+  end
+
+  def handle_call(
+        {:query, query},
+        _from,
+        db
+      ) do
+    reply =
+      try do
+        position_ids =
+          db
+          |> PositionDB.query(query)
+          |> Enum.to_list()
+
+        {:ok, position_ids}
+      rescue
+        error in QueryExecutionError ->
+          {:error, error.reason}
+      end
+
+    {
+      :reply,
+      reply,
+      db
+    }
   end
 
   def handle_call(

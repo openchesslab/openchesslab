@@ -3,6 +3,8 @@ defmodule Analysis.PositionStoreTest do
 
   alias Analysis.PositionStore
   alias Chess.Position
+  alias Chess.PositionProperties
+  alias PositionDB.Query
 
   test "registers under the configured server name" do
     server =
@@ -158,6 +160,43 @@ defmodule Analysis.PositionStoreTest do
     )
 
     refute PositionStore.ready?()
+  end
+
+  test "queries stored positions by property" do
+    position =
+      Position.starting_position()
+
+    position_id =
+      PositionStore.append(position)
+
+    material =
+      PositionProperties.material(position)
+
+    assert {:ok, position_ids} =
+             PositionStore.query(
+               Query.property(
+                 :material,
+                 material
+               )
+             )
+
+    assert position_id in position_ids
+
+    assert Enum.all?(
+             position_ids,
+             fn position_id ->
+               assert {:ok, position} =
+                        PositionStore.get(position_id)
+
+               PositionProperties.material(position) ==
+                 material
+             end
+           )
+  end
+
+  test "returns an empty result for a query with no matches" do
+    assert PositionStore.query(Query.match_none()) ==
+             {:ok, []}
   end
 
   defp restore_position_store_config(:not_configured) do
