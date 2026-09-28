@@ -1,13 +1,12 @@
 defmodule Analysis.Analyses do
   @moduledoc false
 
+  alias Analysis.Node
   alias Analysis.AnalysisEvents
   alias Analysis.AnalysisStore
   alias Analysis.GameContent
   alias Analysis.GameRecord
   alias Analysis.GameRecords
-  alias Analysis.GameStore
-  alias Analysis.Node
   alias Analysis.PositionStore
   alias Analysis.Transition
   alias GameDB.Occurrence
@@ -172,10 +171,8 @@ defmodule Analysis.Analyses do
          analysis_id,
          game_record_id
        ) do
-    with {:ok, record} <-
-           get_game_record(game_record_id),
-         {:ok, content, occurrences} <-
-           get_canonical_game(record),
+    with {:ok, record, content, occurrences} <-
+           load_game_record(game_record_id),
          {:ok, analysis} <-
            build_analysis(
              analysis_id,
@@ -431,45 +428,26 @@ defmodule Analysis.Analyses do
     end
   end
 
-  defp get_game_record(game_record_id) do
-    case GameRecords.get(game_record_id) do
-      {:ok, record} ->
-        {:ok, record}
-
-      :not_found ->
-        {:error, :game_record_not_found}
-    end
-  end
-
-  defp get_canonical_game(record) do
-    game_id =
-      GameRecord.game_id(record)
-
-    case GameStore.load(game_id) do
+  defp load_game_record(game_record_id) do
+    case GameRecords.load(game_record_id) do
       {
         :ok,
+        %GameRecord{} = record,
         %GameContent{} = content,
         occurrences
       } ->
         {
           :ok,
+          record,
           content,
           occurrences
         }
 
       :not_found ->
-        {:error,
-         {
-           :game_not_found,
-           game_id
-         }}
+        {:error, :game_record_not_found}
 
-      {:error, reason} ->
-        {:error,
-         {
-           :game_store,
-           reason
-         }}
+      {:error, _reason} = error ->
+        error
     end
   end
 end

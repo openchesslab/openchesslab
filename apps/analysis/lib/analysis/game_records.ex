@@ -21,6 +21,10 @@ defmodule Analysis.GameRecords do
           | {:position_store, term()}
           | {:game_store, term()}
 
+  @type load_error ::
+          {:game_not_found, GameDB.game_id()}
+          | {:game_store, term()}
+
   @spec create(
           GameRecord.id(),
           GameContent.t(),
@@ -55,6 +59,20 @@ defmodule Analysis.GameRecords do
           | :not_found
   def get(record_id) do
     GameRecordStore.get(record_id)
+  end
+
+  @spec load(GameRecord.id()) ::
+          {:ok, GameRecord.t(), GameContent.t(), [GameDB.Occurrence.t()]}
+          | :not_found
+          | {:error, load_error()}
+  def load(record_id) do
+    case GameRecordStore.get(record_id) do
+      {:ok, %GameRecord{} = record} ->
+        load_record(record)
+
+      :not_found ->
+        :not_found
+    end
   end
 
   @spec list() ::
@@ -99,6 +117,39 @@ defmodule Analysis.GameRecords do
         {:error, :already_exists} ->
           {:error, :already_exists}
       end
+    end
+  end
+
+  defp load_record(record) do
+    game_id =
+      GameRecord.game_id(record)
+
+    case GameStore.load(game_id) do
+      {
+        :ok,
+        %GameContent{} = content,
+        occurrences
+      } ->
+        {
+          :ok,
+          record,
+          content,
+          occurrences
+        }
+
+      :not_found ->
+        {:error,
+         {
+           :game_not_found,
+           game_id
+         }}
+
+      {:error, reason} ->
+        {:error,
+         {
+           :game_store,
+           reason
+         }}
     end
   end
 

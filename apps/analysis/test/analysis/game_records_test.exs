@@ -2,6 +2,7 @@ defmodule Analysis.GameRecordsTest do
   use ExUnit.Case, async: false
 
   alias Analysis.GameContent
+  alias Analysis.GameFingerprint
   alias Analysis.GameRecord
   alias Analysis.GameRecords
   alias Analysis.GameRecordStore
@@ -296,6 +297,124 @@ defmodule Analysis.GameRecordsTest do
     assert record in GameRecords.list()
   end
 
+  test "loads a concrete game with canonical content and occurrences",
+       %{
+         record_id: record_id,
+         initial_position_id: initial_position_id
+       } do
+    content =
+      GameContent.new(
+        initial_position_id,
+        [
+          move("e2", "e4"),
+          move("e7", "e5")
+        ]
+      )
+
+    assert {:ok, record} =
+             GameRecords.create(
+               record_id,
+               content,
+               GameStart.standard(),
+               %{
+                 event: "Example"
+               }
+             )
+
+    assert {
+             :ok,
+             ^record,
+             ^content,
+             occurrences
+           } =
+             GameRecords.load(record_id)
+
+    assert Enum.map(
+             occurrences,
+             & &1.ply
+           ) == [0, 1, 2]
+
+    assert Enum.map(
+             occurrences,
+             & &1.position_id
+           )
+           |> hd() ==
+             initial_position_id
+  end
+
+  test "returns not_found when loading an unknown game record" do
+    assert GameRecords.load("missing-game-record") ==
+             :not_found
+  end
+
+  test "reports a missing canonical game when loading a game record",
+       %{
+         record_id: record_id
+       } do
+    missing_game_id =
+      unique_id()
+
+    record =
+      GameRecord.new(
+        record_id,
+        missing_game_id
+      )
+
+    assert :ok =
+             GameRecordStore.insert(record)
+
+    assert GameRecords.load(record_id) ==
+             {:error,
+              {
+                :game_not_found,
+                missing_game_id
+              }}
+  end
+
+  test "propagates invalid canonical occurrences when loading a game record",
+       %{
+         record_id: record_id
+       } do
+    initial_position_id =
+      unique_id()
+
+    content =
+      GameContent.new(
+        initial_position_id,
+        [
+          move("e2", "e4")
+        ]
+      )
+
+    assert {:ok, fingerprint} =
+             GameFingerprint.for_content(content)
+
+    assert {:ok, game_id} =
+             GameStore.put(
+               fingerprint,
+               content,
+               [
+                 initial_position_id
+               ]
+             )
+
+    record =
+      GameRecord.new(
+        record_id,
+        game_id
+      )
+
+    assert :ok =
+             GameRecordStore.insert(record)
+
+    assert GameRecords.load(record_id) ==
+             {:error,
+              {
+                :game_store,
+                :invalid_occurrences
+              }}
+  end
+
   defp move(
          from,
          to
@@ -304,5 +423,13 @@ defmodule Analysis.GameRecordsTest do
       Square.from_algebraic(from),
       Square.from_algebraic(to)
     )
+  end
+
+  defp unique_id do
+    10_000_000_000 +
+      System.unique_integer([
+        :positive,
+        :monotonic
+      ])
   end
 end
