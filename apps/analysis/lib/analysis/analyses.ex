@@ -5,7 +5,9 @@ defmodule Analysis.Analyses do
   alias Analysis.AnalysisStore
   alias Analysis.GameContent
   alias Analysis.GameRecord
+  alias Analysis.GameRecords
   alias Analysis.GameReplay
+  alias Analysis.GameStore
   alias Analysis.Node
   alias Analysis.PositionStore
   alias Analysis.Transition
@@ -15,6 +17,9 @@ defmodule Analysis.Analyses do
 
   @type position_store_error ::
           {:position_store, term()}
+
+  @type game_store_error ::
+          {:game_store, term()}
 
   @spec create(Analysis.Analysis.id()) ::
           {:ok, Analysis.Analysis.t(), pos_integer()}
@@ -45,26 +50,31 @@ defmodule Analysis.Analyses do
 
   @spec create_from_game_record(
           Analysis.Analysis.id(),
-          GameRecord.t(),
-          GameContent.t()
+          GameRecord.id()
         ) ::
           {:ok, Analysis.Analysis.t(), pos_integer()}
           | {:error,
              :already_exists
+             | :game_record_not_found
+             | {:game_not_found, GameDB.game_id()}
              | {:invalid_game, {:position_not_found, term()}}
              | {:invalid_game, {:illegal_move, pos_integer()}}
-             | position_store_error()}
+             | position_store_error()
+             | game_store_error()}
   def create_from_game_record(
         analysis_id,
-        %GameRecord{} = record,
-        %GameContent{} = content
+        game_record_id
       ) do
-    create_from_source(
-      analysis_id,
-      GameRecord.id(record),
-      GameRecord.start(record),
-      content
-    )
+    case get(analysis_id) do
+      {:ok, _analysis, _revision} ->
+        {:error, :already_exists}
+
+      :not_found ->
+        do_create_from_game_record(
+          analysis_id,
+          game_record_id
+        )
+    end
   end
 
   @spec insert(Analysis.Analysis.t()) ::
@@ -160,39 +170,20 @@ defmodule Analysis.Analyses do
     end
   end
 
-  defp create_from_source(
+  defp do_create_from_game_record(
          analysis_id,
-         source_game_record_id,
-         start,
-         content
+         game_record_id
        ) do
-    case get(analysis_id) do
-      {:ok, _analysis, _revision} ->
-        {:error, :already_exists}
-
-      :not_found ->
-        do_create_from_source(
-          analysis_id,
-          source_game_record_id,
-          start,
-          content
-        )
-    end
-  end
-
-  defp do_create_from_source(
-         analysis_id,
-         source_game_record_id,
-         start,
-         content
-       ) do
-    with {:ok, mainline} <-
+    with {:ok, record} <-
+           get_game_record(game_record_id),
+         {:ok, content} <-
+           get_game_content(record),
+         {:ok, mainline} <-
            replay_content(content),
          {:ok, analysis} <-
            build_analysis(
              analysis_id,
-             source_game_record_id,
-             start,
+             record,
              content,
              mainline
            ),
@@ -223,8 +214,7 @@ defmodule Analysis.Analyses do
 
   defp build_analysis(
          analysis_id,
-         source_game_record_id,
-         start,
+         record,
          content,
          mainline
        ) do
@@ -232,8 +222,8 @@ defmodule Analysis.Analyses do
       Analysis.Analysis.new(
         analysis_id,
         GameContent.initial_position_id(content),
-        source_game_record_id,
-        start,
+        GameRecord.id(record),
+        GameRecord.start(record),
         %{}
       )
 
@@ -251,7 +241,12 @@ defmodule Analysis.Analyses do
                 position_id
               )
 
-            {:cont, {:ok, analysis, path ++ [0]}}
+            {:cont,
+             {
+               :ok,
+               analysis,
+               path ++ [0]
+             }}
 
           {:error, _reason} = error ->
             {:halt, error}
@@ -450,6 +445,40 @@ defmodule Analysis.Analyses do
 
       {:error, reason} ->
         {:error, {:position_store, reason}}
+    end
+  end
+
+  defp get_game_record(game_record_id) do
+    case GameRecords.get(game_record_id) do
+      {:ok, record} ->
+        {:ok, record}
+
+      :not_found ->
+        {:error, :game_record_not_found}
+    end
+  end
+
+  defp get_game_content(record) do
+    game_id =
+      GameRecord.game_id(record)
+
+    case GameStore.get(game_id) do
+      {:ok, %GameContent{} = content} ->
+        {:ok, content}
+
+      :not_found ->
+        {:error,
+         {
+           :game_not_found,
+           game_id
+         }}
+
+      {:error, reason} ->
+        {:error,
+         {
+           :game_store,
+           reason
+         }}
     end
   end
 end

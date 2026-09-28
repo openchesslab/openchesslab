@@ -4,8 +4,12 @@ defmodule Analysis.AnalysesTest do
   alias Analysis.Analysis, as: AnalysisModel
   alias Analysis.Analyses
   alias Analysis.GameContent
+  alias Analysis.GameFingerprint
   alias Analysis.GameRecord
+  alias Analysis.GameRecords
+  alias Analysis.GameRecordStore
   alias Analysis.GameStart
+  alias Analysis.GameStore
   alias Analysis.Node
   alias Analysis.PositionStore
   alias Analysis.Transition
@@ -172,15 +176,24 @@ defmodule Analysis.AnalysesTest do
     end
   end
 
-  describe "create_from_game_record/3" do
+  describe "create_from_game_record/2" do
     test "creates an analysis containing the canonical main line", %{
       analysis_id: analysis_id
     } do
       initial_position_id =
         PositionStore.append(Position.starting_position())
 
-      e4 = move("e2", "e4")
-      e5 = move("e7", "e5")
+      e4 =
+        move(
+          "e2",
+          "e4"
+        )
+
+      e5 =
+        move(
+          "e7",
+          "e5"
+        )
 
       content =
         GameContent.new(
@@ -188,25 +201,28 @@ defmodule Analysis.AnalysesTest do
           [e4, e5]
         )
 
-      record =
-        GameRecord.new(
-          "record-1",
-          42,
-          %{
-            white: "White",
-            black: "Black"
-          }
-        )
+      record_id =
+        "record-#{analysis_id}"
+
+      assert {:ok, record} =
+               GameRecords.create(
+                 record_id,
+                 content,
+                 GameStart.standard(),
+                 %{
+                   white: "White",
+                   black: "Black"
+                 }
+               )
 
       assert {:ok, analysis, 1} =
                Analyses.create_from_game_record(
                  analysis_id,
-                 record,
-                 content
+                 record_id
                )
 
       assert AnalysisModel.source_game_record_id(analysis) ==
-               "record-1"
+               GameRecord.id(record)
 
       assert AnalysisModel.start(analysis) ==
                GameStart.standard()
@@ -219,14 +235,16 @@ defmodule Analysis.AnalysesTest do
                  analysis,
                  [0]
                )
-             ) == Transition.move(e4)
+             ) ==
+               Transition.move(e4)
 
       assert Node.transition(
                AnalysisModel.node_at(
                  analysis,
                  [0, 0]
                )
-             ) == Transition.move(e5)
+             ) ==
+               Transition.move(e5)
 
       assert analysis.metadata == %{}
 
@@ -240,33 +258,84 @@ defmodule Analysis.AnalysesTest do
       initial_position_id =
         PositionStore.append(Position.starting_position())
 
-      start = GameStart.new(37)
+      start =
+        GameStart.new(37)
 
       content =
         GameContent.new(
           initial_position_id,
-          [move("e2", "e4")]
+          [
+            move(
+              "e2",
+              "e4"
+            )
+          ]
         )
 
-      record =
-        GameRecord.new(
-          "record-1",
-          42,
-          start,
-          %{}
-        )
+      record_id =
+        "record-#{analysis_id}"
+
+      assert {:ok, _record} =
+               GameRecords.create(
+                 record_id,
+                 content,
+                 start,
+                 %{}
+               )
 
       assert {:ok, analysis, 1} =
                Analyses.create_from_game_record(
                  analysis_id,
-                 record,
-                 content
+                 record_id
                )
 
-      assert AnalysisModel.start(analysis) == start
+      assert AnalysisModel.start(analysis) ==
+               start
     end
 
-    test "rejects canonical content with an illegal move", %{
+    test "rejects an unknown game record", %{
+      analysis_id: analysis_id
+    } do
+      assert Analyses.create_from_game_record(
+               analysis_id,
+               "missing-record"
+             ) ==
+               {:error, :game_record_not_found}
+
+      assert Analyses.get(analysis_id) ==
+               :not_found
+    end
+
+    test "rejects a game record whose canonical game is missing", %{
+      analysis_id: analysis_id
+    } do
+      record_id =
+        "record-#{analysis_id}"
+
+      record =
+        GameRecord.new(
+          record_id,
+          999_999_999
+        )
+
+      assert :ok =
+               GameRecordStore.insert(record)
+
+      assert Analyses.create_from_game_record(
+               analysis_id,
+               record_id
+             ) ==
+               {:error,
+                {
+                  :game_not_found,
+                  999_999_999
+                }}
+
+      assert Analyses.get(analysis_id) ==
+               :not_found
+    end
+
+    test "rejects canonical content containing an illegal move", %{
       analysis_id: analysis_id
     } do
       initial_position_id =
@@ -276,46 +345,103 @@ defmodule Analysis.AnalysesTest do
         GameContent.new(
           initial_position_id,
           [
-            move("e2", "e4"),
-            move("e7", "e4")
+            move(
+              "e2",
+              "e4"
+            ),
+            move(
+              "e7",
+              "e4"
+            )
           ]
         )
 
+      {:ok, fingerprint} =
+        GameFingerprint.for_content(content)
+
+      {:ok, game_id} =
+        GameStore.put(
+          fingerprint,
+          content,
+          [
+            initial_position_id
+          ]
+        )
+
+      record_id =
+        "record-#{analysis_id}"
+
       record =
         GameRecord.new(
-          "record-1",
-          42
+          record_id,
+          game_id
         )
+
+      assert :ok =
+               GameRecordStore.insert(record)
 
       assert Analyses.create_from_game_record(
                analysis_id,
-               record,
-               content
+               record_id
              ) ==
-               {:error, {:invalid_game, {:illegal_move, 2}}}
+               {:error,
+                {
+                  :invalid_game,
+                  {
+                    :illegal_move,
+                    2
+                  }
+                }}
 
       assert Analyses.get(analysis_id) ==
                :not_found
     end
 
-    test "rejects content whose initial position is missing", %{
+    test "rejects canonical content whose initial position is missing", %{
       analysis_id: analysis_id
     } do
+      missing_position_id =
+        999_999_999
+
       content =
-        GameContent.new(999_999_999)
+        GameContent.new(missing_position_id)
+
+      {:ok, fingerprint} =
+        GameFingerprint.for_content(content)
+
+      {:ok, game_id} =
+        GameStore.put(
+          fingerprint,
+          content,
+          [
+            missing_position_id
+          ]
+        )
+
+      record_id =
+        "record-#{analysis_id}"
 
       record =
         GameRecord.new(
-          "record-1",
-          42
+          record_id,
+          game_id
         )
+
+      assert :ok =
+               GameRecordStore.insert(record)
 
       assert Analyses.create_from_game_record(
                analysis_id,
-               record,
-               content
+               record_id
              ) ==
-               {:error, {:invalid_game, {:position_not_found, 999_999_999}}}
+               {:error,
+                {
+                  :invalid_game,
+                  {
+                    :position_not_found,
+                    missing_position_id
+                  }
+                }}
 
       assert Analyses.get(analysis_id) ==
                :not_found
