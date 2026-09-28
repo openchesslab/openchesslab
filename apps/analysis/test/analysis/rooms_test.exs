@@ -3,149 +3,409 @@ defmodule Analysis.RoomsTest do
 
   alias Analysis.Rooms
 
+  @registry Analysis.RoomsTest.Registry
+  @supervisor Analysis.RoomsTest.Supervisor
+
   setup do
-    room_id = "room-#{System.unique_integer([:positive])}"
+    start_supervised!({
+      Horde.Registry,
+      name: @registry, keys: :unique, members: :auto
+    })
 
-    on_exit(fn ->
-      Rooms.stop_room(room_id)
-    end)
+    start_supervised!({
+      Horde.DynamicSupervisor,
+      name: @supervisor, strategy: :one_for_one, members: :auto
+    })
 
-    %{room_id: room_id}
+    room_id =
+      "room-#{System.unique_integer([:positive])}"
+
+    rooms_options = [
+      registry: @registry,
+      supervisor: @supervisor
+    ]
+
+    %{
+      room_id: room_id,
+      rooms_options: rooms_options
+    }
   end
 
-  test "starts a room", %{room_id: room_id} do
-    assert {:ok, room} = Rooms.start_room(room_id)
+  test "starts a room", %{
+    room_id: room_id,
+    rooms_options: rooms_options
+  } do
+    assert {:ok, room} =
+             Rooms.start_room(
+               room_id,
+               rooms_options
+             )
 
     assert room.id == room_id
     assert room.analysis_ids == []
   end
 
-  test "starting an existing room is idempotent", %{room_id: room_id} do
-    assert {:ok, room} = Rooms.start_room(room_id)
-    assert {:ok, same_room} = Rooms.start_room(room_id)
+  test "starting an existing room is idempotent", %{
+    room_id: room_id,
+    rooms_options: rooms_options
+  } do
+    assert {:ok, room} =
+             Rooms.start_room(
+               room_id,
+               rooms_options
+             )
+
+    assert {:ok, same_room} =
+             Rooms.start_room(
+               room_id,
+               rooms_options
+             )
 
     assert same_room == room
   end
 
-  test "gets an existing room", %{room_id: room_id} do
-    assert {:ok, started_room} = Rooms.start_room(room_id)
+  test "gets an existing room", %{
+    room_id: room_id,
+    rooms_options: rooms_options
+  } do
+    assert {:ok, started_room} =
+             Rooms.start_room(
+               room_id,
+               rooms_options
+             )
 
-    assert {:ok, room} = eventually_get_room(room_id)
+    assert {:ok, room} =
+             eventually_get_room(
+               room_id,
+               rooms_options
+             )
 
     assert room == started_room
   end
 
-  test "returns not_found for an unknown room", %{room_id: room_id} do
-    assert :not_found = Rooms.get(room_id)
+  test "returns not_found for an unknown room", %{
+    room_id: room_id,
+    rooms_options: rooms_options
+  } do
+    assert :not_found =
+             Rooms.get(
+               room_id,
+               rooms_options
+             )
   end
 
-  test "adds an analysis", %{room_id: room_id} do
-    assert {:ok, _room} = Rooms.start_room(room_id)
+  test "adds an analysis", %{
+    room_id: room_id,
+    rooms_options: rooms_options
+  } do
+    start_room_and_wait(
+      room_id,
+      rooms_options
+    )
 
-    assert :ok = Rooms.add_analysis(room_id, "analysis-1")
+    assert :ok =
+             Rooms.add_analysis(
+               room_id,
+               "analysis-1",
+               rooms_options
+             )
 
-    assert {:ok, room} = Rooms.get(room_id)
-    assert room.analysis_ids == ["analysis-1"]
+    assert {:ok, room} =
+             Rooms.get(
+               room_id,
+               rooms_options
+             )
+
+    assert room.analysis_ids ==
+             ["analysis-1"]
   end
 
-  test "removes an analysis", %{room_id: room_id} do
-    assert {:ok, _room} = Rooms.start_room(room_id)
+  test "removes an analysis", %{
+    room_id: room_id,
+    rooms_options: rooms_options
+  } do
+    start_room_and_wait(
+      room_id,
+      rooms_options
+    )
 
-    assert :ok = Rooms.add_analysis(room_id, "analysis-1")
-    assert :ok = Rooms.add_analysis(room_id, "analysis-2")
-    assert :ok = Rooms.remove_analysis(room_id, "analysis-1")
+    assert :ok =
+             Rooms.add_analysis(
+               room_id,
+               "analysis-1",
+               rooms_options
+             )
 
-    assert {:ok, room} = Rooms.get(room_id)
-    assert room.analysis_ids == ["analysis-2"]
+    assert :ok =
+             Rooms.add_analysis(
+               room_id,
+               "analysis-2",
+               rooms_options
+             )
+
+    assert :ok =
+             Rooms.remove_analysis(
+               room_id,
+               "analysis-1",
+               rooms_options
+             )
+
+    assert {:ok, room} =
+             Rooms.get(
+               room_id,
+               rooms_options
+             )
+
+    assert room.analysis_ids ==
+             ["analysis-2"]
   end
 
-  test "operations on an unknown room return not_found", %{room_id: room_id} do
+  test "operations on an unknown room return not_found", %{
+    room_id: room_id,
+    rooms_options: rooms_options
+  } do
     assert {:error, :not_found} =
-             Rooms.add_analysis(room_id, "analysis-1")
+             Rooms.add_analysis(
+               room_id,
+               "analysis-1",
+               rooms_options
+             )
 
     assert {:error, :not_found} =
-             Rooms.remove_analysis(room_id, "analysis-1")
+             Rooms.remove_analysis(
+               room_id,
+               "analysis-1",
+               rooms_options
+             )
   end
 
-  test "stops a room", %{room_id: room_id} do
-    assert {:ok, _room} = Rooms.start_room(room_id)
+  test "stops a room", %{
+    room_id: room_id,
+    rooms_options: rooms_options
+  } do
+    start_room_and_wait(
+      room_id,
+      rooms_options
+    )
 
-    assert :ok = Rooms.stop_room(room_id)
-    assert :not_found = Rooms.get(room_id)
+    assert :ok =
+             Rooms.stop_room(
+               room_id,
+               rooms_options
+             )
+
+    assert :ok =
+             eventually_room_not_found(
+               room_id,
+               rooms_options
+             )
   end
 
-  test "stopping an unknown room is idempotent", %{room_id: room_id} do
-    assert :ok = Rooms.stop_room(room_id)
+  test "stopping an unknown room is idempotent", %{
+    room_id: room_id,
+    rooms_options: rooms_options
+  } do
+    assert :ok =
+             Rooms.stop_room(
+               room_id,
+               rooms_options
+             )
   end
 
-  test "restarts a crashed room with fresh ephemeral state", %{room_id: room_id} do
-    assert {:ok, _room} = Rooms.start_room(room_id)
-    assert :ok = Rooms.add_analysis(room_id, "analysis-1")
+  test "restarts a crashed room with fresh ephemeral state", %{
+    room_id: room_id,
+    rooms_options: rooms_options
+  } do
+    start_room_and_wait(
+      room_id,
+      rooms_options
+    )
+
+    assert :ok =
+             Rooms.add_analysis(
+               room_id,
+               "analysis-1",
+               rooms_options
+             )
 
     [{pid, _value}] =
-      Horde.Registry.lookup(Analysis.RoomRegistry, room_id)
+      Horde.Registry.lookup(
+        @registry,
+        room_id
+      )
 
-    ref = Process.monitor(pid)
-    Process.exit(pid, :kill)
+    ref =
+      Process.monitor(pid)
 
-    assert_receive {:DOWN, ^ref, :process, ^pid, :killed}
+    Process.exit(
+      pid,
+      :kill
+    )
 
-    assert {:ok, room} = eventually_get_room(room_id)
+    assert_receive {
+      :DOWN,
+      ^ref,
+      :process,
+      ^pid,
+      :killed
+    }
+
+    assert {:ok, room} =
+             eventually_get_room(
+               room_id,
+               rooms_options
+             )
 
     assert room.id == room_id
     assert room.analysis_ids == []
 
     [{new_pid, _value}] =
-      Horde.Registry.lookup(Analysis.RoomRegistry, room_id)
+      Horde.Registry.lookup(
+        @registry,
+        room_id
+      )
 
     assert new_pid != pid
   end
 
-  test "does not restart an explicitly stopped room", %{room_id: room_id} do
-    assert {:ok, _room} = Rooms.start_room(room_id)
-    assert :ok = Rooms.add_analysis(room_id, "analysis-1")
+  test "does not restart an explicitly stopped room", %{
+    room_id: room_id,
+    rooms_options: rooms_options
+  } do
+    start_room_and_wait(
+      room_id,
+      rooms_options
+    )
+
+    assert :ok =
+             Rooms.add_analysis(
+               room_id,
+               "analysis-1",
+               rooms_options
+             )
 
     [{pid, _value}] =
-      Horde.Registry.lookup(Analysis.RoomRegistry, room_id)
+      Horde.Registry.lookup(
+        @registry,
+        room_id
+      )
 
-    ref = Process.monitor(pid)
+    ref =
+      Process.monitor(pid)
 
-    assert :ok = Rooms.stop_room(room_id)
+    assert :ok =
+             Rooms.stop_room(
+               room_id,
+               rooms_options
+             )
 
-    assert_receive {:DOWN, ^ref, :process, ^pid, _reason}
+    assert_receive {
+      :DOWN,
+      ^ref,
+      :process,
+      ^pid,
+      _reason
+    }
 
-    assert :ok = eventually_room_not_found(room_id)
+    assert :ok =
+             eventually_room_not_found(
+               room_id,
+               rooms_options
+             )
   end
 
-  defp eventually_get_room(room_id, attempts \\ 50)
+  defp start_room_and_wait(
+         room_id,
+         rooms_options
+       ) do
+    assert {:ok, started_room} =
+             Rooms.start_room(
+               room_id,
+               rooms_options
+             )
 
-  defp eventually_get_room(_room_id, 0), do: :not_found
+    assert {:ok, room} =
+             eventually_get_room(
+               room_id,
+               rooms_options
+             )
 
-  defp eventually_get_room(room_id, attempts) do
-    case Rooms.get(room_id) do
+    assert room == started_room
+
+    room
+  end
+
+  defp eventually_get_room(
+         room_id,
+         rooms_options,
+         attempts \\ 50
+       )
+
+  defp eventually_get_room(
+         _room_id,
+         _rooms_options,
+         0
+       ) do
+    :not_found
+  end
+
+  defp eventually_get_room(
+         room_id,
+         rooms_options,
+         attempts
+       ) do
+    case Rooms.get(
+           room_id,
+           rooms_options
+         ) do
       {:ok, room} ->
         {:ok, room}
 
       :not_found ->
         Process.sleep(10)
-        eventually_get_room(room_id, attempts - 1)
+
+        eventually_get_room(
+          room_id,
+          rooms_options,
+          attempts - 1
+        )
     end
   end
 
-  defp eventually_room_not_found(room_id, attempts \\ 50)
+  defp eventually_room_not_found(
+         room_id,
+         rooms_options,
+         attempts \\ 50
+       )
 
-  defp eventually_room_not_found(_room_id, 0) do
+  defp eventually_room_not_found(
+         _room_id,
+         _rooms_options,
+         0
+       ) do
     {:error, :room_still_exists}
   end
 
-  defp eventually_room_not_found(room_id, attempts) do
-    case Rooms.get(room_id) do
+  defp eventually_room_not_found(
+         room_id,
+         rooms_options,
+         attempts
+       ) do
+    case Rooms.get(
+           room_id,
+           rooms_options
+         ) do
       :not_found ->
         :ok
 
       {:ok, _room} ->
         Process.sleep(10)
-        eventually_room_not_found(room_id, attempts - 1)
+
+        eventually_room_not_found(
+          room_id,
+          rooms_options,
+          attempts - 1
+        )
     end
   end
 end
