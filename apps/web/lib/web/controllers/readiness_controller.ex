@@ -3,12 +3,14 @@ defmodule Web.ReadinessController do
 
   alias Analysis.AnalysisStore
   alias Analysis.GameRecordStore
+  alias Analysis.GameStore
   alias Analysis.PositionStore
 
   def show(conn, _params) do
     if PositionStore.ready?() and
-         AnalysisStore.ready?() and
-         GameRecordStore.ready?() do
+         GameStore.ready?() and
+         GameRecordStore.ready?() and
+         AnalysisStore.ready?() do
       json(
         conn,
         %{status: "ready"}

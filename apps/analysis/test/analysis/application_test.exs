@@ -4,6 +4,8 @@ defmodule Analysis.ApplicationTest do
   alias Analysis.Application, as: AnalysisApplication
   alias Analysis.AnalysisStore
   alias Analysis.AnalysisStoreOwner
+  alias Analysis.GameStore
+  alias Analysis.GameStoreOwner
   alias Analysis.GameRecordStore
   alias Analysis.GameRecordStoreOwner
   alias Analysis.PositionStore
@@ -35,6 +37,20 @@ defmodule Analysis.ApplicationTest do
       Application.get_env(
         :analysis,
         AnalysisStore,
+        :not_configured
+      )
+
+    previous_game_store =
+      Application.get_env(
+        :analysis,
+        GameStore,
+        :not_configured
+      )
+
+    previous_game_store_owner =
+      Application.get_env(
+        :analysis,
+        GameStoreOwner,
         :not_configured
       )
 
@@ -74,6 +90,16 @@ defmodule Analysis.ApplicationTest do
       )
 
       restore_config(
+        GameStore,
+        previous_game_store
+      )
+
+      restore_config(
+        GameStoreOwner,
+        previous_game_store_owner
+      )
+
+      restore_config(
         GameRecordStoreOwner,
         previous_game_record_store_owner
       )
@@ -97,6 +123,26 @@ defmodule Analysis.ApplicationTest do
     Application.delete_env(
       :analysis,
       AnalysisStore
+    )
+
+    Application.delete_env(
+      :analysis,
+      GameStore
+    )
+
+    Application.delete_env(
+      :analysis,
+      GameStoreOwner
+    )
+
+    Application.delete_env(
+      :analysis,
+      GameRecordStore
+    )
+
+    Application.delete_env(
+      :analysis,
+      GameRecordStoreOwner
     )
 
     :ok
@@ -382,6 +428,106 @@ defmodule Analysis.ApplicationTest do
                keys: :unique,
                members: :auto
              ]
+           } in AnalysisApplication.children()
+  end
+
+  test "starts the canonical game store registry" do
+    assert {
+             Horde.Registry,
+             [
+               name: Analysis.GameStoreRegistry,
+               keys: :unique,
+               members: :auto
+             ]
+           } in AnalysisApplication.children()
+  end
+
+  test "starts the canonical game store with the cluster-wide server by default" do
+    assert {
+             GameStore,
+             [
+               server: GameStore.clustered_server()
+             ]
+           } in AnalysisApplication.children()
+  end
+
+  test "does not start the canonical game store on a non-owner node" do
+    Application.put_env(
+      :analysis,
+      GameStoreOwner,
+      owner: false
+    )
+
+    refute Enum.any?(
+             AnalysisApplication.children(),
+             fn
+               {GameStore, _options} ->
+                 true
+
+               _child ->
+                 false
+             end
+           )
+  end
+
+  test "starts the canonical game store registry on a non-owner node" do
+    Application.put_env(
+      :analysis,
+      GameStoreOwner,
+      owner: false
+    )
+
+    assert {
+             Horde.Registry,
+             [
+               name: Analysis.GameStoreRegistry,
+               keys: :unique,
+               members: :auto
+             ]
+           } in AnalysisApplication.children()
+  end
+
+  test "passes configured storage to the canonical game store" do
+    storage =
+      GameDB.Storage.Memory.new()
+
+    options = [
+      storage: {
+        GameDB.Storage.Memory,
+        storage
+      }
+    ]
+
+    Application.put_env(
+      :analysis,
+      GameStore,
+      options
+    )
+
+    assert {
+             GameStore,
+             Keyword.put(
+               options,
+               :server,
+               GameStore.clustered_server()
+             )
+           } in AnalysisApplication.children()
+  end
+
+  test "preserves an explicitly configured canonical game store server" do
+    options = [
+      server: :custom_game_store
+    ]
+
+    Application.put_env(
+      :analysis,
+      GameStore,
+      options
+    )
+
+    assert {
+             GameStore,
+             options
            } in AnalysisApplication.children()
   end
 
