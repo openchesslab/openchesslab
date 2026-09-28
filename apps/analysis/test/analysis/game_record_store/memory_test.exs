@@ -172,4 +172,64 @@ defmodule Analysis.GameRecordStore.MemoryTest do
   } do
     assert Memory.list(store) == []
   end
+
+  test "lists records for a canonical game", %{
+    store: store
+  } do
+    first =
+      GameRecord.new(
+        "record-1",
+        42
+      )
+
+    second =
+      GameRecord.new(
+        "record-2",
+        42
+      )
+
+    other =
+      GameRecord.new(
+        "record-3",
+        43
+      )
+
+    assert :ok =
+             Memory.insert(
+               store,
+               first
+             )
+
+    assert :ok =
+             Memory.insert(
+               store,
+               second
+             )
+
+    assert :ok =
+             Memory.insert(
+               store,
+               other
+             )
+
+    assert MapSet.new(
+             Memory.list_by_game_id(
+               store,
+               42
+             )
+           ) ==
+             MapSet.new([
+               first,
+               second
+             ])
+  end
+
+  test "lists no records for an unknown canonical game", %{
+    store: store
+  } do
+    assert Memory.list_by_game_id(
+             store,
+             999
+           ) == []
+  end
 end

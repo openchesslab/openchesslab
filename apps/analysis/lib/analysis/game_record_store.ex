@@ -35,6 +35,12 @@ defmodule Analysis.GameRecordStore do
   @callback list(store()) ::
               [GameRecord.t()]
 
+  @callback list_by_game_id(
+              store(),
+              GameDB.game_id()
+            ) ::
+              [GameRecord.t()]
+
   @spec clustered_store() ::
           GenServer.server()
   def clustered_store do
@@ -86,6 +92,15 @@ defmodule Analysis.GameRecordStore do
           [GameRecord.t()]
   def list do
     adapter().list(store())
+  end
+
+  @spec list_by_game_id(GameDB.game_id()) ::
+          [GameRecord.t()]
+  def list_by_game_id(game_id) do
+    adapter().list_by_game_id(
+      store(),
+      game_id
+    )
   end
 
   defp adapter do

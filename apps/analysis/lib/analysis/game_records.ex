@@ -81,6 +81,12 @@ defmodule Analysis.GameRecords do
     GameRecordStore.list()
   end
 
+  @spec list_by_game_id(GameDB.game_id()) ::
+          [GameRecord.t()]
+  def list_by_game_id(game_id) do
+    GameRecordStore.list_by_game_id(game_id)
+  end
+
   defp do_create(
          record_id,
          content,

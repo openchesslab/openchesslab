@@ -127,6 +127,21 @@ defmodule Analysis.GameRecordsTest do
 
     assert GameRecord.game_id(first) ==
              GameRecord.game_id(second)
+
+    game_id =
+      GameRecord.game_id(first)
+
+    records =
+      GameRecords.list_by_game_id(game_id)
+
+    assert first in records
+    assert second in records
+
+    assert Enum.all?(
+             records,
+             &(GameRecord.game_id(&1) ==
+                 game_id)
+           )
   end
 
   test "rejects an existing concrete record before canonicalizing another game",

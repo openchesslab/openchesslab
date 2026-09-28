@@ -39,6 +39,22 @@ defmodule Analysis.GameRecordStoreTest do
 
       []
     end
+
+    def list_by_game_id(
+          store,
+          game_id
+        ) do
+      send(
+        self(),
+        {
+          :list_by_game_id,
+          store,
+          game_id
+        }
+      )
+
+      []
+    end
   end
 
   setup do
@@ -126,6 +142,24 @@ defmodule Analysis.GameRecordStoreTest do
     assert_received {
       :list,
       :configured_store
+    }
+  end
+
+  test "delegates list_by_game_id to the configured adapter" do
+    Application.put_env(
+      :analysis,
+      GameRecordStore,
+      adapter: RecordingAdapter,
+      store: :configured_store
+    )
+
+    assert GameRecordStore.list_by_game_id(42) ==
+             []
+
+    assert_received {
+      :list_by_game_id,
+      :configured_store,
+      42
     }
   end
 
