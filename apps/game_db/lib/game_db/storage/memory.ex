@@ -10,6 +10,10 @@ defmodule GameDB.Storage.Memory do
 
   @type game_id :: Storage.game_id()
   @type occurrence_id :: Storage.occurrence_id()
+  @type occurrence_scan_state :: %{
+          storage: t(),
+          occurrence_ids: [occurrence_id()]
+        }
 
   @type t :: %__MODULE__{
           games: %{game_id() => Storage.game_record()},
@@ -21,7 +25,7 @@ defmodule GameDB.Storage.Memory do
             game_id() => [occurrence_id()]
           },
           occurrence_ids_by_position: %{
-            Storage.position_id() => MapSet.t(occurrence_id())
+            Storage.position_id() => [occurrence_id()]
           },
           occurrences: %{
             occurrence_id() => Occurrence.t()
@@ -154,6 +158,57 @@ defmodule GameDB.Storage.Memory do
   end
 
   @impl GameDB.Storage
+  def scan_occurrences(
+        %__MODULE__{} = storage,
+        position_id
+      ) do
+    %{
+      storage: storage,
+      occurrence_ids:
+        Map.get(
+          storage.occurrence_ids_by_position,
+          position_id,
+          []
+        )
+    }
+  end
+
+  @impl GameDB.Storage
+  def scan_occurrences_next(
+        %{
+          storage: storage,
+          occurrence_ids: [
+            occurrence_id
+            | remaining
+          ]
+        } = scan
+      ) do
+    case Map.fetch(
+           storage.occurrences,
+           occurrence_id
+         ) do
+      {:ok, occurrence} ->
+        {
+          :ok,
+          occurrence,
+          %{
+            scan
+            | occurrence_ids: remaining
+          }
+        }
+
+      :error ->
+        {:error, :occurrence_not_found}
+    end
+  end
+
+  def scan_occurrences_next(%{
+        occurrence_ids: []
+      }) do
+    :done
+  end
+
+  @impl GameDB.Storage
   def occurrences_by_position_id(
         %__MODULE__{} = storage,
         position_id
@@ -162,7 +217,7 @@ defmodule GameDB.Storage.Memory do
       storage.occurrence_ids_by_position
       |> Map.get(
         position_id,
-        MapSet.new()
+        []
       )
       |> Enum.map(
         &Map.fetch!(
@@ -354,11 +409,8 @@ defmodule GameDB.Storage.Memory do
         Map.update(
           index,
           position_id,
-          MapSet.new([occurrence_id]),
-          &MapSet.put(
-            &1,
-            occurrence_id
-          )
+          [occurrence_id],
+          &[occurrence_id | &1]
         )
       end
     )

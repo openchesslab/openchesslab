@@ -210,6 +210,82 @@ defmodule GameDB.Storage.MemoryTest do
              {:ok, []}
   end
 
+  test "scans occurrences of a position incrementally" do
+    storage =
+      Memory.new()
+
+    {:ok, storage, game_1} =
+      Memory.put(
+        storage,
+        <<"game-1">>,
+        :game_1,
+        [10, 20, 10]
+      )
+
+    {:ok, storage, game_2} =
+      Memory.put(
+        storage,
+        <<"game-2">>,
+        :game_2,
+        [30, 10]
+      )
+
+    scan =
+      Memory.scan_occurrences(
+        storage,
+        10
+      )
+
+    assert {:ok, first, scan} =
+             Memory.scan_occurrences_next(scan)
+
+    assert {:ok, second, scan} =
+             Memory.scan_occurrences_next(scan)
+
+    assert {:ok, third, scan} =
+             Memory.scan_occurrences_next(scan)
+
+    assert :done =
+             Memory.scan_occurrences_next(scan)
+
+    assert MapSet.new([
+             first,
+             second,
+             third
+           ]) ==
+             MapSet.new([
+               Occurrence.new(
+                 1,
+                 game_1,
+                 0,
+                 10
+               ),
+               Occurrence.new(
+                 3,
+                 game_1,
+                 2,
+                 10
+               ),
+               Occurrence.new(
+                 5,
+                 game_2,
+                 1,
+                 10
+               )
+             ])
+  end
+
+  test "finishes an occurrence scan for an unknown position" do
+    scan =
+      Memory.scan_occurrences(
+        Memory.new(),
+        999
+      )
+
+    assert :done =
+             Memory.scan_occurrences_next(scan)
+  end
+
   test "scans stored game ids" do
     storage = Memory.new()
 
