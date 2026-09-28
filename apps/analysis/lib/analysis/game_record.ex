@@ -10,6 +10,7 @@ defmodule Analysis.GameRecord do
   identity.
   """
 
+  alias Analysis.Game
   alias Analysis.GameStart
 
   @type id :: term()
@@ -89,6 +90,22 @@ defmodule Analysis.GameRecord do
       start: start,
       metadata: metadata
     }
+  end
+
+  @spec from_game(
+          Game.t(),
+          game_id()
+        ) :: t()
+  def from_game(
+        %Game{} = game,
+        game_id
+      ) do
+    new(
+      Game.id(game),
+      game_id,
+      Game.start(game),
+      Game.metadata(game)
+    )
   end
 
   @spec id(t()) :: id()
