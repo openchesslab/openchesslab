@@ -5,6 +5,7 @@ defmodule Analysis.Analyses do
   alias Analysis.AnalysisStore
   alias Analysis.Game
   alias Analysis.GameContent
+  alias Analysis.GameRecord
   alias Analysis.GameReplay
   alias Analysis.Node
   alias Analysis.PositionStore
@@ -50,14 +51,40 @@ defmodule Analysis.Analyses do
              | {:invalid_game, {:position_not_found, term()}}
              | {:invalid_game, {:illegal_move, pos_integer()}}
              | position_store_error()}
-  def create_from_game(analysis_id, %Game{} = game) do
-    case get(analysis_id) do
-      {:ok, _analysis, _revision} ->
-        {:error, :already_exists}
+  def create_from_game(
+        analysis_id,
+        %Game{} = game
+      ) do
+    create_from_source(
+      analysis_id,
+      Game.id(game),
+      Game.start(game),
+      GameContent.from_game(game)
+    )
+  end
 
-      :not_found ->
-        do_create_from_game(analysis_id, game)
-    end
+  @spec create_from_game_record(
+          Analysis.Analysis.id(),
+          GameRecord.t(),
+          GameContent.t()
+        ) ::
+          {:ok, Analysis.Analysis.t(), pos_integer()}
+          | {:error,
+             :already_exists
+             | {:invalid_game, {:position_not_found, term()}}
+             | {:invalid_game, {:illegal_move, pos_integer()}}
+             | position_store_error()}
+  def create_from_game_record(
+        analysis_id,
+        %GameRecord{} = record,
+        %GameContent{} = content
+      ) do
+    create_from_source(
+      analysis_id,
+      GameRecord.id(record),
+      GameRecord.start(record),
+      content
+    )
   end
 
   @spec insert(Analysis.Analysis.t()) ::
@@ -153,16 +180,40 @@ defmodule Analysis.Analyses do
     end
   end
 
-  defp do_create_from_game(
+  defp create_from_source(
          analysis_id,
-         game
+         source_game_id,
+         start,
+         content
+       ) do
+    case get(analysis_id) do
+      {:ok, _analysis, _revision} ->
+        {:error, :already_exists}
+
+      :not_found ->
+        do_create_from_source(
+          analysis_id,
+          source_game_id,
+          start,
+          content
+        )
+    end
+  end
+
+  defp do_create_from_source(
+         analysis_id,
+         source_game_id,
+         start,
+         content
        ) do
     with {:ok, mainline} <-
-           replay_game(game),
+           replay_content(content),
          {:ok, analysis} <-
-           build_analysis_from_game(
+           build_analysis(
              analysis_id,
-             game,
+             source_game_id,
+             start,
+             content,
              mainline
            ),
          {:ok, revision} <-
@@ -171,10 +222,7 @@ defmodule Analysis.Analyses do
     end
   end
 
-  defp replay_game(game) do
-    content =
-      GameContent.from_game(game)
-
+  defp replay_content(content) do
     case GameReplay.replay(
            content,
            &get_position/1
@@ -193,17 +241,19 @@ defmodule Analysis.Analyses do
     end
   end
 
-  defp build_analysis_from_game(
+  defp build_analysis(
          analysis_id,
-         game,
+         source_game_id,
+         start,
+         content,
          mainline
        ) do
     analysis =
       Analysis.Analysis.new(
         analysis_id,
-        Game.initial_position_id(game),
-        Game.id(game),
-        Game.start(game),
+        GameContent.initial_position_id(content),
+        source_game_id,
+        start,
         %{}
       )
 

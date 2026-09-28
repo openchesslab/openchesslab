@@ -1,5 +1,5 @@
 defmodule Analysis.Analysis do
-  alias Analysis.Game
+  alias Analysis.GameRecord
   alias Analysis.GameStart
   alias Analysis.MoveContext
   alias Analysis.Node
@@ -7,7 +7,7 @@ defmodule Analysis.Analysis do
   @type id :: term()
   @type path :: [non_neg_integer()]
   @type position_id :: term()
-  @type source_game_id :: Game.id() | nil
+  @type source_game_id :: GameRecord.id() | nil
 
   @type t :: %__MODULE__{
           id: id(),
@@ -62,7 +62,7 @@ defmodule Analysis.Analysis do
   @spec new(
           id(),
           position_id(),
-          Game.id(),
+          GameRecord.id(),
           GameStart.t(),
           map()
         ) :: t()
