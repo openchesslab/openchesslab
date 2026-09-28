@@ -324,6 +324,50 @@ defmodule Analysis.GameStoreTest do
              {:error, :invalid_occurrences}
   end
 
+  test "finds canonical game occurrences by position" do
+    first =
+      GameContent.new(10)
+
+    second =
+      GameContent.new(20)
+
+    assert {:ok, game_1} =
+             GameStore.put(
+               <<"game-1">>,
+               first,
+               [10, 30]
+             )
+
+    assert {:ok, game_2} =
+             GameStore.put(
+               <<"game-2">>,
+               second,
+               [20, 30]
+             )
+
+    assert {
+             :ok,
+             occurrences
+           } =
+             GameStore.occurrences_by_position_id(30)
+
+    assert Enum.all?(
+             occurrences,
+             &(&1.position_id == 30)
+           )
+
+    assert MapSet.new(
+             Enum.map(
+               occurrences,
+               & &1.game_id
+             )
+           ) ==
+             MapSet.new([
+               game_1,
+               game_2
+             ])
+  end
+
   defp move(
          from,
          to

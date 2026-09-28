@@ -149,6 +149,25 @@ defmodule GameDB do
     )
   end
 
+  @spec occurrences_by_position_id(
+          t(),
+          position_id()
+        ) ::
+          {:ok, [Occurrence.t()]}
+          | {:error, term()}
+  def occurrences_by_position_id(
+        %__MODULE__{
+          storage_module: storage_module,
+          storage: storage
+        },
+        position_id
+      ) do
+    storage_module.occurrences_by_position_id(
+      storage,
+      position_id
+    )
+  end
+
   @spec get_occurrence(
           t(),
           occurrence_id()

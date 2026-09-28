@@ -166,6 +166,55 @@ defmodule GameDBTest do
               ]}
   end
 
+  test "returns occurrences for a position across canonical games" do
+    db =
+      GameDB.new(
+        Memory,
+        Memory.new()
+      )
+
+    {db, game_1} =
+      GameDB.put(
+        db,
+        <<"game-1">>,
+        :game_1,
+        [10, 20, 30]
+      )
+
+    {db, game_2} =
+      GameDB.put(
+        db,
+        <<"game-2">>,
+        :game_2,
+        [40, 20, 50]
+      )
+
+    assert {
+             :ok,
+             occurrences
+           } =
+             GameDB.occurrences_by_position_id(
+               db,
+               20
+             )
+
+    assert MapSet.new(occurrences) ==
+             MapSet.new([
+               Occurrence.new(
+                 2,
+                 game_1,
+                 1,
+                 20
+               ),
+               Occurrence.new(
+                 5,
+                 game_2,
+                 1,
+                 20
+               )
+             ])
+  end
+
   test "retrieves a position occurrence by id" do
     db =
       GameDB.new(

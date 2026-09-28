@@ -150,6 +150,19 @@ defmodule Analysis.GameStore do
     )
   end
 
+  @spec occurrences_by_position_id(GameDB.position_id()) ::
+          {:ok, [Occurrence.t()]}
+          | {:error, term()}
+  def occurrences_by_position_id(position_id) do
+    GenServer.call(
+      server(),
+      {
+        :occurrences_by_position_id,
+        position_id
+      }
+    )
+  end
+
   @spec get_occurrence(GameDB.occurrence_id()) ::
           {:ok, Occurrence.t()}
           | :not_found
@@ -305,6 +318,24 @@ defmodule Analysis.GameStore do
       GameDB.occurrences(
         db,
         game_id
+      ),
+      db
+    }
+  end
+
+  def handle_call(
+        {
+          :occurrences_by_position_id,
+          position_id
+        },
+        _from,
+        db
+      ) do
+    {
+      :reply,
+      GameDB.occurrences_by_position_id(
+        db,
+        position_id
       ),
       db
     }

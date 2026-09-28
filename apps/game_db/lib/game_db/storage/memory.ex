@@ -20,6 +20,9 @@ defmodule GameDB.Storage.Memory do
           occurrence_ids_by_game: %{
             game_id() => [occurrence_id()]
           },
+          occurrence_ids_by_position: %{
+            Storage.position_id() => MapSet.t(occurrence_id())
+          },
           occurrences: %{
             occurrence_id() => Occurrence.t()
           },
@@ -31,6 +34,7 @@ defmodule GameDB.Storage.Memory do
             fingerprints: %{},
             fingerprint_index: %{},
             occurrence_ids_by_game: %{},
+            occurrence_ids_by_position: %{},
             occurrences: %{},
             next_game_id: 1,
             next_occurrence_id: 1
@@ -150,6 +154,27 @@ defmodule GameDB.Storage.Memory do
   end
 
   @impl GameDB.Storage
+  def occurrences_by_position_id(
+        %__MODULE__{} = storage,
+        position_id
+      ) do
+    occurrences =
+      storage.occurrence_ids_by_position
+      |> Map.get(
+        position_id,
+        MapSet.new()
+      )
+      |> Enum.map(
+        &Map.fetch!(
+          storage.occurrences,
+          &1
+        )
+      )
+
+    {:ok, occurrences}
+  end
+
+  @impl GameDB.Storage
   def get_occurrence(
         %__MODULE__{} = storage,
         occurrence_id
@@ -230,6 +255,12 @@ defmodule GameDB.Storage.Memory do
         storage.next_occurrence_id
       )
 
+    occurrence_ids_by_position =
+      index_occurrences_by_position(
+        storage.occurrence_ids_by_position,
+        occurrences
+      )
+
     occurrence_ids =
       Enum.map(
         occurrences,
@@ -269,6 +300,7 @@ defmodule GameDB.Storage.Memory do
             game_id,
             occurrence_ids
           ),
+        occurrence_ids_by_position: occurrence_ids_by_position,
         occurrences:
           Map.merge(
             storage.occurrences,
@@ -303,6 +335,31 @@ defmodule GameDB.Storage.Memory do
           occurrence,
           occurrence_id + 1
         }
+      end
+    )
+  end
+
+  defp index_occurrences_by_position(
+         index,
+         occurrences
+       ) do
+    Enum.reduce(
+      occurrences,
+      index,
+      fn %Occurrence{
+           id: occurrence_id,
+           position_id: position_id
+         },
+         index ->
+        Map.update(
+          index,
+          position_id,
+          MapSet.new([occurrence_id]),
+          &MapSet.put(
+            &1,
+            occurrence_id
+          )
+        )
       end
     )
   end

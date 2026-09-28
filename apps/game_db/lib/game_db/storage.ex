@@ -8,6 +8,7 @@ defmodule GameDB.Storage do
     * immutable game records
     * stable occurrence ID allocation
     * the ordered position occurrences of each game
+    * lookup of all occurrences for a PositionDB position
     * sequential game scans
 
   Game records are identity-less payloads. Their durable identity
@@ -67,6 +68,12 @@ defmodule GameDB.Storage do
             ) ::
               {:ok, [Occurrence.t()]}
               | :not_found
+              | {:error, term()}
+  @callback occurrences_by_position_id(
+              t(),
+              position_id()
+            ) ::
+              {:ok, [Occurrence.t()]}
               | {:error, term()}
 
   @callback get_occurrence(

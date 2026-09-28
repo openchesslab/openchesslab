@@ -118,6 +118,98 @@ defmodule GameDB.Storage.MemoryTest do
              {:error, :missing_initial_position}
   end
 
+  test "finds every occurrence of a position within a game" do
+    storage =
+      Memory.new()
+
+    {:ok, storage, game_id} =
+      Memory.put(
+        storage,
+        <<"game">>,
+        :game,
+        [10, 20, 10]
+      )
+
+    assert {
+             :ok,
+             occurrences
+           } =
+             Memory.occurrences_by_position_id(
+               storage,
+               10
+             )
+
+    assert MapSet.new(occurrences) ==
+             MapSet.new([
+               Occurrence.new(
+                 1,
+                 game_id,
+                 0,
+                 10
+               ),
+               Occurrence.new(
+                 3,
+                 game_id,
+                 2,
+                 10
+               )
+             ])
+  end
+
+  test "finds occurrences of a position across games" do
+    storage =
+      Memory.new()
+
+    {:ok, storage, game_1} =
+      Memory.put(
+        storage,
+        <<"game-1">>,
+        :game_1,
+        [10, 20]
+      )
+
+    {:ok, storage, game_2} =
+      Memory.put(
+        storage,
+        <<"game-2">>,
+        :game_2,
+        [30, 10]
+      )
+
+    assert {
+             :ok,
+             occurrences
+           } =
+             Memory.occurrences_by_position_id(
+               storage,
+               10
+             )
+
+    assert MapSet.new(occurrences) ==
+             MapSet.new([
+               Occurrence.new(
+                 1,
+                 game_1,
+                 0,
+                 10
+               ),
+               Occurrence.new(
+                 4,
+                 game_2,
+                 1,
+                 10
+               )
+             ])
+  end
+
+  test "returns no occurrences for an unknown position" do
+    assert Memory.occurrences_by_position_id(
+             Memory.new(),
+             999
+           ) ==
+             {:ok, []}
+  end
+
   test "scans stored game ids" do
     storage = Memory.new()
 
