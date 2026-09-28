@@ -5,16 +5,24 @@ defmodule Analysis.RoomServerTest do
   alias Analysis.RoomServer
 
   setup do
-    room = Room.new("room-1")
-    {:ok, server} = RoomServer.start_link(room)
+    room_id = "room-#{System.unique_integer([:positive])}"
+    room = Room.new(room_id)
 
-    %{server: server}
+    server = start_supervised!({RoomServer, room})
+
+    %{
+      server: server,
+      room_id: room_id
+    }
   end
 
-  test "starts with the supplied room", %{server: server} do
+  test "starts with the supplied room", %{
+    server: server,
+    room_id: room_id
+  } do
     room = RoomServer.get(server)
 
-    assert Room.id(room) == "room-1"
+    assert Room.id(room) == room_id
     assert Room.analysis_ids(room) == []
   end
 
