@@ -17,9 +17,12 @@ defmodule GameDB.Storage do
   position ID is the game's initial position and therefore has
   ply zero.
 
-  A game fingerprint is a candidate lookup key, not game identity.
-  Multiple games may share the same fingerprint. The caller decides
-  whether candidates represent the same canonical played game.
+  A game fingerprint is an index key, not game identity.
+  Multiple distinct games may share the same fingerprint.
+
+  Exact canonical game identity is established by comparing the
+  complete game record. Storing an already existing exact game
+  returns its existing durable game ID.
   """
 
   alias GameDB.Occurrence
@@ -32,7 +35,7 @@ defmodule GameDB.Storage do
   @type scan_state :: term()
   @type fingerprint :: binary()
 
-  @callback append(
+  @callback put(
               t(),
               fingerprint(),
               game_record(),
@@ -41,11 +44,13 @@ defmodule GameDB.Storage do
               {:ok, t(), game_id()}
               | {:error, term()}
 
-  @callback find_candidates(
+  @callback find(
               t(),
-              fingerprint()
+              fingerprint(),
+              game_record()
             ) ::
-              {:ok, [game_id()]}
+              {:ok, game_id()}
+              | :not_found
               | {:error, term()}
 
   @callback get(

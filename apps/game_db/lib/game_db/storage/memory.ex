@@ -46,7 +46,7 @@ defmodule GameDB.Storage.Memory do
   end
 
   @impl GameDB.Storage
-  def append(
+  def put(
         %__MODULE__{} = storage,
         fingerprint,
         record,
@@ -55,69 +55,26 @@ defmodule GameDB.Storage.Memory do
       when is_binary(fingerprint) and
              is_list(position_ids) do
     with :ok <- validate_position_ids(position_ids) do
-      game_id =
-        storage.next_game_id
+      case find(
+             storage,
+             fingerprint,
+             record
+           ) do
+        {:ok, game_id} ->
+          {:ok, storage, game_id}
 
-      {occurrences, next_occurrence_id} =
-        build_occurrences(
-          game_id,
-          position_ids,
-          storage.next_occurrence_id
-        )
-
-      occurrence_ids =
-        Enum.map(
-          occurrences,
-          & &1.id
-        )
-
-      occurrence_map =
-        Map.new(
-          occurrences,
-          &{&1.id, &1}
-        )
-
-      storage = %{
-        storage
-        | games:
-            Map.put(
-              storage.games,
-              game_id,
-              record
-            ),
-          fingerprints:
-            Map.put(
-              storage.fingerprints,
-              game_id,
-              fingerprint
-            ),
-          fingerprint_index:
-            Map.update(
-              storage.fingerprint_index,
-              fingerprint,
-              MapSet.new([game_id]),
-              &MapSet.put(&1, game_id)
-            ),
-          occurrence_ids_by_game:
-            Map.put(
-              storage.occurrence_ids_by_game,
-              game_id,
-              occurrence_ids
-            ),
-          occurrences:
-            Map.merge(
-              storage.occurrences,
-              occurrence_map
-            ),
-          next_game_id: game_id + 1,
-          next_occurrence_id: next_occurrence_id
-      }
-
-      {:ok, storage, game_id}
+        :not_found ->
+          put_new(
+            storage,
+            fingerprint,
+            record,
+            position_ids
+          )
+      end
     end
   end
 
-  def append(
+  def put(
         %__MODULE__{},
         _fingerprint,
         _record,
@@ -127,20 +84,28 @@ defmodule GameDB.Storage.Memory do
   end
 
   @impl GameDB.Storage
-  def find_candidates(
+  def find(
         %__MODULE__{} = storage,
-        fingerprint
+        fingerprint,
+        record
       )
       when is_binary(fingerprint) do
-    game_ids =
-      storage.fingerprint_index
-      |> Map.get(
-        fingerprint,
-        MapSet.new()
-      )
-      |> Enum.sort()
-
-    {:ok, game_ids}
+    storage.fingerprint_index
+    |> Map.get(
+      fingerprint,
+      MapSet.new()
+    )
+    |> Enum.find_value(
+      :not_found,
+      fn game_id ->
+        if Map.fetch!(
+             storage.games,
+             game_id
+           ) == record do
+          {:ok, game_id}
+        end
+      end
+    )
   end
 
   @impl GameDB.Storage
@@ -247,6 +212,73 @@ defmodule GameDB.Storage.Memory do
     else
       {:error, :invalid_position_ids}
     end
+  end
+
+  defp put_new(
+         storage,
+         fingerprint,
+         record,
+         position_ids
+       ) do
+    game_id =
+      storage.next_game_id
+
+    {occurrences, next_occurrence_id} =
+      build_occurrences(
+        game_id,
+        position_ids,
+        storage.next_occurrence_id
+      )
+
+    occurrence_ids =
+      Enum.map(
+        occurrences,
+        & &1.id
+      )
+
+    occurrence_map =
+      Map.new(
+        occurrences,
+        &{&1.id, &1}
+      )
+
+    storage = %{
+      storage
+      | games:
+          Map.put(
+            storage.games,
+            game_id,
+            record
+          ),
+        fingerprints:
+          Map.put(
+            storage.fingerprints,
+            game_id,
+            fingerprint
+          ),
+        fingerprint_index:
+          Map.update(
+            storage.fingerprint_index,
+            fingerprint,
+            MapSet.new([game_id]),
+            &MapSet.put(&1, game_id)
+          ),
+        occurrence_ids_by_game:
+          Map.put(
+            storage.occurrence_ids_by_game,
+            game_id,
+            occurrence_ids
+          ),
+        occurrences:
+          Map.merge(
+            storage.occurrences,
+            occurrence_map
+          ),
+        next_game_id: game_id + 1,
+        next_occurrence_id: next_occurrence_id
+    }
+
+    {:ok, storage, game_id}
   end
 
   defp build_occurrences(

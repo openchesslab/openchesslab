@@ -8,7 +8,7 @@ defmodule GameDB.Storage.MemoryTest do
     storage = Memory.new()
 
     {:ok, storage, game_id} =
-      Memory.append(
+      Memory.put(
         storage,
         <<"game-a">>,
         :game_a,
@@ -23,7 +23,7 @@ defmodule GameDB.Storage.MemoryTest do
     storage = Memory.new()
 
     {:ok, storage, game_id} =
-      Memory.append(
+      Memory.put(
         storage,
         <<"game">>,
         :game,
@@ -46,7 +46,7 @@ defmodule GameDB.Storage.MemoryTest do
     storage = Memory.new()
 
     {:ok, storage, game_1} =
-      Memory.append(
+      Memory.put(
         storage,
         <<"game-1">>,
         :game_1,
@@ -54,7 +54,7 @@ defmodule GameDB.Storage.MemoryTest do
       )
 
     {:ok, storage, game_2} =
-      Memory.append(
+      Memory.put(
         storage,
         <<"game-2">>,
         :game_2,
@@ -88,7 +88,7 @@ defmodule GameDB.Storage.MemoryTest do
     storage = Memory.new()
 
     {:ok, storage, _game_id} =
-      Memory.append(
+      Memory.put(
         storage,
         <<"game">>,
         :game,
@@ -109,7 +109,7 @@ defmodule GameDB.Storage.MemoryTest do
   end
 
   test "requires an initial position occurrence" do
-    assert Memory.append(
+    assert Memory.put(
              Memory.new(),
              <<"game">>,
              :game,
@@ -122,7 +122,7 @@ defmodule GameDB.Storage.MemoryTest do
     storage = Memory.new()
 
     {:ok, storage, 1} =
-      Memory.append(
+      Memory.put(
         storage,
         <<"game-1">>,
         :game_1,
@@ -130,7 +130,7 @@ defmodule GameDB.Storage.MemoryTest do
       )
 
     {:ok, storage, 2} =
-      Memory.append(
+      Memory.put(
         storage,
         <<"game-2">>,
         :game_2,
@@ -153,7 +153,7 @@ defmodule GameDB.Storage.MemoryTest do
     storage = Memory.new()
 
     {:ok, storage, _game_id} =
-      Memory.append(
+      Memory.put(
         storage,
         <<"game-1">>,
         :game_1,
@@ -161,7 +161,7 @@ defmodule GameDB.Storage.MemoryTest do
       )
 
     {:ok, storage, _game_id} =
-      Memory.append(
+      Memory.put(
         storage,
         <<"game-2">>,
         :game_2,
@@ -171,63 +171,66 @@ defmodule GameDB.Storage.MemoryTest do
     assert Memory.cardinality(storage) == 2
   end
 
-  test "finds games with the same fingerprint as candidates" do
+  test "returns the existing id for the same canonical game" do
     storage = Memory.new()
 
     fingerprint = <<"same-chess-content">>
 
-    {:ok, storage, game_1} =
-      Memory.append(
+    {:ok, storage, game_id_1} =
+      Memory.put(
         storage,
         fingerprint,
-        :first_played_game,
+        :canonical_game,
         [10, 20, 30]
       )
 
-    {:ok, storage, game_2} =
-      Memory.append(
+    {:ok, storage, game_id_2} =
+      Memory.put(
         storage,
         fingerprint,
-        :second_played_game,
+        :canonical_game,
         [10, 20, 30]
       )
 
-    assert Memory.find_candidates(
-             storage,
-             fingerprint
-           ) ==
-             {:ok, [game_1, game_2]}
+    assert game_id_1 == game_id_2
+    assert Memory.cardinality(storage) == 1
   end
 
-  test "keeps different fingerprints separate" do
+  test "keeps different games with the same fingerprint separate" do
     storage = Memory.new()
 
-    {:ok, storage, game_1} =
-      Memory.append(
+    fingerprint = <<"collision">>
+
+    {:ok, storage, game_id_1} =
+      Memory.put(
         storage,
-        <<"first">>,
+        fingerprint,
         :game_1,
         [10, 20]
       )
 
-    {:ok, storage, _game_2} =
-      Memory.append(
+    {:ok, storage, game_id_2} =
+      Memory.put(
         storage,
-        <<"second">>,
+        fingerprint,
         :game_2,
         [30, 40]
       )
 
-    assert Memory.find_candidates(
-             storage,
-             <<"first">>
-           ) ==
-             {:ok, [game_1]}
+    assert game_id_1 != game_id_2
 
-    assert Memory.find_candidates(
+    assert Memory.find(
              storage,
-             <<"missing">>
+             fingerprint,
+             :game_1
            ) ==
-             {:ok, []}
+             {:ok, game_id_1}
+
+    assert Memory.find(
+             storage,
+             fingerprint,
+             :game_2
+           ) ==
+             {:ok, game_id_2}
   end
 end
