@@ -27,26 +27,35 @@ defmodule Analysis.AnalysisTest do
     end
   end
 
-  describe "source game" do
-    test "has no source game by default" do
-      analysis = AnalysisModel.new("analysis-1", 42)
+  describe "source game record" do
+    test "has no source game record by default" do
+      analysis =
+        AnalysisModel.new(
+          "analysis-1",
+          42
+        )
 
-      assert AnalysisModel.source_game_id(analysis) == nil
+      assert AnalysisModel.source_game_record_id(analysis) == nil
     end
 
-    test "stores the canonical game it was created from" do
+    test "stores the played game record it was created from" do
       analysis =
         AnalysisModel.new(
           "analysis-1",
           42,
-          "game-1",
+          "record-1",
           GameStart.standard(),
           %{title: "My analysis"}
         )
 
-      assert AnalysisModel.source_game_id(analysis) == "game-1"
-      assert AnalysisModel.root(analysis).position_id == 42
-      assert analysis.metadata == %{title: "My analysis"}
+      assert AnalysisModel.source_game_record_id(analysis) == "record-1"
+
+      assert AnalysisModel.root(analysis).position_id ==
+               42
+
+      assert analysis.metadata == %{
+               title: "My analysis"
+             }
     end
   end
 

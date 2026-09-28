@@ -3,7 +3,6 @@ defmodule Analysis.Analyses do
 
   alias Analysis.AnalysisEvents
   alias Analysis.AnalysisStore
-  alias Analysis.Game
   alias Analysis.GameContent
   alias Analysis.GameRecord
   alias Analysis.GameReplay
@@ -42,25 +41,6 @@ defmodule Analysis.Analyses do
       {:error, _reason} = error ->
         error
     end
-  end
-
-  @spec create_from_game(Analysis.Analysis.id(), Game.t()) ::
-          {:ok, Analysis.Analysis.t(), pos_integer()}
-          | {:error,
-             :already_exists
-             | {:invalid_game, {:position_not_found, term()}}
-             | {:invalid_game, {:illegal_move, pos_integer()}}
-             | position_store_error()}
-  def create_from_game(
-        analysis_id,
-        %Game{} = game
-      ) do
-    create_from_source(
-      analysis_id,
-      Game.id(game),
-      Game.start(game),
-      GameContent.from_game(game)
-    )
   end
 
   @spec create_from_game_record(
@@ -182,7 +162,7 @@ defmodule Analysis.Analyses do
 
   defp create_from_source(
          analysis_id,
-         source_game_id,
+         source_game_record_id,
          start,
          content
        ) do
@@ -193,7 +173,7 @@ defmodule Analysis.Analyses do
       :not_found ->
         do_create_from_source(
           analysis_id,
-          source_game_id,
+          source_game_record_id,
           start,
           content
         )
@@ -202,7 +182,7 @@ defmodule Analysis.Analyses do
 
   defp do_create_from_source(
          analysis_id,
-         source_game_id,
+         source_game_record_id,
          start,
          content
        ) do
@@ -211,7 +191,7 @@ defmodule Analysis.Analyses do
          {:ok, analysis} <-
            build_analysis(
              analysis_id,
-             source_game_id,
+             source_game_record_id,
              start,
              content,
              mainline
@@ -243,7 +223,7 @@ defmodule Analysis.Analyses do
 
   defp build_analysis(
          analysis_id,
-         source_game_id,
+         source_game_record_id,
          start,
          content,
          mainline
@@ -252,7 +232,7 @@ defmodule Analysis.Analyses do
       Analysis.Analysis.new(
         analysis_id,
         GameContent.initial_position_id(content),
-        source_game_id,
+        source_game_record_id,
         start,
         %{}
       )

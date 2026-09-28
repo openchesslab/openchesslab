@@ -1,116 +1,33 @@
 defmodule Analysis.GameContentTest do
   use ExUnit.Case, async: true
 
-  alias Analysis.Game
   alias Analysis.GameContent
-  alias Analysis.GameStart
   alias Chess.Move
   alias Chess.Square
 
-  test "extracts the canonical chess content of a game" do
+  test "creates canonical game content" do
     e4 = move("e2", "e4")
     e5 = move("e7", "e5")
 
-    game =
-      Game.new(
-        "game-1",
+    content =
+      GameContent.new(
         42,
-        [e4, e5],
-        %{
-          white: "White",
-          black: "Black"
-        }
+        [e4, e5]
       )
-
-    content = GameContent.from_game(game)
 
     assert GameContent.initial_position_id(content) == 42
-    assert GameContent.moves(content) == [e4, e5]
+
+    assert GameContent.moves(content) ==
+             [e4, e5]
   end
 
-  test "ignores game id when determining canonical content" do
-    moves = [
-      move("e2", "e4"),
-      move("e7", "e5")
-    ]
+  test "creates empty canonical game content" do
+    content =
+      GameContent.new(42)
 
-    game_1 =
-      Game.new(
-        "game-1",
-        42,
-        moves
-      )
+    assert GameContent.initial_position_id(content) == 42
 
-    game_2 =
-      Game.new(
-        "game-2",
-        42,
-        moves
-      )
-
-    assert GameContent.from_game(game_1) ==
-             GameContent.from_game(game_2)
-  end
-
-  test "ignores metadata when determining canonical content" do
-    moves = [
-      move("e2", "e4"),
-      move("e7", "e5")
-    ]
-
-    game_1 =
-      Game.new(
-        "game-1",
-        42,
-        moves,
-        %{
-          white: "Adolf Anderssen",
-          black: "Lionel Kieseritzky",
-          event: "London 1851"
-        }
-      )
-
-    game_2 =
-      Game.new(
-        "game-2",
-        42,
-        moves,
-        %{
-          white: "Player C",
-          black: "Player D",
-          event: "Groningen 2023"
-        }
-      )
-
-    assert GameContent.from_game(game_1) ==
-             GameContent.from_game(game_2)
-  end
-
-  test "ignores move-number context when determining canonical content" do
-    moves = [
-      move("e7", "e5")
-    ]
-
-    game_1 =
-      Game.new(
-        "game-1",
-        42,
-        GameStart.new(1),
-        moves,
-        %{}
-      )
-
-    game_2 =
-      Game.new(
-        "game-2",
-        42,
-        GameStart.new(37),
-        moves,
-        %{}
-      )
-
-    assert GameContent.from_game(game_1) ==
-             GameContent.from_game(game_2)
+    assert GameContent.moves(content) == []
   end
 
   test "distinguishes different initial positions" do
@@ -118,28 +35,13 @@ defmodule Analysis.GameContentTest do
       move("e2", "e4")
     ]
 
-    game_1 =
-      Game.new(
-        "game-1",
-        42,
-        moves
-      )
-
-    game_2 =
-      Game.new(
-        "game-2",
-        43,
-        moves
-      )
-
-    refute GameContent.from_game(game_1) ==
-             GameContent.from_game(game_2)
+    refute GameContent.new(42, moves) ==
+             GameContent.new(43, moves)
   end
 
   test "distinguishes different move sequences" do
-    game_1 =
-      Game.new(
-        "game-1",
+    first =
+      GameContent.new(
         42,
         [
           move("e2", "e4"),
@@ -147,9 +49,8 @@ defmodule Analysis.GameContentTest do
         ]
       )
 
-    game_2 =
-      Game.new(
-        "game-2",
+    second =
+      GameContent.new(
         42,
         [
           move("e2", "e4"),
@@ -157,8 +58,7 @@ defmodule Analysis.GameContentTest do
         ]
       )
 
-    refute GameContent.from_game(game_1) ==
-             GameContent.from_game(game_2)
+    refute first == second
   end
 
   defp move(from, to) do

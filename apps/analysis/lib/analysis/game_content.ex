@@ -7,10 +7,9 @@ defmodule Analysis.GameContent do
   move-number context do not contribute to this identity.
   """
 
-  alias Analysis.Game
   alias Chess.Move
 
-  @type position_id :: Game.position_id()
+  @type position_id :: PositionDB.position_id()
 
   @type t :: %__MODULE__{
           initial_position_id: position_id(),
@@ -27,11 +26,18 @@ defmodule Analysis.GameContent do
     moves: []
   ]
 
-  @spec from_game(Game.t()) :: t()
-  def from_game(%Game{} = game) do
+  @spec new(
+          position_id(),
+          [Move.t()]
+        ) :: t()
+  def new(
+        initial_position_id,
+        moves \\ []
+      )
+      when is_list(moves) do
     %__MODULE__{
-      initial_position_id: Game.initial_position_id(game),
-      moves: Game.moves(game)
+      initial_position_id: initial_position_id,
+      moves: moves
     }
   end
 

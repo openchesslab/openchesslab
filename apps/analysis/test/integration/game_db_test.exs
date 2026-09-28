@@ -1,9 +1,9 @@
 defmodule Analysis.GameDbIntegrationTest do
   use ExUnit.Case, async: true
 
-  alias Analysis.Game
   alias Analysis.GameContent
   alias Analysis.GameFingerprint
+  alias Analysis.GameRecord
   alias Analysis.GameReplay
 
   alias Chess.Move
@@ -14,7 +14,8 @@ defmodule Analysis.GameDbIntegrationTest do
   alias GameDB.Storage.Memory, as: GameStorage
 
   test "stores canonical game content with PositionDB occurrences" do
-    position_db = new_position_db()
+    position_db =
+      new_position_db()
 
     {position_db, initial_position_id} =
       PositionDB.append(
@@ -22,23 +23,23 @@ defmodule Analysis.GameDbIntegrationTest do
         Position.starting_position()
       )
 
-    e4 = move("e2", "e4")
-    e5 = move("e7", "e5")
+    e4 =
+      move(
+        "e2",
+        "e4"
+      )
 
-    game =
-      Game.new(
-        "imported-game-1",
-        initial_position_id,
-        [e4, e5],
-        %{
-          white: "Adolf Anderssen",
-          black: "Lionel Kieseritzky",
-          event: "London 1851"
-        }
+    e5 =
+      move(
+        "e7",
+        "e5"
       )
 
     content =
-      GameContent.from_game(game)
+      GameContent.new(
+        initial_position_id,
+        [e4, e5]
+      )
 
     assert {:ok, fingerprint} =
              GameFingerprint.for_content(content)
@@ -76,7 +77,12 @@ defmodule Analysis.GameDbIntegrationTest do
       )
 
     assert game_id == 1
-    assert GameDB.get(game_db, game_id) == {:ok, content}
+
+    assert GameDB.get(
+             game_db,
+             game_id
+           ) ==
+             {:ok, content}
 
     assert {:ok, occurrences} =
              GameDB.occurrences(
@@ -87,26 +93,38 @@ defmodule Analysis.GameDbIntegrationTest do
     assert Enum.map(
              occurrences,
              & &1.position_id
-           ) == position_ids
+           ) ==
+             position_ids
 
     assert Enum.map(
              occurrences,
              & &1.ply
-           ) == [0, 1, 2]
+           ) ==
+             [0, 1, 2]
 
     assert Enum.map(
              position_ids,
-             &PositionDB.get(position_db, &1)
+             &PositionDB.get(
+               position_db,
+               &1
+             )
            ) ==
              [
                {:ok, Position.starting_position()},
-               {:ok, replay |> Enum.at(0) |> elem(1)},
-               {:ok, replay |> Enum.at(1) |> elem(1)}
+               {:ok,
+                replay
+                |> Enum.at(0)
+                |> elem(1)},
+               {:ok,
+                replay
+                |> Enum.at(1)
+                |> elem(1)}
              ]
   end
 
   test "different played-game metadata shares the same canonical game" do
-    position_db = new_position_db()
+    position_db =
+      new_position_db()
 
     {position_db, initial_position_id} =
       PositionDB.append(
@@ -115,49 +133,28 @@ defmodule Analysis.GameDbIntegrationTest do
       )
 
     moves = [
-      move("e2", "e4"),
-      move("e7", "e5")
+      move(
+        "e2",
+        "e4"
+      ),
+      move(
+        "e7",
+        "e5"
+      )
     ]
 
-    historical_game =
-      Game.new(
-        "historical-import",
+    content =
+      GameContent.new(
         initial_position_id,
-        moves,
-        %{
-          white: "Adolf Anderssen",
-          black: "Lionel Kieseritzky",
-          event: "London 1851"
-        }
+        moves
       )
-
-    modern_game =
-      Game.new(
-        "modern-import",
-        initial_position_id,
-        moves,
-        %{
-          white: "Player C",
-          black: "Player D",
-          event: "Groningen 2023"
-        }
-      )
-
-    historical_content =
-      GameContent.from_game(historical_game)
-
-    modern_content =
-      GameContent.from_game(modern_game)
-
-    assert historical_content ==
-             modern_content
 
     assert {:ok, fingerprint} =
-             GameFingerprint.for_content(historical_content)
+             GameFingerprint.for_content(content)
 
     assert {:ok, replay} =
              GameReplay.replay(
-               historical_content,
+               content,
                fn position_id ->
                  PositionDB.get(
                    position_db,
@@ -179,37 +176,57 @@ defmodule Analysis.GameDbIntegrationTest do
         GameStorage.new()
       )
 
-    {game_db, historical_game_id} =
+    {game_db, game_id} =
       GameDB.put(
         game_db,
         fingerprint,
-        historical_content,
+        content,
         position_ids
       )
 
-    assert {:ok, modern_fingerprint} =
-             GameFingerprint.for_content(modern_content)
-
-    {game_db, modern_game_id} =
+    {game_db, same_game_id} =
       GameDB.put(
         game_db,
-        modern_fingerprint,
-        modern_content,
+        fingerprint,
+        content,
         position_ids
       )
 
-    assert historical_game_id ==
-             modern_game_id
+    assert same_game_id ==
+             game_id
 
     assert GameDB.cardinality(game_db) == 1
 
-    # Both concrete played games can later reference this
-    # same canonical game id while retaining their own metadata.
-    assert Game.id(historical_game) !=
-             Game.id(modern_game)
+    historical_record =
+      GameRecord.new(
+        "historical-import",
+        game_id,
+        %{
+          white: "Adolf Anderssen",
+          black: "Lionel Kieseritzky",
+          event: "London 1851"
+        }
+      )
 
-    assert Game.metadata(historical_game) !=
-             Game.metadata(modern_game)
+    modern_record =
+      GameRecord.new(
+        "modern-import",
+        game_id,
+        %{
+          white: "Player C",
+          black: "Player D",
+          event: "Groningen 2023"
+        }
+      )
+
+    assert GameRecord.id(historical_record) !=
+             GameRecord.id(modern_record)
+
+    assert GameRecord.game_id(historical_record) ==
+             GameRecord.game_id(modern_record)
+
+    assert GameRecord.metadata(historical_record) !=
+             GameRecord.metadata(modern_record)
   end
 
   defp new_position_db do
@@ -227,7 +244,10 @@ defmodule Analysis.GameDbIntegrationTest do
     {position_db, reversed_ids} =
       Enum.reduce(
         replay,
-        {position_db, [initial_position_id]},
+        {
+          position_db,
+          [initial_position_id]
+        },
         fn {_move, position}, {position_db, position_ids} ->
           {position_db, position_id} =
             PositionDB.append(
@@ -248,7 +268,10 @@ defmodule Analysis.GameDbIntegrationTest do
     }
   end
 
-  defp move(from, to) do
+  defp move(
+         from,
+         to
+       ) do
     Move.new(
       Square.from_algebraic(from),
       Square.from_algebraic(to)

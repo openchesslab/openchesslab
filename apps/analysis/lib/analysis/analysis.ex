@@ -7,21 +7,24 @@ defmodule Analysis.Analysis do
   @type id :: term()
   @type path :: [non_neg_integer()]
   @type position_id :: term()
-  @type source_game_id :: GameRecord.id() | nil
+
+  @type source_game_record_id ::
+          GameRecord.id() | nil
 
   @type t :: %__MODULE__{
           id: id(),
           root: Node.t(),
           start: GameStart.t(),
-          source_game_id: source_game_id(),
+          source_game_record_id: source_game_record_id(),
           metadata: map()
         }
 
   @enforce_keys [:id, :root, :start]
+
   defstruct id: nil,
             root: nil,
             start: nil,
-            source_game_id: nil,
+            source_game_record_id: nil,
             metadata: %{}
 
   @spec new(id(), position_id()) :: t()
@@ -69,7 +72,7 @@ defmodule Analysis.Analysis do
   def new(
         id,
         initial_position_id,
-        source_game_id,
+        source_game_record_id,
         %GameStart{} = start,
         metadata
       )
@@ -78,7 +81,7 @@ defmodule Analysis.Analysis do
       id: id,
       root: Node.new(initial_position_id),
       start: start,
-      source_game_id: source_game_id,
+      source_game_record_id: source_game_record_id,
       metadata: metadata
     }
   end
@@ -88,11 +91,6 @@ defmodule Analysis.Analysis do
 
   @spec start(t()) :: GameStart.t()
   def start(%__MODULE__{start: start}), do: start
-
-  @spec source_game_id(t()) :: source_game_id()
-  def source_game_id(%__MODULE__{source_game_id: source_game_id}) do
-    source_game_id
-  end
 
   @spec move_context(t(), :white | :black, path()) :: MoveContext.t()
   def move_context(
@@ -192,6 +190,14 @@ defmodule Analysis.Analysis do
       :not_found ->
         {:error, :node_not_found}
     end
+  end
+
+  @spec source_game_record_id(t()) ::
+          source_game_record_id()
+  def source_game_record_id(%__MODULE__{
+        source_game_record_id: source_game_record_id
+      }) do
+    source_game_record_id
   end
 
   defp add_child_at(node, [], transition, position_id) do
