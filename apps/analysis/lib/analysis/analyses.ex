@@ -152,49 +152,40 @@ defmodule Analysis.Analyses do
     end
   end
 
-  defp do_create_from_game(analysis_id, game) do
-    with {:ok, initial_position} <- get_game_initial_position(game),
-         {:ok, mainline} <-
-           replay_game(
-             game,
-             initial_position
-           ),
+  defp do_create_from_game(
+         analysis_id,
+         game
+       ) do
+    with {:ok, mainline} <-
+           replay_game(game),
          {:ok, analysis} <-
            build_analysis_from_game(
              analysis_id,
              game,
              mainline
            ),
-         {:ok, revision} <- insert(analysis) do
+         {:ok, revision} <-
+           insert(analysis) do
       {:ok, analysis, revision}
     end
   end
 
-  defp get_game_initial_position(game) do
-    position_id = Game.initial_position_id(game)
-
-    case get_position(position_id) do
-      {:ok, position} ->
-        {:ok, position}
-
-      :not_found ->
-        {:error, {:invalid_game, {:position_not_found, position_id}}}
-
-      {:error, _reason} = error ->
-        error
-    end
-  end
-
-  defp replay_game(game, initial_position) do
+  defp replay_game(game) do
     case GameReplay.replay(
            game,
-           initial_position
+           &get_position/1
          ) do
       {:ok, mainline} ->
         {:ok, mainline}
 
+      {:error, {:position_not_found, position_id}} ->
+        {:error, {:invalid_game, {:position_not_found, position_id}}}
+
       {:error, {:illegal_move, ply}} ->
         {:error, {:invalid_game, {:illegal_move, ply}}}
+
+      {:error, _reason} = error ->
+        error
     end
   end
 
