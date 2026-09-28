@@ -6,11 +6,11 @@ defmodule Analysis.Analyses do
   alias Analysis.GameContent
   alias Analysis.GameRecord
   alias Analysis.GameRecords
-  alias Analysis.GameReplay
   alias Analysis.GameStore
   alias Analysis.Node
   alias Analysis.PositionStore
   alias Analysis.Transition
+  alias GameDB.Occurrence
   alias Chess.Move
   alias Chess.Position
   alias Chess.PositionDraft
@@ -57,10 +57,8 @@ defmodule Analysis.Analyses do
              :already_exists
              | :game_record_not_found
              | {:game_not_found, GameDB.game_id()}
-             | {:invalid_game, {:position_not_found, term()}}
-             | {:invalid_game, {:illegal_move, pos_integer()}}
-             | position_store_error()
              | game_store_error()}
+
   def create_from_game_record(
         analysis_id,
         game_record_id
@@ -178,14 +176,17 @@ defmodule Analysis.Analyses do
            get_game_record(game_record_id),
          {:ok, content} <-
            get_game_content(record),
-         {:ok, mainline} <-
-           replay_content(content),
+         {:ok, occurrences} <-
+           get_game_occurrences(
+             record,
+             content
+           ),
          {:ok, analysis} <-
            build_analysis(
              analysis_id,
              record,
              content,
-             mainline
+             occurrences
            ),
          {:ok, revision} <-
            insert(analysis) do
@@ -193,73 +194,60 @@ defmodule Analysis.Analyses do
     end
   end
 
-  defp replay_content(content) do
-    case GameReplay.replay(
-           content,
-           &get_position/1
-         ) do
-      {:ok, mainline} ->
-        {:ok, mainline}
-
-      {:error, {:position_not_found, position_id}} ->
-        {:error, {:invalid_game, {:position_not_found, position_id}}}
-
-      {:error, {:illegal_move, ply}} ->
-        {:error, {:invalid_game, {:illegal_move, ply}}}
-
-      {:error, _reason} = error ->
-        error
-    end
-  end
-
   defp build_analysis(
          analysis_id,
          record,
          content,
-         mainline
+         [
+           %Occurrence{} = initial_occurrence
+           | move_occurrences
+         ]
        ) do
     analysis =
       Analysis.Analysis.new(
         analysis_id,
-        GameContent.initial_position_id(content),
+        initial_occurrence.position_id,
         GameRecord.id(record),
         GameRecord.start(record),
         %{}
       )
 
-    mainline
-    |> Enum.reduce_while(
-      {:ok, analysis, []},
-      fn {move, position}, {:ok, analysis, path} ->
-        case append_position(position) do
-          {:ok, position_id} ->
-            analysis =
-              Analysis.Analysis.add_child(
-                analysis,
-                path,
-                Transition.move(move),
-                position_id
-              )
+    analysis =
+      content
+      |> GameContent.moves()
+      |> Enum.zip(move_occurrences)
+      |> Enum.reduce(
+        {
+          analysis,
+          []
+        },
+        fn {
+             move,
+             %Occurrence{
+               position_id: position_id
+             }
+           },
+           {
+             analysis,
+             path
+           } ->
+          analysis =
+            Analysis.Analysis.add_child(
+              analysis,
+              path,
+              Transition.move(move),
+              position_id
+            )
 
-            {:cont,
-             {
-               :ok,
-               analysis,
-               path ++ [0]
-             }}
-
-          {:error, _reason} = error ->
-            {:halt, error}
+          {
+            analysis,
+            path ++ [0]
+          }
         end
-      end
-    )
-    |> case do
-      {:ok, analysis, _path} ->
-        {:ok, analysis}
+      )
+      |> elem(0)
 
-      {:error, _reason} = error ->
-        error
-    end
+    {:ok, analysis}
   end
 
   defp set_comment(analysis, revision, path, comment) do
@@ -480,5 +468,114 @@ defmodule Analysis.Analyses do
            reason
          }}
     end
+  end
+
+  defp get_game_occurrences(
+         record,
+         content
+       ) do
+    game_id =
+      GameRecord.game_id(record)
+
+    case GameStore.occurrences(game_id) do
+      {:ok, occurrences} ->
+        validate_game_occurrences(
+          game_id,
+          content,
+          occurrences
+        )
+
+      :not_found ->
+        {:error,
+         {
+           :game_store,
+           :occurrences_not_found
+         }}
+
+      {:error, reason} ->
+        {:error,
+         {
+           :game_store,
+           reason
+         }}
+    end
+  end
+
+  defp validate_game_occurrences(
+         game_id,
+         content,
+         occurrences
+       ) do
+    expected_count =
+      length(GameContent.moves(content)) + 1
+
+    initial_position_id =
+      GameContent.initial_position_id(content)
+
+    valid? =
+      length(occurrences) ==
+        expected_count and
+        valid_occurrence_sequence?(
+          occurrences,
+          game_id
+        ) and
+        initial_occurrence_matches?(
+          occurrences,
+          initial_position_id
+        )
+
+    if valid? do
+      {:ok, occurrences}
+    else
+      {:error,
+       {
+         :game_store,
+         :invalid_occurrences
+       }}
+    end
+  end
+
+  defp valid_occurrence_sequence?(
+         occurrences,
+         game_id
+       ) do
+    occurrences
+    |> Enum.with_index()
+    |> Enum.all?(fn
+      {
+        %Occurrence{
+          game_id: occurrence_game_id,
+          ply: occurrence_ply
+        },
+        expected_ply
+      } ->
+        occurrence_game_id ==
+          game_id and
+          occurrence_ply ==
+            expected_ply
+
+      _other ->
+        false
+    end)
+  end
+
+  defp initial_occurrence_matches?(
+         [
+           %Occurrence{
+             position_id: position_id
+           }
+           | _rest
+         ],
+         expected_position_id
+       ) do
+    position_id ==
+      expected_position_id
+  end
+
+  defp initial_occurrence_matches?(
+         _occurrences,
+         _expected_position_id
+       ) do
+    false
   end
 end
