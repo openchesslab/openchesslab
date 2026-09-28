@@ -2,6 +2,7 @@ defmodule Web.ReadinessControllerTest do
   use Web.ConnCase, async: false
 
   alias Analysis.AnalysisStore
+  alias Analysis.GameRecordStore
   alias Analysis.PositionStore
 
   test "GET /ready returns ready when required stores are reachable",
@@ -63,6 +64,53 @@ defmodule Web.ReadinessControllerTest do
     assert json_response(conn, 503) == %{
              "status" => "unavailable"
            }
+  end
+
+  test "GET /ready returns service unavailable when the game record store is unavailable",
+       %{conn: conn} do
+    previous =
+      Application.get_env(
+        :analysis,
+        GameRecordStore,
+        :not_configured
+      )
+
+    on_exit(fn ->
+      case previous do
+        :not_configured ->
+          Application.delete_env(
+            :analysis,
+            GameRecordStore
+          )
+
+        value ->
+          Application.put_env(
+            :analysis,
+            GameRecordStore,
+            value
+          )
+      end
+    end)
+
+    Application.put_env(
+      :analysis,
+      GameRecordStore,
+      store: :unavailable_game_record_store
+    )
+
+    conn =
+      get(
+        conn,
+        "/ready"
+      )
+
+    assert json_response(
+             conn,
+             503
+           ) ==
+             %{
+               "status" => "unavailable"
+             }
   end
 
   defp restore_position_store_config(:not_configured) do

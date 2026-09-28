@@ -5,6 +5,8 @@ defmodule Analysis.Application do
 
   alias Analysis.AnalysisStore
   alias Analysis.AnalysisStoreOwner
+  alias Analysis.GameRecordStore
+  alias Analysis.GameRecordStoreOwner
   alias Analysis.PositionStore
   alias Analysis.PositionStoreOwner
 
@@ -33,6 +35,13 @@ defmodule Analysis.Application do
         []
       )
 
+    game_record_store_options =
+      Application.get_env(
+        :analysis,
+        GameRecordStore,
+        []
+      )
+
     [
       dns_cluster_child(),
       Analysis.RoomEvents,
@@ -44,10 +53,15 @@ defmodule Analysis.Application do
       {
         Horde.Registry,
         name: Analysis.AnalysisStoreRegistry, keys: :unique, members: :auto
+      },
+      {
+        Horde.Registry,
+        name: Analysis.GameRecordStoreRegistry, keys: :unique, members: :auto
       }
     ] ++
       position_store_children(position_store_options) ++
       analysis_store_children(analysis_store_options) ++
+      game_record_store_children(game_record_store_options) ++
       [
         {
           Horde.Registry,
@@ -97,6 +111,44 @@ defmodule Analysis.Application do
         options
         |> Keyword.drop([:adapter, :store])
         |> Keyword.put_new(:name, store)
+
+      [
+        {
+          adapter,
+          adapter_options
+        }
+      ]
+    else
+      []
+    end
+  end
+
+  defp game_record_store_children(options) do
+    if GameRecordStoreOwner.owner?() do
+      adapter =
+        Keyword.get(
+          options,
+          :adapter,
+          Analysis.GameRecordStore.Memory
+        )
+
+      store =
+        Keyword.get(
+          options,
+          :store,
+          GameRecordStore.clustered_store()
+        )
+
+      adapter_options =
+        options
+        |> Keyword.drop([
+          :adapter,
+          :store
+        ])
+        |> Keyword.put_new(
+          :name,
+          store
+        )
 
       [
         {
