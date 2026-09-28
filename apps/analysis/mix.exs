@@ -19,7 +19,7 @@ defmodule Analysis.MixProject do
   def application do
     [
       mod: {Analysis.Application, []},
-      extra_applications: [:logger]
+      extra_applications: [:logger, :crypto]
     ]
   end
 
