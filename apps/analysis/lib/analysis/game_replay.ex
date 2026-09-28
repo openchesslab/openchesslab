@@ -1,13 +1,13 @@
 defmodule Analysis.GameReplay do
   @moduledoc """
-  Replays the canonical move sequence of a game.
+  Replays canonical game content.
 
-  The game's initial position is resolved from its
+  The initial position is resolved from the content's
   `initial_position_id`. GameReplay does not depend on a concrete
   position store; the caller supplies the resolver.
   """
 
-  alias Analysis.Game
+  alias Analysis.GameContent
   alias Chess.Move
   alias Chess.Position
 
@@ -15,25 +15,28 @@ defmodule Analysis.GameReplay do
   @type occurrence :: {Move.t(), Position.t()}
 
   @type position_resolver ::
-          (Game.position_id() ->
+          (GameContent.position_id() ->
              {:ok, Position.t()}
              | :not_found
              | {:error, term()})
 
-  @spec replay(Game.t(), position_resolver()) ::
+  @spec replay(GameContent.t(), position_resolver()) ::
           {:ok, [occurrence()]}
-          | {:error, {:position_not_found, Game.position_id()}}
+          | {:error, {:position_not_found, GameContent.position_id()}}
           | {:error, {:illegal_move, ply()}}
           | {:error, term()}
-  def replay(%Game{} = game, resolver)
+  def replay(
+        %GameContent{} = content,
+        resolver
+      )
       when is_function(resolver, 1) do
     position_id =
-      Game.initial_position_id(game)
+      GameContent.initial_position_id(content)
 
     case resolver.(position_id) do
       {:ok, %Position{} = initial_position} ->
         replay_moves(
-          Game.moves(game),
+          GameContent.moves(content),
           initial_position
         )
 

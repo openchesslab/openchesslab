@@ -45,7 +45,7 @@ defmodule Analysis.GameDbIntegrationTest do
 
     assert {:ok, replay} =
              GameReplay.replay(
-               game,
+               content,
                fn position_id ->
                  PositionDB.get(
                    position_db,
@@ -157,7 +157,7 @@ defmodule Analysis.GameDbIntegrationTest do
 
     assert {:ok, replay} =
              GameReplay.replay(
-               historical_game,
+               historical_content,
                fn position_id ->
                  PositionDB.get(
                    position_db,

@@ -4,6 +4,7 @@ defmodule Analysis.Analyses do
   alias Analysis.AnalysisEvents
   alias Analysis.AnalysisStore
   alias Analysis.Game
+  alias Analysis.GameContent
   alias Analysis.GameReplay
   alias Analysis.Node
   alias Analysis.PositionStore
@@ -171,8 +172,11 @@ defmodule Analysis.Analyses do
   end
 
   defp replay_game(game) do
+    content =
+      GameContent.from_game(game)
+
     case GameReplay.replay(
-           game,
+           content,
            &get_position/1
          ) do
       {:ok, mainline} ->

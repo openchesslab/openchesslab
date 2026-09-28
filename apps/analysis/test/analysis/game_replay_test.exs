@@ -1,18 +1,19 @@
 defmodule Analysis.GameReplayTest do
   use ExUnit.Case, async: true
 
-  alias Analysis.Game
+  alias Analysis.GameContent
   alias Analysis.GameReplay
   alias Chess.Move
   alias Chess.Position
   alias Chess.Square
 
-  test "resolves the initial position from the game position id" do
-    game =
-      Game.new(
-        "game-1",
+  test "resolves the initial position from canonical game content" do
+    content =
+      game_content(
         42,
-        [move("e2", "e4")]
+        [
+          move("e2", "e4")
+        ]
       )
 
     parent = self()
@@ -28,7 +29,7 @@ defmodule Analysis.GameReplayTest do
 
     assert {:ok, [_occurrence]} =
              GameReplay.replay(
-               game,
+               content,
                resolver
              )
 
@@ -39,9 +40,8 @@ defmodule Analysis.GameReplayTest do
     e4 = move("e2", "e4")
     e5 = move("e7", "e5")
 
-    game =
-      Game.new(
-        "game-1",
+    content =
+      game_content(
         42,
         [e4, e5]
       )
@@ -56,7 +56,7 @@ defmodule Analysis.GameReplayTest do
               {^e5, after_e5}
             ]} =
              GameReplay.replay(
-               game,
+               content,
                resolver
              )
 
@@ -76,15 +76,16 @@ defmodule Analysis.GameReplayTest do
   end
 
   test "returns the missing initial position id" do
-    game =
-      Game.new(
-        "game-1",
+    content =
+      game_content(
         42,
-        [move("e2", "e4")]
+        [
+          move("e2", "e4")
+        ]
       )
 
     assert GameReplay.replay(
-             game,
+             content,
              fn _position_id ->
                :not_found
              end
@@ -93,15 +94,16 @@ defmodule Analysis.GameReplayTest do
   end
 
   test "propagates a position resolver error" do
-    game =
-      Game.new(
-        "game-1",
+    content =
+      game_content(
         42,
-        [move("e2", "e4")]
+        [
+          move("e2", "e4")
+        ]
       )
 
     assert GameReplay.replay(
-             game,
+             content,
              fn _position_id ->
                {:error, :disk_failure}
              end
@@ -110,9 +112,8 @@ defmodule Analysis.GameReplayTest do
   end
 
   test "returns the ply of an illegal move" do
-    game =
-      Game.new(
-        "game-1",
+    content =
+      game_content(
         42,
         [
           move("e2", "e4"),
@@ -121,7 +122,7 @@ defmodule Analysis.GameReplayTest do
       )
 
     assert GameReplay.replay(
-             game,
+             content,
              fn 42 ->
                {:ok, Position.starting_position()}
              end
@@ -129,20 +130,30 @@ defmodule Analysis.GameReplayTest do
              {:error, {:illegal_move, 2}}
   end
 
-  test "replays an empty game" do
-    game =
-      Game.new(
-        "game-1",
-        42
+  test "replays empty canonical game content" do
+    content =
+      game_content(
+        42,
+        []
       )
 
     assert GameReplay.replay(
-             game,
+             content,
              fn 42 ->
                {:ok, Position.starting_position()}
              end
            ) ==
              {:ok, []}
+  end
+
+  defp game_content(
+         initial_position_id,
+         moves
+       ) do
+    %GameContent{
+      initial_position_id: initial_position_id,
+      moves: moves
+    }
   end
 
   defp move(from, to) do
