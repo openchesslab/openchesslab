@@ -174,13 +174,8 @@ defmodule Analysis.Analyses do
        ) do
     with {:ok, record} <-
            get_game_record(game_record_id),
-         {:ok, content} <-
-           get_game_content(record),
-         {:ok, occurrences} <-
-           get_game_occurrences(
-             record,
-             content
-           ),
+         {:ok, content, occurrences} <-
+           get_canonical_game(record),
          {:ok, analysis} <-
            build_analysis(
              analysis_id,
@@ -446,13 +441,21 @@ defmodule Analysis.Analyses do
     end
   end
 
-  defp get_game_content(record) do
+  defp get_canonical_game(record) do
     game_id =
       GameRecord.game_id(record)
 
-    case GameStore.get(game_id) do
-      {:ok, %GameContent{} = content} ->
-        {:ok, content}
+    case GameStore.load(game_id) do
+      {
+        :ok,
+        %GameContent{} = content,
+        occurrences
+      } ->
+        {
+          :ok,
+          content,
+          occurrences
+        }
 
       :not_found ->
         {:error,
@@ -468,114 +471,5 @@ defmodule Analysis.Analyses do
            reason
          }}
     end
-  end
-
-  defp get_game_occurrences(
-         record,
-         content
-       ) do
-    game_id =
-      GameRecord.game_id(record)
-
-    case GameStore.occurrences(game_id) do
-      {:ok, occurrences} ->
-        validate_game_occurrences(
-          game_id,
-          content,
-          occurrences
-        )
-
-      :not_found ->
-        {:error,
-         {
-           :game_store,
-           :occurrences_not_found
-         }}
-
-      {:error, reason} ->
-        {:error,
-         {
-           :game_store,
-           reason
-         }}
-    end
-  end
-
-  defp validate_game_occurrences(
-         game_id,
-         content,
-         occurrences
-       ) do
-    expected_count =
-      length(GameContent.moves(content)) + 1
-
-    initial_position_id =
-      GameContent.initial_position_id(content)
-
-    valid? =
-      length(occurrences) ==
-        expected_count and
-        valid_occurrence_sequence?(
-          occurrences,
-          game_id
-        ) and
-        initial_occurrence_matches?(
-          occurrences,
-          initial_position_id
-        )
-
-    if valid? do
-      {:ok, occurrences}
-    else
-      {:error,
-       {
-         :game_store,
-         :invalid_occurrences
-       }}
-    end
-  end
-
-  defp valid_occurrence_sequence?(
-         occurrences,
-         game_id
-       ) do
-    occurrences
-    |> Enum.with_index()
-    |> Enum.all?(fn
-      {
-        %Occurrence{
-          game_id: occurrence_game_id,
-          ply: occurrence_ply
-        },
-        expected_ply
-      } ->
-        occurrence_game_id ==
-          game_id and
-          occurrence_ply ==
-            expected_ply
-
-      _other ->
-        false
-    end)
-  end
-
-  defp initial_occurrence_matches?(
-         [
-           %Occurrence{
-             position_id: position_id
-           }
-           | _rest
-         ],
-         expected_position_id
-       ) do
-    position_id ==
-      expected_position_id
-  end
-
-  defp initial_occurrence_matches?(
-         _occurrences,
-         _expected_position_id
-       ) do
-    false
   end
 end

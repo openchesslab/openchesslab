@@ -69,11 +69,8 @@ defmodule Analysis.GameRecordsTest do
     assert GameRecordStore.get(record_id) ==
              {:ok, record}
 
-    assert GameStore.get(GameRecord.game_id(record)) ==
-             {:ok, content}
-
-    assert {:ok, occurrences} =
-             GameStore.occurrences(GameRecord.game_id(record))
+    assert {:ok, ^content, occurrences} =
+             GameStore.load(GameRecord.game_id(record))
 
     assert Enum.map(
              occurrences,

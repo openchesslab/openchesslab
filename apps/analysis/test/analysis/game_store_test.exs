@@ -175,6 +175,9 @@ defmodule Analysis.GameStoreTest do
   test "returns not_found for an unknown game" do
     assert GameStore.get(999_999_999) ==
              :not_found
+
+    assert GameStore.load(999_999_999) ==
+             :not_found
   end
 
   test "does not update the database when storing fails" do
@@ -240,6 +243,85 @@ defmodule Analysis.GameStoreTest do
     )
 
     refute GameStore.ready?()
+  end
+
+  test "loads canonical game content with its occurrences" do
+    content =
+      GameContent.new(
+        10,
+        [
+          move("e2", "e4"),
+          move("e7", "e5")
+        ]
+      )
+
+    assert {:ok, game_id} =
+             GameStore.put(
+               <<"game">>,
+               content,
+               [10, 20, 30]
+             )
+
+    assert {:ok, ^content, occurrences} =
+             GameStore.load(game_id)
+
+    assert occurrences ==
+             [
+               Occurrence.new(
+                 1,
+                 game_id,
+                 0,
+                 10
+               ),
+               Occurrence.new(
+                 2,
+                 game_id,
+                 1,
+                 20
+               ),
+               Occurrence.new(
+                 3,
+                 game_id,
+                 2,
+                 30
+               )
+             ]
+  end
+
+  test "rejects an inconsistent occurrence count when loading" do
+    content =
+      GameContent.new(
+        10,
+        [
+          move("e2", "e4"),
+          move("e7", "e5")
+        ]
+      )
+
+    assert {:ok, game_id} =
+             GameStore.put(
+               <<"game">>,
+               content,
+               [10]
+             )
+
+    assert GameStore.load(game_id) ==
+             {:error, :invalid_occurrences}
+  end
+
+  test "rejects an inconsistent initial occurrence when loading" do
+    content =
+      GameContent.new(10)
+
+    assert {:ok, game_id} =
+             GameStore.put(
+               <<"game">>,
+               content,
+               [20]
+             )
+
+    assert GameStore.load(game_id) ==
+             {:error, :invalid_occurrences}
   end
 
   defp move(

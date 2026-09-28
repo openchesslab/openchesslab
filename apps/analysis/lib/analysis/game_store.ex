@@ -128,6 +128,17 @@ defmodule Analysis.GameStore do
     )
   end
 
+  @spec load(GameDB.game_id()) ::
+          {:ok, GameContent.t(), [Occurrence.t()]}
+          | :not_found
+          | {:error, term()}
+  def load(game_id) do
+    GenServer.call(
+      server(),
+      {:load, game_id}
+    )
+  end
+
   @spec occurrences(GameDB.game_id()) ::
           {:ok, [Occurrence.t()]}
           | :not_found
@@ -270,6 +281,21 @@ defmodule Analysis.GameStore do
   end
 
   def handle_call(
+        {:load, game_id},
+        _from,
+        db
+      ) do
+    {
+      :reply,
+      load_game(
+        db,
+        game_id
+      ),
+      db
+    }
+  end
+
+  def handle_call(
         {:occurrences, game_id},
         _from,
         db
@@ -312,5 +338,139 @@ defmodule Analysis.GameStore do
       GameDB.cardinality(db),
       db
     }
+  end
+
+  defp load_game(
+         db,
+         game_id
+       ) do
+    case GameDB.get(
+           db,
+           game_id
+         ) do
+      {:ok, %GameContent{} = content} ->
+        load_game_occurrences(
+          db,
+          game_id,
+          content
+        )
+
+      {:ok, _content} ->
+        {:error, :invalid_game_content}
+
+      :not_found ->
+        :not_found
+
+      {:error, _reason} = error ->
+        error
+    end
+  end
+
+  defp load_game_occurrences(
+         db,
+         game_id,
+         content
+       ) do
+    case GameDB.occurrences(
+           db,
+           game_id
+         ) do
+      {:ok, occurrences} ->
+        case validate_game_occurrences(
+               game_id,
+               content,
+               occurrences
+             ) do
+          :ok ->
+            {:ok, content, occurrences}
+
+          {:error, _reason} = error ->
+            error
+        end
+
+      :not_found ->
+        {:error, :occurrences_not_found}
+
+      {:error, _reason} = error ->
+        error
+    end
+  end
+
+  defp validate_game_occurrences(
+         game_id,
+         content,
+         occurrences
+       )
+       when is_list(occurrences) do
+    expected_count =
+      length(GameContent.moves(content)) + 1
+
+    initial_position_id =
+      GameContent.initial_position_id(content)
+
+    valid? =
+      length(occurrences) ==
+        expected_count and
+        valid_occurrence_sequence?(
+          occurrences,
+          game_id
+        ) and
+        initial_occurrence_matches?(
+          occurrences,
+          initial_position_id
+        )
+
+    if valid? do
+      :ok
+    else
+      {:error, :invalid_occurrences}
+    end
+  end
+
+  defp valid_occurrence_sequence?(
+         occurrences,
+         game_id
+       ) do
+    occurrences
+    |> Enum.with_index()
+    |> Enum.all?(fn
+      {
+        %Occurrence{
+          game_id: occurrence_game_id,
+          ply: occurrence_ply,
+          position_id: position_id
+        },
+        expected_ply
+      }
+      when is_integer(position_id) and
+             position_id > 0 ->
+        occurrence_game_id ==
+          game_id and
+          occurrence_ply ==
+            expected_ply
+
+      _other ->
+        false
+    end)
+  end
+
+  defp initial_occurrence_matches?(
+         [
+           %Occurrence{
+             position_id: position_id
+           }
+           | _rest
+         ],
+         expected_position_id
+       ) do
+    position_id ==
+      expected_position_id
+  end
+
+  defp initial_occurrence_matches?(
+         _occurrences,
+         _expected_position_id
+       ) do
+    false
   end
 end
