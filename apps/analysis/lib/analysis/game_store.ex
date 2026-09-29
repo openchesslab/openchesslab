@@ -17,6 +17,30 @@ defmodule Analysis.GameStore do
   @registry Analysis.GameStoreRegistry
   @registry_key :game_store
 
+  @opaque occurrence_cursor :: reference()
+
+  @type occurrence_page ::
+          {:ok, [Occurrence.t()], :done | occurrence_cursor()}
+          | {:error, term()}
+
+  defmodule State do
+    @moduledoc false
+
+    @enforce_keys [:db]
+
+    defstruct db: nil,
+              cursors: %{}
+  end
+
+  defmodule CursorState do
+    @moduledoc false
+
+    @enforce_keys [:scan]
+
+    defstruct scan: nil,
+              pending_occurrence: nil
+  end
+
   @spec clustered_server() ::
           GenServer.server()
   def clustered_server do
@@ -163,6 +187,61 @@ defmodule Analysis.GameStore do
     )
   end
 
+  @spec occurrences_page(
+          GameDB.position_id(),
+          pos_integer()
+        ) ::
+          occurrence_page()
+  def occurrences_page(
+        position_id,
+        page_size
+      )
+      when is_integer(page_size) and
+             page_size > 0 do
+    GenServer.call(
+      server(),
+      {
+        :occurrences_page,
+        position_id,
+        page_size
+      }
+    )
+  end
+
+  @spec next_occurrences_page(
+          occurrence_cursor(),
+          pos_integer()
+        ) ::
+          occurrence_page()
+  def next_occurrences_page(
+        cursor,
+        page_size
+      )
+      when is_reference(cursor) and
+             is_integer(page_size) and
+             page_size > 0 do
+    GenServer.call(
+      server(),
+      {
+        :next_occurrences_page,
+        cursor,
+        page_size
+      }
+    )
+  end
+
+  @spec close_occurrence_scan(occurrence_cursor()) :: :ok
+  def close_occurrence_scan(cursor)
+      when is_reference(cursor) do
+    GenServer.call(
+      server(),
+      {
+        :close_occurrence_scan,
+        cursor
+      }
+    )
+  end
+
   @spec get_occurrence(GameDB.occurrence_id()) ::
           {:ok, Occurrence.t()}
           | :not_found
@@ -204,22 +283,25 @@ defmodule Analysis.GameStore do
       )
 
     {:ok,
-     GameDB.new(
-       storage_module,
-       storage
-     )}
+     %State{
+       db:
+         GameDB.new(
+           storage_module,
+           storage
+         )
+     }}
   end
 
   @impl true
   def handle_call(
         :ping,
         _from,
-        db
+        %State{} = state
       ) do
     {
       :reply,
       :ok,
-      db
+      state
     }
   end
 
@@ -231,7 +313,7 @@ defmodule Analysis.GameStore do
           position_ids
         },
         _from,
-        db
+        %State{db: db} = state
       ) do
     case GameDB.put(
            db,
@@ -246,14 +328,17 @@ defmodule Analysis.GameStore do
         {
           :reply,
           {:ok, game_id},
-          updated_db
+          %{
+            state
+            | db: updated_db
+          }
         }
 
       {:error, _reason} = error ->
         {
           :reply,
           error,
-          db
+          state
         }
     end
   end
@@ -265,7 +350,7 @@ defmodule Analysis.GameStore do
           content
         },
         _from,
-        db
+        %State{db: db} = state
       ) do
     {
       :reply,
@@ -274,14 +359,14 @@ defmodule Analysis.GameStore do
         fingerprint,
         content
       ),
-      db
+      state
     }
   end
 
   def handle_call(
         {:get, game_id},
         _from,
-        db
+        %State{db: db} = state
       ) do
     {
       :reply,
@@ -289,14 +374,14 @@ defmodule Analysis.GameStore do
         db,
         game_id
       ),
-      db
+      state
     }
   end
 
   def handle_call(
         {:load, game_id},
         _from,
-        db
+        %State{db: db} = state
       ) do
     {
       :reply,
@@ -304,14 +389,14 @@ defmodule Analysis.GameStore do
         db,
         game_id
       ),
-      db
+      state
     }
   end
 
   def handle_call(
         {:occurrences, game_id},
         _from,
-        db
+        %State{db: db} = state
       ) do
     {
       :reply,
@@ -319,7 +404,7 @@ defmodule Analysis.GameStore do
         db,
         game_id
       ),
-      db
+      state
     }
   end
 
@@ -329,7 +414,7 @@ defmodule Analysis.GameStore do
           position_id
         },
         _from,
-        db
+        %State{db: db} = state
       ) do
     {
       :reply,
@@ -337,7 +422,119 @@ defmodule Analysis.GameStore do
         db,
         position_id
       ),
-      db
+      state
+    }
+  end
+
+  def handle_call(
+        {
+          :occurrences_page,
+          position_id,
+          page_size
+        },
+        _from,
+        %State{db: db} = state
+      ) do
+    cursor_state =
+      %CursorState{
+        scan:
+          GameDB.scan_occurrences(
+            db,
+            position_id
+          )
+      }
+
+    case take_occurrence_page(
+           cursor_state,
+           page_size
+         ) do
+      {:ok, occurrences, :done} ->
+        {
+          :reply,
+          {
+            :ok,
+            occurrences,
+            :done
+          },
+          state
+        }
+
+      {
+        :ok,
+        occurrences,
+        %CursorState{} = cursor_state
+      } ->
+        cursor =
+          make_ref()
+
+        {
+          :reply,
+          {
+            :ok,
+            occurrences,
+            cursor
+          },
+          put_cursor(
+            state,
+            cursor,
+            cursor_state
+          )
+        }
+
+      {:error, reason} ->
+        {
+          :reply,
+          {:error, reason},
+          state
+        }
+    end
+  end
+
+  def handle_call(
+        {
+          :next_occurrences_page,
+          cursor,
+          page_size
+        },
+        _from,
+        %State{} = state
+      ) do
+    case Map.fetch(
+           state.cursors,
+           cursor
+         ) do
+      {:ok, cursor_state} ->
+        continue_occurrence_scan(
+          state,
+          cursor,
+          cursor_state,
+          page_size
+        )
+
+      :error ->
+        {
+          :reply,
+          {:error, :cursor_not_found},
+          state
+        }
+    end
+  end
+
+  def handle_call(
+        {
+          :close_occurrence_scan,
+          cursor
+        },
+        _from,
+        %State{} = state
+      ) do
+    {
+      :reply,
+      :ok,
+      delete_cursor(
+        state,
+        cursor
+      )
     }
   end
 
@@ -347,7 +544,7 @@ defmodule Analysis.GameStore do
           occurrence_id
         },
         _from,
-        db
+        %State{db: db} = state
       ) do
     {
       :reply,
@@ -355,19 +552,232 @@ defmodule Analysis.GameStore do
         db,
         occurrence_id
       ),
-      db
+      state
     }
   end
 
   def handle_call(
         :cardinality,
         _from,
-        db
+        %State{db: db} = state
       ) do
     {
       :reply,
       GameDB.cardinality(db),
-      db
+      state
+    }
+  end
+
+  defp continue_occurrence_scan(
+         state,
+         cursor,
+         cursor_state,
+         page_size
+       ) do
+    case take_occurrence_page(
+           cursor_state,
+           page_size
+         ) do
+      {:ok, occurrences, :done} ->
+        {
+          :reply,
+          {
+            :ok,
+            occurrences,
+            :done
+          },
+          delete_cursor(
+            state,
+            cursor
+          )
+        }
+
+      {
+        :ok,
+        occurrences,
+        %CursorState{} = cursor_state
+      } ->
+        {
+          :reply,
+          {
+            :ok,
+            occurrences,
+            cursor
+          },
+          put_cursor(
+            state,
+            cursor,
+            cursor_state
+          )
+        }
+
+      {:error, reason} ->
+        {
+          :reply,
+          {:error, reason},
+          delete_cursor(
+            state,
+            cursor
+          )
+        }
+    end
+  end
+
+  defp take_occurrence_page(
+         cursor_state,
+         page_size
+       ) do
+    take_occurrence_page(
+      cursor_state,
+      page_size,
+      []
+    )
+  end
+
+  defp take_occurrence_page(
+         cursor_state,
+         0,
+         reversed_occurrences
+       ) do
+    finish_occurrence_page(
+      cursor_state,
+      reversed_occurrences
+    )
+  end
+
+  defp take_occurrence_page(
+         cursor_state,
+         remaining,
+         reversed_occurrences
+       ) do
+    case next_occurrence(cursor_state) do
+      {
+        :ok,
+        occurrence,
+        cursor_state
+      } ->
+        take_occurrence_page(
+          cursor_state,
+          remaining - 1,
+          [
+            occurrence
+            | reversed_occurrences
+          ]
+        )
+
+      :done ->
+        {
+          :ok,
+          Enum.reverse(reversed_occurrences),
+          :done
+        }
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp finish_occurrence_page(
+         cursor_state,
+         reversed_occurrences
+       ) do
+    case next_occurrence(cursor_state) do
+      {
+        :ok,
+        occurrence,
+        cursor_state
+      } ->
+        {
+          :ok,
+          Enum.reverse(reversed_occurrences),
+          %{
+            cursor_state
+            | pending_occurrence: occurrence
+          }
+        }
+
+      :done ->
+        {
+          :ok,
+          Enum.reverse(reversed_occurrences),
+          :done
+        }
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp next_occurrence(
+         %CursorState{
+           pending_occurrence: %Occurrence{} = occurrence
+         } = cursor_state
+       ) do
+    {
+      :ok,
+      occurrence,
+      %{
+        cursor_state
+        | pending_occurrence: nil
+      }
+    }
+  end
+
+  defp next_occurrence(
+         %CursorState{
+           scan: scan
+         } = cursor_state
+       ) do
+    case GameDB.scan_occurrences_next(scan) do
+      {
+        :ok,
+        occurrence,
+        scan
+      } ->
+        {
+          :ok,
+          occurrence,
+          %{
+            cursor_state
+            | scan: scan
+          }
+        }
+
+      :done ->
+        :done
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp put_cursor(
+         state,
+         cursor,
+         cursor_state
+       ) do
+    %{
+      state
+      | cursors:
+          Map.put(
+            state.cursors,
+            cursor,
+            cursor_state
+          )
+    }
+  end
+
+  defp delete_cursor(
+         state,
+         cursor
+       ) do
+    %{
+      state
+      | cursors:
+          Map.delete(
+            state.cursors,
+            cursor
+          )
     }
   end
 

@@ -368,6 +368,117 @@ defmodule Analysis.GameStoreTest do
              ])
   end
 
+  test "pages through occurrences of a position without duplicates or omissions" do
+    assert {:ok, game_1} =
+             GameStore.put(
+               <<"game-1">>,
+               GameContent.new(30),
+               [30, 10, 30]
+             )
+
+    assert {:ok, game_2} =
+             GameStore.put(
+               <<"game-2">>,
+               GameContent.new(20),
+               [20, 30]
+             )
+
+    assert {
+             :ok,
+             first_page,
+             cursor
+           } =
+             GameStore.occurrences_page(
+               30,
+               2
+             )
+
+    assert is_reference(cursor)
+    assert length(first_page) == 2
+
+    assert {
+             :ok,
+             second_page,
+             :done
+           } =
+             GameStore.next_occurrences_page(
+               cursor,
+               2
+             )
+
+    occurrences =
+      first_page ++
+        second_page
+
+    assert MapSet.new(occurrences) ==
+             MapSet.new([
+               Occurrence.new(
+                 1,
+                 game_1,
+                 0,
+                 30
+               ),
+               Occurrence.new(
+                 3,
+                 game_1,
+                 2,
+                 30
+               ),
+               Occurrence.new(
+                 5,
+                 game_2,
+                 1,
+                 30
+               )
+             ])
+
+    assert GameStore.next_occurrences_page(
+             cursor,
+             2
+           ) ==
+             {:error, :cursor_not_found}
+  end
+
+  test "returns an empty page for a position without occurrences" do
+    assert GameStore.occurrences_page(
+             999,
+             10
+           ) ==
+             {
+               :ok,
+               [],
+               :done
+             }
+  end
+
+  test "closes an unfinished occurrence cursor" do
+    assert {:ok, _game_id} =
+             GameStore.put(
+               <<"game">>,
+               GameContent.new(10),
+               [10, 10]
+             )
+
+    assert {
+             :ok,
+             [_occurrence],
+             cursor
+           } =
+             GameStore.occurrences_page(
+               10,
+               1
+             )
+
+    assert :ok =
+             GameStore.close_occurrence_scan(cursor)
+
+    assert GameStore.next_occurrences_page(
+             cursor,
+             1
+           ) ==
+             {:error, :cursor_not_found}
+  end
+
   defp move(
          from,
          to
