@@ -7,8 +7,12 @@ defmodule GameDB.Storage.Disk do
   """
 
   alias GameDB.Storage.Disk.CanonicalStore
+  alias GameDB.Storage.Disk.GameInsertMarker
   alias GameDB.Storage.Disk.GameInsertRecovery
   alias GameDB.Storage.Disk.OccurrenceStorage
+
+  @max_id 0xFFFF_FFFF_FFFF_FFFF
+  @max_count 0xFFFF_FFFF
 
   @type t :: %__MODULE__{
           directory: Path.t(),
@@ -85,6 +89,48 @@ defmodule GameDB.Storage.Disk do
          occurrence_storage
        )}
     end
+  end
+
+  @spec put(
+          t(),
+          binary(),
+          term(),
+          [pos_integer()]
+        ) ::
+          {:ok, t(), pos_integer()}
+          | {:error, term()}
+  def put(%__MODULE__{} = storage, fingerprint, record, position_ids)
+      when is_binary(fingerprint) and is_list(position_ids) do
+    with :ok <- ensure_no_pending_insert(storage),
+         :ok <- validate_position_ids(position_ids) do
+      case CanonicalStore.find(
+             storage.canonical_store,
+             fingerprint,
+             record
+           ) do
+        {:ok, game_id} ->
+          {:ok, storage, game_id}
+
+        :not_found ->
+          append_new_game(
+            storage,
+            fingerprint,
+            record,
+            position_ids
+          )
+
+        {:error, _reason} = error ->
+          error
+      end
+    end
+  end
+
+  def put(%__MODULE__{}, fingerprint, _record, _position_ids) when not is_binary(fingerprint) do
+    {:error, :invalid_fingerprint}
+  end
+
+  def put(%__MODULE__{}, _fingerprint, _record, _position_ids) do
+    {:error, :invalid_position_ids}
   end
 
   defp create_components(directory, opts) do
@@ -203,6 +249,85 @@ defmodule GameDB.Storage.Disk do
 
       {:win32, _name} ->
         :ok
+    end
+  end
+
+  defp append_new_game(storage, fingerprint, record, position_ids) do
+    with {:ok, game_count} <- CanonicalStore.cardinality(storage.canonical_store) do
+      game_id = game_count + 1
+
+      with :ok <-
+             GameInsertMarker.create(
+               storage.directory,
+               game_id,
+               position_ids
+             ),
+           {:ok, canonical_store} <-
+             put_expected_canonical_game(
+               storage.canonical_store,
+               game_id,
+               fingerprint,
+               record
+             ),
+           :ok <-
+             OccurrenceStorage.append(
+               storage.occurrence_storage,
+               game_id,
+               position_ids
+             ),
+           :ok <- GameInsertMarker.clear(storage.directory) do
+        {:ok, %{storage | canonical_store: canonical_store}, game_id}
+      end
+    end
+  end
+
+  defp put_expected_canonical_game(canonical_store, expected_game_id, fingerprint, record) do
+    case CanonicalStore.put(
+           canonical_store,
+           fingerprint,
+           record
+         ) do
+      {:ok, canonical_store, ^expected_game_id} ->
+        {:ok, canonical_store}
+
+      {:ok, _canonical_store, actual_game_id} ->
+        {:error, {:unexpected_game_id, expected_game_id, actual_game_id}}
+
+      {:error, _reason} = error ->
+        error
+    end
+  end
+
+  defp ensure_no_pending_insert(%__MODULE__{} = storage) do
+    case GameInsertMarker.read(storage.directory) do
+      :none ->
+        :ok
+
+      {:ok, %{game_id: game_id}} ->
+        {:error, {:incomplete_game_insert, game_id}}
+
+      {:error, _reason} = error ->
+        error
+    end
+  end
+
+  defp validate_position_ids([]) do
+    {:error, :missing_initial_position}
+  end
+
+  defp validate_position_ids(position_ids) when is_list(position_ids) do
+    cond do
+      length(position_ids) > @max_count ->
+        {:error, :too_many_occurrences}
+
+      Enum.all?(
+        position_ids,
+        &(is_integer(&1) and &1 > 0 and &1 <= @max_id)
+      ) ->
+        :ok
+
+      true ->
+        {:error, :invalid_position_ids}
     end
   end
 end

@@ -276,6 +276,120 @@ defmodule GameDB.Storage.DiskTest do
              :none
   end
 
+  test "stores a complete game insert", %{
+    directory: directory,
+    opts: opts
+  } do
+    assert {:ok, storage} = Disk.create(directory, opts)
+
+    assert {:ok, storage, 1} =
+             Disk.put(
+               storage,
+               fingerprint(1),
+               {:game, 42},
+               [10, 20, 10]
+             )
+
+    assert CanonicalStore.get(storage.canonical_store, 1) ==
+             {:ok, {:game, 42}}
+
+    assert OccurrenceStorage.occurrences(storage.occurrence_storage, 1) ==
+             {:ok,
+              [
+                Occurrence.new(1, 1, 0, 10),
+                Occurrence.new(2, 1, 1, 20),
+                Occurrence.new(3, 1, 2, 10)
+              ]}
+
+    assert GameInsertMarker.read(directory) == :none
+  end
+
+  test "returns the existing id without duplicating occurrences", %{
+    directory: directory,
+    opts: opts
+  } do
+    assert {:ok, storage} = Disk.create(directory, opts)
+
+    assert {:ok, storage, 1} =
+             Disk.put(
+               storage,
+               fingerprint(1),
+               {:game, 42},
+               [10, 20]
+             )
+
+    assert {:ok, storage, 1} =
+             Disk.put(
+               storage,
+               fingerprint(1),
+               {:game, 42},
+               [10, 20]
+             )
+
+    assert CanonicalStore.cardinality(storage.canonical_store) ==
+             {:ok, 1}
+
+    assert OccurrenceStorage.occurrences(storage.occurrence_storage, 1) ==
+             {:ok,
+              [
+                Occurrence.new(1, 1, 0, 10),
+                Occurrence.new(2, 1, 1, 20)
+              ]}
+  end
+
+  test "rejects invalid position ids before starting an insert", %{
+    directory: directory,
+    opts: opts
+  } do
+    assert {:ok, storage} = Disk.create(directory, opts)
+
+    assert Disk.put(
+             storage,
+             fingerprint(1),
+             {:game, 42},
+             []
+           ) ==
+             {:error, :missing_initial_position}
+
+    assert Disk.put(
+             storage,
+             fingerprint(1),
+             {:game, 42},
+             [10, 0]
+           ) ==
+             {:error, :invalid_position_ids}
+
+    assert GameInsertMarker.read(directory) == :none
+
+    assert CanonicalStore.cardinality(storage.canonical_store) ==
+             {:ok, 0}
+  end
+
+  test "refuses another insert while outer recovery is pending", %{
+    directory: directory,
+    opts: opts
+  } do
+    assert {:ok, storage} = Disk.create(directory, opts)
+
+    assert :ok =
+             GameInsertMarker.create(
+               directory,
+               1,
+               [10, 20]
+             )
+
+    assert Disk.put(
+             storage,
+             fingerprint(1),
+             {:game, 42},
+             [10, 20]
+           ) ==
+             {:error, {:incomplete_game_insert, 1}}
+
+    assert CanonicalStore.cardinality(storage.canonical_store) ==
+             {:ok, 0}
+  end
+
   defp fingerprint(prefix) do
     <<
       prefix::unsigned-big-32,
