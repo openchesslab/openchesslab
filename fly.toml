@@ -12,7 +12,7 @@ primary_region = 'ams'
 [env]
   PORT = '8080'
   PHX_SERVER = 'true'
-  PHX_HOST = 'openchesslab.fly.dev'
+  PHX_HOST = 'openchesslab.com'
   DNS_CLUSTER_QUERY = 'openchesslab.internal'
   POSITION_STORE_OWNER = 'true'
   ANALYSIS_STORE_OWNER = 'true'
