@@ -10,8 +10,11 @@ defmodule GameDB.Storage.Disk do
 
   alias GameDB.Storage
   alias GameDB.Storage.Disk.CanonicalStore
+  alias GameDB.Storage.Disk.FingerprintFormat
   alias GameDB.Storage.Disk.GameInsertMarker
   alias GameDB.Storage.Disk.GameInsertRecovery
+  alias GameDB.Storage.Disk.Manifest
+  alias GameDB.Storage.Disk.ManifestStore
   alias GameDB.Storage.Disk.OccurrenceStorage
 
   @max_id 0xFFFF_FFFF_FFFF_FFFF
@@ -48,26 +51,30 @@ defmodule GameDB.Storage.Disk do
           | {:error, :storage_exists}
           | {:error, term()}
   def create(directory, opts) when is_binary(directory) do
-    case create_root_directory(directory) do
-      :ok ->
-        case create_components(
-               directory,
-               opts
-             ) do
-          {:ok, storage} ->
-            {:ok, storage}
+    with {:ok, manifest} <- storage_manifest(opts),
+         {:ok, _encoded} <- Manifest.encode(manifest) do
+      case create_root_directory(directory) do
+        :ok ->
+          case create_components(
+                 directory,
+                 opts,
+                 manifest
+               ) do
+            {:ok, storage} ->
+              {:ok, storage}
 
-          {:error, reason} ->
-            cleanup_failed_create(directory)
+            {:error, reason} ->
+              cleanup_failed_create(directory)
 
-            {:error, reason}
-        end
+              {:error, reason}
+          end
 
-      {:error, :eexist} ->
-        {:error, :storage_exists}
+        {:error, :eexist} ->
+          {:error, :storage_exists}
 
-      {:error, reason} ->
-        {:error, reason}
+        {:error, reason} ->
+          {:error, reason}
+      end
     end
   end
 
@@ -75,16 +82,45 @@ defmodule GameDB.Storage.Disk do
           {:ok, t()}
           | {:error, term()}
   def open(directory, opts) when is_binary(directory) do
-    with :ok <- validate_directory(directory),
+    codec =
+      Keyword.fetch!(
+        opts,
+        :codec
+      )
+
+    fingerprint_format_id =
+      Keyword.fetch!(
+        opts,
+        :fingerprint_format_id
+      )
+
+    fingerprint_size =
+      Keyword.fetch!(
+        opts,
+        :fingerprint_size
+      )
+
+    with :ok <- validate_supported_fingerprint_size(fingerprint_size),
+         {:ok, manifest} <- ManifestStore.read(directory),
+         :ok <-
+           validate_runtime_formats(
+             manifest,
+             codec,
+             fingerprint_format_id,
+             fingerprint_size
+           ),
          {:ok, canonical_store} <-
            CanonicalStore.open(
              canonical_directory(directory),
-             canonical_options(opts)
+             canonical_options(
+               codec,
+               manifest
+             )
            ),
          {:ok, occurrence_storage} <-
            OccurrenceStorage.open(
              occurrence_directory(directory),
-             occurrence_options(opts)
+             occurrence_options(manifest)
            ),
          :ok <-
            GameInsertRecovery.recover(
@@ -223,16 +259,30 @@ defmodule GameDB.Storage.Disk do
     :done
   end
 
-  defp create_components(directory, opts) do
+  defp create_components(directory, opts, %Manifest{} = manifest) do
+    codec =
+      Keyword.fetch!(
+        opts,
+        :codec
+      )
+
     with {:ok, canonical_store} <-
            CanonicalStore.create(
              canonical_directory(directory),
-             canonical_options(opts)
+             canonical_options(
+               codec,
+               manifest
+             )
            ),
          {:ok, occurrence_storage} <-
            OccurrenceStorage.create(
              occurrence_directory(directory),
-             occurrence_options(opts)
+             occurrence_options(manifest)
+           ),
+         :ok <-
+           ManifestStore.create(
+             directory,
+             manifest
            ) do
       {:ok,
        build_storage(
@@ -253,28 +303,16 @@ defmodule GameDB.Storage.Disk do
     }
   end
 
-  defp canonical_options(opts) do
+  defp canonical_options(codec, %Manifest{} = manifest) do
     [
-      codec:
-        Keyword.fetch!(
-          opts,
-          :codec
-        ),
-      bucket_count:
-        Keyword.fetch!(
-          opts,
-          :bucket_count
-        )
+      codec: codec,
+      bucket_count: manifest.canonical_bucket_count
     ]
   end
 
-  defp occurrence_options(opts) do
+  defp occurrence_options(%Manifest{} = manifest) do
     [
-      position_bucket_count:
-        Keyword.fetch!(
-          opts,
-          :position_bucket_count
-        )
+      position_bucket_count: manifest.position_bucket_count
     ]
   end
 
@@ -296,19 +334,6 @@ defmodule GameDB.Storage.Disk do
     with :ok <-
            File.mkdir(directory) do
       sync_directory(Path.dirname(directory))
-    end
-  end
-
-  defp validate_directory(directory) do
-    case File.stat(directory) do
-      {:ok, %{type: :directory}} ->
-        :ok
-
-      {:ok, _stat} ->
-        {:error, :not_a_directory}
-
-      {:error, reason} ->
-        {:error, reason}
     end
   end
 
@@ -439,6 +464,101 @@ defmodule GameDB.Storage.Disk do
 
       {:error, _reason} = error ->
         error
+    end
+  end
+
+  defp storage_manifest(opts) do
+    codec =
+      Keyword.fetch!(
+        opts,
+        :codec
+      )
+
+    fingerprint_format_id =
+      Keyword.fetch!(
+        opts,
+        :fingerprint_format_id
+      )
+
+    fingerprint_size =
+      Keyword.fetch!(
+        opts,
+        :fingerprint_size
+      )
+
+    canonical_bucket_count =
+      Keyword.fetch!(
+        opts,
+        :bucket_count
+      )
+
+    position_bucket_count =
+      Keyword.fetch!(
+        opts,
+        :position_bucket_count
+      )
+
+    with :ok <- validate_supported_fingerprint_size(fingerprint_size) do
+      {:ok,
+       %Manifest{
+         record_format_id: codec.format_id(),
+         fingerprint_format_id: fingerprint_format_id,
+         fingerprint_size: fingerprint_size,
+         canonical_bucket_count: canonical_bucket_count,
+         position_bucket_count: position_bucket_count
+       }}
+    end
+  end
+
+  defp validate_runtime_formats(
+         %Manifest{} = manifest,
+         codec,
+         fingerprint_format_id,
+         fingerprint_size
+       ) do
+    with :ok <-
+           validate_format_value(
+             :record_format_id,
+             manifest.record_format_id,
+             codec.format_id()
+           ),
+         :ok <-
+           validate_format_value(
+             :fingerprint_format_id,
+             manifest.fingerprint_format_id,
+             fingerprint_format_id
+           ) do
+      validate_format_value(
+        :fingerprint_size,
+        manifest.fingerprint_size,
+        fingerprint_size
+      )
+    end
+  end
+
+  defp validate_format_value(_field, value, value) do
+    :ok
+  end
+
+  defp validate_format_value(field, persisted, configured) do
+    {:error,
+     {
+       :storage_format_mismatch,
+       field,
+       persisted,
+       configured
+     }}
+  end
+
+  defp validate_supported_fingerprint_size(fingerprint_size) do
+    if fingerprint_size == FingerprintFormat.size() do
+      :ok
+    else
+      {:error,
+       {
+         :unsupported_fingerprint_size,
+         fingerprint_size
+       }}
     end
   end
 end

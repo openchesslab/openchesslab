@@ -12,9 +12,10 @@ defmodule GameDB.Storage.Disk.GameRecordStore do
     * encoded canonical game record
   """
 
+  alias GameDB.Storage.Disk.FingerprintFormat
   alias GameDB.Storage.Disk.RecordStore
 
-  @fingerprint_size 32
+  @fingerprint_size FingerprintFormat.size()
 
   @type t :: %__MODULE__{
           record_store: RecordStore.t(),

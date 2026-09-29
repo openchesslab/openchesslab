@@ -5,6 +5,8 @@ defmodule GameDB.Storage.DiskTest do
   alias GameDB.Storage.Disk
   alias GameDB.Storage.Disk.CanonicalStore
   alias GameDB.Storage.Disk.GameInsertMarker
+  alias GameDB.Storage.Disk.Manifest
+  alias GameDB.Storage.Disk.ManifestStore
   alias GameDB.Storage.Disk.OccurrenceStorage
 
   defmodule TestCodec do
@@ -39,6 +41,26 @@ defmodule GameDB.Storage.DiskTest do
     end
   end
 
+  defmodule OtherFormatCodec do
+    @moduledoc false
+    @behaviour GameDB.RecordCodec
+
+    @impl true
+    def format_id do
+      <<"other-game-v1">>
+    end
+
+    @impl true
+    def encode(record) do
+      GameDB.Storage.DiskTest.TestCodec.encode(record)
+    end
+
+    @impl true
+    def decode(encoded) do
+      GameDB.Storage.DiskTest.TestCodec.decode(encoded)
+    end
+  end
+
   setup do
     directory =
       Path.join(
@@ -48,6 +70,8 @@ defmodule GameDB.Storage.DiskTest do
 
     opts = [
       codec: TestCodec,
+      fingerprint_format_id: <<"test-game-sha256-v1">>,
+      fingerprint_size: 32,
       bucket_count: 4,
       position_bucket_count: 4
     ]
@@ -369,6 +393,153 @@ defmodule GameDB.Storage.DiskTest do
 
     assert CanonicalStore.cardinality(storage.canonical_store) ==
              {:ok, 0}
+  end
+
+  test "persists the physical storage manifest", %{
+    directory: directory,
+    opts: opts
+  } do
+    assert {:ok, _storage} =
+             Disk.create(
+               directory,
+               opts
+             )
+
+    assert ManifestStore.read(directory) ==
+             {:ok,
+              %Manifest{
+                record_format_id: <<"test-game-v1">>,
+                fingerprint_format_id: <<"test-game-sha256-v1">>,
+                fingerprint_size: 32,
+                canonical_bucket_count: 4,
+                position_bucket_count: 4
+              }}
+  end
+
+  test "reopens using the persisted bucket layout", %{
+    directory: directory,
+    opts: opts
+  } do
+    assert {:ok, _storage} =
+             Disk.create(
+               directory,
+               opts
+             )
+
+    assert {:ok, reopened} =
+             Disk.open(
+               directory,
+               codec: TestCodec,
+               fingerprint_format_id: <<"test-game-sha256-v1">>,
+               fingerprint_size: 32
+             )
+
+    assert reopened.canonical_store.fingerprint_index.bucket_count == 4
+
+    assert reopened.occurrence_storage.position_index.bucket_count == 4
+  end
+
+  test "requires a persisted manifest", %{
+    directory: directory
+  } do
+    File.mkdir!(directory)
+
+    assert Disk.open(
+             directory,
+             codec: TestCodec,
+             fingerprint_format_id: <<"test-game-sha256-v1">>,
+             fingerprint_size: 32
+           ) ==
+             {:error, :manifest_not_found}
+  end
+
+  test "rejects a different record format", %{
+    directory: directory,
+    opts: opts
+  } do
+    assert {:ok, _storage} =
+             Disk.create(
+               directory,
+               opts
+             )
+
+    assert Disk.open(
+             directory,
+             codec: OtherFormatCodec,
+             fingerprint_format_id: <<"test-game-sha256-v1">>,
+             fingerprint_size: 32
+           ) ==
+             {:error,
+              {
+                :storage_format_mismatch,
+                :record_format_id,
+                <<"test-game-v1">>,
+                <<"other-game-v1">>
+              }}
+  end
+
+  test "rejects a different fingerprint format", %{
+    directory: directory,
+    opts: opts
+  } do
+    assert {:ok, _storage} =
+             Disk.create(
+               directory,
+               opts
+             )
+
+    assert Disk.open(
+             directory,
+             codec: TestCodec,
+             fingerprint_format_id: <<"other-fingerprint-v1">>,
+             fingerprint_size: 32
+           ) ==
+             {:error,
+              {
+                :storage_format_mismatch,
+                :fingerprint_format_id,
+                <<"test-game-sha256-v1">>,
+                <<"other-fingerprint-v1">>
+              }}
+  end
+
+  test "rejects a different fingerprint size", %{
+    directory: directory,
+    opts: opts
+  } do
+    assert {:ok, _storage} =
+             Disk.create(
+               directory,
+               opts
+             )
+
+    assert Disk.open(
+             directory,
+             codec: TestCodec,
+             fingerprint_format_id: <<"test-game-sha256-v1">>,
+             fingerprint_size: 64
+           ) ==
+             {:error, {:unsupported_fingerprint_size, 64}}
+  end
+
+  test "rejects an unsupported fingerprint size before creating storage", %{
+    directory: directory,
+    opts: opts
+  } do
+    opts =
+      Keyword.put(
+        opts,
+        :fingerprint_size,
+        64
+      )
+
+    assert Disk.create(
+             directory,
+             opts
+           ) ==
+             {:error, {:unsupported_fingerprint_size, 64}}
+
+    refute File.exists?(directory)
   end
 
   test "refuses another insert while outer recovery is pending", %{

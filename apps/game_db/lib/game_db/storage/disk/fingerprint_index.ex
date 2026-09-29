@@ -10,7 +10,9 @@ defmodule GameDB.Storage.Disk.FingerprintIndex do
   collisions cannot affect lookup semantics.
   """
 
-  @fingerprint_size 32
+  alias GameDB.Storage.Disk.FingerprintFormat
+
+  @fingerprint_size FingerprintFormat.size()
   @game_id_size 8
   @entry_size @fingerprint_size + @game_id_size
   @max_game_id 0xFFFF_FFFF_FFFF_FFFF

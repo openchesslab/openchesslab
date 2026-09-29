@@ -29,6 +29,8 @@ defmodule Analysis.GameStoreDiskIntegrationTest do
 
     opts = [
       codec: GameContentCodec,
+      fingerprint_format_id: GameFingerprint.format_id(),
+      fingerprint_size: GameFingerprint.fingerprint_size(),
       bucket_count: 4,
       position_bucket_count: 4
     ]
