@@ -7,7 +7,7 @@ defmodule Analysis.GameFingerprint do
   """
 
   alias Analysis.GameContent
-  alias Analysis.GameFingerprintCodec
+  alias Analysis.GameContentCodec
 
   @type t :: <<_::256>>
 
@@ -16,7 +16,7 @@ defmodule Analysis.GameFingerprint do
           | {:error, term()}
   def for_content(%GameContent{} = content) do
     with {:ok, encoded} <-
-           GameFingerprintCodec.encode(content) do
+           GameContentCodec.encode(content) do
       {:ok,
        :crypto.hash(
          :sha256,
