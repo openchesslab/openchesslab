@@ -186,6 +186,33 @@ config :analysis,
        Analysis.PositionStore,
        position_store_options
 
+game_store_options =
+  case System.get_env("GAME_STORE_DIRECTORY") do
+    nil ->
+      []
+
+    directory ->
+      [
+        directory: directory,
+        bucket_count:
+          System.get_env(
+            "GAME_STORE_CANONICAL_BUCKET_COUNT",
+            "65536"
+          )
+          |> String.to_integer(),
+        position_bucket_count:
+          System.get_env(
+            "GAME_STORE_POSITION_BUCKET_COUNT",
+            "65536"
+          )
+          |> String.to_integer()
+      ]
+  end
+
+config :analysis,
+       Analysis.GameStore,
+       game_store_options
+
 analysis_store_options =
   case System.get_env("ANALYSIS_STORE_PATH") do
     nil ->

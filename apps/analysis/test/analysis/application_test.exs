@@ -489,15 +489,11 @@ defmodule Analysis.ApplicationTest do
            } in AnalysisApplication.children()
   end
 
-  test "passes configured storage to the canonical game store" do
-    storage =
-      GameDB.Storage.Memory.new()
-
+  test "passes configured options to the canonical game store" do
     options = [
-      storage: {
-        GameDB.Storage.Memory,
-        storage
-      }
+      directory: "games",
+      bucket_count: 200,
+      position_bucket_count: 300
     ]
 
     Application.put_env(
