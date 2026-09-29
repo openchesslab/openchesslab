@@ -1,10 +1,10 @@
 defmodule Chess.PositionPropertiesTest do
   use ExUnit.Case
 
-  alias Chess.Square
   alias Chess.Bitboard
   alias Chess.Position
   alias Chess.PositionProperties
+  alias Chess.Square
 
   describe "material/1" do
     test "returns starting position material" do
@@ -91,7 +91,7 @@ defmodule Chess.PositionPropertiesTest do
   describe "material/1 with a bitboard" do
     test "returns starting position material" do
       position = Position.starting_position()
-      bitboard = Chess.Bitboard.from_position(position)
+      bitboard = Bitboard.from_position(position)
 
       material = PositionProperties.material(bitboard)
 
@@ -115,7 +115,7 @@ defmodule Chess.PositionPropertiesTest do
     end
 
     test "returns zero material for an empty bitboard" do
-      material = PositionProperties.material(Chess.Bitboard.empty())
+      material = PositionProperties.material(Bitboard.empty())
 
       assert material.white == %{
                pawn: 0,
@@ -138,7 +138,7 @@ defmodule Chess.PositionPropertiesTest do
 
     test "returns the same material as the position version" do
       position = Position.starting_position()
-      bitboard = Chess.Bitboard.from_position(position)
+      bitboard = Bitboard.from_position(position)
 
       assert PositionProperties.material(position) ==
                PositionProperties.material(bitboard)
@@ -160,15 +160,15 @@ defmodule Chess.PositionPropertiesTest do
 
     test "returns occupied squares from a bitboard" do
       position = Position.starting_position()
-      bitboard = Chess.Bitboard.from_position(position)
+      bitboard = Bitboard.from_position(position)
 
       assert PositionProperties.occupied(bitboard) ==
-               Chess.Bitboard.occupied(bitboard)
+               Bitboard.occupied(bitboard)
     end
 
     test "position and bitboard versions return the same result" do
       position = Position.starting_position()
-      bitboard = Chess.Bitboard.from_position(position)
+      bitboard = Bitboard.from_position(position)
 
       assert PositionProperties.occupied(position) ==
                PositionProperties.occupied(bitboard)
@@ -185,9 +185,7 @@ defmodule Chess.PositionPropertiesTest do
     test "file without pawns is open" do
       square = Square.from_algebraic("e4")
 
-      position =
-        Position.new()
-        |> Position.put_piece(square, {:white, :rook})
+      position = Position.put_piece(Position.new(), square, {:white, :rook})
 
       assert PositionProperties.open_files(position) ==
                [:a, :b, :c, :d, :e, :f, :g, :h]
@@ -196,9 +194,7 @@ defmodule Chess.PositionPropertiesTest do
     test "white pawn closes a file" do
       square = Square.from_algebraic("e4")
 
-      position =
-        Position.new()
-        |> Position.put_piece(square, {:white, :pawn})
+      position = Position.put_piece(Position.new(), square, {:white, :pawn})
 
       refute :e in PositionProperties.open_files(position)
     end
@@ -206,9 +202,7 @@ defmodule Chess.PositionPropertiesTest do
     test "black pawn closes a file" do
       square = Square.from_algebraic("e5")
 
-      position =
-        Position.new()
-        |> Position.put_piece(square, {:black, :pawn})
+      position = Position.put_piece(Position.new(), square, {:black, :pawn})
 
       refute :e in PositionProperties.open_files(position)
     end
@@ -406,9 +400,7 @@ defmodule Chess.PositionPropertiesTest do
     end
 
     test "reports a missing king as not in check" do
-      position =
-        Position.new()
-        |> Position.put_piece(Square.from_algebraic("e1"), {:white, :king})
+      position = Position.put_piece(Position.new(), Square.from_algebraic("e1"), {:white, :king})
 
       assert PositionProperties.in_check(position) == %{white: false, black: false}
     end

@@ -7,74 +7,53 @@ defmodule PositionDBTest do
   alias Chess.PositionProperties
   alias Chess.PositionTransform
   alias Chess.Square
-  alias PositionDB
   alias PositionDB.PositionIndexer
   alias PositionDB.PositionStore
   alias PositionDB.PropertyIndex
+  alias PositionDB.PropertyIndex.Backend
   alias PositionDB.PropertyIndex.Memory, as: PropertyIndexMemory
   alias PositionDB.Query
+  alias PositionDB.Storage.Memory
 
   defmodule FailingPropertyIndex do
-    @behaviour PositionDB.PropertyIndex.Backend
+    @moduledoc false
+    @behaviour Backend
 
-    @impl PositionDB.PropertyIndex.Backend
-    def add(
-          %{fail_on: :add},
-          _property,
-          _position_id
-        ) do
+    @impl Backend
+    def add(%{fail_on: :add}, _property, _position_id) do
       {:error, :disk_failure}
     end
 
-    def add(
-          state,
-          _property,
-          _position_id
-        ) do
+    def add(state, _property, _position_id) do
       {:ok, state}
     end
 
-    @impl PositionDB.PropertyIndex.Backend
-    def advance(
-          %{fail_on: :advance},
-          _position_id
-        ) do
+    @impl Backend
+    def advance(%{fail_on: :advance}, _position_id) do
       {:error, :disk_failure}
     end
 
-    def advance(
-          state,
-          _position_id
-        ) do
+    def advance(state, _position_id) do
       {:ok, state}
     end
 
-    @impl PositionDB.PropertyIndex.Backend
-    def lookup(
-          _state,
-          _property
-        ) do
+    @impl Backend
+    def lookup(_state, _property) do
       {:ok, []}
     end
 
-    @impl PositionDB.PropertyIndex.Backend
-    def cardinality(
-          _state,
-          _property
-        ) do
+    @impl Backend
+    def cardinality(_state, _property) do
       {:ok, 0}
     end
   end
 
   defmodule TrackingPropertyIndex do
-    @behaviour PositionDB.PropertyIndex.Backend
+    @moduledoc false
+    @behaviour Backend
 
-    @impl PositionDB.PropertyIndex.Backend
-    def add(
-          state,
-          property,
-          position_id
-        ) do
+    @impl Backend
+    def add(state, property, position_id) do
       send(
         state.test_pid,
         {:property_add, property, position_id}
@@ -83,11 +62,8 @@ defmodule PositionDBTest do
       {:ok, state}
     end
 
-    @impl PositionDB.PropertyIndex.Backend
-    def advance(
-          state,
-          position_id
-        ) do
+    @impl Backend
+    def advance(state, position_id) do
       send(
         state.test_pid,
         {:property_advance, position_id}
@@ -96,19 +72,13 @@ defmodule PositionDBTest do
       {:ok, state}
     end
 
-    @impl PositionDB.PropertyIndex.Backend
-    def lookup(
-          _state,
-          _property
-        ) do
+    @impl Backend
+    def lookup(_state, _property) do
       {:ok, []}
     end
 
-    @impl PositionDB.PropertyIndex.Backend
-    def cardinality(
-          _state,
-          _property
-        ) do
+    @impl Backend
+    def cardinality(_state, _property) do
       {:ok, 0}
     end
   end
@@ -127,12 +97,7 @@ defmodule PositionDBTest do
   end
 
   test "stores and indexes a chess position" do
-    position =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:white, :pawn}
-      )
+    position = Position.put_piece(Position.new(), Square.from_algebraic("a4"), {:white, :pawn})
 
     db =
       PositionDB.new(
@@ -158,20 +123,20 @@ defmodule PositionDBTest do
 
   test "uses a supplied storage backend" do
     storage =
-      PositionDB.Storage.Memory.new()
+      Memory.new()
 
     db =
       PositionDB.new(
         key_function: & &1,
         properties: [],
         storage: {
-          PositionDB.Storage.Memory,
+          Memory,
           storage
         }
       )
 
     assert db.store.storage_module ==
-             PositionDB.Storage.Memory
+             Memory
 
     assert db.store.storage ==
              storage
@@ -179,14 +144,14 @@ defmodule PositionDBTest do
 
   test "appends through a supplied storage backend" do
     storage =
-      PositionDB.Storage.Memory.new()
+      Memory.new()
 
     db =
       PositionDB.new(
         key_function: & &1,
         properties: [],
         storage: {
-          PositionDB.Storage.Memory,
+          Memory,
           storage
         }
       )
@@ -207,12 +172,7 @@ defmodule PositionDBTest do
   end
 
   test "stores an identical position only once" do
-    position =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:white, :pawn}
-      )
+    position = Position.put_piece(Position.new(), Square.from_algebraic("a4"), {:white, :pawn})
 
     db =
       PositionDB.new(
@@ -239,12 +199,7 @@ defmodule PositionDBTest do
   test "different positions get different ids" do
     position_1 = Position.starting_position()
 
-    position_2 =
-      position_1
-      |> Position.put_piece(
-        Square.from_algebraic("a3"),
-        {:white, :pawn}
-      )
+    position_2 = Position.put_piece(position_1, Square.from_algebraic("a3"), {:white, :pawn})
 
     db =
       PositionDB.new(
@@ -261,12 +216,7 @@ defmodule PositionDBTest do
   end
 
   test "queries positions by property" do
-    position =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:white, :pawn}
-      )
+    position = Position.put_piece(Position.new(), Square.from_algebraic("a4"), {:white, :pawn})
 
     db =
       PositionDB.new(
@@ -294,19 +244,9 @@ defmodule PositionDBTest do
   end
 
   test "queries multiple positions by property" do
-    position_1 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:white, :pawn}
-      )
+    position_1 = Position.put_piece(Position.new(), Square.from_algebraic("a4"), {:white, :pawn})
 
-    position_2 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("b4"),
-        {:white, :pawn}
-      )
+    position_2 = Position.put_piece(Position.new(), Square.from_algebraic("b4"), {:white, :pawn})
 
     db =
       PositionDB.new(
@@ -329,26 +269,11 @@ defmodule PositionDBTest do
   end
 
   test "queries positions using AND" do
-    position_1 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:white, :pawn}
-      )
+    position_1 = Position.put_piece(Position.new(), Square.from_algebraic("a4"), {:white, :pawn})
 
-    position_2 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("b4"),
-        {:white, :pawn}
-      )
+    position_2 = Position.put_piece(Position.new(), Square.from_algebraic("b4"), {:white, :pawn})
 
-    position_3 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("d4"),
-        {:white, :pawn}
-      )
+    position_3 = Position.put_piece(Position.new(), Square.from_algebraic("d4"), {:white, :pawn})
 
     db =
       PositionDB.new(
@@ -374,26 +299,11 @@ defmodule PositionDBTest do
   end
 
   test "queries positions using OR" do
-    position_1 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:white, :pawn}
-      )
+    position_1 = Position.put_piece(Position.new(), Square.from_algebraic("a4"), {:white, :pawn})
 
-    position_2 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("b4"),
-        {:white, :pawn}
-      )
+    position_2 = Position.put_piece(Position.new(), Square.from_algebraic("b4"), {:white, :pawn})
 
-    position_3 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("d4"),
-        {:white, :pawn}
-      )
+    position_3 = Position.put_piece(Position.new(), Square.from_algebraic("d4"), {:white, :pawn})
 
     db =
       PositionDB.new(
@@ -419,19 +329,9 @@ defmodule PositionDBTest do
   end
 
   test "queries positions using NOT" do
-    position_1 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:white, :pawn}
-      )
+    position_1 = Position.put_piece(Position.new(), Square.from_algebraic("a4"), {:white, :pawn})
 
-    position_2 =
-      position_1
-      |> Position.put_piece(
-        Square.from_algebraic("e4"),
-        {:white, :pawn}
-      )
+    position_2 = Position.put_piece(position_1, Square.from_algebraic("e4"), {:white, :pawn})
 
     db =
       PositionDB.new(
@@ -452,12 +352,7 @@ defmodule PositionDBTest do
   end
 
   test "queries positions using AND with true" do
-    position =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:white, :pawn}
-      )
+    position = Position.put_piece(Position.new(), Square.from_algebraic("a4"), {:white, :pawn})
 
     db =
       PositionDB.new(
@@ -481,12 +376,7 @@ defmodule PositionDBTest do
   end
 
   test "queries positions using OR with false" do
-    position =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:white, :pawn}
-      )
+    position = Position.put_piece(Position.new(), Square.from_algebraic("a4"), {:white, :pawn})
 
     db =
       PositionDB.new(
@@ -562,12 +452,7 @@ defmodule PositionDBTest do
 
     swapped = PositionTransform.swap_colors(position)
 
-    other =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:white, :pawn}
-      )
+    other = Position.put_piece(Position.new(), Square.from_algebraic("a4"), {:white, :pawn})
 
     db =
       PositionDB.new(

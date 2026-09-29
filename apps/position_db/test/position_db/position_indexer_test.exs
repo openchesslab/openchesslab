@@ -3,16 +3,14 @@ defmodule PositionDB.PositionIndexerTest do
 
   alias PositionDB.PositionIndexer
   alias PositionDB.PropertyIndex
+  alias PositionDB.PropertyIndex.Backend
 
   defmodule TrackingBackend do
-    @behaviour PositionDB.PropertyIndex.Backend
+    @moduledoc false
+    @behaviour Backend
 
-    @impl PositionDB.PropertyIndex.Backend
-    def add(
-          state,
-          property,
-          position_id
-        ) do
+    @impl Backend
+    def add(state, property, position_id) do
       send(
         state.test_pid,
         {:add, property, position_id}
@@ -25,11 +23,8 @@ defmodule PositionDB.PositionIndexerTest do
       end
     end
 
-    @impl PositionDB.PropertyIndex.Backend
-    def advance(
-          state,
-          position_id
-        ) do
+    @impl Backend
+    def advance(state, position_id) do
       send(
         state.test_pid,
         {:advance, position_id}
@@ -38,19 +33,13 @@ defmodule PositionDB.PositionIndexerTest do
       {:ok, state}
     end
 
-    @impl PositionDB.PropertyIndex.Backend
-    def lookup(
-          _state,
-          _property
-        ) do
+    @impl Backend
+    def lookup(_state, _property) do
       {:ok, []}
     end
 
-    @impl PositionDB.PropertyIndex.Backend
-    def cardinality(
-          _state,
-          _property
-        ) do
+    @impl Backend
+    def cardinality(_state, _property) do
       {:ok, 0}
     end
   end

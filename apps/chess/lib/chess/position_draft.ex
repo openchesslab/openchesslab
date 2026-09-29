@@ -46,8 +46,7 @@ defmodule Chess.PositionDraft do
   end
 
   @spec set_side_to_move(t(), :white | :black) :: t()
-  def set_side_to_move(%__MODULE__{} = draft, side_to_move)
-      when side_to_move in [:white, :black] do
+  def set_side_to_move(%__MODULE__{} = draft, side_to_move) when side_to_move in [:white, :black] do
     %{draft | position: %{draft.position | side_to_move: side_to_move}}
   end
 
@@ -59,12 +58,7 @@ defmodule Chess.PositionDraft do
 
   @spec set_castling_right(t(), castling_right(), boolean()) :: t()
   def set_castling_right(%__MODULE__{} = draft, right, enabled)
-      when right in [
-             :white_kingside,
-             :white_queenside,
-             :black_kingside,
-             :black_queenside
-           ] and is_boolean(enabled) do
+      when right in [:white_kingside, :white_queenside, :black_kingside, :black_queenside] and is_boolean(enabled) do
     castling_rights =
       if enabled do
         MapSet.put(draft.position.castling_rights, right)
@@ -76,8 +70,7 @@ defmodule Chess.PositionDraft do
   end
 
   @spec set_en_passant(t(), Square.t() | nil) :: t()
-  def set_en_passant(%__MODULE__{} = draft, en_passant)
-      when is_nil(en_passant) or en_passant in 0..63 do
+  def set_en_passant(%__MODULE__{} = draft, en_passant) when is_nil(en_passant) or en_passant in 0..63 do
     %{draft | position: %{draft.position | en_passant: en_passant}}
   end
 
@@ -156,9 +149,7 @@ defmodule Chess.PositionDraft do
     %{draft | position: %{draft.position | board: board}}
   end
 
-  defp promoted_kind(:pawn, promotion)
-       when promotion in [:queen, :rook, :bishop, :knight],
-       do: promotion
+  defp promoted_kind(:pawn, promotion) when promotion in [:queen, :rook, :bishop, :knight], do: promotion
 
   defp promoted_kind(kind, _promotion), do: kind
 

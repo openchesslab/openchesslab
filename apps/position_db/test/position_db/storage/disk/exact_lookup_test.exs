@@ -4,28 +4,26 @@ defmodule PositionDB.Storage.Disk.ExactLookupTest do
   alias PositionDB.Storage.Disk.ExactLookup
   alias PositionDB.Storage.Disk.RecordStore
   alias PositionDB.Storage.ExactIndex.Disk
+  alias PositionDB.Storage.ExactKeyHash
 
   defmodule TestHash do
-    @behaviour PositionDB.Storage.ExactKeyHash
+    @moduledoc false
+    @behaviour ExactKeyHash
 
-    @impl PositionDB.Storage.ExactKeyHash
+    @impl ExactKeyHash
     def format_id, do: <<"test-exact-hash-v1">>
 
-    @impl PositionDB.Storage.ExactKeyHash
+    @impl ExactKeyHash
     def hash_size, do: 4
 
-    @impl PositionDB.Storage.ExactKeyHash
-    def hash(<<"a">>),
-      do: {:ok, <<0, 0, 0, 1>>}
+    @impl ExactKeyHash
+    def hash(<<"a">>), do: {:ok, <<0, 0, 0, 1>>}
 
-    def hash(<<"collision-a">>),
-      do: {:ok, <<0, 0, 0, 2>>}
+    def hash(<<"collision-a">>), do: {:ok, <<0, 0, 0, 2>>}
 
-    def hash(<<"collision-b">>),
-      do: {:ok, <<0, 0, 0, 2>>}
+    def hash(<<"collision-b">>), do: {:ok, <<0, 0, 0, 2>>}
 
-    def hash(_key),
-      do: {:ok, <<0, 0, 0, 15>>}
+    def hash(_key), do: {:ok, <<0, 0, 0, 15>>}
   end
 
   setup do

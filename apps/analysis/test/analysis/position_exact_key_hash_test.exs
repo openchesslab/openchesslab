@@ -2,7 +2,6 @@ defmodule Analysis.PositionExactKeyHashTest do
   use ExUnit.Case, async: true
 
   alias Analysis.PositionExactKeyHash
-
   alias Chess.Position
   alias Chess.PositionHash
   alias Chess.PositionKey
@@ -18,18 +17,14 @@ defmodule Analysis.PositionExactKeyHashTest do
   end
 
   test "hashes a chess exact position key" do
-    key =
-      Position.starting_position()
-      |> PositionKey.exact()
+    key = PositionKey.exact(Position.starting_position())
 
     assert PositionExactKeyHash.hash(key) ==
              {:ok, PositionHash.hash(key)}
   end
 
   test "returns hashes with the declared size" do
-    key =
-      Position.starting_position()
-      |> PositionKey.exact()
+    key = PositionKey.exact(Position.starting_position())
 
     assert {:ok, hash} =
              PositionExactKeyHash.hash(key)

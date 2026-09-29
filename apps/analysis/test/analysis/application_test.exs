@@ -1,13 +1,15 @@
 defmodule Analysis.ApplicationTest do
   use ExUnit.Case, async: false
 
-  alias Analysis.Application, as: AnalysisApplication
   alias Analysis.AnalysisStore
+  alias Analysis.AnalysisStore.Dets
+  alias Analysis.AnalysisStore.Memory
   alias Analysis.AnalysisStoreOwner
-  alias Analysis.GameStore
-  alias Analysis.GameStoreOwner
+  alias Analysis.Application, as: AnalysisApplication
   alias Analysis.GameRecordStore
   alias Analysis.GameRecordStoreOwner
+  alias Analysis.GameStore
+  alias Analysis.GameStoreOwner
   alias Analysis.PositionStore
   alias Analysis.PositionStoreOwner
 
@@ -166,18 +168,18 @@ defmodule Analysis.ApplicationTest do
     Application.put_env(
       :analysis,
       AnalysisStore,
-      adapter: Analysis.AnalysisStore.Dets,
+      adapter: Dets,
       path: "analyses.dets"
     )
 
     assert {
-             Analysis.AnalysisStore.Dets,
+             Dets,
              options
            } =
              Enum.find(
                AnalysisApplication.children(),
                fn
-                 {Analysis.AnalysisStore.Dets, _options} -> true
+                 {Dets, _options} -> true
                  _child -> false
                end
              )
@@ -192,7 +194,7 @@ defmodule Analysis.ApplicationTest do
     Application.put_env(
       :analysis,
       AnalysisStore,
-      adapter: Analysis.AnalysisStore.Dets,
+      adapter: Dets,
       path: "analyses.dets"
     )
 
@@ -205,7 +207,7 @@ defmodule Analysis.ApplicationTest do
     refute Enum.any?(
              AnalysisApplication.children(),
              fn
-               {Analysis.AnalysisStore.Dets, _options} -> true
+               {Dets, _options} -> true
                _child -> false
              end
            )
@@ -215,19 +217,19 @@ defmodule Analysis.ApplicationTest do
     Application.put_env(
       :analysis,
       AnalysisStore,
-      adapter: Analysis.AnalysisStore.Dets,
+      adapter: Dets,
       path: "analyses.dets",
       store: :custom_analysis_store
     )
 
     assert {
-             Analysis.AnalysisStore.Dets,
+             Dets,
              options
            } =
              Enum.find(
                AnalysisApplication.children(),
                fn
-                 {Analysis.AnalysisStore.Dets, _options} -> true
+                 {Dets, _options} -> true
                  _child -> false
                end
              )
@@ -391,7 +393,7 @@ defmodule Analysis.ApplicationTest do
 
   test "starts the analysis store with the cluster-wide store by default" do
     assert {
-             Analysis.AnalysisStore.Memory,
+             Memory,
              [
                name: AnalysisStore.clustered_store()
              ]
@@ -408,7 +410,7 @@ defmodule Analysis.ApplicationTest do
     refute Enum.any?(
              AnalysisApplication.children(),
              fn
-               {Analysis.AnalysisStore.Memory, _options} -> true
+               {Memory, _options} -> true
                _child -> false
              end
            )

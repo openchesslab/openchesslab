@@ -6,6 +6,8 @@ defmodule Analysis.PositionPropertyKeyCodec do
 
   @behaviour PositionDB.Storage.PropertyKeyCodec
 
+  alias PositionDB.Storage.PropertyKeyCodec
+
   @format_id <<"chess-position-property-v1">>
 
   @file_ids %{
@@ -28,16 +30,13 @@ defmodule Analysis.PositionPropertyKeyCodec do
     :king
   ]
 
-  @impl PositionDB.Storage.PropertyKeyCodec
+  @impl PropertyKeyCodec
   def format_id do
     @format_id
   end
 
-  @impl PositionDB.Storage.PropertyKeyCodec
-  def encode(
-        :open_files,
-        file
-      ) do
+  @impl PropertyKeyCodec
+  def encode(:open_files, file) do
     case Map.fetch(
            @file_ids,
            file
@@ -54,15 +53,7 @@ defmodule Analysis.PositionPropertyKeyCodec do
     end
   end
 
-  def encode(
-        :material,
-        %{
-          white: white,
-          black: black
-        }
-      )
-      when is_map(white) and
-             is_map(black) do
+  def encode(:material, %{white: white, black: black}) when is_map(white) and is_map(black) do
     with {:ok, white_counts} <-
            encode_material_counts(white),
          {:ok, black_counts} <-
@@ -76,23 +67,17 @@ defmodule Analysis.PositionPropertyKeyCodec do
     end
   end
 
-  def encode(
-        :material,
-        _value
-      ) do
+  def encode(:material, _value) do
     {:error, :invalid_material}
   end
 
-  def encode(
-        _property,
-        _value
-      ) do
+  def encode(_property, _value) do
     {:error, :unsupported_property}
   end
 
   defp encode_material_counts(material) do
-    @piece_types
-    |> Enum.reduce_while(
+    Enum.reduce_while(
+      @piece_types,
       {:ok, <<>>},
       fn piece_type, {:ok, encoded} ->
         case Map.fetch(

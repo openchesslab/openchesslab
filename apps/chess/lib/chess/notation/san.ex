@@ -81,8 +81,7 @@ defmodule Chess.Notation.SAN do
 
   defp castle?(_piece, _move), do: false
 
-  defp format_castle(%Move{from: from, to: to})
-       when to > from do
+  defp format_castle(%Move{from: from, to: to}) when to > from do
     "O-O"
   end
 
@@ -156,11 +155,7 @@ defmodule Chess.Notation.SAN do
     Position.piece_at(position, move.to) != nil
   end
 
-  defp en_passant_capture?(
-         %Position{en_passant: target},
-         %Move{to: target}
-       )
-       when not is_nil(target) do
+  defp en_passant_capture?(%Position{en_passant: target}, %Move{to: target}) when not is_nil(target) do
     true
   end
 

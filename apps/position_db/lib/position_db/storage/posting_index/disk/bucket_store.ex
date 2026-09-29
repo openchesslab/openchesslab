@@ -20,8 +20,7 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
   defstruct [:directory]
 
   @spec new(Path.t()) :: t()
-  def new(directory)
-      when is_binary(directory) do
+  def new(directory) when is_binary(directory) do
     %__MODULE__{
       directory: directory
     }
@@ -35,17 +34,8 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
         ) ::
           :ok
           | {:error, term()}
-  def append_durable(
-        %__MODULE__{} = store,
-        bucket,
-        key,
-        position_id
-      )
-      when is_integer(bucket) and
-             bucket >= 0 and
-             is_binary(key) and
-             is_integer(position_id) and
-             position_id > 0 do
+  def append_durable(%__MODULE__{} = store, bucket, key, position_id)
+      when is_integer(bucket) and bucket >= 0 and is_binary(key) and is_integer(position_id) and position_id > 0 do
     path =
       Layout.bucket_path(
         store.directory,
@@ -59,15 +49,13 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
       )
 
     with {:ok, bucket_state} <-
-           bucket_state(path),
-         :ok <-
-           append_entry_durable(
-             store.directory,
-             path,
-             bucket_state,
-             entry
-           ) do
-      :ok
+           bucket_state(path) do
+      append_entry_durable(
+        store.directory,
+        path,
+        bucket_state,
+        entry
+      )
     end
   end
 
@@ -80,17 +68,8 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
   Recovery scans only the affected bucket file to locate variable-size
   entry boundaries.
   """
-  def recover_pending_append(
-        %__MODULE__{} = store,
-        bucket,
-        key,
-        position_id
-      )
-      when is_integer(bucket) and
-             bucket >= 0 and
-             is_binary(key) and
-             is_integer(position_id) and
-             position_id > 0 do
+  def recover_pending_append(%__MODULE__{} = store, bucket, key, position_id)
+      when is_integer(bucket) and bucket >= 0 and is_binary(key) and is_integer(position_id) and position_id > 0 do
     recover_pending_appends(
       store,
       bucket,
@@ -124,15 +103,8 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
           | {:error, :partial_entry}
           | {:error, :invalid_position_id}
           | {:error, term()}
-  def recover_pending_appends(
-        %__MODULE__{} = store,
-        bucket,
-        postings
-      )
-      when is_integer(bucket) and
-             bucket >= 0 and
-             is_list(postings) and
-             postings != [] do
+  def recover_pending_appends(%__MODULE__{} = store, bucket, postings)
+      when is_integer(bucket) and bucket >= 0 and is_list(postings) and postings != [] do
     expected =
       postings
       |> Enum.uniq()
@@ -194,14 +166,7 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
           | {:error, :partial_entry}
           | {:error, :invalid_position_id}
           | {:error, term()}
-  def lookup(
-        %__MODULE__{} = store,
-        bucket,
-        key
-      )
-      when is_integer(bucket) and
-             bucket >= 0 and
-             is_binary(key) do
+  def lookup(%__MODULE__{} = store, bucket, key) when is_integer(bucket) and bucket >= 0 and is_binary(key) do
     path =
       Layout.bucket_path(
         store.directory,
@@ -231,11 +196,7 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
     end
   end
 
-  defp lookup_entries(
-         file,
-         key,
-         position_ids
-       ) do
+  defp lookup_entries(file, key, position_ids) do
     header_size =
       Entry.header_size()
 
@@ -277,19 +238,11 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
     end
   end
 
-  defp read_key(
-         _file,
-         0
-       ) do
+  defp read_key(_file, 0) do
     {:ok, <<>>}
   end
 
-  defp read_key(
-         file,
-         key_size
-       )
-       when is_integer(key_size) and
-              key_size > 0 do
+  defp read_key(file, key_size) when is_integer(key_size) and key_size > 0 do
     case :file.read(
            file,
            key_size
@@ -322,12 +275,7 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
     end
   end
 
-  defp append_entry_durable(
-         directory,
-         path,
-         bucket_state,
-         entry
-       ) do
+  defp append_entry_durable(directory, path, bucket_state, entry) do
     case :file.open(
            path,
            [:append, :binary, :raw]
@@ -339,10 +287,8 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
                    :file.write(
                      file,
                      entry
-                   ),
-                 :ok <-
-                   :file.sync(file) do
-              :ok
+                   ) do
+              :file.sync(file)
             end
           after
             :file.close(file)
@@ -360,34 +306,19 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
     end
   end
 
-  defp sync_bucket_directory(
-         directory,
-         :new
-       ) do
+  defp sync_bucket_directory(directory, :new) do
     Durability.sync_directory(directory)
   end
 
-  defp sync_bucket_directory(
-         _directory,
-         :existing
-       ) do
+  defp sync_bucket_directory(_directory, :existing) do
     :ok
   end
 
-  defp read_exact(
-         _file,
-         _offset,
-         0
-       ) do
+  defp read_exact(_file, _offset, 0) do
     {:ok, <<>>}
   end
 
-  defp read_exact(
-         file,
-         offset,
-         size
-       )
-       when size > 0 do
+  defp read_exact(file, offset, size) when size > 0 do
     case :file.pread(
            file,
            offset,
@@ -408,10 +339,7 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
     end
   end
 
-  defp truncate_bucket(
-         path,
-         size
-       ) do
+  defp truncate_bucket(path, size) do
     case :file.open(
            path,
            [
@@ -429,10 +357,8 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
                    size
                  ),
                :ok <-
-                 :file.truncate(file),
-               :ok <-
-                 :file.sync(file) do
-            :ok
+                 :file.truncate(file) do
+            :file.sync(file)
           end
         after
           :file.close(file)
@@ -443,12 +369,7 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
     end
   end
 
-  defp recover_expected_entries(
-         store,
-         path,
-         expected,
-         size
-       ) do
+  defp recover_expected_entries(store, path, expected, size) do
     expected_pairs =
       Map.new(
         expected,
@@ -484,16 +405,14 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
                truncate_bucket(
                  path,
                  offset
-               ),
-             :ok <-
-               persist_missing_entries(
-                 store,
-                 path,
-                 :existing,
-                 expected,
-                 found
                ) do
-          :ok
+          persist_missing_entries(
+            store,
+            path,
+            :existing,
+            expected,
+            found
+          )
         end
 
       {:error, reason} ->
@@ -501,11 +420,7 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
     end
   end
 
-  defp inspect_expected_entries(
-         path,
-         size,
-         expected
-       ) do
+  defp inspect_expected_entries(path, size, expected) do
     case :file.open(
            path,
            [:read, :binary, :raw]
@@ -528,25 +443,11 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
     end
   end
 
-  defp inspect_expected_entries(
-         _file,
-         offset,
-         size,
-         _expected,
-         found
-       )
-       when offset == size do
+  defp inspect_expected_entries(_file, offset, size, _expected, found) when offset == size do
     {:ok, found}
   end
 
-  defp inspect_expected_entries(
-         file,
-         offset,
-         size,
-         expected,
-         found
-       )
-       when offset < size do
+  defp inspect_expected_entries(file, offset, size, expected, found) when offset < size do
     header_size =
       Entry.header_size()
 
@@ -574,13 +475,7 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
     end
   end
 
-  defp inspect_expected_entry(
-         file,
-         offset,
-         size,
-         expected,
-         found
-       ) do
+  defp inspect_expected_entry(file, offset, size, expected, found) do
     header_size =
       Entry.header_size()
 
@@ -624,16 +519,7 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
     end
   end
 
-  defp inspect_complete_expected_entry(
-         file,
-         offset,
-         size,
-         expected,
-         found,
-         key_size,
-         position_id,
-         entry_size
-       ) do
+  defp inspect_complete_expected_entry(file, offset, size, expected, found, key_size, position_id, entry_size) do
     key_offset =
       offset +
         Entry.header_size()
@@ -674,10 +560,7 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
     end
   end
 
-  defp validate_expected_partial(
-         partial,
-         expected
-       ) do
+  defp validate_expected_partial(partial, expected) do
     matches? =
       Enum.any?(
         expected,
@@ -696,10 +579,7 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
     end
   end
 
-  defp partial_matches_entry?(
-         partial,
-         entry
-       ) do
+  defp partial_matches_entry?(partial, entry) do
     partial_size =
       byte_size(partial)
 
@@ -713,13 +593,7 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
         )
   end
 
-  defp persist_missing_entries(
-         store,
-         path,
-         bucket_state,
-         expected,
-         found
-       ) do
+  defp persist_missing_entries(store, path, bucket_state, expected, found) do
     missing =
       Enum.reject(
         expected,
@@ -739,31 +613,16 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
              missing
            ),
          :ok <-
-           Durability.sync_file(path),
-         :ok <-
-           Durability.sync_directory(store.directory) do
-      :ok
+           Durability.sync_file(path) do
+      Durability.sync_directory(store.directory)
     end
   end
 
-  defp append_missing_entries(
-         _store,
-         _path,
-         _bucket_state,
-         []
-       ) do
+  defp append_missing_entries(_store, _path, _bucket_state, []) do
     :ok
   end
 
-  defp append_missing_entries(
-         store,
-         path,
-         bucket_state,
-         [
-           {_pair, entry}
-           | rest
-         ]
-       ) do
+  defp append_missing_entries(store, path, bucket_state, [{_pair, entry} | rest]) do
     with :ok <-
            append_entry_durable(
              store.directory,

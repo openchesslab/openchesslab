@@ -1,8 +1,8 @@
 defmodule Analysis.AnalysesTest do
   use ExUnit.Case, async: false
 
-  alias Analysis.Analysis, as: AnalysisModel
   alias Analysis.Analyses
+  alias Analysis.Analysis, as: AnalysisModel
   alias Analysis.GameContent
   alias Analysis.GameFingerprint
   alias Analysis.GameRecord
@@ -19,13 +19,14 @@ defmodule Analysis.AnalysesTest do
   alias Chess.Square
 
   defmodule FailingPositionStore do
+    @moduledoc false
     use GenServer
 
     def start_link(mode) do
       GenServer.start_link(
         __MODULE__,
         mode,
-        name: Analysis.PositionStore.clustered_server()
+        name: PositionStore.clustered_server()
       )
     end
 
@@ -35,33 +36,22 @@ defmodule Analysis.AnalysesTest do
     end
 
     @impl true
-    def handle_call(
-          {:append, _position},
-          _from,
-          state
-        ) do
+    def handle_call({:append, _position}, _from, state) do
       {:reply, {:error, :disk_failure}, state}
     end
 
-    def handle_call(
-          {:get, _position_id},
-          _from,
-          :get_failure = state
-        ) do
+    def handle_call({:get, _position_id}, _from, :get_failure = state) do
       {:reply, {:error, :disk_failure}, state}
     end
 
-    def handle_call(
-          {:get, _position_id},
-          _from,
-          state
-        ) do
+    def handle_call({:get, _position_id}, _from, state) do
       {:reply, {:ok, Position.starting_position()}, state}
     end
   end
 
   defp analysis_with_variations(analysis_id) do
-    AnalysisModel.new(analysis_id, 1)
+    analysis_id
+    |> AnalysisModel.new(1)
     |> AnalysisModel.add_child([], transition("e2", "e4"), 2)
     |> AnalysisModel.add_child([], transition("d2", "d4"), 3)
     |> AnalysisModel.add_child([], transition("c2", "c4"), 4)
@@ -78,10 +68,7 @@ defmodule Analysis.AnalysesTest do
     )
   end
 
-  defp with_failing_position_store(
-         mode,
-         fun
-       ) do
+  defp with_failing_position_store(mode, fun) do
     :ok =
       Supervisor.terminate_child(
         Analysis.Supervisor,
@@ -105,6 +92,7 @@ defmodule Analysis.AnalysesTest do
   end
 
   defmodule RecordingAnalysisStore do
+    @moduledoc false
     @behaviour Analysis.AnalysisStore
 
     def insert(store, analysis) do
@@ -154,7 +142,7 @@ defmodule Analysis.AnalysesTest do
       assert {:ok, analysis, 1} = Analyses.create(analysis_id)
 
       assert analysis.id == analysis_id
-      assert AnalysisModel.start(analysis) == Analysis.GameStart.standard()
+      assert AnalysisModel.start(analysis) == GameStart.standard()
 
       root = AnalysisModel.root(analysis)
 
@@ -210,12 +198,7 @@ defmodule Analysis.AnalysesTest do
     test "rejects an invalid setup position", %{
       analysis_id: analysis_id
     } do
-      position =
-        Position.new()
-        |> Position.put_piece(
-          Square.from_algebraic("e1"),
-          {:white, :king}
-        )
+      position = Position.put_piece(Position.new(), Square.from_algebraic("e1"), {:white, :king})
 
       assert {:error, {:invalid_position, reasons}} =
                Analyses.create(
@@ -770,7 +753,8 @@ defmodule Analysis.AnalysesTest do
     analysis_id: analysis_id
   } do
     analysis =
-      AnalysisModel.new(analysis_id, 1)
+      analysis_id
+      |> AnalysisModel.new(1)
       |> AnalysisModel.add_child([], transition("e2", "e4"), 2)
       |> AnalysisModel.add_child([0], transition("e7", "e5"), 3)
       |> AnalysisModel.add_child([0], transition("c7", "c5"), 4)
@@ -862,7 +846,8 @@ defmodule Analysis.AnalysesTest do
     analysis_id: analysis_id
   } do
     analysis =
-      AnalysisModel.new(analysis_id, 1)
+      analysis_id
+      |> AnalysisModel.new(1)
       |> AnalysisModel.add_child([], transition("e2", "e4"), 2)
       |> AnalysisModel.add_child([0], transition("e7", "e5"), 3)
       |> AnalysisModel.add_child([0, 0], transition("g1", "f3"), 4)

@@ -9,7 +9,6 @@ defmodule Analysis.GameRecordsTest do
   alias Analysis.GameStart
   alias Analysis.GameStore
   alias Analysis.PositionStore
-
   alias Chess.Move
   alias Chess.Position
   alias Chess.Square
@@ -349,10 +348,8 @@ defmodule Analysis.GameRecordsTest do
              & &1.ply
            ) == [0, 1, 2]
 
-    assert Enum.map(
-             occurrences,
-             & &1.position_id
-           )
+    assert occurrences
+           |> Enum.map(& &1.position_id)
            |> hd() ==
              initial_position_id
   end
@@ -836,10 +833,7 @@ defmodule Analysis.GameRecordsTest do
              }
   end
 
-  defp move(
-         from,
-         to
-       ) do
+  defp move(from, to) do
     Move.new(
       Square.from_algebraic(from),
       Square.from_algebraic(to)

@@ -18,11 +18,8 @@ defmodule Analysis.MoveContext do
 
   @spec at(pos_integer(), side(), non_neg_integer()) :: t()
   def at(starting_fullmove_number, starting_side, ply_depth)
-      when is_integer(starting_fullmove_number) and
-             starting_fullmove_number > 0 and
-             starting_side in [:white, :black] and
-             is_integer(ply_depth) and
-             ply_depth >= 0 do
+      when is_integer(starting_fullmove_number) and starting_fullmove_number > 0 and starting_side in [:white, :black] and
+             is_integer(ply_depth) and ply_depth >= 0 do
     offset =
       case starting_side do
         :white -> ply_depth

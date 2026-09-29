@@ -1,4 +1,5 @@
 defmodule PositionDB do
+  @moduledoc false
   alias PositionDB.EquivalenceContext
   alias PositionDB.PositionIndexer
   alias PositionDB.PositionStore
@@ -135,12 +136,7 @@ defmodule PositionDB do
     )
   end
 
-  defp index_new_position(
-         db,
-         store,
-         position,
-         position_id
-       ) do
+  defp index_new_position(db, store, position, position_id) do
     case PositionIndexer.index(
            db.indexer,
            position_id,

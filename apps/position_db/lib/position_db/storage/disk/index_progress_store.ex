@@ -30,8 +30,7 @@ defmodule PositionDB.Storage.Disk.IndexProgressStore do
           | {:error, :invalid_index_progress_magic}
           | {:error, {:unsupported_index_progress_version, non_neg_integer()}}
           | {:error, term()}
-  def read(directory)
-      when is_binary(directory) do
+  def read(directory) when is_binary(directory) do
     case File.read(progress_path(directory)) do
       {:ok, encoded} ->
         decode(encoded)
@@ -51,13 +50,8 @@ defmodule PositionDB.Storage.Disk.IndexProgressStore do
           :ok
           | {:error, {:indexed_through_regression, indexed_through_id(), indexed_through_id()}}
           | {:error, term()}
-  def advance(
-        directory,
-        indexed_through_id
-      )
-      when is_binary(directory) and
-             is_integer(indexed_through_id) and
-             indexed_through_id >= 0 and
+  def advance(directory, indexed_through_id)
+      when is_binary(directory) and is_integer(indexed_through_id) and indexed_through_id >= 0 and
              indexed_through_id <= @max_position_id do
     case read(directory) do
       :none ->
@@ -84,10 +78,7 @@ defmodule PositionDB.Storage.Disk.IndexProgressStore do
     end
   end
 
-  defp persist(
-         directory,
-         indexed_through_id
-       ) do
+  defp persist(directory, indexed_through_id) do
     next =
       next_path(directory)
 
@@ -100,20 +91,15 @@ defmodule PositionDB.Storage.Disk.IndexProgressStore do
            create_next(
              next,
              encode(indexed_through_id)
-           ),
-         :ok <-
-           Durability.replace_sibling_file(
-             next,
-             active
            ) do
-      :ok
+      Durability.replace_sibling_file(
+        next,
+        active
+      )
     end
   end
 
-  defp create_next(
-         path,
-         encoded
-       ) do
+  defp create_next(path, encoded) do
     case :file.open(
            path,
            [
@@ -129,10 +115,8 @@ defmodule PositionDB.Storage.Disk.IndexProgressStore do
                  :file.write(
                    file,
                    encoded
-                 ),
-               :ok <-
-                 :file.sync(file) do
-            :ok
+                 ) do
+            :file.sync(file)
           end
         after
           :file.close(file)
@@ -164,8 +148,7 @@ defmodule PositionDB.Storage.Disk.IndexProgressStore do
     >>
   end
 
-  defp decode(encoded)
-       when is_binary(encoded) do
+  defp decode(encoded) when is_binary(encoded) do
     case encoded do
       <<
         magic::binary-size(@magic_size),
@@ -183,29 +166,15 @@ defmodule PositionDB.Storage.Disk.IndexProgressStore do
     end
   end
 
-  defp decode_progress(
-         magic,
-         _version,
-         _indexed_through_id
-       )
-       when magic != @magic do
+  defp decode_progress(magic, _version, _indexed_through_id) when magic != @magic do
     {:error, :invalid_index_progress_magic}
   end
 
-  defp decode_progress(
-         @magic,
-         version,
-         _indexed_through_id
-       )
-       when version != @version do
+  defp decode_progress(@magic, version, _indexed_through_id) when version != @version do
     {:error, {:unsupported_index_progress_version, version}}
   end
 
-  defp decode_progress(
-         @magic,
-         @version,
-         indexed_through_id
-       ) do
+  defp decode_progress(@magic, @version, indexed_through_id) do
     {:ok, indexed_through_id}
   end
 

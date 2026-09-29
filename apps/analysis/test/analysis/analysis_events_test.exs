@@ -1,9 +1,9 @@
 defmodule Analysis.AnalysisEventsTest do
   use ExUnit.Case, async: false
 
+  alias Analysis.Analyses
   alias Analysis.Analysis, as: AnalysisModel
   alias Analysis.AnalysisEvents
-  alias Analysis.Analyses
   alias Analysis.PositionStore
   alias Chess.Move
   alias Chess.Position
@@ -23,9 +23,7 @@ defmodule Analysis.AnalysisEventsTest do
   end
 
   defp insert_analysis(analysis_id) do
-    position_id =
-      Position.starting_position()
-      |> PositionStore.append()
+    position_id = PositionStore.append(Position.starting_position())
 
     analysis = AnalysisModel.new(analysis_id, position_id)
 

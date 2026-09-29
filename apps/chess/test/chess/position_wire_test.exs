@@ -104,10 +104,8 @@ defmodule Chess.PositionWireTest do
 
       decoded = Jason.decode!(Jason.encode!(position))
 
-      assert decoded["pieces"]
-             |> Enum.sort_by(fn [sq, _] -> sq end) ==
-               Position.to_wire(position)["pieces"]
-               |> Enum.sort_by(fn [sq, _] -> sq end)
+      assert Enum.sort_by(decoded["pieces"], fn [sq, _] -> sq end) ==
+               Enum.sort_by(Position.to_wire(position)["pieces"], fn [sq, _] -> sq end)
     end
   end
 end

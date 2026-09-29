@@ -419,10 +419,7 @@ defmodule Analysis.RoomsTest do
              )
   end
 
-  defp start_room_and_wait(
-         room_id,
-         rooms_options
-       ) do
+  defp start_room_and_wait(room_id, rooms_options) do
     assert {:ok, started_room} =
              Rooms.start_room(
                room_id,
@@ -440,25 +437,13 @@ defmodule Analysis.RoomsTest do
     room
   end
 
-  defp eventually_get_room(
-         room_id,
-         rooms_options,
-         attempts \\ 50
-       )
+  defp eventually_get_room(room_id, rooms_options, attempts \\ 50)
 
-  defp eventually_get_room(
-         _room_id,
-         _rooms_options,
-         0
-       ) do
+  defp eventually_get_room(_room_id, _rooms_options, 0) do
     :not_found
   end
 
-  defp eventually_get_room(
-         room_id,
-         rooms_options,
-         attempts
-       ) do
+  defp eventually_get_room(room_id, rooms_options, attempts) do
     case Rooms.get(
            room_id,
            rooms_options
@@ -477,25 +462,13 @@ defmodule Analysis.RoomsTest do
     end
   end
 
-  defp eventually_room_not_found(
-         room_id,
-         rooms_options,
-         attempts \\ 50
-       )
+  defp eventually_room_not_found(room_id, rooms_options, attempts \\ 50)
 
-  defp eventually_room_not_found(
-         _room_id,
-         _rooms_options,
-         0
-       ) do
+  defp eventually_room_not_found(_room_id, _rooms_options, 0) do
     {:error, :room_still_exists}
   end
 
-  defp eventually_room_not_found(
-         room_id,
-         rooms_options,
-         attempts
-       ) do
+  defp eventually_room_not_found(room_id, rooms_options, attempts) do
     case Rooms.get(
            room_id,
            rooms_options

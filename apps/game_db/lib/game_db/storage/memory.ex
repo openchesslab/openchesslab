@@ -53,15 +53,9 @@ defmodule GameDB.Storage.Memory do
     %__MODULE__{}
   end
 
-  @impl GameDB.Storage
-  def put(
-        %__MODULE__{} = storage,
-        fingerprint,
-        record,
-        position_ids
-      )
-      when is_binary(fingerprint) and
-             is_list(position_ids) do
+  @impl Storage
+  def put(%__MODULE__{} = storage, fingerprint, record, position_ids)
+      when is_binary(fingerprint) and is_list(position_ids) do
     with :ok <- validate_position_ids(position_ids) do
       case find(
              storage,
@@ -82,22 +76,12 @@ defmodule GameDB.Storage.Memory do
     end
   end
 
-  def put(
-        %__MODULE__{},
-        _fingerprint,
-        _record,
-        _position_ids
-      ) do
+  def put(%__MODULE__{}, _fingerprint, _record, _position_ids) do
     {:error, :invalid_fingerprint}
   end
 
-  @impl GameDB.Storage
-  def find(
-        %__MODULE__{} = storage,
-        fingerprint,
-        record
-      )
-      when is_binary(fingerprint) do
+  @impl Storage
+  def find(%__MODULE__{} = storage, fingerprint, record) when is_binary(fingerprint) do
     storage.fingerprint_index
     |> Map.get(
       fingerprint,
@@ -116,11 +100,8 @@ defmodule GameDB.Storage.Memory do
     )
   end
 
-  @impl GameDB.Storage
-  def get(
-        %__MODULE__{} = storage,
-        game_id
-      ) do
+  @impl Storage
+  def get(%__MODULE__{} = storage, game_id) do
     case Map.fetch(
            storage.games,
            game_id
@@ -133,11 +114,8 @@ defmodule GameDB.Storage.Memory do
     end
   end
 
-  @impl GameDB.Storage
-  def occurrences(
-        %__MODULE__{} = storage,
-        game_id
-      ) do
+  @impl Storage
+  def occurrences(%__MODULE__{} = storage, game_id) do
     case Map.fetch(
            storage.occurrence_ids_by_game,
            game_id
@@ -157,11 +135,8 @@ defmodule GameDB.Storage.Memory do
     end
   end
 
-  @impl GameDB.Storage
-  def scan_occurrences(
-        %__MODULE__{} = storage,
-        position_id
-      ) do
+  @impl Storage
+  def scan_occurrences(%__MODULE__{} = storage, position_id) do
     %{
       storage: storage,
       occurrence_ids:
@@ -173,16 +148,8 @@ defmodule GameDB.Storage.Memory do
     }
   end
 
-  @impl GameDB.Storage
-  def scan_occurrences_next(
-        %{
-          storage: storage,
-          occurrence_ids: [
-            occurrence_id
-            | remaining
-          ]
-        } = scan
-      ) do
+  @impl Storage
+  def scan_occurrences_next(%{storage: storage, occurrence_ids: [occurrence_id | remaining]} = scan) do
     case Map.fetch(
            storage.occurrences,
            occurrence_id
@@ -202,17 +169,12 @@ defmodule GameDB.Storage.Memory do
     end
   end
 
-  def scan_occurrences_next(%{
-        occurrence_ids: []
-      }) do
+  def scan_occurrences_next(%{occurrence_ids: []}) do
     :done
   end
 
-  @impl GameDB.Storage
-  def occurrences_by_position_id(
-        %__MODULE__{} = storage,
-        position_id
-      ) do
+  @impl Storage
+  def occurrences_by_position_id(%__MODULE__{} = storage, position_id) do
     occurrences =
       storage.occurrence_ids_by_position
       |> Map.get(
@@ -229,11 +191,8 @@ defmodule GameDB.Storage.Memory do
     {:ok, occurrences}
   end
 
-  @impl GameDB.Storage
-  def get_occurrence(
-        %__MODULE__{} = storage,
-        occurrence_id
-      ) do
+  @impl Storage
+  def get_occurrence(%__MODULE__{} = storage, occurrence_id) do
     case Map.fetch(
            storage.occurrences,
            occurrence_id
@@ -246,7 +205,7 @@ defmodule GameDB.Storage.Memory do
     end
   end
 
-  @impl GameDB.Storage
+  @impl Storage
   def scan(%__MODULE__{} = storage) do
     %{
       storage: storage,
@@ -254,13 +213,8 @@ defmodule GameDB.Storage.Memory do
     }
   end
 
-  @impl GameDB.Storage
-  def scan_next(
-        %{
-          storage: storage,
-          next_game_id: game_id
-        } = state
-      ) do
+  @impl Storage
+  def scan_next(%{storage: storage, next_game_id: game_id} = state) do
     if game_id < storage.next_game_id do
       {:ok, game_id,
        %{
@@ -272,10 +226,8 @@ defmodule GameDB.Storage.Memory do
     end
   end
 
-  @impl GameDB.Storage
-  def cardinality(%__MODULE__{
-        games: games
-      }) do
+  @impl Storage
+  def cardinality(%__MODULE__{games: games}) do
     map_size(games)
   end
 
@@ -294,12 +246,7 @@ defmodule GameDB.Storage.Memory do
     end
   end
 
-  defp put_new(
-         storage,
-         fingerprint,
-         record,
-         position_ids
-       ) do
+  defp put_new(storage, fingerprint, record, position_ids) do
     game_id =
       storage.next_game_id
 
@@ -368,11 +315,7 @@ defmodule GameDB.Storage.Memory do
     {:ok, storage, game_id}
   end
 
-  defp build_occurrences(
-         game_id,
-         position_ids,
-         first_occurrence_id
-       ) do
+  defp build_occurrences(game_id, position_ids, first_occurrence_id) do
     position_ids
     |> Enum.with_index()
     |> Enum.map_reduce(
@@ -394,10 +337,7 @@ defmodule GameDB.Storage.Memory do
     )
   end
 
-  defp index_occurrences_by_position(
-         index,
-         occurrences
-       ) do
+  defp index_occurrences_by_position(index, occurrences) do
     Enum.reduce(
       occurrences,
       index,

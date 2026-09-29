@@ -30,8 +30,7 @@ defmodule PositionDB.PositionStore do
   ]
 
   @spec new((term() -> key())) :: t()
-  def new(key_function)
-      when is_function(key_function, 1) do
+  def new(key_function) when is_function(key_function, 1) do
     new(
       key_function,
       Memory,
@@ -44,12 +43,7 @@ defmodule PositionDB.PositionStore do
           module(),
           term()
         ) :: t()
-  def new(
-        key_function,
-        storage_module,
-        storage
-      )
-      when is_function(key_function, 1) do
+  def new(key_function, storage_module, storage) when is_function(key_function, 1) do
     %__MODULE__{
       storage_module: storage_module,
       storage: storage,
@@ -118,12 +112,7 @@ defmodule PositionDB.PositionStore do
   @spec scan_next(scan_state()) ::
           {:ok, position_id(), scan_state()}
           | :done
-  def scan_next(
-        %{
-          storage_module: storage_module,
-          storage_scan: storage_scan
-        } = state
-      ) do
+  def scan_next(%{storage_module: storage_module, storage_scan: storage_scan} = state) do
     case storage_module.scan_next(storage_scan) do
       {:ok, position_id, next_scan} ->
         {:ok, position_id, %{state | storage_scan: next_scan}}

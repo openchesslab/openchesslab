@@ -30,8 +30,7 @@ defmodule Chess.PositionTransform do
   defp swap_color(:black), do: :white
 
   defp swap_castling_rights(rights) do
-    rights
-    |> MapSet.new(&swap_castling_right/1)
+    MapSet.new(rights, &swap_castling_right/1)
   end
 
   defp swap_castling_right(:white_kingside), do: :black_kingside

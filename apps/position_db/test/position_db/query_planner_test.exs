@@ -1,9 +1,9 @@
 defmodule PositionDB.QueryPlannerTest do
   use ExUnit.Case, async: true
 
-  alias PositionDB.Query
   alias PositionDB.PositionStore
   alias PositionDB.PropertyIndex
+  alias PositionDB.Query
   alias PositionDB.QueryPlanner
 
   defp store_with_ids(ids) do

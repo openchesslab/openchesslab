@@ -51,11 +51,7 @@ defmodule PositionDB.Or do
     state
   end
 
-  defp load_left(
-         %__MODULE__{
-           left: {:error, _reason}
-         } = state
-       ) do
+  defp load_left(%__MODULE__{left: {:error, _reason}} = state) do
     state
   end
 
@@ -74,11 +70,7 @@ defmodule PositionDB.Or do
 
   defp load_left(state), do: state
 
-  defp maybe_load_right(
-         %__MODULE__{
-           left: {:error, _reason}
-         } = state
-       ) do
+  defp maybe_load_right(%__MODULE__{left: {:error, _reason}} = state) do
     state
   end
 
@@ -90,11 +82,7 @@ defmodule PositionDB.Or do
     state
   end
 
-  defp load_right(
-         %__MODULE__{
-           right: {:error, _reason}
-         } = state
-       ) do
+  defp load_right(%__MODULE__{right: {:error, _reason}} = state) do
     state
   end
 
@@ -113,70 +101,35 @@ defmodule PositionDB.Or do
 
   defp load_right(state), do: state
 
-  defp find_next(%__MODULE__{
-         left: {:error, reason}
-       }) do
+  defp find_next(%__MODULE__{left: {:error, reason}}) do
     {:error, reason}
   end
 
-  defp find_next(%__MODULE__{
-         right: {:error, reason}
-       }) do
+  defp find_next(%__MODULE__{right: {:error, reason}}) do
     {:error, reason}
   end
 
-  defp find_next(%__MODULE__{
-         left: :done,
-         right: :done
-       }) do
+  defp find_next(%__MODULE__{left: :done, right: :done}) do
     :done
   end
 
-  defp find_next(
-         %__MODULE__{
-           left: :done,
-           right_id: right_id
-         } = state
-       ) do
+  defp find_next(%__MODULE__{left: :done, right_id: right_id} = state) do
     {:ok, right_id, %{state | right_id: nil}}
   end
 
-  defp find_next(
-         %__MODULE__{
-           left_id: left_id,
-           right: :done
-         } = state
-       ) do
+  defp find_next(%__MODULE__{left_id: left_id, right: :done} = state) do
     {:ok, left_id, %{state | left_id: nil}}
   end
 
-  defp find_next(
-         %__MODULE__{
-           left_id: left_id,
-           right_id: right_id
-         } = state
-       )
-       when left_id == right_id do
+  defp find_next(%__MODULE__{left_id: left_id, right_id: right_id} = state) when left_id == right_id do
     {:ok, left_id, %{state | left_id: nil, right_id: nil}}
   end
 
-  defp find_next(
-         %__MODULE__{
-           left_id: left_id,
-           right_id: right_id
-         } = state
-       )
-       when left_id < right_id do
+  defp find_next(%__MODULE__{left_id: left_id, right_id: right_id} = state) when left_id < right_id do
     {:ok, left_id, %{state | left_id: nil}}
   end
 
-  defp find_next(
-         %__MODULE__{
-           left_id: left_id,
-           right_id: right_id
-         } = state
-       )
-       when left_id > right_id do
+  defp find_next(%__MODULE__{left_id: left_id, right_id: right_id} = state) when left_id > right_id do
     {:ok, right_id, %{state | right_id: nil}}
   end
 end

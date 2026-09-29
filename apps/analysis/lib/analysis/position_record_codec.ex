@@ -7,20 +7,21 @@ defmodule Analysis.PositionRecordCodec do
 
   alias Chess.Position
   alias Chess.PositionCodec
+  alias PositionDB.Storage.RecordCodec
 
   @format_id <<"chess-position-v1">>
 
-  @impl PositionDB.Storage.RecordCodec
+  @impl RecordCodec
   def format_id do
     @format_id
   end
 
-  @impl PositionDB.Storage.RecordCodec
+  @impl RecordCodec
   def record_size do
     PositionCodec.record_size()
   end
 
-  @impl PositionDB.Storage.RecordCodec
+  @impl RecordCodec
   def encode(%Position{} = position) do
     {:ok, PositionCodec.encode(position)}
   end
@@ -29,9 +30,8 @@ defmodule Analysis.PositionRecordCodec do
     {:error, :invalid_position}
   end
 
-  @impl PositionDB.Storage.RecordCodec
-  def decode(encoded)
-      when is_binary(encoded) do
+  @impl RecordCodec
+  def decode(encoded) when is_binary(encoded) do
     PositionCodec.decode(encoded)
   end
 

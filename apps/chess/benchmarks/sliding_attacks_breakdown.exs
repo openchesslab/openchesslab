@@ -3,11 +3,11 @@ alias Chess.Move
 alias Chess.Position
 
 defmodule SlidingAttacksBenchmarkHelpers do
+  @moduledoc false
   def square(algebraic), do: Chess.Square.from_algebraic(algebraic)
 
   def middlegame_position do
-    Position.starting_position()
-    |> apply_moves([
+    apply_moves(Position.starting_position(), [
       {"e2", "e4"},
       {"e7", "e5"},
       {"g1", "f3"},
@@ -22,7 +22,8 @@ defmodule SlidingAttacksBenchmarkHelpers do
   end
 
   def check_position do
-    Position.new(side_to_move: :white)
+    [side_to_move: :white]
+    |> Position.new()
     |> Position.put_piece(square("e1"), {:white, :king})
     |> Position.put_piece(square("a1"), {:white, :rook})
     |> Position.put_piece(square("e2"), {:white, :pawn})

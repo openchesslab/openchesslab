@@ -25,11 +25,7 @@ defmodule Analysis.GameReplay do
           | {:error, {:position_not_found, GameContent.position_id()}}
           | {:error, {:illegal_move, ply()}}
           | {:error, term()}
-  def replay(
-        %GameContent{} = content,
-        resolver
-      )
-      when is_function(resolver, 1) do
+  def replay(%GameContent{} = content, resolver) when is_function(resolver, 1) do
     position_id =
       GameContent.initial_position_id(content)
 
@@ -48,10 +44,7 @@ defmodule Analysis.GameReplay do
     end
   end
 
-  defp replay_moves(
-         moves,
-         initial_position
-       ) do
+  defp replay_moves(moves, initial_position) do
     moves
     |> Enum.with_index(1)
     |> Enum.reduce_while(

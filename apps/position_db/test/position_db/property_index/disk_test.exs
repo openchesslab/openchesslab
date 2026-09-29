@@ -7,82 +7,65 @@ defmodule PositionDB.PropertyIndex.DiskTest do
   alias PositionDB.Storage.PostingIndex.Disk.Layout
   alias PositionDB.Storage.PostingIndex.Disk.Manifest
   alias PositionDB.Storage.PostingIndex.Disk.ManifestStore
+  alias PositionDB.Storage.PropertyKeyCodec
 
   defmodule TestCodec do
-    @behaviour PositionDB.Storage.PropertyKeyCodec
+    @moduledoc false
+    @behaviour PropertyKeyCodec
 
-    @impl PositionDB.Storage.PropertyKeyCodec
+    @impl PropertyKeyCodec
     def format_id do
       <<"test-property-v1">>
     end
 
-    @impl PositionDB.Storage.PropertyKeyCodec
-    def encode(
-          :color,
-          :white
-        ) do
+    @impl PropertyKeyCodec
+    def encode(:color, :white) do
       {:ok, <<1, 1>>}
     end
 
-    def encode(
-          :color,
-          :black
-        ) do
+    def encode(:color, :black) do
       {:ok, <<1, 2>>}
     end
 
-    def encode(
-          :selected,
-          true
-        ) do
+    def encode(:selected, true) do
       {:ok, <<2, 1>>}
     end
 
-    def encode(
-          _property,
-          _value
-        ) do
+    def encode(_property, _value) do
       {:error, :unsupported_property}
     end
   end
 
   defmodule OtherFormatCodec do
-    @behaviour PositionDB.Storage.PropertyKeyCodec
+    @moduledoc false
+    @behaviour PropertyKeyCodec
 
-    @impl PositionDB.Storage.PropertyKeyCodec
+    @impl PropertyKeyCodec
     def format_id do
       <<"other-property-v1">>
     end
 
-    @impl PositionDB.Storage.PropertyKeyCodec
-    def encode(
-          :color,
-          :white
-        ) do
+    @impl PropertyKeyCodec
+    def encode(:color, :white) do
       {:ok, <<1, 1>>}
     end
 
-    def encode(
-          _property,
-          _value
-        ) do
+    def encode(_property, _value) do
       {:error, :unsupported_property}
     end
   end
 
   defmodule InvalidFormatCodec do
-    @behaviour PositionDB.Storage.PropertyKeyCodec
+    @moduledoc false
+    @behaviour PropertyKeyCodec
 
-    @impl PositionDB.Storage.PropertyKeyCodec
+    @impl PropertyKeyCodec
     def format_id do
       <<>>
     end
 
-    @impl PositionDB.Storage.PropertyKeyCodec
-    def encode(
-          _property,
-          _value
-        ) do
+    @impl PropertyKeyCodec
+    def encode(_property, _value) do
       {:error, :unsupported_property}
     end
   end
@@ -208,8 +191,7 @@ defmodule PositionDB.PropertyIndex.DiskTest do
                codec: OtherFormatCodec
              ) ==
                {:error,
-                {:property_index_format_mismatch, :key_format_id, <<"test-property-v1">>,
-                 <<"other-property-v1">>}}
+                {:property_index_format_mismatch, :key_format_id, <<"test-property-v1">>, <<"other-property-v1">>}}
     end
 
     test "requires durable progress metadata", %{

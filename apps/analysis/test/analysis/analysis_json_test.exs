@@ -1,11 +1,10 @@
 defmodule Analysis.AnalysisJSONTest do
   use ExUnit.Case, async: false
 
+  alias Analysis.AnalysisJSON
   alias Chess.Move
   alias Chess.Position
   alias Chess.Square
-
-  alias Analysis.AnalysisJSON
 
   # The mainline's SANs, walking down the tree's first child.
   defp mainline_sans(node) do
@@ -88,9 +87,7 @@ defmodule Analysis.AnalysisJSONTest do
       after_e2_id = Analysis.PositionStore.append(after_e2)
 
       e2e4 =
-        Analysis.Transition.move(
-          Move.new(Square.from_algebraic("e2"), Square.from_algebraic("e4"))
-        )
+        Analysis.Transition.move(Move.new(Square.from_algebraic("e2"), Square.from_algebraic("e4")))
 
       analysis = %Analysis.Analysis{
         id: "a3",

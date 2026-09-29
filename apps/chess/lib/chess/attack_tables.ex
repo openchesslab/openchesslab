@@ -1,4 +1,5 @@
 defmodule Chess.Bitboard.AttackTables do
+  @moduledoc false
   import Bitwise
 
   def king_attacks do

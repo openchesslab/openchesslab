@@ -12,8 +12,8 @@ defmodule Chess.Position do
   Halfmove and fullmove counters are not part of position identity.
   """
 
-  alias Chess.Board
   alias Chess.Bitboard
+  alias Chess.Board
   alias Chess.Move
 
   @type castling_right ::
@@ -23,8 +23,8 @@ defmodule Chess.Position do
           | :black_queenside
 
   @type t :: %__MODULE__{
-          board: Chess.Board.t(),
-          side_to_move: Chess.Board.color(),
+          board: Board.t(),
+          side_to_move: Board.color(),
           castling_rights: MapSet.t(castling_right()),
           en_passant: Chess.Square.t() | nil
         }
@@ -40,7 +40,7 @@ defmodule Chess.Position do
 
   def new do
     %__MODULE__{
-      board: Chess.Board.empty(),
+      board: Board.empty(),
       side_to_move: :white,
       castling_rights: MapSet.new(),
       en_passant: nil
@@ -49,7 +49,7 @@ defmodule Chess.Position do
 
   def new(opts) do
     %__MODULE__{
-      board: Keyword.get(opts, :board, Chess.Board.empty()),
+      board: Keyword.get(opts, :board, Board.empty()),
       side_to_move: Keyword.get(opts, :side_to_move, :white),
       castling_rights: Keyword.get(opts, :castling_rights, MapSet.new()),
       en_passant: Keyword.get(opts, :en_passant)
@@ -58,7 +58,7 @@ defmodule Chess.Position do
 
   def starting_position do
     board =
-      Chess.Board.empty()
+      Board.empty()
       |> place_back_rank(:white, 0)
       |> place_pawns(:white, 8)
       |> place_back_rank(:black, 56)
@@ -79,25 +79,22 @@ defmodule Chess.Position do
   end
 
   def piece_at(%__MODULE__{board: board}, square) do
-    Chess.Board.get(board, square)
+    Board.get(board, square)
   end
 
   def put_piece(%__MODULE__{board: board} = position, square, piece) do
-    %{position | board: Chess.Board.put(board, square, piece)}
+    %{position | board: Board.put(board, square, piece)}
   end
 
   def remove_piece(%__MODULE__{board: board} = position, square) do
-    %{position | board: Chess.Board.remove(board, square)}
+    %{position | board: Board.remove(board, square)}
   end
 
   def pieces(%__MODULE__{board: board}) do
-    Chess.Board.pieces(board)
+    Board.pieces(board)
   end
 
-  def apply_move(
-        %__MODULE__{side_to_move: side} = position,
-        %Move{from: from, to: to, promotion: promotion}
-      ) do
+  def apply_move(%__MODULE__{side_to_move: side} = position, %Move{from: from, to: to, promotion: promotion}) do
     if opposing_king_at?(position, to, side) do
       {:error, :illegal_move}
     else
@@ -178,31 +175,32 @@ defmodule Chess.Position do
       |> Enum.flat_map(fn {from, destinations} ->
         piece = piece_at(position, from)
 
-        for to <- 0..63,
-            Bitwise.band(destinations, Bitwise.bsl(1, to)) != 0 do
-          promotion =
-            if promotion_move?(piece, from) do
-              [:queen, :rook, :bishop, :knight]
-            else
-              [nil]
-            end
+        for_result =
+          for to <- 0..63,
+              Bitwise.band(destinations, Bitwise.bsl(1, to)) != 0 do
+            promotion =
+              if promotion_move?(piece, from) do
+                [:queen, :rook, :bishop, :knight]
+              else
+                [nil]
+              end
 
-          for promotion_piece <- promotion do
-            move = Move.new(from, to, promotion_piece)
+            for promotion_piece <- promotion do
+              move = Move.new(from, to, promotion_piece)
 
-            if legal_pseudo_move?(
-                 bitboard,
-                 side,
-                 king_square,
-                 move,
-                 piece
-               ) do
-              move
-            else
-              nil
+              if legal_pseudo_move?(
+                   bitboard,
+                   side,
+                   king_square,
+                   move,
+                   piece
+                 ) do
+                move
+              end
             end
           end
-        end
+
+        for_result
         |> List.flatten()
         |> Enum.reject(&is_nil/1)
       end)
@@ -282,13 +280,7 @@ defmodule Chess.Position do
     end
   end
 
-  defp valid_en_passant?(
-         %{
-           side_to_move: :white,
-           en_passant: target
-         } = position
-       )
-       when target in 40..47 do
+  defp valid_en_passant?(%{side_to_move: :white, en_passant: target} = position) when target in 40..47 do
     moved_pawn_square = target - 8
     file = rem(moved_pawn_square, 8)
 
@@ -297,13 +289,7 @@ defmodule Chess.Position do
       adjacent_pawn?(position, moved_pawn_square, file, {:white, :pawn})
   end
 
-  defp valid_en_passant?(
-         %{
-           side_to_move: :black,
-           en_passant: target
-         } = position
-       )
-       when target in 16..23 do
+  defp valid_en_passant?(%{side_to_move: :black, en_passant: target} = position) when target in 16..23 do
     moved_pawn_square = target + 8
     file = rem(moved_pawn_square, 8)
 
@@ -403,8 +389,7 @@ defmodule Chess.Position do
     end
   end
 
-  defp validate_side_to_move(errors, %{side_to_move: side_to_move})
-       when side_to_move in [:white, :black] do
+  defp validate_side_to_move(errors, %{side_to_move: side_to_move}) when side_to_move in [:white, :black] do
     errors
   end
 
@@ -455,13 +440,7 @@ defmodule Chess.Position do
     max(Map.get(counts, piece, 0) - initial_count, 0)
   end
 
-  defp legal_pseudo_move?(
-         bitboard,
-         side,
-         king_square,
-         move,
-         piece
-       ) do
+  defp legal_pseudo_move?(bitboard, side, king_square, move, piece) do
     if Bitboard.get(bitboard, move.to) == {opposite_color(side), :king} do
       false
     else
@@ -875,7 +854,8 @@ defmodule Chess.Position do
   defp path_clear?(position, from, to) do
     step = movement_step(from, to)
 
-    Stream.iterate(from + step, &(&1 + step))
+    (from + step)
+    |> Stream.iterate(&(&1 + step))
     |> Enum.take_while(&(&1 != to))
     |> Enum.all?(fn square ->
       piece_at(position, square) == nil
@@ -956,35 +936,19 @@ defmodule Chess.Position do
      }}
   end
 
-  defp update_castling_rights_for_capture(
-         position,
-         7,
-         {:white, :rook}
-       ) do
+  defp update_castling_rights_for_capture(position, 7, {:white, :rook}) do
     remove_castling_right(position, :white_kingside)
   end
 
-  defp update_castling_rights_for_capture(
-         position,
-         0,
-         {:white, :rook}
-       ) do
+  defp update_castling_rights_for_capture(position, 0, {:white, :rook}) do
     remove_castling_right(position, :white_queenside)
   end
 
-  defp update_castling_rights_for_capture(
-         position,
-         63,
-         {:black, :rook}
-       ) do
+  defp update_castling_rights_for_capture(position, 63, {:black, :rook}) do
     remove_castling_right(position, :black_kingside)
   end
 
-  defp update_castling_rights_for_capture(
-         position,
-         56,
-         {:black, :rook}
-       ) do
+  defp update_castling_rights_for_capture(position, 56, {:black, :rook}) do
     remove_castling_right(position, :black_queenside)
   end
 
@@ -1024,16 +988,12 @@ defmodule Chess.Position do
   defp en_passant_target(position, :white, from, to) do
     if to - from == 16 and adjacent_enemy_pawn?(position, to, :black) do
       from + 8
-    else
-      nil
     end
   end
 
   defp en_passant_target(position, :black, from, to) do
     if from - to == 16 and adjacent_enemy_pawn?(position, to, :white) do
       from - 8
-    else
-      nil
     end
   end
 
@@ -1103,61 +1063,31 @@ defmodule Chess.Position do
      }}
   end
 
-  defp update_castling_rights_for_move(
-         position,
-         :white,
-         {:white, :king},
-         _from
-       ) do
+  defp update_castling_rights_for_move(position, :white, {:white, :king}, _from) do
     position
     |> remove_castling_right(:white_kingside)
     |> remove_castling_right(:white_queenside)
   end
 
-  defp update_castling_rights_for_move(
-         position,
-         :black,
-         {:black, :king},
-         _from
-       ) do
+  defp update_castling_rights_for_move(position, :black, {:black, :king}, _from) do
     position
     |> remove_castling_right(:black_kingside)
     |> remove_castling_right(:black_queenside)
   end
 
-  defp update_castling_rights_for_move(
-         position,
-         :white,
-         {:white, :rook},
-         7
-       ) do
+  defp update_castling_rights_for_move(position, :white, {:white, :rook}, 7) do
     remove_castling_right(position, :white_kingside)
   end
 
-  defp update_castling_rights_for_move(
-         position,
-         :white,
-         {:white, :rook},
-         0
-       ) do
+  defp update_castling_rights_for_move(position, :white, {:white, :rook}, 0) do
     remove_castling_right(position, :white_queenside)
   end
 
-  defp update_castling_rights_for_move(
-         position,
-         :black,
-         {:black, :rook},
-         63
-       ) do
+  defp update_castling_rights_for_move(position, :black, {:black, :rook}, 63) do
     remove_castling_right(position, :black_kingside)
   end
 
-  defp update_castling_rights_for_move(
-         position,
-         :black,
-         {:black, :rook},
-         56
-       ) do
+  defp update_castling_rights_for_move(position, :black, {:black, :rook}, 56) do
     remove_castling_right(position, :black_queenside)
   end
 
@@ -1185,13 +1115,13 @@ defmodule Chess.Position do
     ]
 
     Enum.reduce(pieces, board, fn {offset, type}, board ->
-      Chess.Board.put(board, rank_start + offset, {color, type})
+      Board.put(board, rank_start + offset, {color, type})
     end)
   end
 
   defp place_pawns(board, color, rank_start) do
     Enum.reduce(0..7, board, fn offset, board ->
-      Chess.Board.put(board, rank_start + offset, {color, :pawn})
+      Board.put(board, rank_start + offset, {color, :pawn})
     end)
   end
 
@@ -1233,11 +1163,11 @@ defmodule Chess.Position do
   end
 
   defp decode_board(%{"pieces" => pieces}) when is_list(pieces) do
-    Enum.reduce_while(pieces, {:ok, Chess.Board.empty()}, fn [sq, str], acc ->
+    Enum.reduce_while(pieces, {:ok, Board.empty()}, fn [sq, str], acc ->
       with {:ok, board} <- acc,
            {:ok, piece} <- decode_piece(str),
            true <- is_integer(sq) and sq >= 0 and sq <= 63 do
-        {:cont, {:ok, Chess.Board.put(board, sq, piece)}}
+        {:cont, {:ok, Board.put(board, sq, piece)}}
       else
         _ -> {:halt, {:error, :bad_pieces}}
       end
@@ -1254,7 +1184,7 @@ defmodule Chess.Position do
   for whole boards.
   """
   @spec decode_piece(String.t()) ::
-          {:ok, Chess.Board.piece()} | {:error, :bad_piece}
+          {:ok, Board.piece()} | {:error, :bad_piece}
   def decode_piece(str) when is_binary(str) do
     case String.split(str, "_", parts: 2) do
       [color_str, kind_str] ->
@@ -1311,8 +1241,7 @@ defmodule Chess.Position do
 
   defp decode_en_passant(nil), do: {:ok, nil}
 
-  defp decode_en_passant(n) when is_integer(n) and n >= 0 and n <= 63,
-    do: {:ok, n}
+  defp decode_en_passant(n) when is_integer(n) and n >= 0 and n <= 63, do: {:ok, n}
 
   defp decode_en_passant(_), do: {:error, :bad_en_passant}
 
@@ -1351,7 +1280,7 @@ defmodule Chess.Position do
 
   defp pieces_for_wire(%__MODULE__{board: board}) do
     board
-    |> Chess.Board.pieces()
+    |> Board.pieces()
     |> Enum.map(fn {square, {color, kind}} -> [square, "#{color}_#{kind}"] end)
     |> Enum.sort_by(fn [square, _piece] -> square end)
   end

@@ -5,12 +5,11 @@ defmodule GameDB.Storage.Disk.GameRecordStoreTest do
   alias GameDB.Storage.Disk.RecordStore
 
   defmodule TestCodec do
+    @moduledoc false
     @behaviour GameDB.RecordCodec
 
     @impl true
-    def encode({:game, value})
-        when is_integer(value) and
-               value >= 0 do
+    def encode({:game, value}) when is_integer(value) and value >= 0 do
       {:ok,
        <<
          value::unsigned-big-64
@@ -22,9 +21,7 @@ defmodule GameDB.Storage.Disk.GameRecordStoreTest do
     end
 
     @impl true
-    def decode(<<
-          value::unsigned-big-64
-        >>) do
+    def decode(<<value::unsigned-big-64>>) do
       {:ok, {:game, value}}
     end
 

@@ -37,19 +37,17 @@ defmodule Analysis.AnalysisStore do
 
   @spec ready?() :: boolean()
   def ready? do
-    try do
-      GenServer.call(
-        store(),
-        :ping,
-        1_000
-      ) == :ok
-    rescue
-      ArgumentError ->
-        false
-    catch
-      :exit, _reason ->
-        false
-    end
+    GenServer.call(
+      store(),
+      :ping,
+      1_000
+    ) == :ok
+  rescue
+    ArgumentError ->
+      false
+  catch
+    :exit, _reason ->
+      false
   end
 
   @spec insert(AnalysisModel.t()) ::
@@ -94,19 +92,11 @@ defmodule Analysis.AnalysisStore do
   end
 
   defp adapter do
-    config()
-    |> Keyword.get(
-      :adapter,
-      @default_adapter
-    )
+    Keyword.get(config(), :adapter, @default_adapter)
   end
 
   defp store do
-    config()
-    |> Keyword.get(
-      :store,
-      clustered_store()
-    )
+    Keyword.get(config(), :store, clustered_store())
   end
 
   defp config do

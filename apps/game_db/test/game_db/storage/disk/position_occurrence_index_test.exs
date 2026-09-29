@@ -352,10 +352,7 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndexTest do
              PositionOccurrenceIndex.scan_next(scan)
   end
 
-  defp bucket_path(
-         directory,
-         bucket
-       ) do
+  defp bucket_path(directory, bucket) do
     filename =
       bucket
       |> Integer.to_string()

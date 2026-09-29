@@ -6,6 +6,7 @@ defmodule PositionDB.PositionStoreTest do
   defp key(position), do: :erlang.phash2(position)
 
   defmodule FailingStorage do
+    @moduledoc false
     def put(_storage, _key, _position) do
       {:error, :disk_failure}
     end

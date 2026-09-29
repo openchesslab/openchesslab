@@ -24,8 +24,7 @@ defmodule PositionDB.Storage.Disk.RecordStore do
   ]
 
   @spec new(Path.t(), keyword()) :: t()
-  def new(directory, opts)
-      when is_binary(directory) do
+  def new(directory, opts) when is_binary(directory) do
     record_size =
       Keyword.fetch!(opts, :record_size)
 
@@ -53,12 +52,7 @@ defmodule PositionDB.Storage.Disk.RecordStore do
           | :not_found
           | {:error, :partial_record}
           | {:error, term()}
-  def get(
-        %__MODULE__{} = store,
-        position_id
-      )
-      when is_integer(position_id) and
-             position_id > 0 do
+  def get(%__MODULE__{} = store, position_id) when is_integer(position_id) and position_id > 0 do
     {segment, offset} =
       Layout.location(
         position_id,
@@ -101,14 +95,8 @@ defmodule PositionDB.Storage.Disk.RecordStore do
           | {:error, {:unexpected_segment_size, non_neg_integer(), non_neg_integer()}}
           | {:error, :previous_segment_incomplete}
           | {:error, term()}
-  def append(
-        %__MODULE__{} = store,
-        position_id,
-        record
-      )
-      when is_integer(position_id) and
-             position_id > 0 and
-             is_binary(record) do
+  def append(%__MODULE__{} = store, position_id, record)
+      when is_integer(position_id) and position_id > 0 and is_binary(record) do
     if byte_size(record) == store.record_size do
       {segment, offset} =
         Layout.location(
@@ -164,12 +152,7 @@ defmodule PositionDB.Storage.Disk.RecordStore do
           {:ok, binary()}
           | :not_found
           | {:error, term()}
-  def recover_pending_append(
-        %__MODULE__{} = store,
-        position_id
-      )
-      when is_integer(position_id) and
-             position_id > 0 do
+  def recover_pending_append(%__MODULE__{} = store, position_id) when is_integer(position_id) and position_id > 0 do
     {segment, offset} =
       Layout.location(
         position_id,
@@ -211,13 +194,11 @@ defmodule PositionDB.Storage.Disk.RecordStore do
   def cardinality(%__MODULE__{} = store) do
     with {:ok, filenames} <-
            File.ls(store.directory),
-         segments <-
+         segments =
            segment_numbers(filenames),
          :ok <-
-           validate_segment_sequence(segments),
-         {:ok, count} <-
-           count_records(store, segments) do
-      {:ok, count}
+           validate_segment_sequence(segments) do
+      count_records(store, segments)
     end
   end
 
@@ -241,21 +222,11 @@ defmodule PositionDB.Storage.Disk.RecordStore do
   @spec scan_next(scan_state()) ::
           {:ok, pos_integer(), scan_state()}
           | :done
-  def scan_next(
-        %{
-          next_id: next_id,
-          last_id: last_id
-        } = state
-      )
-      when next_id <= last_id do
+  def scan_next(%{next_id: next_id, last_id: last_id} = state) when next_id <= last_id do
     {:ok, next_id, %{state | next_id: next_id + 1}}
   end
 
-  def scan_next(%{
-        next_id: next_id,
-        last_id: last_id
-      })
-      when next_id > last_id do
+  def scan_next(%{next_id: next_id, last_id: last_id}) when next_id > last_id do
     :done
   end
 
@@ -345,13 +316,7 @@ defmodule PositionDB.Storage.Disk.RecordStore do
     )
   end
 
-  defp segment_record_count(
-         store,
-         segment,
-         last_segment,
-         size,
-         segment_capacity
-       ) do
+  defp segment_record_count(store, segment, last_segment, size, segment_capacity) do
     valid_size? =
       cond do
         size > segment_capacity ->
@@ -375,28 +340,15 @@ defmodule PositionDB.Storage.Disk.RecordStore do
     end
   end
 
-  defp validate_previous_segment(
-         _store,
-         0,
-         _offset
-       ) do
+  defp validate_previous_segment(_store, 0, _offset) do
     :ok
   end
 
-  defp validate_previous_segment(
-         _store,
-         _segment,
-         offset
-       )
-       when offset > 0 do
+  defp validate_previous_segment(_store, _segment, offset) when offset > 0 do
     :ok
   end
 
-  defp validate_previous_segment(
-         store,
-         segment,
-         0
-       ) do
+  defp validate_previous_segment(store, segment, 0) do
     previous_path =
       Layout.segment_path(
         store.directory,
@@ -442,12 +394,7 @@ defmodule PositionDB.Storage.Disk.RecordStore do
     end
   end
 
-  defp append_record(
-         store,
-         path,
-         offset,
-         record
-       ) do
+  defp append_record(store, path, offset, record) do
     case :file.open(
            path,
            [:append, :binary, :raw]
@@ -459,10 +406,8 @@ defmodule PositionDB.Storage.Disk.RecordStore do
                    :file.write(
                      file,
                      record
-                   ),
-                 :ok <-
-                   :file.sync(file) do
-              :ok
+                   ) do
+              :file.sync(file)
             end
           after
             :file.close(file)
@@ -480,25 +425,15 @@ defmodule PositionDB.Storage.Disk.RecordStore do
     end
   end
 
-  defp sync_segment_directory(
-         directory,
-         0
-       ) do
+  defp sync_segment_directory(directory, 0) do
     Durability.sync_directory(directory)
   end
 
-  defp sync_segment_directory(
-         _directory,
-         _offset
-       ) do
+  defp sync_segment_directory(_directory, _offset) do
     :ok
   end
 
-  defp read_record(
-         file,
-         offset,
-         record_size
-       ) do
+  defp read_record(file, offset, record_size) do
     case :file.pread(
            file,
            offset,
@@ -519,13 +454,7 @@ defmodule PositionDB.Storage.Disk.RecordStore do
     end
   end
 
-  defp recover_segment_append(
-         store,
-         position_id,
-         path,
-         offset,
-         expected_size
-       ) do
+  defp recover_segment_append(store, position_id, path, offset, expected_size) do
     case File.stat(path) do
       {:ok, %{size: ^offset}} ->
         :not_found
@@ -572,12 +501,7 @@ defmodule PositionDB.Storage.Disk.RecordStore do
     end
   end
 
-  defp recover_complete_record(
-         store,
-         position_id,
-         path,
-         offset
-       ) do
+  defp recover_complete_record(store, position_id, path, offset) do
     with {:ok, record} <-
            get(
              store,
@@ -594,10 +518,7 @@ defmodule PositionDB.Storage.Disk.RecordStore do
     end
   end
 
-  defp truncate_segment(
-         path,
-         offset
-       ) do
+  defp truncate_segment(path, offset) do
     case :file.open(
            path,
            [
@@ -615,10 +536,8 @@ defmodule PositionDB.Storage.Disk.RecordStore do
                    offset
                  ),
                :ok <-
-                 :file.truncate(file),
-               :ok <-
-                 :file.sync(file) do
-            :ok
+                 :file.truncate(file) do
+            :file.sync(file)
           end
         after
           :file.close(file)

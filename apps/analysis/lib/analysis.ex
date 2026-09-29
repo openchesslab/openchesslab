@@ -1,4 +1,5 @@
 defmodule Analysis do
+  @moduledoc false
   alias Analysis.Node
   alias Analysis.Transition
   alias Chess.Move

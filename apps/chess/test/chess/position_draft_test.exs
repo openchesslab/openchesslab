@@ -99,10 +99,8 @@ defmodule Chess.PositionDraftTest do
 
     test "preserves en passant when an unrelated piece is edited" do
       position =
-        Position.new(
-          side_to_move: :white,
-          en_passant: square("d6")
-        )
+        [side_to_move: :white, en_passant: square("d6")]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("e8"), {:black, :king})
         |> Position.put_piece(square("e5"), {:white, :pawn})
@@ -121,7 +119,8 @@ defmodule Chess.PositionDraftTest do
 
     test "preserves castling rights when the rook returns before apply" do
       position =
-        Position.new(castling_rights: MapSet.new([:white_kingside]))
+        [castling_rights: MapSet.new([:white_kingside])]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("h1"), {:white, :rook})
         |> Position.put_piece(square("e8"), {:black, :king})
@@ -140,7 +139,8 @@ defmodule Chess.PositionDraftTest do
 
     test "rejects castling rights that are inconsistent with the final board" do
       position =
-        Position.new(castling_rights: MapSet.new([:white_kingside]))
+        [castling_rights: MapSet.new([:white_kingside])]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("h1"), {:white, :rook})
         |> Position.put_piece(square("e8"), {:black, :king})
@@ -179,7 +179,8 @@ defmodule Chess.PositionDraftTest do
 
     test "disables a castling right" do
       position =
-        Position.new(castling_rights: MapSet.new([:white_kingside]))
+        [castling_rights: MapSet.new([:white_kingside])]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("h1"), {:white, :rook})
         |> Position.put_piece(square("e8"), {:black, :king})
@@ -201,7 +202,8 @@ defmodule Chess.PositionDraftTest do
   describe "set_en_passant/2" do
     test "sets a valid en passant target" do
       position =
-        Position.new(side_to_move: :white)
+        [side_to_move: :white]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("e8"), {:black, :king})
         |> Position.put_piece(square("e5"), {:white, :pawn})
@@ -218,10 +220,8 @@ defmodule Chess.PositionDraftTest do
 
     test "clears the en passant target" do
       position =
-        Position.new(
-          side_to_move: :white,
-          en_passant: square("d6")
-        )
+        [side_to_move: :white, en_passant: square("d6")]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("e8"), {:black, :king})
         |> Position.put_piece(square("e5"), {:white, :pawn})
@@ -262,9 +262,7 @@ defmodule Chess.PositionDraftTest do
     end
 
     test "returns the validation reasons" do
-      position =
-        Position.starting_position()
-        |> Position.remove_piece(square("e1"))
+      position = Position.remove_piece(Position.starting_position(), square("e1"))
 
       assert {:error, reasons} =
                PositionDraft.validate(PositionDraft.new(position))
@@ -333,10 +331,8 @@ defmodule Chess.PositionDraftTest do
 
     test "clears en passant on a board edit" do
       position =
-        Position.new(
-          side_to_move: :white,
-          en_passant: square("d6")
-        )
+        [side_to_move: :white, en_passant: square("d6")]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("e8"), {:black, :king})
         |> Position.put_piece(square("e5"), {:white, :pawn})

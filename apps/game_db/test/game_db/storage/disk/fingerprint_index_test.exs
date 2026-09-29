@@ -301,10 +301,7 @@ defmodule GameDB.Storage.Disk.FingerprintIndexTest do
     >>
   end
 
-  defp bucket_path(
-         directory,
-         bucket
-       ) do
+  defp bucket_path(directory, bucket) do
     filename =
       bucket
       |> Integer.to_string()

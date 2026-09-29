@@ -6,8 +6,6 @@ defmodule PositionDB.PositionDbChessTest do
   alias Chess.PositionProperties
   alias Chess.PositionTransform
   alias Chess.Square
-
-  alias PositionDB
   alias PositionDB.Query
 
   defp new_db do
@@ -26,12 +24,7 @@ defmodule PositionDB.PositionDbChessTest do
   end
 
   test "stores and retrieves a real Chess.Position exactly" do
-    position =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:white, :pawn}
-      )
+    position = Position.put_piece(Position.new(), Square.from_algebraic("a4"), {:white, :pawn})
 
     db = new_db()
 
@@ -74,19 +67,9 @@ defmodule PositionDB.PositionDbChessTest do
   end
 
   test "queries a real Chess.Position property" do
-    position_1 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:white, :pawn}
-      )
+    position_1 = Position.put_piece(Position.new(), Square.from_algebraic("a4"), {:white, :pawn})
 
-    position_2 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("e4"),
-        {:white, :pawn}
-      )
+    position_2 = Position.put_piece(Position.new(), Square.from_algebraic("e4"), {:white, :pawn})
 
     db = new_db()
 
@@ -116,12 +99,7 @@ defmodule PositionDB.PositionDbChessTest do
         {:black, :pawn}
       )
 
-    position_2 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:white, :pawn}
-      )
+    position_2 = Position.put_piece(Position.new(), Square.from_algebraic("a4"), {:white, :pawn})
 
     position_3 =
       Position.new()
@@ -168,19 +146,9 @@ defmodule PositionDB.PositionDbChessTest do
   end
 
   test "queries a real Chess.Position using any of multiple properties" do
-    position_1 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:white, :pawn}
-      )
+    position_1 = Position.put_piece(Position.new(), Square.from_algebraic("a4"), {:white, :pawn})
 
-    position_2 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("e4"),
-        {:white, :pawn}
-      )
+    position_2 = Position.put_piece(Position.new(), Square.from_algebraic("e4"), {:white, :pawn})
 
     db = new_db()
 
@@ -199,19 +167,9 @@ defmodule PositionDB.PositionDbChessTest do
   end
 
   test "queries a real Chess.Position using a negated property" do
-    position_1 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:white, :pawn}
-      )
+    position_1 = Position.put_piece(Position.new(), Square.from_algebraic("a4"), {:white, :pawn})
 
-    position_2 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("e4"),
-        {:white, :pawn}
-      )
+    position_2 = Position.put_piece(Position.new(), Square.from_algebraic("e4"), {:white, :pawn})
 
     db = new_db()
 
@@ -238,12 +196,7 @@ defmodule PositionDB.PositionDbChessTest do
         {:black, :pawn}
       )
 
-    position_2 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:white, :pawn}
-      )
+    position_2 = Position.put_piece(Position.new(), Square.from_algebraic("a4"), {:white, :pawn})
 
     position_3 =
       Position.new()
@@ -277,19 +230,9 @@ defmodule PositionDB.PositionDbChessTest do
   end
 
   test "queries a real Chess.Position using a negated compound query" do
-    position_1 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:white, :pawn}
-      )
+    position_1 = Position.put_piece(Position.new(), Square.from_algebraic("a4"), {:white, :pawn})
 
-    position_2 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("e4"),
-        {:white, :pawn}
-      )
+    position_2 = Position.put_piece(Position.new(), Square.from_algebraic("e4"), {:white, :pawn})
 
     position_3 =
       Position.new()
@@ -320,19 +263,9 @@ defmodule PositionDB.PositionDbChessTest do
   end
 
   test "match_none and match_all combine correctly with property queries" do
-    position_1 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:white, :pawn}
-      )
+    position_1 = Position.put_piece(Position.new(), Square.from_algebraic("a4"), {:white, :pawn})
 
-    position_2 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("e4"),
-        {:white, :pawn}
-      )
+    position_2 = Position.put_piece(Position.new(), Square.from_algebraic("e4"), {:white, :pawn})
 
     db = new_db()
 
@@ -367,12 +300,7 @@ defmodule PositionDB.PositionDbChessTest do
   end
 
   test "negating match_all and match_none produces the expected result" do
-    position =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:white, :pawn}
-      )
+    position = Position.put_piece(Position.new(), Square.from_algebraic("a4"), {:white, :pawn})
 
     db = new_db()
 
@@ -394,19 +322,9 @@ defmodule PositionDB.PositionDbChessTest do
   end
 
   test "query results are returned in ascending position ID order" do
-    position_1 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:white, :pawn}
-      )
+    position_1 = Position.put_piece(Position.new(), Square.from_algebraic("a4"), {:white, :pawn})
 
-    position_2 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("e4"),
-        {:white, :pawn}
-      )
+    position_2 = Position.put_piece(Position.new(), Square.from_algebraic("e4"), {:white, :pawn})
 
     position_3 =
       Position.new()
@@ -435,26 +353,11 @@ defmodule PositionDB.PositionDbChessTest do
   end
 
   test "query results remain in ascending position ID order with overlapping matches" do
-    position_1 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("e4"),
-        {:black, :pawn}
-      )
+    position_1 = Position.put_piece(Position.new(), Square.from_algebraic("e4"), {:black, :pawn})
 
-    position_2 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("b4"),
-        {:white, :knight}
-      )
+    position_2 = Position.put_piece(Position.new(), Square.from_algebraic("b4"), {:white, :knight})
 
-    position_3 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:black, :pawn}
-      )
+    position_3 = Position.put_piece(Position.new(), Square.from_algebraic("a4"), {:black, :pawn})
 
     position_4 =
       Position.new()

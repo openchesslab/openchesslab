@@ -16,10 +16,8 @@ defmodule PositionDB.EquivalenceScanTest do
   end
 
   defmodule FailingGetStorage do
-    def get(
-          _storage,
-          _position_id
-        ) do
+    @moduledoc false
+    def get(_storage, _position_id) do
       {:error, :disk_failure}
     end
   end
@@ -46,9 +44,7 @@ defmodule PositionDB.EquivalenceScanTest do
     candidate = :candidate
     {store, [candidate_id]} = setup_store([candidate])
 
-    index =
-      EquivalenceIndex.new()
-      |> EquivalenceIndex.add(:key, candidate_id)
+    index = EquivalenceIndex.add(EquivalenceIndex.new(), :key, candidate_id)
 
     matcher = fn :query, :candidate -> true end
 
@@ -125,9 +121,7 @@ defmodule PositionDB.EquivalenceScanTest do
     candidate = :candidate
     {store, [candidate_id]} = setup_store([candidate])
 
-    index =
-      EquivalenceIndex.new()
-      |> EquivalenceIndex.add(:candidate_key, candidate_id)
+    index = EquivalenceIndex.add(EquivalenceIndex.new(), :candidate_key, candidate_id)
 
     equivalence_function = fn :query -> :candidate_key end
     matcher = fn :query, :candidate -> true end
@@ -146,9 +140,7 @@ defmodule PositionDB.EquivalenceScanTest do
   end
 
   test "skips candidates that are no longer in the store" do
-    index =
-      EquivalenceIndex.new()
-      |> EquivalenceIndex.add(:key, 999)
+    index = EquivalenceIndex.add(EquivalenceIndex.new(), :key, 999)
 
     store = PositionStore.new(& &1)
 
@@ -167,12 +159,7 @@ defmodule PositionDB.EquivalenceScanTest do
   end
 
   test "propagates storage read errors" do
-    index =
-      EquivalenceIndex.new()
-      |> EquivalenceIndex.add(
-        :key,
-        1
-      )
+    index = EquivalenceIndex.add(EquivalenceIndex.new(), :key, 1)
 
     store =
       PositionStore.new(

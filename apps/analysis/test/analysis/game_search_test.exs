@@ -8,11 +8,9 @@ defmodule Analysis.GameSearchTest do
   alias Analysis.GameSearch
   alias Analysis.GameStore
   alias Analysis.PositionStore
-
   alias Chess.Move
   alias Chess.Position
   alias Chess.Square
-
   alias PositionDB.Query
 
   setup do
@@ -416,20 +414,14 @@ defmodule Analysis.GameSearchTest do
              }
   end
 
-  defp restore_config(
-         module,
-         :not_configured
-       ) do
+  defp restore_config(module, :not_configured) do
     Application.delete_env(
       :analysis,
       module
     )
   end
 
-  defp restore_config(
-         module,
-         value
-       ) do
+  defp restore_config(module, value) do
     Application.put_env(
       :analysis,
       module,
@@ -437,10 +429,7 @@ defmodule Analysis.GameSearchTest do
     )
   end
 
-  defp move(
-         from,
-         to
-       ) do
+  defp move(from, to) do
     Move.new(
       Square.from_algebraic(from),
       Square.from_algebraic(to)

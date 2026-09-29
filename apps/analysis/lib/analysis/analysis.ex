@@ -1,4 +1,5 @@
 defmodule Analysis.Analysis do
+  @moduledoc false
   alias Analysis.GameRecord
   alias Analysis.GameStart
   alias Analysis.MoveContext
@@ -47,13 +48,7 @@ defmodule Analysis.Analysis do
   end
 
   @spec new(id(), position_id(), GameStart.t(), map()) :: t()
-  def new(
-        id,
-        initial_position_id,
-        %GameStart{} = start,
-        metadata
-      )
-      when is_map(metadata) do
+  def new(id, initial_position_id, %GameStart{} = start, metadata) when is_map(metadata) do
     %__MODULE__{
       id: id,
       root: Node.new(initial_position_id),
@@ -69,14 +64,7 @@ defmodule Analysis.Analysis do
           GameStart.t(),
           map()
         ) :: t()
-  def new(
-        id,
-        initial_position_id,
-        source_game_record_id,
-        %GameStart{} = start,
-        metadata
-      )
-      when is_map(metadata) do
+  def new(id, initial_position_id, source_game_record_id, %GameStart{} = start, metadata) when is_map(metadata) do
     %__MODULE__{
       id: id,
       root: Node.new(initial_position_id),
@@ -93,12 +81,7 @@ defmodule Analysis.Analysis do
   def start(%__MODULE__{start: start}), do: start
 
   @spec move_context(t(), :white | :black, path()) :: MoveContext.t()
-  def move_context(
-        %__MODULE__{start: start},
-        root_side,
-        path
-      )
-      when root_side in [:white, :black] and is_list(path) do
+  def move_context(%__MODULE__{start: start}, root_side, path) when root_side in [:white, :black] and is_list(path) do
     MoveContext.at(
       GameStart.fullmove_number(start),
       root_side,
@@ -112,8 +95,7 @@ defmodule Analysis.Analysis do
   end
 
   @spec reconcile_path(t(), t(), path()) :: path()
-  def reconcile_path(%__MODULE__{} = old_analysis, %__MODULE__{} = new_analysis, path)
-      when is_list(path) do
+  def reconcile_path(%__MODULE__{} = old_analysis, %__MODULE__{} = new_analysis, path) when is_list(path) do
     old_nodes =
       path
       |> prefixes()
@@ -125,8 +107,7 @@ defmodule Analysis.Analysis do
   end
 
   @spec add_child(t(), path(), Analysis.Transition.t(), position_id()) :: t()
-  def add_child(%__MODULE__{} = analysis, path, transition, position_id)
-      when is_list(path) do
+  def add_child(%__MODULE__{} = analysis, path, transition, position_id) when is_list(path) do
     case add_child_at(analysis.root, path, transition, position_id) do
       {:ok, root} ->
         %{analysis | root: root}
@@ -199,12 +180,7 @@ defmodule Analysis.Analysis do
         ) ::
           {:ok, t()}
           | {:error, :node_not_found | :invalid_nags}
-  def set_nags(
-        %__MODULE__{} = analysis,
-        path,
-        nags
-      )
-      when is_list(path) and is_list(nags) do
+  def set_nags(%__MODULE__{} = analysis, path, nags) when is_list(path) and is_list(nags) do
     if Node.valid_nags?(nags) do
       case update_node_at(
              analysis.root,
@@ -230,19 +206,13 @@ defmodule Analysis.Analysis do
     end
   end
 
-  def set_nags(
-        %__MODULE__{},
-        _path,
-        _nags
-      ) do
+  def set_nags(%__MODULE__{}, _path, _nags) do
     {:error, :invalid_nags}
   end
 
   @spec source_game_record_id(t()) ::
           source_game_record_id()
-  def source_game_record_id(%__MODULE__{
-        source_game_record_id: source_game_record_id
-      }) do
+  def source_game_record_id(%__MODULE__{source_game_record_id: source_game_record_id}) do
     source_game_record_id
   end
 
@@ -258,8 +228,7 @@ defmodule Analysis.Analysis do
     end
   end
 
-  defp add_child_at(node, [index | rest], transition, position_id)
-       when is_integer(index) and index >= 0 do
+  defp add_child_at(node, [index | rest], transition, position_id) when is_integer(index) and index >= 0 do
     case Enum.fetch(Node.children(node), index) do
       {:ok, child} ->
         case add_child_at(child, rest, transition, position_id) do
@@ -282,13 +251,11 @@ defmodule Analysis.Analysis do
     end
   end
 
-  defp add_child_at(_node, _path, _transition, _position_id),
-    do: :not_found
+  defp add_child_at(_node, _path, _transition, _position_id), do: :not_found
 
   defp find_node(node, []), do: node
 
-  defp find_node(node, [index | rest])
-       when is_integer(index) and index >= 0 do
+  defp find_node(node, [index | rest]) when is_integer(index) and index >= 0 do
     case Enum.at(Node.children(node), index) do
       nil -> nil
       child -> find_node(child, rest)
@@ -297,12 +264,12 @@ defmodule Analysis.Analysis do
 
   defp find_node(_node, _path), do: nil
 
-  defp promote_child_at(node, [], child_index)
-       when is_integer(child_index) and child_index >= 0 do
+  defp promote_child_at(node, [], child_index) when is_integer(child_index) and child_index >= 0 do
     case Enum.fetch(Node.children(node), child_index) do
       {:ok, child} ->
         children =
-          Node.children(node)
+          node
+          |> Node.children()
           |> List.delete_at(child_index)
           |> List.insert_at(0, child)
 
@@ -313,8 +280,7 @@ defmodule Analysis.Analysis do
     end
   end
 
-  defp promote_child_at(node, [index | rest], child_index)
-       when is_integer(index) and index >= 0 do
+  defp promote_child_at(node, [index | rest], child_index) when is_integer(index) and index >= 0 do
     case Enum.fetch(Node.children(node), index) do
       {:ok, child} ->
         case promote_child_at(child, rest, child_index) do
@@ -339,8 +305,7 @@ defmodule Analysis.Analysis do
 
   defp promote_child_at(_node, _path, _child_index), do: :not_found
 
-  defp remove_child_at(node, [], child_index)
-       when is_integer(child_index) and child_index >= 0 do
+  defp remove_child_at(node, [], child_index) when is_integer(child_index) and child_index >= 0 do
     case Enum.fetch(Node.children(node), child_index) do
       {:ok, _child} ->
         children = List.delete_at(Node.children(node), child_index)
@@ -352,8 +317,7 @@ defmodule Analysis.Analysis do
     end
   end
 
-  defp remove_child_at(node, [index | rest], child_index)
-       when is_integer(index) and index >= 0 do
+  defp remove_child_at(node, [index | rest], child_index) when is_integer(index) and index >= 0 do
     case Enum.fetch(Node.children(node), index) do
       {:ok, child} ->
         case remove_child_at(child, rest, child_index) do
@@ -385,8 +349,7 @@ defmodule Analysis.Analysis do
     {:ok, update.(node)}
   end
 
-  defp update_node_at(node, [index | rest], update)
-       when is_integer(index) and index >= 0 do
+  defp update_node_at(node, [index | rest], update) when is_integer(index) and index >= 0 do
     case Enum.fetch(Node.children(node), index) do
       {:ok, child} ->
         case update_node_at(child, rest, update) do
@@ -440,7 +403,6 @@ defmodule Analysis.Analysis do
   defp same_occurrence?(_old_node, _new_node), do: false
 
   defp prefixes(path) do
-    0..length(path)
-    |> Enum.map(&Enum.take(path, &1))
+    Enum.map(0..length(path), &Enum.take(path, &1))
   end
 end

@@ -29,6 +29,8 @@ defmodule Openchesslab.MixProject do
   #
   # Run "mix help deps" for examples and options.
   defp deps do
-    []
+    [
+      {:styler, "~> 1.12", only: [:dev, :test], runtime: false}
+    ]
   end
 end

@@ -1,8 +1,8 @@
 defmodule PositionDB.AndTest do
   use ExUnit.Case, async: true
 
-  alias PositionDB.Empty
   alias PositionDB.And
+  alias PositionDB.Empty
   alias PositionDB.PropertyIndex
   alias PositionDB.PropertyIndexScan
   alias PositionDB.QueryExecutor

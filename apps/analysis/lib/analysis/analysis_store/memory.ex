@@ -1,9 +1,9 @@
 defmodule Analysis.AnalysisStore.Memory do
   @moduledoc false
 
-  use GenServer
-
   @behaviour Analysis.AnalysisStore
+
+  use GenServer
 
   alias Analysis.Analysis
 
@@ -82,20 +82,12 @@ defmodule Analysis.AnalysisStore.Memory do
   end
 
   @impl true
-  def handle_call(
-        :ping,
-        _from,
-        analyses
-      ) do
+  def handle_call(:ping, _from, analyses) do
     {:reply, :ok, analyses}
   end
 
   @impl true
-  def handle_call(
-        {:insert, %Analysis{id: id} = analysis},
-        _from,
-        analyses
-      ) do
+  def handle_call({:insert, %Analysis{id: id} = analysis}, _from, analyses) do
     if Map.has_key?(analyses, id) do
       {:reply, {:error, :already_exists}, analyses}
     else
@@ -128,11 +120,7 @@ defmodule Analysis.AnalysisStore.Memory do
     {:reply, entries, analyses}
   end
 
-  def handle_call(
-        {:update, %Analysis{id: id} = analysis, expected_revision},
-        _from,
-        analyses
-      ) do
+  def handle_call({:update, %Analysis{id: id} = analysis, expected_revision}, _from, analyses) do
     case Map.fetch(analyses, id) do
       :error ->
         {:reply, {:error, :not_found}, analyses}
@@ -153,11 +141,7 @@ defmodule Analysis.AnalysisStore.Memory do
     end
   end
 
-  def handle_call(
-        {:delete, analysis_id, expected_revision},
-        _from,
-        analyses
-      ) do
+  def handle_call({:delete, analysis_id, expected_revision}, _from, analyses) do
     case Map.fetch(analyses, analysis_id) do
       :error ->
         {:reply, {:error, :not_found}, analyses}

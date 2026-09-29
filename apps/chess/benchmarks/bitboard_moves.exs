@@ -3,6 +3,7 @@ alias Chess.Move
 alias Chess.Position
 
 defmodule BenchmarkHelpers do
+  @moduledoc false
   def square(algebraic), do: Chess.Square.from_algebraic(algebraic)
 
   def middlegame_position do

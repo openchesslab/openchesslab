@@ -19,22 +19,14 @@ defmodule PositionDB.Storage.Disk.AppendMarker do
           :ok
           | {:error, :append_marker_exists}
           | {:error, term()}
-  def create(
-        directory,
-        position_id
-      )
-      when is_binary(directory) and
-             is_integer(position_id) and
-             position_id > 0 and
-             position_id <= @max_position_id do
+  def create(directory, position_id)
+      when is_binary(directory) and is_integer(position_id) and position_id > 0 and position_id <= @max_position_id do
     with :ok <-
            create_file(
              marker_path(directory),
              encode(position_id)
-           ),
-         :ok <-
-           Durability.sync_directory(directory) do
-      :ok
+           ) do
+      Durability.sync_directory(directory)
     end
   end
 
@@ -43,8 +35,7 @@ defmodule PositionDB.Storage.Disk.AppendMarker do
           | :none
           | {:error, :invalid_append_marker}
           | {:error, term()}
-  def read(directory)
-      when is_binary(directory) do
+  def read(directory) when is_binary(directory) do
     case File.read(marker_path(directory)) do
       {:ok, encoded} ->
         decode(encoded)
@@ -60,8 +51,7 @@ defmodule PositionDB.Storage.Disk.AppendMarker do
   @spec clear(Path.t()) ::
           :ok
           | {:error, term()}
-  def clear(directory)
-      when is_binary(directory) do
+  def clear(directory) when is_binary(directory) do
     case File.rm(marker_path(directory)) do
       :ok ->
         Durability.sync_directory(directory)
@@ -74,10 +64,7 @@ defmodule PositionDB.Storage.Disk.AppendMarker do
     end
   end
 
-  defp create_file(
-         path,
-         encoded
-       ) do
+  defp create_file(path, encoded) do
     case :file.open(
            path,
            [
@@ -93,10 +80,8 @@ defmodule PositionDB.Storage.Disk.AppendMarker do
                  :file.write(
                    file,
                    encoded
-                 ),
-               :ok <-
-                 :file.sync(file) do
-            :ok
+                 ) do
+            :file.sync(file)
           end
         after
           :file.close(file)
@@ -116,10 +101,7 @@ defmodule PositionDB.Storage.Disk.AppendMarker do
     >>
   end
 
-  defp decode(<<
-         position_id::unsigned-big-64
-       >>)
-       when position_id > 0 do
+  defp decode(<<position_id::unsigned-big-64>>) when position_id > 0 do
     {:ok, position_id}
   end
 

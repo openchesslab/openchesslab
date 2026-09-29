@@ -46,11 +46,7 @@ defmodule PositionDB.And do
 
   defp maybe_load_right(%__MODULE__{left: :done} = state), do: state
 
-  defp maybe_load_right(
-         %__MODULE__{
-           left: {:error, _reason}
-         } = state
-       ) do
+  defp maybe_load_right(%__MODULE__{left: {:error, _reason}} = state) do
     state
   end
 
@@ -60,11 +56,7 @@ defmodule PositionDB.And do
     state
   end
 
-  defp load_left(
-         %__MODULE__{
-           left: {:error, _reason}
-         } = state
-       ) do
+  defp load_left(%__MODULE__{left: {:error, _reason}} = state) do
     state
   end
 
@@ -87,11 +79,7 @@ defmodule PositionDB.And do
     state
   end
 
-  defp load_right(
-         %__MODULE__{
-           right: {:error, _reason}
-         } = state
-       ) do
+  defp load_right(%__MODULE__{right: {:error, _reason}} = state) do
     state
   end
 
@@ -110,50 +98,28 @@ defmodule PositionDB.And do
 
   defp load_right(state), do: state
 
-  defp find_match(%__MODULE__{
-         left: {:error, reason}
-       }) do
+  defp find_match(%__MODULE__{left: {:error, reason}}) do
     {:error, reason}
   end
 
-  defp find_match(%__MODULE__{
-         right: {:error, reason}
-       }) do
+  defp find_match(%__MODULE__{right: {:error, reason}}) do
     {:error, reason}
   end
 
   defp find_match(%__MODULE__{left: :done}), do: :done
   defp find_match(%__MODULE__{right: :done}), do: :done
 
-  defp find_match(
-         %__MODULE__{
-           left_id: left_id,
-           right_id: right_id
-         } = state
-       )
-       when left_id == right_id do
+  defp find_match(%__MODULE__{left_id: left_id, right_id: right_id} = state) when left_id == right_id do
     {:ok, left_id, %{state | left_id: nil, right_id: nil}}
   end
 
-  defp find_match(
-         %__MODULE__{
-           left_id: left_id,
-           right_id: right_id
-         } = state
-       )
-       when left_id < right_id do
+  defp find_match(%__MODULE__{left_id: left_id, right_id: right_id} = state) when left_id < right_id do
     state
     |> Map.put(:left_id, nil)
     |> next()
   end
 
-  defp find_match(
-         %__MODULE__{
-           left_id: left_id,
-           right_id: right_id
-         } = state
-       )
-       when left_id > right_id do
+  defp find_match(%__MODULE__{left_id: left_id, right_id: right_id} = state) when left_id > right_id do
     state
     |> Map.put(:right_id, nil)
     |> next()

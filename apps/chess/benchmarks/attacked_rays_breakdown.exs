@@ -1,12 +1,11 @@
-alias Chess.Bitboard
-alias Chess.Position
-alias Chess.Square
-
 import Bitwise
 
+alias Chess.Bitboard
 # ------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------
+alias Chess.Position
+alias Chess.Square
 
 square = fn algebraic ->
   case Square.from_algebraic(algebraic) do
@@ -71,7 +70,7 @@ play! = fn position, moves ->
     from = square.(from)
     to = square.(to)
 
-    case Chess.Move.new(from, to) |> then(&Position.apply_move(position, &1)) do
+    case from |> Chess.Move.new(to) |> then(&Position.apply_move(position, &1)) do
       {:ok, position} ->
         position
 
@@ -82,8 +81,7 @@ play! = fn position, moves ->
 end
 
 middlegame_position =
-  Position.starting_position()
-  |> play!.([
+  play!.(Position.starting_position(), [
     {"e2", "e4"},
     {"e7", "e5"},
     {"g1", "f3"},
@@ -102,12 +100,11 @@ middlegame_position =
 
 middlegame = Bitboard.from_position(middlegame_position)
 
-# ------------------------------------------------------------
-# Exact local reproduction of the current ray-attacked logic
-# ------------------------------------------------------------
-
 valid_ray_square? = fn from, to, step ->
   case step do
+    # ------------------------------------------------------------
+    # Exact local reproduction of the current ray-attacked logic
+    # ------------------------------------------------------------
     step when step in [8, -8] ->
       to in 0..63
 
@@ -138,7 +135,9 @@ first_piece_on_ray = fn board, occupied, square, step, color, piece_types ->
     next = square + step
 
     if valid_ray_square?.(square, next, step) do
-      if (occupied &&& 1 <<< next) != 0 do
+      if (occupied &&& 1 <<< next) == 0 do
+        recurse.(recurse, next)
+      else
         mask = 1 <<< next
 
         case piece_types do
@@ -159,8 +158,6 @@ first_piece_on_ray = fn board, occupied, square, step, color, piece_types ->
                   (board.black_queens &&& mask) != 0
             end
         end
-      else
-        recurse.(recurse, next)
       end
     else
       false
@@ -178,10 +175,10 @@ ray_length = fn occupied, square, step ->
     if valid_ray_square?.(square, next, step) do
       count = count + 1
 
-      if (occupied &&& 1 <<< next) != 0 do
-        count
-      else
+      if (occupied &&& 1 <<< next) == 0 do
         recurse.(recurse, next, count)
+      else
+        count
       end
     else
       count
@@ -202,12 +199,11 @@ end
 rook_steps = [8, -8, 1, -1]
 bishop_steps = [9, 7, -7, -9]
 
-# ------------------------------------------------------------
-# Benchmark
-# ------------------------------------------------------------
-
 Benchee.run(
   %{
+    # ------------------------------------------------------------
+    # Benchmark
+    # ------------------------------------------------------------
     "starting: attacked?" => fn ->
       Bitboard.attacked?(starting, :black, e4)
     end,

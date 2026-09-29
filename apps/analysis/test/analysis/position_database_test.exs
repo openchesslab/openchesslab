@@ -2,10 +2,8 @@ defmodule Analysis.PositionDatabaseTest do
   use ExUnit.Case, async: true
 
   alias Analysis.PositionDatabase
-
   alias Chess.Position
   alias Chess.Square
-
   alias PositionDB.PositionStore
   alias PositionDB.PropertyIndex.Disk, as: PropertyIndexDisk
   alias PositionDB.Query
@@ -33,12 +31,7 @@ defmodule Analysis.PositionDatabaseTest do
     assert {:ok, db} =
              create_database(directory)
 
-    position =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:white, :pawn}
-      )
+    position = Position.put_piece(Position.new(), Square.from_algebraic("a4"), {:white, :pawn})
 
     {_db, position_id} =
       PositionDB.append(
@@ -80,12 +73,7 @@ defmodule Analysis.PositionDatabaseTest do
     assert {:ok, db} =
              create_database(directory)
 
-    position_1 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("a4"),
-        {:white, :pawn}
-      )
+    position_1 = Position.put_piece(Position.new(), Square.from_algebraic("a4"), {:white, :pawn})
 
     {db, id_1} =
       PositionDB.append(
@@ -93,12 +81,7 @@ defmodule Analysis.PositionDatabaseTest do
         position_1
       )
 
-    position_2 =
-      Position.new()
-      |> Position.put_piece(
-        Square.from_algebraic("e4"),
-        {:white, :pawn}
-      )
+    position_2 = Position.put_piece(Position.new(), Square.from_algebraic("e4"), {:white, :pawn})
 
     assert {:ok, _store, id_2} =
              PositionStore.put(

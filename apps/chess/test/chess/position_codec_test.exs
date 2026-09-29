@@ -1,9 +1,9 @@
 defmodule Chess.PositionCodecTest do
   use ExUnit.Case
 
-  alias Chess.Square
   alias Chess.Position
   alias Chess.PositionCodec
+  alias Chess.Square
 
   describe "encode/1" do
     test "always produces the same binary for the same position" do
@@ -57,13 +57,9 @@ defmodule Chess.PositionCodecTest do
     test "different pieces produce different encoding" do
       square = Square.from_algebraic("e4")
 
-      white_pawn =
-        Position.new()
-        |> Position.put_piece(square, {:white, :pawn})
+      white_pawn = Position.put_piece(Position.new(), square, {:white, :pawn})
 
-      black_pawn =
-        Position.new()
-        |> Position.put_piece(square, {:black, :pawn})
+      black_pawn = Position.put_piece(Position.new(), square, {:black, :pawn})
 
       refute PositionCodec.encode(white_pawn) ==
                PositionCodec.encode(black_pawn)
@@ -109,9 +105,7 @@ defmodule Chess.PositionCodecTest do
     end
 
     test "rejects an unknown piece encoding" do
-      encoded =
-        Position.new()
-        |> PositionCodec.encode()
+      encoded = PositionCodec.encode(Position.new())
 
       <<_first, rest::binary>> =
         encoded
@@ -121,14 +115,7 @@ defmodule Chess.PositionCodecTest do
     end
 
     test "rejects an invalid side to move" do
-      <<
-        board::binary-size(64),
-        _side,
-        castling,
-        en_passant
-      >> =
-        Position.new()
-        |> PositionCodec.encode()
+      <<board::binary-size(64), _side, castling, en_passant>> = PositionCodec.encode(Position.new())
 
       assert PositionCodec.decode(<<
                board::binary,
@@ -140,14 +127,7 @@ defmodule Chess.PositionCodecTest do
     end
 
     test "rejects invalid castling bits" do
-      <<
-        board::binary-size(64),
-        side,
-        _castling,
-        en_passant
-      >> =
-        Position.new()
-        |> PositionCodec.encode()
+      <<board::binary-size(64), side, _castling, en_passant>> = PositionCodec.encode(Position.new())
 
       assert PositionCodec.decode(<<
                board::binary,
@@ -159,14 +139,7 @@ defmodule Chess.PositionCodecTest do
     end
 
     test "rejects an invalid en passant square" do
-      <<
-        board::binary-size(64),
-        side,
-        castling,
-        _en_passant
-      >> =
-        Position.new()
-        |> PositionCodec.encode()
+      <<board::binary-size(64), side, castling, _en_passant>> = PositionCodec.encode(Position.new())
 
       assert PositionCodec.decode(<<
                board::binary,

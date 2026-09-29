@@ -10,9 +10,7 @@ defmodule PositionDB.EquivalenceIndexTest do
   end
 
   test "adds a position id for an equivalence key" do
-    index =
-      EquivalenceIndex.new()
-      |> EquivalenceIndex.add(:key, 1)
+    index = EquivalenceIndex.add(EquivalenceIndex.new(), :key, 1)
 
     assert EquivalenceIndex.lookup(index, :key) ==
              MapSet.new([1])
@@ -39,9 +37,7 @@ defmodule PositionDB.EquivalenceIndexTest do
   end
 
   test "lookup returns an empty set for an unknown key" do
-    index =
-      EquivalenceIndex.new()
-      |> EquivalenceIndex.add(:key, 1)
+    index = EquivalenceIndex.add(EquivalenceIndex.new(), :key, 1)
 
     assert EquivalenceIndex.lookup(index, :other) ==
              MapSet.new()

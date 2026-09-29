@@ -298,7 +298,7 @@ defmodule Analysis.NodeTest do
     end
 
     test "caps how many NAGs a node keeps" do
-      assert Node.set_nags(Node.new(1), Enum.to_list(1..8)) |> elem(0) == :ok
+      assert 1 |> Node.new() |> Node.set_nags(Enum.to_list(1..8)) |> elem(0) == :ok
       assert Node.set_nags(Node.new(1), Enum.to_list(1..9)) == {:error, :invalid_nags}
     end
 

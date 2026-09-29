@@ -53,7 +53,8 @@ defmodule Chess.Notation.SANTest do
 
   test "formats kingside castling" do
     position =
-      Position.new(castling_rights: MapSet.new([:white_kingside]))
+      [castling_rights: MapSet.new([:white_kingside])]
+      |> Position.new()
       |> Position.put_piece(square("e1"), {:white, :king})
       |> Position.put_piece(square("h1"), {:white, :rook})
       |> Position.put_piece(square("e8"), {:black, :king})
@@ -64,7 +65,8 @@ defmodule Chess.Notation.SANTest do
 
   test "formats queenside castling" do
     position =
-      Position.new(castling_rights: MapSet.new([:white_queenside]))
+      [castling_rights: MapSet.new([:white_queenside])]
+      |> Position.new()
       |> Position.put_piece(square("e1"), {:white, :king})
       |> Position.put_piece(square("a1"), {:white, :rook})
       |> Position.put_piece(square("e8"), {:black, :king})
@@ -75,10 +77,8 @@ defmodule Chess.Notation.SANTest do
 
   test "formats an en passant capture" do
     position =
-      Position.new(
-        side_to_move: :white,
-        en_passant: square("d6")
-      )
+      [side_to_move: :white, en_passant: square("d6")]
+      |> Position.new()
       |> Position.put_piece(square("e1"), {:white, :king})
       |> Position.put_piece(square("e8"), {:black, :king})
       |> Position.put_piece(square("e5"), {:white, :pawn})

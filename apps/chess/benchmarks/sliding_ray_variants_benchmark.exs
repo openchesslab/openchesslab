@@ -1,4 +1,5 @@
 defmodule SlidingRayVariantsBenchmark do
+  @moduledoc false
   import Bitwise
 
   alias Chess.Bitboard
@@ -23,9 +24,7 @@ defmodule SlidingRayVariantsBenchmark do
   end
 
   defp benchmark(:rook, variant) do
-    board =
-      Bitboard.empty()
-      |> Bitboard.put(31, {:black, :rook})
+    board = Bitboard.put(Bitboard.empty(), 31, {:black, :rook})
 
     occupied = Bitboard.occupied(board)
 
@@ -42,9 +41,7 @@ defmodule SlidingRayVariantsBenchmark do
   end
 
   defp benchmark(:bishop, variant) do
-    board =
-      Bitboard.empty()
-      |> Bitboard.put(55, {:black, :bishop})
+    board = Bitboard.put(Bitboard.empty(), 55, {:black, :bishop})
 
     occupied = Bitboard.occupied(board)
 
@@ -64,10 +61,10 @@ defmodule SlidingRayVariantsBenchmark do
     next = square + step
 
     if valid_ray_square?(square, next, step) do
-      if (occupied &&& 1 <<< next) != 0 do
-        enemy_piece_on_square?(board, next, piece_type)
-      else
+      if (occupied &&& 1 <<< next) == 0 do
         recursive_ray?(board, occupied, next, step, piece_type)
+      else
+        enemy_piece_on_square?(board, next, piece_type)
       end
     else
       false
@@ -145,8 +142,7 @@ defmodule SlidingRayVariantsBenchmark do
       (board.black_queens &&& mask) != 0
   end
 
-  defp valid_ray_square?(_from, to, step)
-       when step in [8, -8] do
+  defp valid_ray_square?(_from, to, step) when step in [8, -8] do
     to in 0..63
   end
 

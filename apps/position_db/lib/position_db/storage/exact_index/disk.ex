@@ -9,6 +9,7 @@ defmodule PositionDB.Storage.ExactIndex.Disk do
 
   @behaviour PositionDB.Storage.ExactIndex
 
+  alias PositionDB.Storage.ExactIndex
   alias PositionDB.Storage.ExactIndex.Disk.BucketStore
   alias PositionDB.Storage.ExactIndex.Disk.Layout
 
@@ -27,8 +28,7 @@ defmodule PositionDB.Storage.ExactIndex.Disk do
   ]
 
   @spec new(Path.t(), keyword()) :: t()
-  def new(directory, opts)
-      when is_binary(directory) do
+  def new(directory, opts) when is_binary(directory) do
     bucket_count =
       Keyword.fetch!(
         opts,
@@ -66,12 +66,8 @@ defmodule PositionDB.Storage.ExactIndex.Disk do
     }
   end
 
-  @impl PositionDB.Storage.ExactIndex
-  def lookup(
-        %__MODULE__{} = index,
-        key
-      )
-      when is_binary(key) do
+  @impl ExactIndex
+  def lookup(%__MODULE__{} = index, key) when is_binary(key) do
     with {:ok, hash} <-
            key_hash(
              index,
@@ -91,21 +87,14 @@ defmodule PositionDB.Storage.ExactIndex.Disk do
     end
   end
 
-  @impl PositionDB.Storage.ExactIndex
-  def add(
-        %__MODULE__{} = index,
-        key,
-        position_id
-      )
-      when is_binary(key) and
-             is_integer(position_id) and
-             position_id > 0 do
+  @impl ExactIndex
+  def add(%__MODULE__{} = index, key, position_id) when is_binary(key) and is_integer(position_id) and position_id > 0 do
     with {:ok, hash} <-
            key_hash(
              index,
              key
            ),
-         bucket <-
+         bucket =
            Layout.bucket(
              hash,
              index.bucket_count
@@ -139,14 +128,7 @@ defmodule PositionDB.Storage.ExactIndex.Disk do
   @spec key_hash(t(), binary()) ::
           {:ok, binary()}
           | {:error, term()}
-  def key_hash(
-        %__MODULE__{
-          hash_module: hash_module,
-          hash_size: hash_size
-        },
-        key
-      )
-      when is_binary(key) do
+  def key_hash(%__MODULE__{hash_module: hash_module, hash_size: hash_size}, key) when is_binary(key) do
     case hash_module.hash(key) do
       {:ok, hash}
       when is_binary(hash) ->
@@ -177,14 +159,8 @@ defmodule PositionDB.Storage.ExactIndex.Disk do
         ) ::
           :ok
           | {:error, term()}
-  def recover_pending_append(
-        %__MODULE__{} = index,
-        key,
-        position_id
-      )
-      when is_binary(key) and
-             is_integer(position_id) and
-             position_id > 0 do
+  def recover_pending_append(%__MODULE__{} = index, key, position_id)
+      when is_binary(key) and is_integer(position_id) and position_id > 0 do
     with {:ok, hash} <-
            key_hash(
              index,

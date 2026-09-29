@@ -67,8 +67,7 @@ defmodule PositionDB.Storage.Disk.Manifest do
           | {:error, :invalid_manifest_magic}
           | {:error, :invalid_manifest_size}
           | {:error, {:unsupported_manifest_version, non_neg_integer()}}
-  def decode(encoded)
-      when is_binary(encoded) do
+  def decode(encoded) when is_binary(encoded) do
     case encoded do
       <<
         magic::binary-size(@magic_size),
@@ -182,24 +181,12 @@ defmodule PositionDB.Storage.Disk.Manifest do
          exact_hash_size: exact_hash_size,
          exact_bucket_count: exact_bucket_count
        })
-       when is_binary(record_format_id) and
-              byte_size(record_format_id) > 0 and
-              byte_size(record_format_id) <= @max_u32 and
-              is_integer(record_size) and
-              record_size > 0 and
-              record_size <= @max_u32 and
-              is_integer(records_per_segment) and
-              records_per_segment > 0 and
-              records_per_segment <= @max_u64 and
-              is_binary(exact_hash_format_id) and
-              byte_size(exact_hash_format_id) > 0 and
-              byte_size(exact_hash_format_id) <= @max_u32 and
-              is_integer(exact_hash_size) and
-              exact_hash_size > 0 and
-              exact_hash_size <= @max_u32 and
-              is_integer(exact_bucket_count) and
-              exact_bucket_count > 0 and
-              exact_bucket_count <= @max_u64 do
+       when is_binary(record_format_id) and byte_size(record_format_id) > 0 and byte_size(record_format_id) <= @max_u32 and
+              is_integer(record_size) and record_size > 0 and record_size <= @max_u32 and is_integer(records_per_segment) and
+              records_per_segment > 0 and records_per_segment <= @max_u64 and is_binary(exact_hash_format_id) and
+              byte_size(exact_hash_format_id) > 0 and byte_size(exact_hash_format_id) <= @max_u32 and
+              is_integer(exact_hash_size) and exact_hash_size > 0 and exact_hash_size <= @max_u32 and
+              is_integer(exact_bucket_count) and exact_bucket_count > 0 and exact_bucket_count <= @max_u64 do
     :ok
   end
 

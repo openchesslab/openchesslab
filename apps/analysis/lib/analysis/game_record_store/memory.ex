@@ -3,12 +3,12 @@ defmodule Analysis.GameRecordStore.Memory do
   In-memory reference implementation of GameRecordStore.
   """
 
+  @behaviour Analysis.GameRecordStore
+
   use GenServer
 
   alias Analysis.GameRecord
   alias Analysis.GameRecordStore
-
-  @behaviour GameRecordStore
 
   @type store :: GenServer.server()
 
@@ -20,7 +20,7 @@ defmodule Analysis.GameRecordStore.Memory do
     @enforce_keys [:record_ids]
 
     @type t :: %__MODULE__{
-            record_ids: [Analysis.GameRecord.id()]
+            record_ids: [GameRecord.id()]
           }
 
     defstruct record_ids: []
@@ -80,10 +80,7 @@ defmodule Analysis.GameRecordStore.Memory do
         ) ::
           :ok
           | {:error, :already_exists}
-  def insert(
-        store,
-        %GameRecord{} = record
-      ) do
+  def insert(store, %GameRecord{} = record) do
     GenServer.call(
       store,
       {:insert, record}
@@ -97,10 +94,7 @@ defmodule Analysis.GameRecordStore.Memory do
         ) ::
           {:ok, GameRecord.t()}
           | :not_found
-  def get(
-        store,
-        record_id
-      ) do
+  def get(store, record_id) do
     GenServer.call(
       store,
       {:get, record_id}
@@ -123,10 +117,7 @@ defmodule Analysis.GameRecordStore.Memory do
           GameDB.game_id()
         ) ::
           [GameRecord.t()]
-  def list_by_game_id(
-        store,
-        game_id
-      ) do
+  def list_by_game_id(store, game_id) do
     GenServer.call(
       store,
       {:list_by_game_id, game_id}
@@ -140,13 +131,7 @@ defmodule Analysis.GameRecordStore.Memory do
           pos_integer()
         ) ::
           GameRecordStore.record_page()
-  def records_page_by_game_id(
-        store,
-        game_id,
-        page_size
-      )
-      when is_integer(page_size) and
-             page_size > 0 do
+  def records_page_by_game_id(store, game_id, page_size) when is_integer(page_size) and page_size > 0 do
     GenServer.call(
       store,
       {
@@ -164,14 +149,7 @@ defmodule Analysis.GameRecordStore.Memory do
           pos_integer()
         ) ::
           GameRecordStore.record_page()
-  def next_records_page(
-        store,
-        cursor,
-        page_size
-      )
-      when is_reference(cursor) and
-             is_integer(page_size) and
-             page_size > 0 do
+  def next_records_page(store, cursor, page_size) when is_reference(cursor) and is_integer(page_size) and page_size > 0 do
     GenServer.call(
       store,
       {
@@ -188,11 +166,7 @@ defmodule Analysis.GameRecordStore.Memory do
           GameRecordStore.record_cursor()
         ) ::
           :ok
-  def close_record_scan(
-        store,
-        cursor
-      )
-      when is_reference(cursor) do
+  def close_record_scan(store, cursor) when is_reference(cursor) do
     GenServer.call(
       store,
       {
@@ -208,11 +182,7 @@ defmodule Analysis.GameRecordStore.Memory do
   end
 
   @impl true
-  def handle_call(
-        :ping,
-        _from,
-        state
-      ) do
+  def handle_call(:ping, _from, state) do
     {
       :reply,
       :ok,
@@ -220,11 +190,7 @@ defmodule Analysis.GameRecordStore.Memory do
     }
   end
 
-  def handle_call(
-        {:insert, %GameRecord{id: id} = record},
-        _from,
-        state
-      ) do
+  def handle_call({:insert, %GameRecord{id: id} = record}, _from, state) do
     if Map.has_key?(
          state.records,
          id
@@ -263,11 +229,7 @@ defmodule Analysis.GameRecordStore.Memory do
     end
   end
 
-  def handle_call(
-        {:get, record_id},
-        _from,
-        state
-      ) do
+  def handle_call({:get, record_id}, _from, state) do
     reply =
       case Map.fetch(
              state.records,
@@ -287,11 +249,7 @@ defmodule Analysis.GameRecordStore.Memory do
     }
   end
 
-  def handle_call(
-        :list,
-        _from,
-        state
-      ) do
+  def handle_call(:list, _from, state) do
     {
       :reply,
       Map.values(state.records),
@@ -299,11 +257,7 @@ defmodule Analysis.GameRecordStore.Memory do
     }
   end
 
-  def handle_call(
-        {:list_by_game_id, game_id},
-        _from,
-        state
-      ) do
+  def handle_call({:list_by_game_id, game_id}, _from, state) do
     records =
       state.record_ids_by_game
       |> Map.get(
@@ -324,15 +278,7 @@ defmodule Analysis.GameRecordStore.Memory do
     }
   end
 
-  def handle_call(
-        {
-          :records_page_by_game_id,
-          game_id,
-          page_size
-        },
-        _from,
-        state
-      ) do
+  def handle_call({:records_page_by_game_id, game_id, page_size}, _from, state) do
     cursor_state =
       %CursorState{
         record_ids:
@@ -390,15 +336,7 @@ defmodule Analysis.GameRecordStore.Memory do
     end
   end
 
-  def handle_call(
-        {
-          :next_records_page,
-          cursor,
-          page_size
-        },
-        _from,
-        state
-      ) do
+  def handle_call({:next_records_page, cursor, page_size}, _from, state) do
     case Map.fetch(
            state.cursors,
            cursor
@@ -420,14 +358,7 @@ defmodule Analysis.GameRecordStore.Memory do
     end
   end
 
-  def handle_call(
-        {
-          :close_record_scan,
-          cursor
-        },
-        _from,
-        state
-      ) do
+  def handle_call({:close_record_scan, cursor}, _from, state) do
     {
       :reply,
       :ok,
@@ -438,12 +369,7 @@ defmodule Analysis.GameRecordStore.Memory do
     }
   end
 
-  defp continue_records_page(
-         state,
-         cursor,
-         cursor_state,
-         page_size
-       ) do
+  defp continue_records_page(state, cursor, cursor_state, page_size) do
     case take_records_page(
            state.records,
            cursor_state,
@@ -494,11 +420,7 @@ defmodule Analysis.GameRecordStore.Memory do
     end
   end
 
-  defp take_records_page(
-         records,
-         cursor_state,
-         page_size
-       ) do
+  defp take_records_page(records, cursor_state, page_size) do
     take_records_page(
       records,
       cursor_state,
@@ -507,14 +429,7 @@ defmodule Analysis.GameRecordStore.Memory do
     )
   end
 
-  defp take_records_page(
-         _records,
-         %CursorState{
-           record_ids: []
-         },
-         _remaining,
-         reversed_records
-       ) do
+  defp take_records_page(_records, %CursorState{record_ids: []}, _remaining, reversed_records) do
     {
       :ok,
       Enum.reverse(reversed_records),
@@ -522,12 +437,7 @@ defmodule Analysis.GameRecordStore.Memory do
     }
   end
 
-  defp take_records_page(
-         _records,
-         %CursorState{} = cursor_state,
-         0,
-         reversed_records
-       ) do
+  defp take_records_page(_records, %CursorState{} = cursor_state, 0, reversed_records) do
     {
       :ok,
       Enum.reverse(reversed_records),
@@ -537,12 +447,7 @@ defmodule Analysis.GameRecordStore.Memory do
 
   defp take_records_page(
          records,
-         %CursorState{
-           record_ids: [
-             record_id
-             | remaining_record_ids
-           ]
-         } = cursor_state,
+         %CursorState{record_ids: [record_id | remaining_record_ids]} = cursor_state,
          remaining,
          reversed_records
        ) do
@@ -569,11 +474,7 @@ defmodule Analysis.GameRecordStore.Memory do
     end
   end
 
-  defp put_cursor(
-         state,
-         cursor,
-         cursor_state
-       ) do
+  defp put_cursor(state, cursor, cursor_state) do
     %{
       state
       | cursors:
@@ -585,10 +486,7 @@ defmodule Analysis.GameRecordStore.Memory do
     }
   end
 
-  defp delete_cursor(
-         state,
-         cursor
-       ) do
+  defp delete_cursor(state, cursor) do
     %{
       state
       | cursors:

@@ -1,18 +1,17 @@
+import Bitwise
+
 alias Chess.Bitboard
 alias Chess.Move
 alias Chess.Position
 
 defmodule PseudoMovesBenchmarkHelpers do
+  @moduledoc false
   import Bitwise
-
-  alias Chess.Move
-  alias Chess.Position
 
   def square(algebraic), do: Chess.Square.from_algebraic(algebraic)
 
   def middlegame_position do
-    Position.starting_position()
-    |> apply_moves([
+    apply_moves(Position.starting_position(), [
       {"e2", "e4"},
       {"e7", "e5"},
       {"g1", "f3"},
@@ -27,7 +26,8 @@ defmodule PseudoMovesBenchmarkHelpers do
   end
 
   def check_position do
-    Position.new(side_to_move: :white)
+    [side_to_move: :white]
+    |> Position.new()
     |> Position.put_piece(square("e1"), {:white, :king})
     |> Position.put_piece(square("a1"), {:white, :rook})
     |> Position.put_piece(square("e2"), {:white, :pawn})
@@ -55,10 +55,10 @@ defmodule PseudoMovesBenchmarkHelpers do
 
   def piece_squares(bitboard, square, acc) do
     acc =
-      if (bitboard &&& 1) != 0 do
-        [square | acc]
-      else
+      if (bitboard &&& 1) == 0 do
         acc
+      else
+        [square | acc]
       end
 
     piece_squares(bitboard >>> 1, square + 1, acc)
@@ -78,8 +78,6 @@ defmodule PseudoMovesBenchmarkHelpers do
     piece_squares(bitboard)
   end
 end
-
-import Bitwise
 
 starting_position = Position.starting_position()
 middlegame_position = PseudoMovesBenchmarkHelpers.middlegame_position()

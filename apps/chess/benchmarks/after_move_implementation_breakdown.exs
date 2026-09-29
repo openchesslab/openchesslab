@@ -3,6 +3,7 @@ alias Chess.Move
 alias Chess.Position
 
 defmodule BenchmarkHelpers do
+  @moduledoc false
   import Bitwise
 
   @piece_fields [
@@ -23,8 +24,7 @@ defmodule BenchmarkHelpers do
   def square(algebraic), do: Chess.Square.from_algebraic(algebraic)
 
   def middlegame_position do
-    Position.starting_position()
-    |> apply_moves([
+    apply_moves(Position.starting_position(), [
       {"e2", "e4"},
       {"e7", "e5"},
       {"g1", "f3"},
@@ -47,15 +47,14 @@ defmodule BenchmarkHelpers do
     %{
       board: Bitboard.from_position(position),
       from: from,
+      #
+      # Individual operations
+      #
       to: to,
       piece: piece,
       move: move
     }
   end
-
-  #
-  # Individual operations
-  #
 
   def remove_from(%{board: board, from: from, piece: piece}) do
     remove_piece(board, from, piece)
@@ -65,22 +64,17 @@ defmodule BenchmarkHelpers do
     remove(board, to)
   end
 
-  def set_to(%{board: board, to: to, piece: {color, type}}) do
-    set_piece(board, to, color, type)
-  end
-
   #
   # Exact equivalent of the current after_move implementation,
   # but using local helpers so every individual operation can also
   # be benchmarked.
   #
 
-  def after_move_non_capture(%{
-        board: board,
-        from: from,
-        to: to,
-        piece: {color, type}
-      }) do
+  def set_to(%{board: board, to: to, piece: {color, type}}) do
+    set_piece(board, to, color, type)
+  end
+
+  def after_move_non_capture(%{board: board, from: from, to: to, piece: {color, type}}) do
     board
     |> remove_piece(from, {color, type})
     |> remove(to)
@@ -91,13 +85,7 @@ defmodule BenchmarkHelpers do
   # Same implementation, but explicitly named intermediate values.
   # This lets us see whether the pipe chain itself matters.
   #
-
-  def after_move_explicit(%{
-        board: board,
-        from: from,
-        to: to,
-        piece: {color, type}
-      }) do
+  def after_move_explicit(%{board: board, from: from, to: to, piece: {color, type}}) do
     board1 = remove_piece(board, from, {color, type})
     board2 = remove(board1, to)
     set_piece(board2, to, color, type)
@@ -106,33 +94,21 @@ defmodule BenchmarkHelpers do
   #
   # Same sequence using a known captured piece.
   #
-
-  def after_move_known_capture(%{
-        board: board,
-        from: from,
-        to: to,
-        piece: {color, type},
-        captured: captured
-      }) do
+  def after_move_known_capture(%{board: board, from: from, to: to, piece: {color, type}, captured: captured}) do
     board
     |> remove_piece(from, {color, type})
     |> remove_piece(to, captured)
     |> set_piece(to, color, type)
   end
 
-  #
-  # Production implementation
-  #
-
   def production_after_move(%{board: board, move: move, piece: piece}) do
     Bitboard.after_move(board, move, piece)
   end
 
-  #
-  # Local implementations
-  #
-
   defp remove(board, square) do
+    #
+    # Production implementation
+    #
     mask = bnot(1 <<< square)
 
     Enum.reduce(@piece_fields, board, fn {_color, _type, field}, board ->
@@ -140,6 +116,9 @@ defmodule BenchmarkHelpers do
     end)
   end
 
+  #
+  # Local implementations
+  #
   defp remove_piece(board, square, {color, piece_type}) do
     field = piece_field(color, piece_type)
     mask = bnot(1 <<< square)

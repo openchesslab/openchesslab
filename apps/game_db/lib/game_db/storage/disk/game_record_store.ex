@@ -35,11 +35,7 @@ defmodule GameDB.Storage.Disk.GameRecordStore do
           RecordStore.t(),
           module()
         ) :: t()
-  def new(
-        %RecordStore{} = record_store,
-        codec
-      )
-      when is_atom(codec) do
+  def new(%RecordStore{} = record_store, codec) when is_atom(codec) do
     %__MODULE__{
       record_store: record_store,
       codec: codec
@@ -53,15 +49,7 @@ defmodule GameDB.Storage.Disk.GameRecordStore do
         ) ::
           {:ok, pos_integer()}
           | {:error, term()}
-  def append(
-        %__MODULE__{
-          record_store: record_store,
-          codec: codec
-        },
-        fingerprint,
-        record
-      )
-      when is_binary(fingerprint) do
+  def append(%__MODULE__{record_store: record_store, codec: codec}, fingerprint, record) when is_binary(fingerprint) do
     with :ok <-
            validate_fingerprint(fingerprint),
          {:ok, encoded} <-
@@ -86,12 +74,7 @@ defmodule GameDB.Storage.Disk.GameRecordStore do
           {:ok, term()}
           | :not_found
           | {:error, term()}
-  def get(
-        %__MODULE__{
-          codec: codec
-        } = store,
-        record_id
-      ) do
+  def get(%__MODULE__{codec: codec} = store, record_id) do
     case read_entry(
            store,
            record_id
@@ -114,10 +97,7 @@ defmodule GameDB.Storage.Disk.GameRecordStore do
           {:ok, binary()}
           | :not_found
           | {:error, term()}
-  def fingerprint(
-        %__MODULE__{} = store,
-        record_id
-      ) do
+  def fingerprint(%__MODULE__{} = store, record_id) do
     case read_entry(
            store,
            record_id
@@ -136,18 +116,11 @@ defmodule GameDB.Storage.Disk.GameRecordStore do
   @spec cardinality(t()) ::
           {:ok, non_neg_integer()}
           | {:error, term()}
-  def cardinality(%__MODULE__{
-        record_store: record_store
-      }) do
+  def cardinality(%__MODULE__{record_store: record_store}) do
     RecordStore.cardinality(record_store)
   end
 
-  defp read_entry(
-         %__MODULE__{
-           record_store: record_store
-         },
-         record_id
-       ) do
+  defp read_entry(%__MODULE__{record_store: record_store}, record_id) do
     case RecordStore.get(
            record_store,
            record_id
@@ -171,10 +144,7 @@ defmodule GameDB.Storage.Disk.GameRecordStore do
     end
   end
 
-  defp encode_record(
-         codec,
-         record
-       ) do
+  defp encode_record(codec, record) do
     case codec.encode(record) do
       {:ok, encoded}
       when is_binary(encoded) and

@@ -49,8 +49,7 @@ defmodule GameDB.Storage.Disk.RecordStore do
           {:ok, t()}
           | {:error, :storage_exists}
           | {:error, term()}
-  def create(directory)
-      when is_binary(directory) do
+  def create(directory) when is_binary(directory) do
     store =
       new(directory)
 
@@ -77,8 +76,7 @@ defmodule GameDB.Storage.Disk.RecordStore do
   @spec open(Path.t()) ::
           {:ok, t()}
           | {:error, term()}
-  def open(directory)
-      when is_binary(directory) do
+  def open(directory) when is_binary(directory) do
     store =
       new(directory)
 
@@ -100,11 +98,7 @@ defmodule GameDB.Storage.Disk.RecordStore do
           {:ok, record_id()}
           | {:error, :invalid_record_size}
           | {:error, term()}
-  def append(
-        %__MODULE__{} = store,
-        record
-      )
-      when is_binary(record) do
+  def append(%__MODULE__{} = store, record) when is_binary(record) do
     record_size =
       byte_size(record)
 
@@ -127,12 +121,7 @@ defmodule GameDB.Storage.Disk.RecordStore do
           {:ok, binary()}
           | :not_found
           | {:error, term()}
-  def get(
-        %__MODULE__{} = store,
-        record_id
-      )
-      when is_integer(record_id) and
-             record_id > 0 do
+  def get(%__MODULE__{} = store, record_id) when is_integer(record_id) and record_id > 0 do
     case cardinality(store) do
       {:ok, count}
       when record_id > count ->
@@ -199,18 +188,12 @@ defmodule GameDB.Storage.Disk.RecordStore do
 
   defp create_store_files(store) do
     with :ok <-
-           create_empty_file(store.data_path),
-         :ok <-
-           create_empty_file(store.index_path) do
-      :ok
+           create_empty_file(store.data_path) do
+      create_empty_file(store.index_path)
     end
   end
 
-  defp append_record(
-         store,
-         record,
-         record_size
-       ) do
+  defp append_record(store, record, record_size) do
     with {:ok, count} <-
            cardinality(store),
          {:ok, data_size} <-
@@ -239,14 +222,7 @@ defmodule GameDB.Storage.Disk.RecordStore do
     end
   end
 
-  defp do_append(
-         store,
-         record_id,
-         data_size,
-         index_size,
-         record,
-         index_entry
-       ) do
+  defp do_append(store, record_id, data_size, index_size, record, index_entry) do
     case append_and_sync(
            store.data_path,
            record
@@ -278,12 +254,7 @@ defmodule GameDB.Storage.Disk.RecordStore do
     end
   end
 
-  defp rollback_append(
-         store,
-         data_size,
-         index_size,
-         reason
-       ) do
+  defp rollback_append(store, data_size, index_size, reason) do
     with :ok <-
            truncate_file(
              store.index_path,
@@ -306,10 +277,7 @@ defmodule GameDB.Storage.Disk.RecordStore do
     end
   end
 
-  defp read_index_entry(
-         store,
-         record_id
-       ) do
+  defp read_index_entry(store, record_id) do
     offset =
       (record_id - 1) *
         @index_entry_size
@@ -338,11 +306,7 @@ defmodule GameDB.Storage.Disk.RecordStore do
     end
   end
 
-  defp read_record(
-         store,
-         offset,
-         record_size
-       ) do
+  defp read_record(store, offset, record_size) do
     case pread(
            store.data_path,
            offset,
@@ -416,17 +380,11 @@ defmodule GameDB.Storage.Disk.RecordStore do
     end
   end
 
-  defp indexed_data_size(
-         _store,
-         0
-       ) do
+  defp indexed_data_size(_store, 0) do
     {:ok, 0}
   end
 
-  defp indexed_data_size(
-         store,
-         count
-       ) do
+  defp indexed_data_size(store, count) do
     with {:ok, offset, record_size} <-
            read_index_entry(
              store,
@@ -438,10 +396,7 @@ defmodule GameDB.Storage.Disk.RecordStore do
     end
   end
 
-  defp append_and_sync(
-         path,
-         data
-       ) do
+  defp append_and_sync(path, data) do
     case :file.open(
            path,
            [
@@ -456,10 +411,8 @@ defmodule GameDB.Storage.Disk.RecordStore do
                  :file.write(
                    file,
                    data
-                 ),
-               :ok <-
-                 :file.sync(file) do
-            :ok
+                 ) do
+            :file.sync(file)
           end
         after
           :file.close(file)
@@ -470,11 +423,7 @@ defmodule GameDB.Storage.Disk.RecordStore do
     end
   end
 
-  defp pread(
-         path,
-         offset,
-         size
-       ) do
+  defp pread(path, offset, size) do
     case :file.open(
            path,
            [
@@ -499,10 +448,7 @@ defmodule GameDB.Storage.Disk.RecordStore do
     end
   end
 
-  defp truncate_file(
-         path,
-         size
-       ) do
+  defp truncate_file(path, size) do
     case :file.open(
            path,
            [
@@ -520,10 +466,8 @@ defmodule GameDB.Storage.Disk.RecordStore do
                    size
                  ),
                :ok <-
-                 :file.truncate(file),
-               :ok <-
-                 :file.sync(file) do
-            :ok
+                 :file.truncate(file) do
+            :file.sync(file)
           end
         after
           :file.close(file)
@@ -536,10 +480,8 @@ defmodule GameDB.Storage.Disk.RecordStore do
 
   defp create_directory(directory) do
     with :ok <-
-           File.mkdir(directory),
-         :ok <-
-           sync_directory(Path.dirname(directory)) do
-      :ok
+           File.mkdir(directory) do
+      sync_directory(Path.dirname(directory))
     end
   end
 
@@ -561,10 +503,8 @@ defmodule GameDB.Storage.Disk.RecordStore do
             :file.close(file)
           end
 
-        with :ok <- result,
-             :ok <-
-               sync_directory(Path.dirname(path)) do
-          :ok
+        with :ok <- result do
+          sync_directory(Path.dirname(path))
         end
 
       {:error, reason} ->
@@ -582,8 +522,7 @@ defmodule GameDB.Storage.Disk.RecordStore do
     end
   end
 
-  defp validate_offset(offset)
-       when offset <= @max_offset do
+  defp validate_offset(offset) when offset <= @max_offset do
     :ok
   end
 

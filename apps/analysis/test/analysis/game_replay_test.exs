@@ -146,10 +146,7 @@ defmodule Analysis.GameReplayTest do
              {:ok, []}
   end
 
-  defp game_content(
-         initial_position_id,
-         moves
-       ) do
+  defp game_content(initial_position_id, moves) do
     %GameContent{
       initial_position_id: initial_position_id,
       moves: moves

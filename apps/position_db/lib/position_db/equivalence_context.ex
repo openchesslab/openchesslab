@@ -1,4 +1,5 @@
 defmodule PositionDB.EquivalenceContext do
+  @moduledoc false
   alias PositionDB.EquivalenceIndex
 
   @type t :: %__MODULE__{

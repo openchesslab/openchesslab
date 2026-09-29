@@ -1,15 +1,15 @@
+import Bitwise
+
 alias Chess.Bitboard
 alias Chess.Move
 alias Chess.Position
 
-import Bitwise
-
 defmodule BenchmarkHelpers do
+  @moduledoc false
   def square(algebraic), do: Chess.Square.from_algebraic(algebraic)
 
   def middlegame_position do
-    Position.starting_position()
-    |> apply_moves([
+    apply_moves(Position.starting_position(), [
       {"e2", "e4"},
       {"e7", "e5"},
       {"g1", "f3"},
@@ -75,9 +75,7 @@ defmodule BenchmarkHelpers do
   end
 
   def print_case(name, %{from: from, to: to, piece: piece}) do
-    IO.puts(
-      "#{name}: #{Chess.Square.to_algebraic(from)}-#{Chess.Square.to_algebraic(to)} #{inspect(piece)}"
-    )
+    IO.puts("#{name}: #{Chess.Square.to_algebraic(from)}-#{Chess.Square.to_algebraic(to)} #{inspect(piece)}")
   end
 
   defp remove_piece(board, square, {color, piece_type}) do

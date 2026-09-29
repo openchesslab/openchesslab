@@ -110,8 +110,8 @@ defmodule AnalysisTest do
     assert Enum.map(children, &Node.transition/1) ==
              [Transition.move(e4), Transition.move(d4)]
 
-    assert AnalysisModel.node_at(analysis, [0]) != nil
-    assert AnalysisModel.node_at(analysis, [1]) != nil
+    assert AnalysisModel.node_at(analysis, [0])
+    assert AnalysisModel.node_at(analysis, [1])
   end
 
   test "returns an error for an illegal move" do
@@ -189,7 +189,7 @@ defmodule AnalysisTest do
     assert {:ok, analysis, _db, [0]} =
              Analysis.play(analysis, db, [], move("e2", "e4"))
 
-    assert AnalysisModel.node_at(analysis, [0]) != nil
+    assert AnalysisModel.node_at(analysis, [0])
   end
 
   test "returns the path of a nested occurrence" do
@@ -201,7 +201,7 @@ defmodule AnalysisTest do
     assert {:ok, analysis, _db, [0, 0]} =
              Analysis.play(analysis, db, [0], move("e7", "e5"))
 
-    assert AnalysisModel.node_at(analysis, [0, 0]) != nil
+    assert AnalysisModel.node_at(analysis, [0, 0])
   end
 
   test "playing an existing move returns its existing path" do

@@ -18,16 +18,8 @@ defmodule PositionDB.Storage.Disk.ExactLookup do
           {:ok, pos_integer()}
           | :not_found
           | {:error, term()}
-  def find(
-        %RecordStore{} = record_store,
-        index_module,
-        index,
-        key,
-        expected_record
-      )
-      when is_atom(index_module) and
-             is_binary(key) and
-             is_binary(expected_record) do
+  def find(%RecordStore{} = record_store, index_module, index, key, expected_record)
+      when is_atom(index_module) and is_binary(key) and is_binary(expected_record) do
     case index_module.lookup(
            index,
            key
@@ -44,19 +36,11 @@ defmodule PositionDB.Storage.Disk.ExactLookup do
     end
   end
 
-  defp find_candidate(
-         _record_store,
-         [],
-         _expected_record
-       ) do
+  defp find_candidate(_record_store, [], _expected_record) do
     :not_found
   end
 
-  defp find_candidate(
-         record_store,
-         [position_id | rest],
-         expected_record
-       ) do
+  defp find_candidate(record_store, [position_id | rest], expected_record) do
     case RecordStore.get(
            record_store,
            position_id

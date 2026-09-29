@@ -1,4 +1,5 @@
 defmodule PositionDB.QueryPlanner do
+  @moduledoc false
   alias PositionDB.EquivalenceIndex
   alias PositionDB.PositionStore
   alias PositionDB.PropertyIndex
@@ -19,11 +20,7 @@ defmodule PositionDB.QueryPlanner do
         ) ::
           PositionDB.Query.t()
           | {:error, term()}
-  def plan(
-        index,
-        store,
-        query
-      ) do
+  def plan(index, store, query) do
     plan(
       index,
       store,
@@ -40,12 +37,7 @@ defmodule PositionDB.QueryPlanner do
         ) ::
           PositionDB.Query.t()
           | {:error, term()}
-  def plan(
-        index,
-        store,
-        query,
-        options
-      ) do
+  def plan(index, store, query, options) do
     case do_plan(
            index,
            store,
@@ -60,48 +52,23 @@ defmodule PositionDB.QueryPlanner do
     end
   end
 
-  defp do_plan(
-         _index,
-         _store,
-         true,
-         _options
-       ) do
+  defp do_plan(_index, _store, true, _options) do
     {:ok, true}
   end
 
-  defp do_plan(
-         _index,
-         _store,
-         false,
-         _options
-       ) do
+  defp do_plan(_index, _store, false, _options) do
     {:ok, false}
   end
 
-  defp do_plan(
-         _index,
-         _store,
-         {:property, _property, _value} = query,
-         _options
-       ) do
+  defp do_plan(_index, _store, {:property, _property, _value} = query, _options) do
     {:ok, query}
   end
 
-  defp do_plan(
-         _index,
-         _store,
-         {:equivalent, _position} = query,
-         _options
-       ) do
+  defp do_plan(_index, _store, {:equivalent, _position} = query, _options) do
     {:ok, query}
   end
 
-  defp do_plan(
-         index,
-         store,
-         {:and, queries},
-         options
-       ) do
+  defp do_plan(index, store, {:and, queries}, options) do
     with {:ok, planned} <-
            plan_queries(
              index,
@@ -120,12 +87,7 @@ defmodule PositionDB.QueryPlanner do
     end
   end
 
-  defp do_plan(
-         index,
-         store,
-         {:or, queries},
-         options
-       ) do
+  defp do_plan(index, store, {:or, queries}, options) do
     with {:ok, planned} <-
            plan_queries(
              index,
@@ -137,12 +99,7 @@ defmodule PositionDB.QueryPlanner do
     end
   end
 
-  defp do_plan(
-         index,
-         store,
-         {:not, query},
-         options
-       ) do
+  defp do_plan(index, store, {:not, query}, options) do
     with {:ok, planned} <-
            do_plan(
              index,
@@ -154,14 +111,9 @@ defmodule PositionDB.QueryPlanner do
     end
   end
 
-  defp plan_queries(
-         index,
-         store,
-         queries,
-         options
-       ) do
-    Enum.reduce_while(
-      queries,
+  defp plan_queries(index, store, queries, options) do
+    queries
+    |> Enum.reduce_while(
       {:ok, []},
       fn query, {:ok, planned} ->
         case do_plan(
@@ -187,12 +139,7 @@ defmodule PositionDB.QueryPlanner do
     end
   end
 
-  defp order_by_cardinality(
-         index,
-         store,
-         queries,
-         options
-       ) do
+  defp order_by_cardinality(index, store, queries, options) do
     queries
     |> Enum.with_index()
     |> Enum.reduce_while(
@@ -250,30 +197,15 @@ defmodule PositionDB.QueryPlanner do
     end
   end
 
-  defp cardinality(
-         _index,
-         store,
-         true,
-         _options
-       ) do
+  defp cardinality(_index, store, true, _options) do
     {:ok, {:exact, PositionStore.cardinality(store)}}
   end
 
-  defp cardinality(
-         _index,
-         _store,
-         false,
-         _options
-       ) do
+  defp cardinality(_index, _store, false, _options) do
     {:ok, {:exact, 0}}
   end
 
-  defp cardinality(
-         index,
-         _store,
-         {:property, property, value},
-         _options
-       ) do
+  defp cardinality(index, _store, {:property, property, value}, _options) do
     with {:ok, count} <-
            PropertyIndex.cardinality_result(
              index,
@@ -283,15 +215,10 @@ defmodule PositionDB.QueryPlanner do
     end
   end
 
-  defp cardinality(
-         _index,
-         _store,
-         {:equivalent, position},
-         %{
-           equivalence_index: equivalence_index,
-           equivalence_function: equivalence_function
-         }
-       ) do
+  defp cardinality(_index, _store, {:equivalent, position}, %{
+         equivalence_index: equivalence_index,
+         equivalence_function: equivalence_function
+       }) do
     key =
       equivalence_function.(position)
 
@@ -303,22 +230,12 @@ defmodule PositionDB.QueryPlanner do
     {:ok, {:upper_bound, candidate_count}}
   end
 
-  defp cardinality(
-         _index,
-         _store,
-         {:equivalent, _position},
-         _options
-       ) do
+  defp cardinality(_index, _store, {:equivalent, _position}, _options) do
     raise ArgumentError,
           "equivalence planning requires :equivalence_index and :equivalence_function"
   end
 
-  defp cardinality(
-         index,
-         store,
-         {:and, queries},
-         options
-       ) do
+  defp cardinality(index, store, {:and, queries}, options) do
     with {:ok, values} <-
            cardinalities(
              index,
@@ -337,12 +254,7 @@ defmodule PositionDB.QueryPlanner do
     end
   end
 
-  defp cardinality(
-         index,
-         store,
-         {:or, queries},
-         options
-       ) do
+  defp cardinality(index, store, {:or, queries}, options) do
     with {:ok, values} <-
            cardinalities(
              index,
@@ -363,12 +275,7 @@ defmodule PositionDB.QueryPlanner do
     end
   end
 
-  defp cardinality(
-         index,
-         store,
-         {:not, query},
-         options
-       ) do
+  defp cardinality(index, store, {:not, query}, options) do
     with {:ok, value} <-
            cardinality(
              index,
@@ -386,14 +293,9 @@ defmodule PositionDB.QueryPlanner do
     end
   end
 
-  defp cardinalities(
-         index,
-         store,
-         queries,
-         options
-       ) do
-    Enum.reduce_while(
-      queries,
+  defp cardinalities(index, store, queries, options) do
+    queries
+    |> Enum.reduce_while(
       {:ok, []},
       fn query, {:ok, values} ->
         case cardinality(
@@ -419,9 +321,7 @@ defmodule PositionDB.QueryPlanner do
     end
   end
 
-  defp upper_bound({:exact, value}),
-    do: value
+  defp upper_bound({:exact, value}), do: value
 
-  defp upper_bound({:upper_bound, value}),
-    do: value
+  defp upper_bound({:upper_bound, value}), do: value
 end

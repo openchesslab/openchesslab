@@ -1,4 +1,5 @@
 defmodule AttackedSlidingComparisonBenchmark do
+  @moduledoc false
   import Bitwise
 
   alias Chess.Bitboard
@@ -25,9 +26,7 @@ defmodule AttackedSlidingComparisonBenchmark do
   end
 
   defp benchmark_ray(:rook, :open) do
-    board =
-      Bitboard.empty()
-      |> Bitboard.put(31, {:black, :rook})
+    board = Bitboard.put(Bitboard.empty(), 31, {:black, :rook})
 
     occupied = Bitboard.occupied(board)
 
@@ -46,9 +45,7 @@ defmodule AttackedSlidingComparisonBenchmark do
   end
 
   defp benchmark_ray(:bishop, :open) do
-    board =
-      Bitboard.empty()
-      |> Bitboard.put(55, {:black, :bishop})
+    board = Bitboard.put(Bitboard.empty(), 55, {:black, :bishop})
 
     occupied = Bitboard.occupied(board)
 
@@ -67,9 +64,7 @@ defmodule AttackedSlidingComparisonBenchmark do
   end
 
   defp benchmark_attacks(:rook, :open) do
-    board =
-      Bitboard.empty()
-      |> Bitboard.put(31, {:black, :rook})
+    board = Bitboard.put(Bitboard.empty(), 31, {:black, :rook})
 
     attacks = Bitboard.rook_attacks(board, @target)
     target = 1 <<< @target
@@ -90,9 +85,7 @@ defmodule AttackedSlidingComparisonBenchmark do
   end
 
   defp benchmark_attacks(:bishop, :open) do
-    board =
-      Bitboard.empty()
-      |> Bitboard.put(55, {:black, :bishop})
+    board = Bitboard.put(Bitboard.empty(), 55, {:black, :bishop})
 
     attacks = Bitboard.bishop_attacks(board, @target)
     target = 1 <<< @target
@@ -132,17 +125,19 @@ defmodule AttackedSlidingComparisonBenchmark do
     end)
   end
 
-  defp first_piece_on_ray(
-         board,
-         occupied,
-         square,
-         step,
-         piece_type
-       ) do
+  defp first_piece_on_ray(board, occupied, square, step, piece_type) do
     next = square + step
 
     if valid_ray_square?(square, next, step) do
-      if (occupied &&& 1 <<< next) != 0 do
+      if (occupied &&& 1 <<< next) == 0 do
+        first_piece_on_ray(
+          board,
+          occupied,
+          next,
+          step,
+          piece_type
+        )
+      else
         mask = 1 <<< next
 
         case piece_type do
@@ -154,22 +149,13 @@ defmodule AttackedSlidingComparisonBenchmark do
             (board.black_bishops &&& mask) != 0 or
               (board.black_queens &&& mask) != 0
         end
-      else
-        first_piece_on_ray(
-          board,
-          occupied,
-          next,
-          step,
-          piece_type
-        )
       end
     else
       false
     end
   end
 
-  defp valid_ray_square?(_from, to, step)
-       when step in [8, -8] do
+  defp valid_ray_square?(_from, to, step) when step in [8, -8] do
     to in 0..63
   end
 

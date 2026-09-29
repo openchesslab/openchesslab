@@ -50,8 +50,7 @@ defmodule PositionDB.Storage.Disk do
           {:ok, t()}
           | {:error, :storage_exists}
           | {:error, term()}
-  def create(directory, opts)
-      when is_binary(directory) do
+  def create(directory, opts) when is_binary(directory) do
     storage =
       new(
         directory,
@@ -81,8 +80,7 @@ defmodule PositionDB.Storage.Disk do
   @spec open(Path.t(), keyword()) ::
           {:ok, t()}
           | {:error, term()}
-  def open(directory, opts)
-      when is_binary(directory) do
+  def open(directory, opts) when is_binary(directory) do
     codec_module =
       Keyword.fetch!(
         opts,
@@ -132,8 +130,7 @@ defmodule PositionDB.Storage.Disk do
   end
 
   @spec new(Path.t(), keyword()) :: t()
-  def new(directory, opts)
-      when is_binary(directory) do
+  def new(directory, opts) when is_binary(directory) do
     codec_module =
       Keyword.fetch!(
         opts,
@@ -186,12 +183,7 @@ defmodule PositionDB.Storage.Disk do
           {:ok, term()}
           | :not_found
           | {:error, term()}
-  def get(
-        %__MODULE__{} = storage,
-        position_id
-      )
-      when is_integer(position_id) and
-             position_id > 0 do
+  def get(%__MODULE__{} = storage, position_id) when is_integer(position_id) and position_id > 0 do
     case RecordStore.get(
            storage.record_store,
            position_id
@@ -212,11 +204,7 @@ defmodule PositionDB.Storage.Disk do
           {:ok, pos_integer()}
           | :not_found
           | {:error, term()}
-  def find(
-        %__MODULE__{} = storage,
-        _key,
-        position
-      ) do
+  def find(%__MODULE__{} = storage, _key, position) do
     with {:ok, record} <-
            encode_position(
              storage,
@@ -233,11 +221,7 @@ defmodule PositionDB.Storage.Disk do
   @spec put(t(), term(), term()) ::
           {:ok, t(), pos_integer()}
           | {:error, term()}
-  def put(
-        %__MODULE__{} = storage,
-        _key,
-        position
-      ) do
+  def put(%__MODULE__{} = storage, _key, position) do
     with :ok <-
            ensure_no_pending_append(storage),
          {:ok, record} <-
@@ -283,13 +267,7 @@ defmodule PositionDB.Storage.Disk do
   @spec scan_next(scan_state()) ::
           {:ok, pos_integer(), scan_state()}
           | :done
-  def scan_next(
-        %{
-          next_id: next_id,
-          last_id: last_id
-        } = state
-      )
-      when next_id <= last_id do
+  def scan_next(%{next_id: next_id, last_id: last_id} = state) when next_id <= last_id do
     {:ok, next_id,
      %{
        state
@@ -297,18 +275,11 @@ defmodule PositionDB.Storage.Disk do
      }}
   end
 
-  def scan_next(%{
-        next_id: next_id,
-        last_id: last_id
-      })
-      when next_id > last_id do
+  def scan_next(%{next_id: next_id, last_id: last_id}) when next_id > last_id do
     :done
   end
 
-  defp encode_position(
-         %__MODULE__{} = storage,
-         position
-       ) do
+  defp encode_position(%__MODULE__{} = storage, position) do
     case storage.codec_module.encode(position) do
       {:ok, record}
       when is_binary(record) ->
@@ -338,11 +309,7 @@ defmodule PositionDB.Storage.Disk do
     }
   end
 
-  defp validate_runtime_formats(
-         %Manifest{} = manifest,
-         codec_module,
-         hash_module
-       ) do
+  defp validate_runtime_formats(%Manifest{} = manifest, codec_module, hash_module) do
     with :ok <-
            validate_format_value(
              :record_format_id,
@@ -360,37 +327,24 @@ defmodule PositionDB.Storage.Disk do
              :exact_hash_format_id,
              manifest.exact_hash_format_id,
              hash_module.format_id()
-           ),
-         :ok <-
-           validate_format_value(
-             :exact_hash_size,
-             manifest.exact_hash_size,
-             hash_module.hash_size()
            ) do
-      :ok
+      validate_format_value(
+        :exact_hash_size,
+        manifest.exact_hash_size,
+        hash_module.hash_size()
+      )
     end
   end
 
-  defp validate_format_value(
-         _field,
-         value,
-         value
-       ) do
+  defp validate_format_value(_field, value, value) do
     :ok
   end
 
-  defp validate_format_value(
-         field,
-         persisted,
-         configured
-       ) do
+  defp validate_format_value(field, persisted, configured) do
     {:error, {:storage_format_mismatch, field, persisted, configured}}
   end
 
-  defp validate_storage_directory(
-         path,
-         name
-       ) do
+  defp validate_storage_directory(path, name) do
     case File.stat(path) do
       {:ok, %{type: :directory}} ->
         :ok
@@ -463,10 +417,7 @@ defmodule PositionDB.Storage.Disk do
     end
   end
 
-  defp recover_pending_append(
-         %__MODULE__{} = storage,
-         position_id
-       ) do
+  defp recover_pending_append(%__MODULE__{} = storage, position_id) do
     case RecordStore.recover_pending_append(
            storage.record_store,
            position_id
@@ -486,27 +437,18 @@ defmodule PositionDB.Storage.Disk do
     end
   end
 
-  defp recover_indexed_append(
-         %__MODULE__{} = storage,
-         record,
-         position_id
-       ) do
+  defp recover_indexed_append(%__MODULE__{} = storage, record, position_id) do
     with :ok <-
            ExactIndex.recover_pending_append(
              storage.exact_index,
              record,
              position_id
-           ),
-         :ok <-
-           AppendMarker.clear(storage.directory) do
-      :ok
+           ) do
+      AppendMarker.clear(storage.directory)
     end
   end
 
-  defp find_record(
-         %__MODULE__{} = storage,
-         record
-       ) do
+  defp find_record(%__MODULE__{} = storage, record) do
     ExactLookup.find(
       storage.record_store,
       ExactIndex,
@@ -516,10 +458,7 @@ defmodule PositionDB.Storage.Disk do
     )
   end
 
-  defp append_new_position(
-         %__MODULE__{} = storage,
-         record
-       ) do
+  defp append_new_position(%__MODULE__{} = storage, record) do
     position_id =
       storage.next_id
 

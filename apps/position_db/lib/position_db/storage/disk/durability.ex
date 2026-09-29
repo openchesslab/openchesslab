@@ -12,8 +12,7 @@ defmodule PositionDB.Storage.Disk.Durability do
   @spec sync_directory(Path.t()) ::
           :ok
           | {:error, term()}
-  def sync_directory(directory)
-      when is_binary(directory) do
+  def sync_directory(directory) when is_binary(directory) do
     with :ok <-
            validate_directory(directory) do
       case :os.type() do
@@ -29,21 +28,17 @@ defmodule PositionDB.Storage.Disk.Durability do
   @spec create_directory(Path.t()) ::
           :ok
           | {:error, term()}
-  def create_directory(directory)
-      when is_binary(directory) do
+  def create_directory(directory) when is_binary(directory) do
     with :ok <-
-           File.mkdir(directory),
-         :ok <-
-           sync_directory(Path.dirname(directory)) do
-      :ok
+           File.mkdir(directory) do
+      sync_directory(Path.dirname(directory))
     end
   end
 
   @spec remove_directory(Path.t()) ::
           :ok
           | {:error, term()}
-  def remove_directory(directory)
-      when is_binary(directory) do
+  def remove_directory(directory) when is_binary(directory) do
     parent =
       Path.dirname(directory)
 
@@ -69,12 +64,7 @@ defmodule PositionDB.Storage.Disk.Durability do
         ) ::
           :ok
           | {:error, term()}
-  def rename_sibling(
-        source,
-        destination
-      )
-      when is_binary(source) and
-             is_binary(destination) do
+  def rename_sibling(source, destination) when is_binary(source) and is_binary(destination) do
     parent =
       Path.dirname(source)
 
@@ -84,10 +74,8 @@ defmodule PositionDB.Storage.Disk.Durability do
              File.rename(
                source,
                destination
-             ),
-           :ok <-
-             sync_directory(parent) do
-        :ok
+             ) do
+        sync_directory(parent)
       end
     else
       {:error, :different_parent_directories}
@@ -109,12 +97,7 @@ defmodule PositionDB.Storage.Disk.Durability do
         ) ::
           :ok
           | {:error, term()}
-  def replace_sibling_file(
-        source,
-        destination
-      )
-      when is_binary(source) and
-             is_binary(destination) do
+  def replace_sibling_file(source, destination) when is_binary(source) and is_binary(destination) do
     parent =
       Path.dirname(source)
 
@@ -128,10 +111,8 @@ defmodule PositionDB.Storage.Disk.Durability do
              replace_file(
                source,
                destination
-             ),
-           :ok <-
-             sync_directory(parent) do
-        :ok
+             ) do
+        sync_directory(parent)
       end
     else
       {:error, :different_parent_directories}
@@ -141,8 +122,7 @@ defmodule PositionDB.Storage.Disk.Durability do
   @spec sync_file(Path.t()) ::
           :ok
           | {:error, term()}
-  def sync_file(path)
-      when is_binary(path) do
+  def sync_file(path) when is_binary(path) do
     with :ok <-
            validate_regular_file(path) do
       case :file.open(
@@ -229,10 +209,7 @@ defmodule PositionDB.Storage.Disk.Durability do
     end
   end
 
-  defp replace_file(
-         source,
-         destination
-       ) do
+  defp replace_file(source, destination) do
     case :os.type() do
       {:unix, _name} ->
         File.rename(
@@ -248,18 +225,13 @@ defmodule PositionDB.Storage.Disk.Durability do
     end
   end
 
-  defp replace_file_windows(
-         source,
-         destination
-       ) do
+  defp replace_file_windows(source, destination) do
     with :ok <-
-           remove_replacement_destination(destination),
-         :ok <-
-           File.rename(
-             source,
-             destination
-           ) do
-      :ok
+           remove_replacement_destination(destination) do
+      File.rename(
+        source,
+        destination
+      )
     end
   end
 

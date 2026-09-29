@@ -17,8 +17,7 @@ defmodule Analysis.GameStart do
   defstruct [:fullmove_number]
 
   @spec new(pos_integer()) :: t()
-  def new(fullmove_number)
-      when is_integer(fullmove_number) and fullmove_number > 0 do
+  def new(fullmove_number) when is_integer(fullmove_number) and fullmove_number > 0 do
     %__MODULE__{
       fullmove_number: fullmove_number
     }

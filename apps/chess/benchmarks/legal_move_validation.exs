@@ -3,6 +3,7 @@ alias Chess.Move
 alias Chess.Position
 
 defmodule LegalMoveValidationBenchmark do
+  @moduledoc false
   def starting_position do
     Position.starting_position()
   end
@@ -59,7 +60,8 @@ defmodule LegalMoveValidationBenchmark do
     bitboard = Bitboard.from_position(position)
     side = position.side_to_move
 
-    Bitboard.pseudo_moves(bitboard, side)
+    bitboard
+    |> Bitboard.pseudo_moves(side)
     |> Enum.flat_map(fn {from, destinations} ->
       piece = Position.piece_at(position, from)
 
@@ -85,7 +87,8 @@ defmodule LegalMoveValidationBenchmark do
     side = position.side_to_move
     king_square = king_square(position, side)
 
-    candidates(position)
+    position
+    |> candidates()
     |> Enum.map(fn {move, piece} ->
       {move, piece, bitboard, side, king_square}
     end)

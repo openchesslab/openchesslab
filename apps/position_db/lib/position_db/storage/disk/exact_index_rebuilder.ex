@@ -20,10 +20,7 @@ defmodule PositionDB.Storage.Disk.ExactIndexRebuilder do
         ) ::
           {:ok, ExactIndex.t()}
           | {:error, term()}
-  def rebuild(
-        %RecordStore{} = record_store,
-        %ExactIndex{} = exact_index
-      ) do
+  def rebuild(%RecordStore{} = record_store, %ExactIndex{} = exact_index) do
     active =
       exact_index.bucket_store.directory
 
@@ -58,8 +55,7 @@ defmodule PositionDB.Storage.Disk.ExactIndexRebuilder do
   @spec recover(Path.t()) ::
           :ok
           | {:error, term()}
-  def recover(active)
-      when is_binary(active) do
+  def recover(active) when is_binary(active) do
     rebuild =
       rebuild_directory(active)
 
@@ -83,11 +79,7 @@ defmodule PositionDB.Storage.Disk.ExactIndexRebuilder do
     end
   end
 
-  defp build_replacement(
-         record_store,
-         exact_index,
-         rebuild
-       ) do
+  defp build_replacement(record_store, exact_index, rebuild) do
     replacement =
       ExactIndex.new(
         rebuild,
@@ -113,11 +105,7 @@ defmodule PositionDB.Storage.Disk.ExactIndexRebuilder do
     end
   end
 
-  defp replace(
-         active,
-         rebuild,
-         backup
-       ) do
+  defp replace(active, rebuild, backup) do
     with :ok <-
            Durability.rename_sibling(
              active,
@@ -143,71 +131,34 @@ defmodule PositionDB.Storage.Disk.ExactIndexRebuilder do
     end
   end
 
-  defp recover_state(
-         true,
-         false,
-         false,
-         _active,
-         _rebuild,
-         _backup
-       ) do
+  defp recover_state(true, false, false, _active, _rebuild, _backup) do
     :ok
   end
 
   # Build was interrupted before the active index was touched.
-  defp recover_state(
-         true,
-         true,
-         false,
-         _active,
-         rebuild,
-         _backup
-       ) do
+  defp recover_state(true, true, false, _active, rebuild, _backup) do
     Durability.remove_directory(rebuild)
   end
 
   # Replacement was promoted; backup cleanup was interrupted.
-  defp recover_state(
-         true,
-         false,
-         true,
-         _active,
-         _rebuild,
-         backup
-       ) do
+  defp recover_state(true, false, true, _active, _rebuild, backup) do
     Durability.remove_directory(backup)
   end
 
   # Active was moved aside after a completed durable rebuild.
-  defp recover_state(
-         false,
-         true,
-         true,
-         active,
-         rebuild,
-         backup
-       ) do
+  defp recover_state(false, true, true, active, rebuild, backup) do
     with :ok <-
            Durability.rename_sibling(
              rebuild,
              active
-           ),
-         :ok <-
-           Durability.remove_directory(backup) do
-      :ok
+           ) do
+      Durability.remove_directory(backup)
     end
   end
 
   # Rebuild disappeared after the active index was moved.
   # Restore the known-good backup.
-  defp recover_state(
-         false,
-         false,
-         true,
-         active,
-         _rebuild,
-         backup
-       ) do
+  defp recover_state(false, false, true, active, _rebuild, backup) do
     Durability.rename_sibling(
       backup,
       active
@@ -216,25 +167,11 @@ defmodule PositionDB.Storage.Disk.ExactIndexRebuilder do
 
   # Nothing exists. Disk.open/2 will subsequently report the
   # missing active exact-index directory using its existing error.
-  defp recover_state(
-         false,
-         false,
-         false,
-         _active,
-         _rebuild,
-         _backup
-       ) do
+  defp recover_state(false, false, false, _active, _rebuild, _backup) do
     :ok
   end
 
-  defp recover_state(
-         _active?,
-         _rebuild?,
-         _backup?,
-         _active,
-         _rebuild,
-         _backup
-       ) do
+  defp recover_state(_active?, _rebuild?, _backup?, _active, _rebuild, _backup) do
     {:error, :ambiguous_exact_index_recovery}
   end
 

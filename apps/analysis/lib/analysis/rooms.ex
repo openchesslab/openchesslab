@@ -18,10 +18,7 @@ defmodule Analysis.Rooms do
           Room.id(),
           options()
         ) :: {:ok, Room.t()}
-  def start_room(
-        room_id,
-        opts \\ []
-      ) do
+  def start_room(room_id, opts \\ []) do
     registry = registry(opts)
     supervisor = supervisor(opts)
     room = Room.new(room_id)
@@ -50,10 +47,7 @@ defmodule Analysis.Rooms do
         ) ::
           {:ok, Room.t()}
           | :not_found
-  def get(
-        room_id,
-        opts \\ []
-      ) do
+  def get(room_id, opts \\ []) do
     case lookup(
            registry(opts),
            room_id
@@ -73,11 +67,7 @@ defmodule Analysis.Rooms do
         ) ::
           :ok
           | {:error, :not_found}
-  def add_analysis(
-        room_id,
-        analysis_id,
-        opts \\ []
-      ) do
+  def add_analysis(room_id, analysis_id, opts \\ []) do
     case lookup(
            registry(opts),
            room_id
@@ -100,11 +90,7 @@ defmodule Analysis.Rooms do
         ) ::
           :ok
           | {:error, :not_found}
-  def remove_analysis(
-        room_id,
-        analysis_id,
-        opts \\ []
-      ) do
+  def remove_analysis(room_id, analysis_id, opts \\ []) do
     case lookup(
            registry(opts),
            room_id
@@ -126,10 +112,7 @@ defmodule Analysis.Rooms do
         ) ::
           {:ok, [RoomChat.Message.t()]}
           | {:error, :not_found}
-  def chat(
-        room_id,
-        opts \\ []
-      ) do
+  def chat(room_id, opts \\ []) do
     case lookup(
            registry(opts),
            room_id
@@ -149,11 +132,7 @@ defmodule Analysis.Rooms do
         ) ::
           {:ok, RoomChat.Message.t()}
           | {:error, :not_found | :empty}
-  def send_message(
-        room_id,
-        attrs,
-        opts \\ []
-      ) do
+  def send_message(room_id, attrs, opts \\ []) do
     case lookup(
            registry(opts),
            room_id
@@ -175,10 +154,7 @@ defmodule Analysis.Rooms do
         ) ::
           {:ok, String.t()}
           | {:error, :not_found}
-  def region(
-        room_id,
-        opts \\ []
-      ) do
+  def region(room_id, opts \\ []) do
     case lookup(
            registry(opts),
            room_id
@@ -195,10 +171,7 @@ defmodule Analysis.Rooms do
           Room.id(),
           options()
         ) :: :ok
-  def stop_room(
-        room_id,
-        opts \\ []
-      ) do
+  def stop_room(room_id, opts \\ []) do
     case lookup(
            registry(opts),
            room_id
@@ -220,10 +193,7 @@ defmodule Analysis.Rooms do
     end
   end
 
-  defp lookup(
-         registry,
-         room_id
-       ) do
+  defp lookup(registry, room_id) do
     case Horde.Registry.lookup(
            registry,
            room_id

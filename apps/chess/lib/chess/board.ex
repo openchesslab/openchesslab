@@ -39,8 +39,7 @@ defmodule Chess.Board do
   end
 
   @spec put(t(), Chess.Square.t(), piece()) :: t()
-  def put(board, square, piece)
-      when square in 0..63 do
+  def put(board, square, piece) when square in 0..63 do
     put_elem(board, square, piece)
   end
 

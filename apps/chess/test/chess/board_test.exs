@@ -1,8 +1,8 @@
 defmodule Chess.BoardTest do
   use ExUnit.Case
 
-  alias Chess.Square
   alias Chess.Board
+  alias Chess.Square
 
   describe "empty/0" do
     test "creates an empty board" do
@@ -25,9 +25,7 @@ defmodule Chess.BoardTest do
     test "returns the piece on a square" do
       square = Square.from_algebraic("e4")
 
-      board =
-        Board.empty()
-        |> Board.put(square, {:white, :pawn})
+      board = Board.put(Board.empty(), square, {:white, :pawn})
 
       assert Board.get(board, square) == {:white, :pawn}
     end

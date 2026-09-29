@@ -1,12 +1,13 @@
+import Bitwise
+
 alias Chess.Position
 alias Chess.PositionCanonicalizer
 alias Chess.PositionCodec
 alias Chess.PositionHash
 alias Chess.PositionProperties
 
-import Bitwise
-
 defmodule BenchmarkHelpers do
+  @moduledoc false
   import Bitwise
 
   def popcount(value) do

@@ -3,9 +3,9 @@ defmodule PositionDB.QueryEngineTest do
 
   alias PositionDB.EquivalenceContext
   alias PositionDB.EquivalenceIndex
-  alias PositionDB.Query
   alias PositionDB.PositionStore
   alias PositionDB.PropertyIndex
+  alias PositionDB.Query
   alias PositionDB.QueryEngine
 
   defp store_with_ids(ids) do
@@ -438,9 +438,7 @@ defmodule PositionDB.QueryEngineTest do
   end
 
   test "executes AND with true through the full pipeline" do
-    index =
-      PropertyIndex.new()
-      |> PropertyIndex.add({:open_files, :e}, 2)
+    index = PropertyIndex.add(PropertyIndex.new(), {:open_files, :e}, 2)
 
     store = store_with_ids([1, 2, 3])
 
@@ -462,9 +460,7 @@ defmodule PositionDB.QueryEngineTest do
   end
 
   test "executes OR with false through the full pipeline" do
-    index =
-      PropertyIndex.new()
-      |> PropertyIndex.add({:open_files, :e}, 2)
+    index = PropertyIndex.add(PropertyIndex.new(), {:open_files, :e}, 2)
 
     store = store_with_ids([1, 2, 3])
 
@@ -486,9 +482,7 @@ defmodule PositionDB.QueryEngineTest do
   end
 
   test "executes AND with complementary queries through the full pipeline" do
-    index =
-      PropertyIndex.new()
-      |> PropertyIndex.add({:open_files, :e}, 2)
+    index = PropertyIndex.add(PropertyIndex.new(), {:open_files, :e}, 2)
 
     store = store_with_ids([1, 2, 3])
 
@@ -512,9 +506,7 @@ defmodule PositionDB.QueryEngineTest do
   end
 
   test "executes OR with complementary queries through the full pipeline" do
-    index =
-      PropertyIndex.new()
-      |> PropertyIndex.add({:open_files, :e}, 2)
+    index = PropertyIndex.add(PropertyIndex.new(), {:open_files, :e}, 2)
 
     store = store_with_ids([1, 2, 3])
 

@@ -3,9 +3,9 @@ defmodule Chess.BitboardTest do
 
   import Bitwise
 
-  alias Chess.Square
   alias Chess.Bitboard
   alias Chess.Position
+  alias Chess.Square
 
   defp bitboard_for(squares) do
     Enum.reduce(squares, 0, fn square, attacks ->
@@ -15,11 +15,11 @@ defmodule Chess.BitboardTest do
 
   defp destinations(moves, from_algebraic) do
     moves
-    |> Enum.into(%{})
+    |> Map.new()
     |> Map.fetch!(square(from_algebraic))
   end
 
-  defp square(algebraic), do: Chess.Square.from_algebraic(algebraic)
+  defp square(algebraic), do: Square.from_algebraic(algebraic)
 
   defp put_piece(board, square, piece) do
     Bitboard.put(board, square(square), piece)
@@ -45,9 +45,7 @@ defmodule Chess.BitboardTest do
     end
 
     test "returns the piece on a square" do
-      board =
-        Bitboard.empty()
-        |> Bitboard.put(28, {:white, :pawn})
+      board = Bitboard.put(Bitboard.empty(), 28, {:white, :pawn})
 
       assert Bitboard.get(board, Square.from_algebraic("e4")) == {:white, :pawn}
     end
@@ -67,9 +65,7 @@ defmodule Chess.BitboardTest do
     test "replaces an existing piece" do
       square = Square.from_algebraic("e4")
 
-      board =
-        Bitboard.empty()
-        |> Bitboard.put(square, {:white, :pawn})
+      board = Bitboard.put(Bitboard.empty(), square, {:white, :pawn})
 
       updated =
         Bitboard.put(board, square, {:white, :queen})
@@ -82,9 +78,7 @@ defmodule Chess.BitboardTest do
     test "removes a piece" do
       square = Square.from_algebraic("e4")
 
-      board =
-        Bitboard.empty()
-        |> Bitboard.put(square, {:white, :pawn})
+      board = Bitboard.put(Bitboard.empty(), square, {:white, :pawn})
 
       updated = Bitboard.remove(board, square)
 
@@ -116,9 +110,7 @@ defmodule Chess.BitboardTest do
     test "sets the correct bit" do
       square = Square.from_algebraic("e4")
 
-      board =
-        Bitboard.empty()
-        |> Bitboard.put(square, {:white, :pawn})
+      board = Bitboard.put(Bitboard.empty(), square, {:white, :pawn})
 
       assert board.white_pawns == 1 <<< square
     end
@@ -183,7 +175,7 @@ defmodule Chess.BitboardTest do
     end
 
     test "converts an empty position to an empty bitboard" do
-      position = Chess.Position.new()
+      position = Position.new()
 
       assert Bitboard.from_position(position) ==
                Bitboard.empty()
@@ -228,13 +220,11 @@ defmodule Chess.BitboardTest do
 
       attacks = Bitboard.rook_attacks(board, square)
 
-      refute (attacks &&& 1 <<< square) != 0
+      assert (attacks &&& 1 <<< square) == 0
     end
 
     test "stops at a blocker" do
-      board =
-        Bitboard.empty()
-        |> put_piece("d6", {:white, :pawn})
+      board = put_piece(Bitboard.empty(), "d6", {:white, :pawn})
 
       attacks = Bitboard.rook_attacks(board, square("d4"))
 
@@ -245,9 +235,7 @@ defmodule Chess.BitboardTest do
     end
 
     test "stops at a blocker horizontally" do
-      board =
-        Bitboard.empty()
-        |> put_piece("f4", {:black, :knight})
+      board = put_piece(Bitboard.empty(), "f4", {:black, :knight})
 
       attacks = Bitboard.rook_attacks(board, square("d4"))
 
@@ -325,13 +313,11 @@ defmodule Chess.BitboardTest do
 
       attacks = Bitboard.bishop_attacks(board, square)
 
-      refute (attacks &&& 1 <<< square) != 0
+      assert (attacks &&& 1 <<< square) == 0
     end
 
     test "stops at a blocker" do
-      board =
-        Bitboard.empty()
-        |> put_piece("f6", {:white, :pawn})
+      board = put_piece(Bitboard.empty(), "f6", {:white, :pawn})
 
       attacks = Bitboard.bishop_attacks(board, square("d4"))
 
@@ -470,7 +456,7 @@ defmodule Chess.BitboardTest do
 
       attacks = Bitboard.queen_attacks(board, square)
 
-      refute (attacks &&& 1 <<< square) != 0
+      assert (attacks &&& 1 <<< square) == 0
     end
   end
 
@@ -501,7 +487,7 @@ defmodule Chess.BitboardTest do
       square = square("d4")
       attacks = Bitboard.king_attacks(square)
 
-      refute (attacks &&& 1 <<< square) != 0
+      assert (attacks &&& 1 <<< square) == 0
     end
 
     test "works from a corner" do
@@ -564,7 +550,7 @@ defmodule Chess.BitboardTest do
       square = square("d4")
       attacks = Bitboard.knight_attacks(square)
 
-      refute (attacks &&& 1 <<< square) != 0
+      assert (attacks &&& 1 <<< square) == 0
     end
 
     test "works from a corner" do
@@ -669,54 +655,42 @@ defmodule Chess.BitboardTest do
 
   describe "attacked?/3" do
     test "detects a pawn attack" do
-      board =
-        Bitboard.empty()
-        |> put_piece("d4", {:white, :pawn})
+      board = put_piece(Bitboard.empty(), "d4", {:white, :pawn})
 
       assert Bitboard.attacked?(board, :white, square("e5"))
       refute Bitboard.attacked?(board, :black, square("e5"))
     end
 
     test "detects a knight attack" do
-      board =
-        Bitboard.empty()
-        |> put_piece("d4", {:white, :knight})
+      board = put_piece(Bitboard.empty(), "d4", {:white, :knight})
 
       assert Bitboard.attacked?(board, :white, square("e6"))
       refute Bitboard.attacked?(board, :white, square("e5"))
     end
 
     test "detects a king attack" do
-      board =
-        Bitboard.empty()
-        |> put_piece("d4", {:black, :king})
+      board = put_piece(Bitboard.empty(), "d4", {:black, :king})
 
       assert Bitboard.attacked?(board, :black, square("e5"))
       refute Bitboard.attacked?(board, :black, square("f6"))
     end
 
     test "detects a rook attack" do
-      board =
-        Bitboard.empty()
-        |> put_piece("d4", {:white, :rook})
+      board = put_piece(Bitboard.empty(), "d4", {:white, :rook})
 
       assert Bitboard.attacked?(board, :white, square("d7"))
       refute Bitboard.attacked?(board, :white, square("e7"))
     end
 
     test "detects a bishop attack" do
-      board =
-        Bitboard.empty()
-        |> put_piece("d4", {:black, :bishop})
+      board = put_piece(Bitboard.empty(), "d4", {:black, :bishop})
 
       assert Bitboard.attacked?(board, :black, square("g7"))
       refute Bitboard.attacked?(board, :black, square("g6"))
     end
 
     test "detects a queen attack" do
-      board =
-        Bitboard.empty()
-        |> put_piece("d4", {:white, :queen})
+      board = put_piece(Bitboard.empty(), "d4", {:white, :queen})
 
       assert Bitboard.attacked?(board, :white, square("d8"))
       assert Bitboard.attacked?(board, :white, square("h8"))
@@ -735,9 +709,7 @@ defmodule Chess.BitboardTest do
     end
 
     test "does not consider attacks from the opposite color" do
-      board =
-        Bitboard.empty()
-        |> put_piece("d4", {:black, :rook})
+      board = put_piece(Bitboard.empty(), "d4", {:black, :rook})
 
       refute Bitboard.attacked?(board, :white, square("d7"))
       assert Bitboard.attacked?(board, :black, square("d7"))
@@ -806,7 +778,7 @@ defmodule Chess.BitboardTest do
 
       moves = Bitboard.pseudo_moves(board, :white)
 
-      assert Enum.into(moves, %{}) == %{
+      assert Map.new(moves) == %{
                square("d4") =>
                  bitboard_for([
                    "a4",
@@ -839,9 +811,7 @@ defmodule Chess.BitboardTest do
     end
 
     test "pawn moves one square forward" do
-      board =
-        Bitboard.empty()
-        |> put_piece("e4", {:white, :pawn})
+      board = put_piece(Bitboard.empty(), "e4", {:white, :pawn})
 
       moves = Bitboard.pseudo_moves(board, :white)
 
@@ -850,9 +820,7 @@ defmodule Chess.BitboardTest do
     end
 
     test "pawn moves two squares from the starting rank" do
-      board =
-        Bitboard.empty()
-        |> put_piece("e2", {:white, :pawn})
+      board = put_piece(Bitboard.empty(), "e2", {:white, :pawn})
 
       moves = Bitboard.pseudo_moves(board, :white)
 
@@ -861,9 +829,7 @@ defmodule Chess.BitboardTest do
     end
 
     test "white pawn cannot make a double move from a non-starting rank" do
-      board =
-        Bitboard.empty()
-        |> put_piece("e3", {:white, :pawn})
+      board = put_piece(Bitboard.empty(), "e3", {:white, :pawn})
 
       moves = Bitboard.pseudo_moves(board, :white)
 
@@ -872,9 +838,7 @@ defmodule Chess.BitboardTest do
     end
 
     test "black pawn cannot make a double move from a non-starting rank" do
-      board =
-        Bitboard.empty()
-        |> put_piece("e6", {:black, :pawn})
+      board = put_piece(Bitboard.empty(), "e6", {:black, :pawn})
 
       moves = Bitboard.pseudo_moves(board, :black)
 
@@ -931,9 +895,7 @@ defmodule Chess.BitboardTest do
     end
 
     test "pawn cannot move diagonally to an empty square" do
-      board =
-        Bitboard.empty()
-        |> put_piece("e4", {:white, :pawn})
+      board = put_piece(Bitboard.empty(), "e4", {:white, :pawn})
 
       moves = Bitboard.pseudo_moves(board, :white)
 
@@ -942,9 +904,7 @@ defmodule Chess.BitboardTest do
     end
 
     test "white pawn on a-file only attacks towards b-file" do
-      board =
-        Bitboard.empty()
-        |> put_piece("a4", {:white, :pawn})
+      board = put_piece(Bitboard.empty(), "a4", {:white, :pawn})
 
       moves = Bitboard.pseudo_moves(board, :white)
 
@@ -953,9 +913,7 @@ defmodule Chess.BitboardTest do
     end
 
     test "white pawn on h-file only attacks towards g-file" do
-      board =
-        Bitboard.empty()
-        |> put_piece("h4", {:white, :pawn})
+      board = put_piece(Bitboard.empty(), "h4", {:white, :pawn})
 
       moves = Bitboard.pseudo_moves(board, :white)
 
@@ -964,9 +922,7 @@ defmodule Chess.BitboardTest do
     end
 
     test "black pawn on a-file only attacks towards b-file" do
-      board =
-        Bitboard.empty()
-        |> put_piece("a5", {:black, :pawn})
+      board = put_piece(Bitboard.empty(), "a5", {:black, :pawn})
 
       moves = Bitboard.pseudo_moves(board, :black)
 
@@ -975,9 +931,7 @@ defmodule Chess.BitboardTest do
     end
 
     test "black pawn on h-file only attacks towards g-file" do
-      board =
-        Bitboard.empty()
-        |> put_piece("h5", {:black, :pawn})
+      board = put_piece(Bitboard.empty(), "h5", {:black, :pawn})
 
       moves = Bitboard.pseudo_moves(board, :black)
 
@@ -986,9 +940,7 @@ defmodule Chess.BitboardTest do
     end
 
     test "black pawn moves towards rank one" do
-      board =
-        Bitboard.empty()
-        |> put_piece("e7", {:black, :pawn})
+      board = put_piece(Bitboard.empty(), "e7", {:black, :pawn})
 
       moves = Bitboard.pseudo_moves(board, :black)
 
@@ -1086,7 +1038,7 @@ defmodule Chess.BitboardTest do
         |> put_piece("f4", {:white, :pawn})
 
       moves = Bitboard.pseudo_moves(board, :white)
-      attacks = Map.fetch!(Enum.into(moves, %{}), square("d4"))
+      attacks = Map.fetch!(Map.new(moves), square("d4"))
 
       refute attacks_contains?(attacks, "d6")
       refute attacks_contains?(attacks, "f4")
@@ -1102,7 +1054,7 @@ defmodule Chess.BitboardTest do
         |> put_piece("f4", {:black, :pawn})
 
       moves = Bitboard.pseudo_moves(board, :white)
-      attacks = Map.fetch!(Enum.into(moves, %{}), square("d4"))
+      attacks = Map.fetch!(Map.new(moves), square("d4"))
 
       assert attacks_contains?(attacks, "d6")
       assert attacks_contains?(attacks, "f4")
@@ -1118,7 +1070,7 @@ defmodule Chess.BitboardTest do
         |> put_piece("f3", {:black, :bishop})
 
       moves = Bitboard.pseudo_moves(board, :white)
-      attacks = Map.fetch!(Enum.into(moves, %{}), square("e2"))
+      attacks = Map.fetch!(Map.new(moves), square("e2"))
 
       assert attacks == bitboard_for(["e3", "e4", "d3", "f3"])
     end
@@ -1131,7 +1083,7 @@ defmodule Chess.BitboardTest do
         |> put_piece("f6", {:white, :bishop})
 
       moves = Bitboard.pseudo_moves(board, :black)
-      attacks = Map.fetch!(Enum.into(moves, %{}), square("e7"))
+      attacks = Map.fetch!(Map.new(moves), square("e7"))
 
       assert attacks == bitboard_for(["e6", "e5", "d6", "f6"])
     end
@@ -1143,7 +1095,7 @@ defmodule Chess.BitboardTest do
         |> put_piece("e3", {:black, :pawn})
 
       moves = Bitboard.pseudo_moves(board, :white)
-      attacks = Map.fetch!(Enum.into(moves, %{}), square("e2"))
+      attacks = Map.fetch!(Map.new(moves), square("e2"))
 
       assert attacks == 0
     end
@@ -1160,9 +1112,7 @@ defmodule Chess.BitboardTest do
     end
 
     test "returns an empty list when the color has no pieces" do
-      board =
-        Bitboard.empty()
-        |> put_piece("e4", {:black, :rook})
+      board = put_piece(Bitboard.empty(), "e4", {:black, :rook})
 
       assert Bitboard.pseudo_moves(board, :white) == []
     end
@@ -1193,9 +1143,7 @@ defmodule Chess.BitboardTest do
 
   describe "after_move/3" do
     test "moves a piece to an empty square" do
-      board =
-        Bitboard.empty()
-        |> put_piece("e2", {:white, :pawn})
+      board = put_piece(Bitboard.empty(), "e2", {:white, :pawn})
 
       move = Chess.Move.new(square("e2"), square("e4"))
 
@@ -1220,9 +1168,7 @@ defmodule Chess.BitboardTest do
     end
 
     test "promotes a pawn" do
-      board =
-        Bitboard.empty()
-        |> put_piece("e7", {:white, :pawn})
+      board = put_piece(Bitboard.empty(), "e7", {:white, :pawn})
 
       move = Chess.Move.new(square("e7"), square("e8"), :queen)
 
@@ -1233,9 +1179,7 @@ defmodule Chess.BitboardTest do
     end
 
     test "does not modify the original board" do
-      board =
-        Bitboard.empty()
-        |> put_piece("e2", {:white, :pawn})
+      board = put_piece(Bitboard.empty(), "e2", {:white, :pawn})
 
       move = Chess.Move.new(square("e2"), square("e4"))
 

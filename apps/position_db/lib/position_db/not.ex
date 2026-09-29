@@ -46,11 +46,7 @@ defmodule PositionDB.Not do
 
   defp maybe_load_child(%__MODULE__{universe: :done} = state), do: state
 
-  defp maybe_load_child(
-         %__MODULE__{
-           universe: {:error, _reason}
-         } = state
-       ) do
+  defp maybe_load_child(%__MODULE__{universe: {:error, _reason}} = state) do
     state
   end
 
@@ -60,20 +56,11 @@ defmodule PositionDB.Not do
     state
   end
 
-  defp load_universe(
-         %__MODULE__{
-           universe: {:error, _reason}
-         } = state
-       ) do
+  defp load_universe(%__MODULE__{universe: {:error, _reason}} = state) do
     state
   end
 
-  defp load_universe(
-         %__MODULE__{
-           universe_id: nil,
-           universe: universe
-         } = state
-       ) do
+  defp load_universe(%__MODULE__{universe_id: nil, universe: universe} = state) do
     case QueryExecutor.next(universe) do
       {:ok, position_id, next_universe} ->
         %{state | universe: next_universe, universe_id: position_id}
@@ -88,11 +75,7 @@ defmodule PositionDB.Not do
 
   defp load_universe(state), do: state
 
-  defp load_child(
-         %__MODULE__{
-           child: {:error, _reason}
-         } = state
-       ) do
+  defp load_child(%__MODULE__{child: {:error, _reason}} = state) do
     state
   end
 
@@ -100,12 +83,7 @@ defmodule PositionDB.Not do
     state
   end
 
-  defp load_child(
-         %__MODULE__{
-           child_id: nil,
-           child: child
-         } = state
-       ) do
+  defp load_child(%__MODULE__{child_id: nil, child: child} = state) do
     case QueryExecutor.next(child) do
       {:ok, position_id, next_child} ->
         %{
@@ -130,15 +108,11 @@ defmodule PositionDB.Not do
 
   defp load_child(state), do: state
 
-  defp find_next(%__MODULE__{
-         universe: {:error, reason}
-       }) do
+  defp find_next(%__MODULE__{universe: {:error, reason}}) do
     {:error, reason}
   end
 
-  defp find_next(%__MODULE__{
-         child: {:error, reason}
-       }) do
+  defp find_next(%__MODULE__{child: {:error, reason}}) do
     {:error, reason}
   end
 
@@ -148,36 +122,18 @@ defmodule PositionDB.Not do
     {:ok, universe_id, %{state | universe_id: nil}}
   end
 
-  defp find_next(
-         %__MODULE__{
-           universe_id: universe_id,
-           child_id: child_id
-         } = state
-       )
-       when universe_id == child_id do
+  defp find_next(%__MODULE__{universe_id: universe_id, child_id: child_id} = state) when universe_id == child_id do
     state
     |> Map.put(:universe_id, nil)
     |> Map.put(:child_id, nil)
     |> next()
   end
 
-  defp find_next(
-         %__MODULE__{
-           universe_id: universe_id,
-           child_id: child_id
-         } = state
-       )
-       when universe_id < child_id do
+  defp find_next(%__MODULE__{universe_id: universe_id, child_id: child_id} = state) when universe_id < child_id do
     {:ok, universe_id, %{state | universe_id: nil}}
   end
 
-  defp find_next(
-         %__MODULE__{
-           universe_id: universe_id,
-           child_id: child_id
-         } = state
-       )
-       when universe_id > child_id do
+  defp find_next(%__MODULE__{universe_id: universe_id, child_id: child_id} = state) when universe_id > child_id do
     state
     |> Map.put(:child_id, nil)
     |> next()

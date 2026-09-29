@@ -1,4 +1,5 @@
 defmodule Chess.PositionCanonicalizer do
+  @moduledoc false
   alias Chess.Position
   alias Chess.PositionCodec
   alias Chess.PositionTransform

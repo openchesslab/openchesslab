@@ -379,10 +379,7 @@ defmodule Analysis.PositionStoreTest do
     end)
   end
 
-  defp move(
-         from,
-         to
-       ) do
+  defp move(from, to) do
     Move.new(
       Square.from_algebraic(from),
       Square.from_algebraic(to)

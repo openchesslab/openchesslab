@@ -1,4 +1,5 @@
 defmodule RayTraversalBreakdownBenchmark do
+  @moduledoc false
   import Bitwise
 
   alias Chess.Bitboard
@@ -60,9 +61,7 @@ defmodule RayTraversalBreakdownBenchmark do
   defp benchmark_ray(type, empty_squares) do
     target = target_square(type)
 
-    board =
-      Bitboard.empty()
-      |> Bitboard.put(target, {:black, piece_type(type)})
+    board = Bitboard.put(Bitboard.empty(), target, {:black, piece_type(type)})
 
     occupied = Bitboard.occupied(board)
 
@@ -80,7 +79,8 @@ defmodule RayTraversalBreakdownBenchmark do
     target = target_square(type)
 
     board =
-      Enum.reduce(empty_squares, Bitboard.empty(), fn square, board ->
+      empty_squares
+      |> Enum.reduce(Bitboard.empty(), fn square, board ->
         Bitboard.put(board, square, {:white, :pawn})
       end)
       |> Bitboard.put(target, {:black, piece_type(type)})
@@ -109,14 +109,7 @@ defmodule RayTraversalBreakdownBenchmark do
   defp piece_type(:rook), do: :rook
   defp piece_type(:bishop), do: :bishop
 
-  defp ray_attacked?(
-         board,
-         occupied,
-         square,
-         step,
-         color,
-         piece_type
-       ) do
+  defp ray_attacked?(board, occupied, square, step, color, piece_type) do
     first_piece_on_ray(
       board,
       occupied,
@@ -127,18 +120,20 @@ defmodule RayTraversalBreakdownBenchmark do
     )
   end
 
-  defp first_piece_on_ray(
-         board,
-         occupied,
-         square,
-         step,
-         color,
-         piece_type
-       ) do
+  defp first_piece_on_ray(board, occupied, square, step, color, piece_type) do
     next = square + step
 
     if valid_ray_square?(square, next, step) do
-      if (occupied &&& 1 <<< next) != 0 do
+      if (occupied &&& 1 <<< next) == 0 do
+        first_piece_on_ray(
+          board,
+          occupied,
+          next,
+          step,
+          color,
+          piece_type
+        )
+      else
         mask = 1 <<< next
 
         case piece_type do
@@ -150,23 +145,13 @@ defmodule RayTraversalBreakdownBenchmark do
             (color_bishops(board, color) &&& mask) != 0 or
               (color_queens(board, color) &&& mask) != 0
         end
-      else
-        first_piece_on_ray(
-          board,
-          occupied,
-          next,
-          step,
-          color,
-          piece_type
-        )
       end
     else
       false
     end
   end
 
-  defp valid_ray_square?(_from, to, step)
-       when step in [8, -8] do
+  defp valid_ray_square?(_from, to, step) when step in [8, -8] do
     to in 0..63
   end
 

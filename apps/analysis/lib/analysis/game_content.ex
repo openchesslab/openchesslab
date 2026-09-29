@@ -30,11 +30,7 @@ defmodule Analysis.GameContent do
           position_id(),
           [Move.t()]
         ) :: t()
-  def new(
-        initial_position_id,
-        moves \\ []
-      )
-      when is_list(moves) do
+  def new(initial_position_id, moves \\ []) when is_list(moves) do
     %__MODULE__{
       initial_position_id: initial_position_id,
       moves: moves
@@ -42,9 +38,7 @@ defmodule Analysis.GameContent do
   end
 
   @spec initial_position_id(t()) :: position_id()
-  def initial_position_id(%__MODULE__{
-        initial_position_id: initial_position_id
-      }) do
+  def initial_position_id(%__MODULE__{initial_position_id: initial_position_id}) do
     initial_position_id
   end
 

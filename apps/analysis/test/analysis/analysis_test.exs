@@ -226,7 +226,8 @@ defmodule Analysis.AnalysisTest do
       e5 = transition("e7", "e5")
 
       analysis =
-        AnalysisModel.new("analysis-1", :p0)
+        "analysis-1"
+        |> AnalysisModel.new(:p0)
         |> AnalysisModel.add_child([], e4, :p1)
         |> AnalysisModel.add_child([0], e5, :p2)
 
@@ -240,7 +241,8 @@ defmodule Analysis.AnalysisTest do
       c4 = transition("c2", "c4")
 
       analysis =
-        AnalysisModel.new("analysis-1", :p0)
+        "analysis-1"
+        |> AnalysisModel.new(:p0)
         |> AnalysisModel.add_child([], e4, :p1)
         |> AnalysisModel.add_child([], d4, :p2)
         |> AnalysisModel.add_child([], c4, :p3)
@@ -257,7 +259,8 @@ defmodule Analysis.AnalysisTest do
       e4 = transition("e2", "e4")
 
       analysis =
-        AnalysisModel.new("analysis-1", :p0)
+        "analysis-1"
+        |> AnalysisModel.new(:p0)
         |> AnalysisModel.add_child([], e4, :p1)
         |> AnalysisModel.add_child([], e4, :p1)
 
@@ -268,7 +271,8 @@ defmodule Analysis.AnalysisTest do
       e4 = transition("e2", "e4")
 
       analysis =
-        AnalysisModel.new("analysis-1", :p0)
+        "analysis-1"
+        |> AnalysisModel.new(:p0)
         |> AnalysisModel.add_child([], e4, :p1)
         |> AnalysisModel.add_child([], e4, :p2)
 
@@ -283,7 +287,8 @@ defmodule Analysis.AnalysisTest do
       d4 = transition("d2", "d4")
 
       analysis =
-        AnalysisModel.new("analysis-1", :p0)
+        "analysis-1"
+        |> AnalysisModel.new(:p0)
         |> AnalysisModel.add_child([], e4, :p1)
         |> AnalysisModel.add_child([], d4, :p1)
 
@@ -299,7 +304,8 @@ defmodule Analysis.AnalysisTest do
       c4 = transition("c2", "c4")
 
       analysis =
-        AnalysisModel.new("analysis-1", :p0)
+        "analysis-1"
+        |> AnalysisModel.new(:p0)
         |> AnalysisModel.add_child([], e4, :p1)
         |> AnalysisModel.add_child([], d4, :p2)
         |> AnalysisModel.add_child([], c4, :p3)
@@ -317,7 +323,8 @@ defmodule Analysis.AnalysisTest do
 
     test "adds an edit child" do
       analysis =
-        AnalysisModel.new("analysis-1", :p0)
+        "analysis-1"
+        |> AnalysisModel.new(:p0)
         |> AnalysisModel.add_child([], Transition.edit(), :p1)
 
       child = AnalysisModel.node_at(analysis, [0])
@@ -328,7 +335,8 @@ defmodule Analysis.AnalysisTest do
 
     test "keeps different edit results as separate children" do
       analysis =
-        AnalysisModel.new("analysis-1", :p0)
+        "analysis-1"
+        |> AnalysisModel.new(:p0)
         |> AnalysisModel.add_child([], Transition.edit(), :p1)
         |> AnalysisModel.add_child([], Transition.edit(), :p2)
 
@@ -345,7 +353,8 @@ defmodule Analysis.AnalysisTest do
 
     test "does not add the same edit result twice" do
       analysis =
-        AnalysisModel.new("analysis-1", :p0)
+        "analysis-1"
+        |> AnalysisModel.new(:p0)
         |> AnalysisModel.add_child([], Transition.edit(), :p1)
         |> AnalysisModel.add_child([], Transition.edit(), :p1)
 
@@ -366,7 +375,8 @@ defmodule Analysis.AnalysisTest do
       e6 = transition("e7", "e6")
 
       analysis =
-        AnalysisModel.new("analysis-1", :p0)
+        "analysis-1"
+        |> AnalysisModel.new(:p0)
         |> AnalysisModel.add_child([], e4, :p1)
         |> AnalysisModel.add_child([0], e5, :p2)
         |> AnalysisModel.add_child([0], c5, :p3)
@@ -388,7 +398,8 @@ defmodule Analysis.AnalysisTest do
       nf3 = transition("g1", "f3")
 
       analysis =
-        AnalysisModel.new("analysis-1", :p0)
+        "analysis-1"
+        |> AnalysisModel.new(:p0)
         |> AnalysisModel.add_child([], e4, :p1)
         |> AnalysisModel.add_child([0], e5, :p2)
         |> AnalysisModel.add_child([0], c5, :p3)
@@ -409,7 +420,8 @@ defmodule Analysis.AnalysisTest do
       c5 = transition("c7", "c5")
 
       analysis =
-        AnalysisModel.new("analysis-1", :p0)
+        "analysis-1"
+        |> AnalysisModel.new(:p0)
         |> AnalysisModel.add_child([], e4, :p1)
         |> AnalysisModel.add_child([0], e5, :p2)
         |> AnalysisModel.add_child([0], c5, :p3)
@@ -425,7 +437,8 @@ defmodule Analysis.AnalysisTest do
       d4 = transition("d2", "d4")
 
       analysis =
-        AnalysisModel.new("analysis-1", :p0)
+        "analysis-1"
+        |> AnalysisModel.new(:p0)
         |> AnalysisModel.add_child([], e4, :p1)
         |> AnalysisModel.add_child([], d4, :p2)
 
@@ -459,7 +472,8 @@ defmodule Analysis.AnalysisTest do
       e6 = transition("e7", "e6")
 
       analysis =
-        AnalysisModel.new("analysis-1", :p0)
+        "analysis-1"
+        |> AnalysisModel.new(:p0)
         |> AnalysisModel.add_child([], e4, :p1)
         |> AnalysisModel.add_child([0], e5, :p2)
         |> AnalysisModel.add_child([0], c5, :p3)
@@ -480,7 +494,8 @@ defmodule Analysis.AnalysisTest do
       c5 = transition("c7", "c5")
 
       analysis =
-        AnalysisModel.new("analysis-1", :p0)
+        "analysis-1"
+        |> AnalysisModel.new(:p0)
         |> AnalysisModel.add_child([], e4, :p1)
         |> AnalysisModel.add_child([0], e5, :p2)
         |> AnalysisModel.add_child([0], c5, :p3)
@@ -503,13 +518,14 @@ defmodule Analysis.AnalysisTest do
       nf3 = transition("g1", "f3")
 
       analysis =
-        AnalysisModel.new("analysis-1", :p0)
+        "analysis-1"
+        |> AnalysisModel.new(:p0)
         |> AnalysisModel.add_child([], e4, :p1)
         |> AnalysisModel.add_child([0], e5, :p2)
         |> AnalysisModel.add_child([0], c5, :p3)
         |> AnalysisModel.add_child([0, 1], nf3, :p4)
 
-      assert AnalysisModel.node_at(analysis, [0, 1, 0]) != nil
+      assert AnalysisModel.node_at(analysis, [0, 1, 0])
 
       assert {:ok, analysis, [0]} =
                AnalysisModel.remove(analysis, [0, 1])
@@ -522,7 +538,8 @@ defmodule Analysis.AnalysisTest do
       d4 = transition("d2", "d4")
 
       analysis =
-        AnalysisModel.new("analysis-1", :p0)
+        "analysis-1"
+        |> AnalysisModel.new(:p0)
         |> AnalysisModel.add_child([], e4, :p1)
         |> AnalysisModel.add_child([], d4, :p2)
 
@@ -551,7 +568,8 @@ defmodule Analysis.AnalysisTest do
   describe "reconcile_path/3" do
     test "keeps the path when the occurrence has not moved" do
       old_analysis =
-        AnalysisModel.new("analysis-1", :p0)
+        "analysis-1"
+        |> AnalysisModel.new(:p0)
         |> AnalysisModel.add_child([], transition("e2", "e4"), :p1)
         |> AnalysisModel.add_child([0], transition("e7", "e5"), :p2)
 
@@ -569,7 +587,8 @@ defmodule Analysis.AnalysisTest do
 
     test "follows an occurrence when its variation is promoted" do
       old_analysis =
-        AnalysisModel.new("analysis-1", :p0)
+        "analysis-1"
+        |> AnalysisModel.new(:p0)
         |> AnalysisModel.add_child([], transition("e2", "e4"), :p1)
         |> AnalysisModel.add_child([0], transition("e7", "e5"), :p2)
         |> AnalysisModel.add_child([0], transition("c7", "c5"), :p3)
@@ -584,7 +603,8 @@ defmodule Analysis.AnalysisTest do
 
     test "falls back to the nearest surviving ancestor after removal" do
       old_analysis =
-        AnalysisModel.new("analysis-1", :p0)
+        "analysis-1"
+        |> AnalysisModel.new(:p0)
         |> AnalysisModel.add_child([], transition("e2", "e4"), :p1)
         |> AnalysisModel.add_child([0], transition("e7", "e5"), :p2)
         |> AnalysisModel.add_child([0, 0], transition("g1", "f3"), :p3)
@@ -599,7 +619,8 @@ defmodule Analysis.AnalysisTest do
 
     test "returns the root when the first occurrence no longer exists" do
       old_analysis =
-        AnalysisModel.new("analysis-1", :p0)
+        "analysis-1"
+        |> AnalysisModel.new(:p0)
         |> AnalysisModel.add_child([], transition("e2", "e4"), :p1)
 
       assert {:ok, new_analysis, []} =
@@ -624,7 +645,8 @@ defmodule Analysis.AnalysisTest do
       e5 = transition("e7", "e5")
 
       analysis =
-        AnalysisModel.new("analysis-1", :p0)
+        "analysis-1"
+        |> AnalysisModel.new(:p0)
         |> AnalysisModel.add_child([], e4, :p1)
         |> AnalysisModel.add_child([0], e5, :p2)
 
@@ -642,7 +664,8 @@ defmodule Analysis.AnalysisTest do
       d4 = transition("d2", "d4")
 
       analysis =
-        AnalysisModel.new("analysis-1", :p0)
+        "analysis-1"
+        |> AnalysisModel.new(:p0)
         |> AnalysisModel.add_child([], e4, :same_position)
         |> AnalysisModel.add_child([], d4, :same_position)
 

@@ -565,10 +565,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStoreTest do
               }}
   end
 
-  defp encoded_occurrences(
-         game_id,
-         position_ids
-       ) do
+  defp encoded_occurrences(game_id, position_ids) do
     position_ids
     |> Enum.with_index()
     |> Enum.map(fn {position_id, ply} ->

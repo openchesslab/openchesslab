@@ -32,11 +32,7 @@ defmodule PositionDB.PropertyIndex do
   end
 
   @spec new(module(), term()) :: t()
-  def new(
-        backend_module,
-        backend
-      )
-      when is_atom(backend_module) do
+  def new(backend_module, backend) when is_atom(backend_module) do
     %__MODULE__{
       backend_module: backend_module,
       backend: backend
@@ -50,11 +46,7 @@ defmodule PositionDB.PropertyIndex do
         ) ::
           t()
           | {:error, term()}
-  def add(
-        %__MODULE__{} = index,
-        property,
-        position_id
-      ) do
+  def add(%__MODULE__{} = index, property, position_id) do
     case add_result(
            index,
            property,
@@ -75,14 +67,7 @@ defmodule PositionDB.PropertyIndex do
         ) ::
           {:ok, t()}
           | {:error, term()}
-  def add_result(
-        %__MODULE__{
-          backend_module: backend_module,
-          backend: backend
-        } = index,
-        property,
-        position_id
-      ) do
+  def add_result(%__MODULE__{backend_module: backend_module, backend: backend} = index, property, position_id) do
     case backend_module.add(
            backend,
            property,
@@ -106,13 +91,7 @@ defmodule PositionDB.PropertyIndex do
         ) ::
           {:ok, t()}
           | {:error, term()}
-  def advance_result(
-        %__MODULE__{
-          backend_module: backend_module,
-          backend: backend
-        } = index,
-        position_id
-      ) do
+  def advance_result(%__MODULE__{backend_module: backend_module, backend: backend} = index, position_id) do
     case backend_module.advance(
            backend,
            position_id
@@ -135,10 +114,7 @@ defmodule PositionDB.PropertyIndex do
         ) ::
           MapSet.t(position_id())
           | {:error, term()}
-  def lookup(
-        %__MODULE__{} = index,
-        property
-      ) do
+  def lookup(%__MODULE__{} = index, property) do
     case lookup_ids(
            index,
            property
@@ -157,13 +133,7 @@ defmodule PositionDB.PropertyIndex do
         ) ::
           {:ok, [position_id()]}
           | {:error, term()}
-  def lookup_ids(
-        %__MODULE__{
-          backend_module: backend_module,
-          backend: backend
-        },
-        property
-      ) do
+  def lookup_ids(%__MODULE__{backend_module: backend_module, backend: backend}, property) do
     backend_module.lookup(
       backend,
       property
@@ -176,10 +146,7 @@ defmodule PositionDB.PropertyIndex do
         ) ::
           non_neg_integer()
           | {:error, term()}
-  def cardinality(
-        %__MODULE__{} = index,
-        property
-      ) do
+  def cardinality(%__MODULE__{} = index, property) do
     case cardinality_result(
            index,
            property
@@ -198,13 +165,7 @@ defmodule PositionDB.PropertyIndex do
         ) ::
           {:ok, non_neg_integer()}
           | {:error, term()}
-  def cardinality_result(
-        %__MODULE__{
-          backend_module: backend_module,
-          backend: backend
-        },
-        property
-      ) do
+  def cardinality_result(%__MODULE__{backend_module: backend_module, backend: backend}, property) do
     backend_module.cardinality(
       backend,
       property

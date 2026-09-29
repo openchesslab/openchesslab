@@ -24,11 +24,7 @@ defmodule GameDB.Storage.Disk.GameInsertRecovery do
         ) ::
           :ok
           | {:error, term()}
-  def recover(
-        directory,
-        %CanonicalStore{} = canonical_store,
-        %OccurrenceStorage{} = occurrence_storage
-      )
+  def recover(directory, %CanonicalStore{} = canonical_store, %OccurrenceStorage{} = occurrence_storage)
       when is_binary(directory) do
     case GameInsertMarker.read(directory) do
       :none ->
@@ -52,13 +48,7 @@ defmodule GameDB.Storage.Disk.GameInsertRecovery do
     end
   end
 
-  defp recover_pending_insert(
-         directory,
-         canonical_store,
-         occurrence_storage,
-         game_id,
-         position_ids
-       ) do
+  defp recover_pending_insert(directory, canonical_store, occurrence_storage, game_id, position_ids) do
     case CanonicalStore.get(
            canonical_store,
            game_id
@@ -83,11 +73,7 @@ defmodule GameDB.Storage.Disk.GameInsertRecovery do
     end
   end
 
-  defp recover_unpublished_game(
-         directory,
-         canonical_store,
-         game_id
-       ) do
+  defp recover_unpublished_game(directory, canonical_store, game_id) do
     with {:ok, game_count} <-
            CanonicalStore.cardinality(canonical_store) do
       expected_game_id =
@@ -107,12 +93,7 @@ defmodule GameDB.Storage.Disk.GameInsertRecovery do
     end
   end
 
-  defp recover_published_game(
-         directory,
-         occurrence_storage,
-         game_id,
-         position_ids
-       ) do
+  defp recover_published_game(directory, occurrence_storage, game_id, position_ids) do
     case OccurrenceStorage.occurrences(
            occurrence_storage,
            game_id
@@ -131,10 +112,8 @@ defmodule GameDB.Storage.Disk.GameInsertRecovery do
                  occurrence_storage,
                  game_id,
                  position_ids
-               ),
-             :ok <-
-               GameInsertMarker.clear(directory) do
-          :ok
+               ) do
+          GameInsertMarker.clear(directory)
         end
 
       {:error, _reason} = error ->
@@ -142,12 +121,7 @@ defmodule GameDB.Storage.Disk.GameInsertRecovery do
     end
   end
 
-  defp finish_existing_occurrences(
-         directory,
-         game_id,
-         expected_position_ids,
-         occurrences
-       ) do
+  defp finish_existing_occurrences(directory, game_id, expected_position_ids, occurrences) do
     actual_position_ids =
       Enum.map(
         occurrences,

@@ -1,4 +1,5 @@
 defmodule PositionDB.QueryNormalizer do
+  @moduledoc false
   @spec normalize(PositionDB.Query.t()) :: PositionDB.Query.t()
   def normalize(query) do
     do_normalize(query)

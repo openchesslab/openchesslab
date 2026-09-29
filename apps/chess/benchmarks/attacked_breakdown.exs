@@ -3,6 +3,7 @@ alias Chess.Board
 alias Chess.Position
 
 defmodule AttackedBreakdownBenchmark do
+  @moduledoc false
   import Bitwise
 
   def starting_position do
@@ -65,11 +66,10 @@ defmodule AttackedBreakdownBenchmark do
     {board, color, square}
   end
 
-  #
-  # Individual components of Bitboard.attacked?/3
-  #
-
   def occupied({board, _color, _square}) do
+    #
+    # Individual components of Bitboard.attacked?/3
+    #
     Bitboard.occupied(board)
   end
 
@@ -94,14 +94,13 @@ defmodule AttackedBreakdownBenchmark do
     (attackers &&& king) != 0
   end
 
-  #
-  # Sliding attack components.
-  #
-  # These reproduce the current attacked?/3 ray traversal locally,
-  # using only the existing public Bitboard API.
-  #
-
   def rook_check({board, color, square}) do
+    #
+    # Sliding attack components.
+    #
+    # These reproduce the current attacked?/3 ray traversal locally,
+    # using only the existing public Bitboard API.
+    #
     occupied = Bitboard.occupied(board)
 
     ray_attacked?(
@@ -127,16 +126,15 @@ defmodule AttackedBreakdownBenchmark do
     )
   end
 
-  #
-  # Full attack calculation, equivalent to the current implementation.
-  #
-
   def all_components(sample) do
     {
       pawn_check(sample),
       knight_check(sample),
       king_check(sample),
       rook_check(sample),
+      #
+      # Full attack calculation, equivalent to the current implementation.
+      #
       bishop_check(sample)
     }
   end
@@ -145,24 +143,26 @@ defmodule AttackedBreakdownBenchmark do
     Bitboard.attacked?(board, color, square)
   end
 
-  #
-  # Alternative evaluation order.
-  #
-  # This is NOT production code. It is only used to measure whether
-  # short-circuiting can make a material difference.
-  #
-
   def short_circuit_attacked?({board, color, square}) do
     pawn_attacked? =
-      Bitboard.pawn_attacks(opposite_color(color), square)
+      color
+      |> opposite_color()
+      |> Bitboard.pawn_attacks(square)
       |> band(color_pawns(board, color))
       |> Kernel.!=(0)
 
+    #
+    # Alternative evaluation order.
+    #
+    # This is NOT production code. It is only used to measure whether
+    # short-circuiting can make a material difference.
+    #
     if pawn_attacked? do
       true
     else
       knight_attacked? =
-        Bitboard.knight_attacks(square)
+        square
+        |> Bitboard.knight_attacks()
         |> band(color_knights(board, color))
         |> Kernel.!=(0)
 
@@ -170,7 +170,8 @@ defmodule AttackedBreakdownBenchmark do
         true
       else
         king_attacked? =
-          Bitboard.king_attacks(square)
+          square
+          |> Bitboard.king_attacks()
           |> band(color_king(board, color))
           |> Kernel.!=(0)
 
@@ -206,28 +207,28 @@ defmodule AttackedBreakdownBenchmark do
     end
   end
 
-  #
-  # Force each component independently, so we can see its individual cost.
-  #
-
   def pawn_only(sample), do: pawn_check(sample)
   def knight_only(sample), do: knight_check(sample)
   def king_only(sample), do: king_check(sample)
   def rook_only(sample), do: rook_check(sample)
   def bishop_only(sample), do: bishop_check(sample)
 
-  #
-  # Helpers copied from the current Bitboard implementation.
-  #
-
   defp color_pawns(board, :white), do: board.white_pawns
   defp color_pawns(board, :black), do: board.black_pawns
+
+  #
+  # Force each component independently, so we can see its individual cost.
+  #
 
   defp color_knights(board, :white), do: board.white_knights
   defp color_knights(board, :black), do: board.black_knights
 
   defp color_king(board, :white), do: board.white_king
   defp color_king(board, :black), do: board.black_king
+
+  #
+  # Helpers copied from the current Bitboard implementation.
+  #
 
   defp color_rooks(board, :white), do: board.white_rooks
   defp color_rooks(board, :black), do: board.black_rooks
@@ -248,7 +249,16 @@ defmodule AttackedBreakdownBenchmark do
     next = square + step
 
     if valid_ray_square?(square, next, step) do
-      if (occupied &&& 1 <<< next) != 0 do
+      if (occupied &&& 1 <<< next) == 0 do
+        first_piece_on_ray(
+          board,
+          occupied,
+          next,
+          step,
+          color,
+          piece_types
+        )
+      else
         mask = 1 <<< next
 
         case piece_types do
@@ -260,15 +270,6 @@ defmodule AttackedBreakdownBenchmark do
             (color_bishops(board, color) &&& mask) != 0 or
               (color_queens(board, color) &&& mask) != 0
         end
-      else
-        first_piece_on_ray(
-          board,
-          occupied,
-          next,
-          step,
-          color,
-          piece_types
-        )
       end
     else
       false

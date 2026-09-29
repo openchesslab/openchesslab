@@ -1,11 +1,12 @@
-Mix.Task.run("app.start")
-
 import Bitwise
 
 alias Chess.Bitboard
 alias Chess.Square
 
+Mix.Task.run("app.start")
+
 defmodule SlidingAttackBenchmark do
+  @moduledoc false
   @target Square.from_algebraic("e4")
 
   def run do
@@ -113,7 +114,16 @@ defmodule SlidingAttackBenchmark do
     next = square + step
 
     if valid_ray_square?(square, next, step) do
-      if (occupied &&& 1 <<< next) != 0 do
+      if (occupied &&& 1 <<< next) == 0 do
+        first_piece_on_ray(
+          board,
+          occupied,
+          next,
+          step,
+          color,
+          piece_types
+        )
+      else
         mask = 1 <<< next
 
         case piece_types do
@@ -125,15 +135,6 @@ defmodule SlidingAttackBenchmark do
             (board_piece(board, color, :bishop) &&& mask) != 0 or
               (board_piece(board, color, :queen) &&& mask) != 0
         end
-      else
-        first_piece_on_ray(
-          board,
-          occupied,
-          next,
-          step,
-          color,
-          piece_types
-        )
       end
     else
       false
@@ -173,9 +174,7 @@ defmodule SlidingAttackBenchmark do
   end
 
   defp board_with(piece_type, source, blocker \\ nil) do
-    board =
-      Bitboard.empty()
-      |> Bitboard.put(Square.from_algebraic(source), {:white, piece_type})
+    board = Bitboard.put(Bitboard.empty(), Square.from_algebraic(source), {:white, piece_type})
 
     if blocker do
       Bitboard.put(

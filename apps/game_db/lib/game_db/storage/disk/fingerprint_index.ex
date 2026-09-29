@@ -26,8 +26,7 @@ defmodule GameDB.Storage.Disk.FingerprintIndex do
   ]
 
   @spec new(Path.t(), keyword()) :: t()
-  def new(directory, opts)
-      when is_binary(directory) do
+  def new(directory, opts) when is_binary(directory) do
     bucket_count =
       Keyword.fetch!(
         opts,
@@ -48,11 +47,7 @@ defmodule GameDB.Storage.Disk.FingerprintIndex do
   @spec lookup(t(), binary()) ::
           {:ok, [pos_integer()]}
           | {:error, term()}
-  def lookup(
-        %__MODULE__{} = index,
-        fingerprint
-      )
-      when is_binary(fingerprint) do
+  def lookup(%__MODULE__{} = index, fingerprint) when is_binary(fingerprint) do
     with :ok <-
            validate_fingerprint(fingerprint) do
       path =
@@ -76,14 +71,8 @@ defmodule GameDB.Storage.Disk.FingerprintIndex do
         ) ::
           {:ok, t()}
           | {:error, term()}
-  def add(
-        %__MODULE__{} = index,
-        fingerprint,
-        game_id
-      )
-      when is_binary(fingerprint) and
-             is_integer(game_id) and
-             game_id > 0 do
+  def add(%__MODULE__{} = index, fingerprint, game_id)
+      when is_binary(fingerprint) and is_integer(game_id) and game_id > 0 do
     with :ok <-
            validate_fingerprint(fingerprint),
          :ok <-
@@ -140,14 +129,8 @@ defmodule GameDB.Storage.Disk.FingerprintIndex do
         ) ::
           :ok
           | {:error, term()}
-  def recover_pending_append(
-        %__MODULE__{} = index,
-        fingerprint,
-        game_id
-      )
-      when is_binary(fingerprint) and
-             is_integer(game_id) and
-             game_id > 0 do
+  def recover_pending_append(%__MODULE__{} = index, fingerprint, game_id)
+      when is_binary(fingerprint) and is_integer(game_id) and game_id > 0 do
     with :ok <-
            validate_fingerprint(fingerprint),
          :ok <-
@@ -174,11 +157,7 @@ defmodule GameDB.Storage.Disk.FingerprintIndex do
     end
   end
 
-  defp lookup_bucket(
-         path,
-         fingerprint,
-         reversed_game_ids
-       ) do
+  defp lookup_bucket(path, fingerprint, reversed_game_ids) do
     case :file.open(
            path,
            [
@@ -206,11 +185,7 @@ defmodule GameDB.Storage.Disk.FingerprintIndex do
     end
   end
 
-  defp lookup_entries(
-         file,
-         fingerprint,
-         reversed_game_ids
-       ) do
+  defp lookup_entries(file, fingerprint, reversed_game_ids) do
     case :file.read(
            file,
            @entry_size
@@ -251,11 +226,7 @@ defmodule GameDB.Storage.Disk.FingerprintIndex do
     end
   end
 
-  defp append_entry(
-         index,
-         path,
-         entry
-       ) do
+  defp append_entry(index, path, entry) do
     with {:ok, bucket_state} <-
            bucket_state(path) do
       case :file.open(
@@ -273,22 +244,18 @@ defmodule GameDB.Storage.Disk.FingerprintIndex do
                      :file.write(
                        file,
                        entry
-                     ),
-                   :ok <-
-                     :file.sync(file) do
-                :ok
+                     ) do
+                :file.sync(file)
               end
             after
               :file.close(file)
             end
 
-          with :ok <- result,
-               :ok <-
-                 sync_new_bucket(
-                   index,
-                   bucket_state
-                 ) do
-            :ok
+          with :ok <- result do
+            sync_new_bucket(
+              index,
+              bucket_state
+            )
           end
 
         {:error, reason} ->
@@ -297,13 +264,7 @@ defmodule GameDB.Storage.Disk.FingerprintIndex do
     end
   end
 
-  defp recover_bucket(
-         index,
-         path,
-         fingerprint,
-         game_id,
-         entry
-       ) do
+  defp recover_bucket(index, path, fingerprint, game_id, entry) do
     case File.stat(path) do
       {:ok, %{size: size}} ->
         partial_size =
@@ -340,16 +301,14 @@ defmodule GameDB.Storage.Disk.FingerprintIndex do
                  truncate_bucket(
                    path,
                    complete_size
-                 ),
-               :ok <-
-                 ensure_entry(
-                   index,
-                   path,
-                   fingerprint,
-                   game_id,
-                   entry
                  ) do
-            :ok
+            ensure_entry(
+              index,
+              path,
+              fingerprint,
+              game_id,
+              entry
+            )
           end
         end
 
@@ -365,13 +324,7 @@ defmodule GameDB.Storage.Disk.FingerprintIndex do
     end
   end
 
-  defp ensure_entry(
-         index,
-         path,
-         fingerprint,
-         game_id,
-         entry
-       ) do
+  defp ensure_entry(index, path, fingerprint, game_id, entry) do
     with {:ok, candidates} <-
            lookup(
              index,
@@ -409,10 +362,7 @@ defmodule GameDB.Storage.Disk.FingerprintIndex do
     end
   end
 
-  defp bucket_path(
-         index,
-         fingerprint
-       ) do
+  defp bucket_path(index, fingerprint) do
     bucket =
       bucket(
         fingerprint,
@@ -434,23 +384,14 @@ defmodule GameDB.Storage.Disk.FingerprintIndex do
     )
   end
 
-  defp bucket(
-         <<
-           prefix::unsigned-big-32,
-           _rest::binary
-         >>,
-         bucket_count
-       ) do
+  defp bucket(<<prefix::unsigned-big-32, _rest::binary>>, bucket_count) do
     rem(
       prefix,
       bucket_count
     )
   end
 
-  defp encode_entry(
-         fingerprint,
-         game_id
-       ) do
+  defp encode_entry(fingerprint, game_id) do
     <<
       fingerprint::binary-size(@fingerprint_size),
       game_id::unsigned-big-64
@@ -466,8 +407,7 @@ defmodule GameDB.Storage.Disk.FingerprintIndex do
     end
   end
 
-  defp validate_game_id(game_id)
-       when game_id <= @max_game_id do
+  defp validate_game_id(game_id) when game_id <= @max_game_id do
     :ok
   end
 
@@ -475,11 +415,7 @@ defmodule GameDB.Storage.Disk.FingerprintIndex do
     {:error, :invalid_game_id}
   end
 
-  defp read_partial_tail(
-         path,
-         offset,
-         size
-       ) do
+  defp read_partial_tail(path, offset, size) do
     case :file.open(
            path,
            [
@@ -518,10 +454,7 @@ defmodule GameDB.Storage.Disk.FingerprintIndex do
     end
   end
 
-  defp validate_partial_entry(
-         partial,
-         entry
-       ) do
+  defp validate_partial_entry(partial, entry) do
     expected =
       binary_part(
         entry,
@@ -537,10 +470,7 @@ defmodule GameDB.Storage.Disk.FingerprintIndex do
     end
   end
 
-  defp truncate_bucket(
-         path,
-         size
-       ) do
+  defp truncate_bucket(path, size) do
     case :file.open(
            path,
            [
@@ -558,10 +488,8 @@ defmodule GameDB.Storage.Disk.FingerprintIndex do
                    size
                  ),
                :ok <-
-                 :file.truncate(file),
-               :ok <-
-                 :file.sync(file) do
-            :ok
+                 :file.truncate(file) do
+            :file.sync(file)
           end
         after
           :file.close(file)
@@ -594,17 +522,11 @@ defmodule GameDB.Storage.Disk.FingerprintIndex do
     end
   end
 
-  defp sync_new_bucket(
-         index,
-         :new
-       ) do
+  defp sync_new_bucket(index, :new) do
     sync_directory(index.directory)
   end
 
-  defp sync_new_bucket(
-         _index,
-         :existing
-       ) do
+  defp sync_new_bucket(_index, :existing) do
     :ok
   end
 

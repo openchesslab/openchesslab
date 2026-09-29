@@ -10,13 +10,14 @@ defmodule PositionDB.PropertyIndex.Disk do
   that position ID are durable.
   """
 
+  @behaviour PositionDB.PropertyIndex.Backend
+
+  alias PositionDB.PropertyIndex.Backend
   alias PositionDB.Storage.Disk.Durability
   alias PositionDB.Storage.Disk.IndexProgressStore
   alias PositionDB.Storage.PostingIndex.Disk, as: PostingIndex
   alias PositionDB.Storage.PostingIndex.Disk.Manifest
   alias PositionDB.Storage.PostingIndex.Disk.ManifestStore
-
-  @behaviour PositionDB.PropertyIndex.Backend
 
   @type property :: {atom(), term()}
 
@@ -38,8 +39,7 @@ defmodule PositionDB.PropertyIndex.Disk do
           {:ok, t()}
           | {:error, :property_index_exists}
           | {:error, term()}
-  def create(directory, opts)
-      when is_binary(directory) do
+  def create(directory, opts) when is_binary(directory) do
     codec_module =
       Keyword.fetch!(
         opts,
@@ -85,8 +85,7 @@ defmodule PositionDB.PropertyIndex.Disk do
   @spec open(Path.t(), keyword()) ::
           {:ok, t()}
           | {:error, term()}
-  def open(directory, opts)
-      when is_binary(directory) do
+  def open(directory, opts) when is_binary(directory) do
     codec_module =
       Keyword.fetch!(
         opts,
@@ -112,7 +111,7 @@ defmodule PositionDB.PropertyIndex.Disk do
     end
   end
 
-  @impl PositionDB.PropertyIndex.Backend
+  @impl Backend
   @spec add(
           t(),
           property(),
@@ -120,13 +119,7 @@ defmodule PositionDB.PropertyIndex.Disk do
         ) ::
           {:ok, t()}
           | {:error, term()}
-  def add(
-        %__MODULE__{} = index,
-        property,
-        position_id
-      )
-      when is_integer(position_id) and
-             position_id > 0 do
+  def add(%__MODULE__{} = index, property, position_id) when is_integer(position_id) and position_id > 0 do
     with {:ok, key} <-
            encode_property(
              index,
@@ -160,13 +153,7 @@ defmodule PositionDB.PropertyIndex.Disk do
         ) ::
           {:ok, t()}
           | {:error, term()}
-  def recover_add(
-        %__MODULE__{} = index,
-        property,
-        position_id
-      )
-      when is_integer(position_id) and
-             position_id > 0 do
+  def recover_add(%__MODULE__{} = index, property, position_id) when is_integer(position_id) and position_id > 0 do
     recover_adds(
       index,
       [property],
@@ -181,14 +168,8 @@ defmodule PositionDB.PropertyIndex.Disk do
         ) ::
           {:ok, t()}
           | {:error, term()}
-  def recover_adds(
-        %__MODULE__{} = index,
-        properties,
-        position_id
-      )
-      when is_list(properties) and
-             is_integer(position_id) and
-             position_id > 0 do
+  def recover_adds(%__MODULE__{} = index, properties, position_id)
+      when is_list(properties) and is_integer(position_id) and position_id > 0 do
     with {:ok, postings} <-
            encode_properties(
              index,
@@ -204,17 +185,14 @@ defmodule PositionDB.PropertyIndex.Disk do
     end
   end
 
-  @impl PositionDB.PropertyIndex.Backend
+  @impl Backend
   @spec lookup(
           t(),
           property()
         ) ::
           {:ok, [pos_integer()]}
           | {:error, term()}
-  def lookup(
-        %__MODULE__{} = index,
-        property
-      ) do
+  def lookup(%__MODULE__{} = index, property) do
     with {:ok, key} <-
            encode_property(
              index,
@@ -227,17 +205,14 @@ defmodule PositionDB.PropertyIndex.Disk do
     end
   end
 
-  @impl PositionDB.PropertyIndex.Backend
+  @impl Backend
   @spec cardinality(
           t(),
           property()
         ) ::
           {:ok, non_neg_integer()}
           | {:error, term()}
-  def cardinality(
-        %__MODULE__{} = index,
-        property
-      ) do
+  def cardinality(%__MODULE__{} = index, property) do
     with {:ok, key} <-
            encode_property(
              index,
@@ -252,25 +227,19 @@ defmodule PositionDB.PropertyIndex.Disk do
 
   @spec indexed_through(t()) ::
           non_neg_integer()
-  def indexed_through(%__MODULE__{
-        indexed_through_id: indexed_through_id
-      }) do
+  def indexed_through(%__MODULE__{indexed_through_id: indexed_through_id}) do
     indexed_through_id
   end
 
-  @impl PositionDB.PropertyIndex.Backend
+  @impl Backend
   @spec advance(
           t(),
           non_neg_integer()
         ) ::
           {:ok, t()}
           | {:error, term()}
-  def advance(
-        %__MODULE__{} = index,
-        indexed_through_id
-      )
-      when is_integer(indexed_through_id) and
-             indexed_through_id >= 0 do
+  def advance(%__MODULE__{} = index, indexed_through_id)
+      when is_integer(indexed_through_id) and indexed_through_id >= 0 do
     with :ok <-
            IndexProgressStore.advance(
              index.directory,
@@ -284,12 +253,7 @@ defmodule PositionDB.PropertyIndex.Disk do
     end
   end
 
-  defp build(
-         directory,
-         codec_module,
-         bucket_count,
-         indexed_through_id
-       ) do
+  defp build(directory, codec_module, bucket_count, indexed_through_id) do
     %__MODULE__{
       directory: directory,
       posting_index:
@@ -302,13 +266,7 @@ defmodule PositionDB.PropertyIndex.Disk do
     }
   end
 
-  defp encode_property(
-         %__MODULE__{
-           codec_module: codec_module
-         },
-         {name, value}
-       )
-       when is_atom(name) do
+  defp encode_property(%__MODULE__{codec_module: codec_module}, {name, value}) when is_atom(name) do
     case codec_module.encode(
            name,
            value
@@ -328,17 +286,11 @@ defmodule PositionDB.PropertyIndex.Disk do
     end
   end
 
-  defp encode_property(
-         %__MODULE__{},
-         _property
-       ) do
+  defp encode_property(%__MODULE__{}, _property) do
     {:error, :invalid_property}
   end
 
-  defp validate_runtime_format(
-         %Manifest{} = manifest,
-         codec_module
-       ) do
+  defp validate_runtime_format(%Manifest{} = manifest, codec_module) do
     configured =
       codec_module.format_id()
 
@@ -346,8 +298,7 @@ defmodule PositionDB.PropertyIndex.Disk do
          configured do
       :ok
     else
-      {:error,
-       {:property_index_format_mismatch, :key_format_id, manifest.key_format_id, configured}}
+      {:error, {:property_index_format_mismatch, :key_format_id, manifest.key_format_id, configured}}
     end
   end
 
@@ -377,13 +328,9 @@ defmodule PositionDB.PropertyIndex.Disk do
     end
   end
 
-  defp encode_properties(
-         index,
-         properties,
-         position_id
-       ) do
-    Enum.reduce_while(
-      properties,
+  defp encode_properties(index, properties, position_id) do
+    properties
+    |> Enum.reduce_while(
       {:ok, []},
       fn property, {:ok, postings} ->
         case encode_property(

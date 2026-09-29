@@ -9,6 +9,7 @@ defmodule PositionDB.Storage.PostingIndex.Disk do
 
   @behaviour PositionDB.Storage.PostingIndex
 
+  alias PositionDB.Storage.PostingIndex
   alias PositionDB.Storage.PostingIndex.Disk.BucketStore
   alias PositionDB.Storage.PostingIndex.Disk.Layout
 
@@ -25,8 +26,7 @@ defmodule PositionDB.Storage.PostingIndex.Disk do
   ]
 
   @spec new(Path.t(), keyword()) :: t()
-  def new(directory, opts)
-      when is_binary(directory) do
+  def new(directory, opts) when is_binary(directory) do
     bucket_count =
       Keyword.fetch!(
         opts,
@@ -44,15 +44,8 @@ defmodule PositionDB.Storage.PostingIndex.Disk do
     }
   end
 
-  @impl PositionDB.Storage.PostingIndex
-  def add(
-        %__MODULE__{} = index,
-        key,
-        position_id
-      )
-      when is_binary(key) and
-             is_integer(position_id) and
-             position_id > 0 do
+  @impl PostingIndex
+  def add(%__MODULE__{} = index, key, position_id) when is_binary(key) and is_integer(position_id) and position_id > 0 do
     bucket =
       bucket_for_key(
         index,
@@ -84,12 +77,8 @@ defmodule PositionDB.Storage.PostingIndex.Disk do
     end
   end
 
-  @impl PositionDB.Storage.PostingIndex
-  def lookup(
-        %__MODULE__{} = index,
-        key
-      )
-      when is_binary(key) do
+  @impl PostingIndex
+  def lookup(%__MODULE__{} = index, key) when is_binary(key) do
     bucket =
       bucket_for_key(
         index,
@@ -106,12 +95,8 @@ defmodule PositionDB.Storage.PostingIndex.Disk do
     end
   end
 
-  @impl PositionDB.Storage.PostingIndex
-  def cardinality(
-        %__MODULE__{} = index,
-        key
-      )
-      when is_binary(key) do
+  @impl PostingIndex
+  def cardinality(%__MODULE__{} = index, key) when is_binary(key) do
     bucket =
       bucket_for_key(
         index,
@@ -138,14 +123,8 @@ defmodule PositionDB.Storage.PostingIndex.Disk do
         ) ::
           :ok
           | {:error, term()}
-  def recover_pending_append(
-        %__MODULE__{} = index,
-        key,
-        position_id
-      )
-      when is_binary(key) and
-             is_integer(position_id) and
-             position_id > 0 do
+  def recover_pending_append(%__MODULE__{} = index, key, position_id)
+      when is_binary(key) and is_integer(position_id) and position_id > 0 do
     recover_pending_appends(
       index,
       [
@@ -163,11 +142,7 @@ defmodule PositionDB.Storage.PostingIndex.Disk do
         ) ::
           :ok
           | {:error, term()}
-  def recover_pending_appends(
-        %__MODULE__{} = index,
-        postings
-      )
-      when is_list(postings) do
+  def recover_pending_appends(%__MODULE__{} = index, postings) when is_list(postings) do
     postings
     |> Enum.uniq()
     |> Enum.group_by(fn {key, _position_id} ->
@@ -197,10 +172,7 @@ defmodule PositionDB.Storage.PostingIndex.Disk do
     )
   end
 
-  defp bucket_for_key(
-         %__MODULE__{} = index,
-         key
-       ) do
+  defp bucket_for_key(%__MODULE__{} = index, key) do
     hash =
       :crypto.hash(
         @hash_algorithm,

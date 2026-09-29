@@ -5,7 +5,8 @@ defmodule Analysis.AnalysisStoreTest do
   alias Analysis.AnalysisStore
 
   defmodule RecordingAdapter do
-    @behaviour Analysis.AnalysisStore
+    @moduledoc false
+    @behaviour AnalysisStore
 
     def insert(store, analysis) do
       send(self(), {:insert, store, analysis})

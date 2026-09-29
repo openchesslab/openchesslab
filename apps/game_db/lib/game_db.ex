@@ -43,11 +43,7 @@ defmodule GameDB do
           storage_module(),
           Storage.t()
         ) :: t()
-  def new(
-        storage_module,
-        storage
-      )
-      when is_atom(storage_module) do
+  def new(storage_module, storage) when is_atom(storage_module) do
     %__MODULE__{
       storage_module: storage_module,
       storage: storage
@@ -62,15 +58,7 @@ defmodule GameDB do
         ) ::
           {t(), game_id()}
           | {:error, term()}
-  def put(
-        %__MODULE__{
-          storage_module: storage_module,
-          storage: storage
-        } = db,
-        fingerprint,
-        game_record,
-        position_ids
-      ) do
+  def put(%__MODULE__{storage_module: storage_module, storage: storage} = db, fingerprint, game_record, position_ids) do
     case storage_module.put(
            storage,
            fingerprint,
@@ -99,14 +87,7 @@ defmodule GameDB do
           {:ok, game_id()}
           | :not_found
           | {:error, term()}
-  def find(
-        %__MODULE__{
-          storage_module: storage_module,
-          storage: storage
-        },
-        fingerprint,
-        game_record
-      ) do
+  def find(%__MODULE__{storage_module: storage_module, storage: storage}, fingerprint, game_record) do
     storage_module.find(
       storage,
       fingerprint,
@@ -121,13 +102,7 @@ defmodule GameDB do
           {:ok, game_record()}
           | :not_found
           | {:error, term()}
-  def get(
-        %__MODULE__{
-          storage_module: storage_module,
-          storage: storage
-        },
-        game_id
-      ) do
+  def get(%__MODULE__{storage_module: storage_module, storage: storage}, game_id) do
     storage_module.get(
       storage,
       game_id
@@ -141,13 +116,7 @@ defmodule GameDB do
           {:ok, [Occurrence.t()]}
           | :not_found
           | {:error, term()}
-  def occurrences(
-        %__MODULE__{
-          storage_module: storage_module,
-          storage: storage
-        },
-        game_id
-      ) do
+  def occurrences(%__MODULE__{storage_module: storage_module, storage: storage}, game_id) do
     storage_module.occurrences(
       storage,
       game_id
@@ -160,13 +129,7 @@ defmodule GameDB do
         ) ::
           {:ok, [Occurrence.t()]}
           | {:error, term()}
-  def occurrences_by_position_id(
-        %__MODULE__{
-          storage_module: storage_module,
-          storage: storage
-        },
-        position_id
-      ) do
+  def occurrences_by_position_id(%__MODULE__{storage_module: storage_module, storage: storage}, position_id) do
     storage_module.occurrences_by_position_id(
       storage,
       position_id
@@ -178,13 +141,7 @@ defmodule GameDB do
           position_id()
         ) ::
           occurrence_scan()
-  def scan_occurrences(
-        %__MODULE__{
-          storage_module: storage_module,
-          storage: storage
-        },
-        position_id
-      ) do
+  def scan_occurrences(%__MODULE__{storage_module: storage_module, storage: storage}, position_id) do
     {
       storage_module,
       storage_module.scan_occurrences(
@@ -198,10 +155,7 @@ defmodule GameDB do
           {:ok, Occurrence.t(), occurrence_scan()}
           | :done
           | {:error, term()}
-  def scan_occurrences_next({
-        storage_module,
-        scan_state
-      }) do
+  def scan_occurrences_next({storage_module, scan_state}) do
     case storage_module.scan_occurrences_next(scan_state) do
       {
         :ok,
@@ -232,13 +186,7 @@ defmodule GameDB do
           {:ok, Occurrence.t()}
           | :not_found
           | {:error, term()}
-  def get_occurrence(
-        %__MODULE__{
-          storage_module: storage_module,
-          storage: storage
-        },
-        occurrence_id
-      ) do
+  def get_occurrence(%__MODULE__{storage_module: storage_module, storage: storage}, occurrence_id) do
     storage_module.get_occurrence(
       storage,
       occurrence_id
@@ -246,10 +194,7 @@ defmodule GameDB do
   end
 
   @spec cardinality(t()) :: non_neg_integer()
-  def cardinality(%__MODULE__{
-        storage_module: storage_module,
-        storage: storage
-      }) do
+  def cardinality(%__MODULE__{storage_module: storage_module, storage: storage}) do
     storage_module.cardinality(storage)
   end
 end

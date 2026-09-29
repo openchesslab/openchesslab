@@ -2,12 +2,12 @@ alias Chess.Move
 alias Chess.Position
 
 defmodule BenchmarkHelpers do
+  @moduledoc false
   def square(algebraic), do: Chess.Square.from_algebraic(algebraic)
 end
 
 position =
-  Position.starting_position()
-  |> then(fn position ->
+  then(Position.starting_position(), fn position ->
     {:ok, position} =
       Position.apply_move(
         position,
@@ -72,7 +72,8 @@ position =
   end)
 
 check_position =
-  Position.new(side_to_move: :white)
+  [side_to_move: :white]
+  |> Position.new()
   |> Position.put_piece(BenchmarkHelpers.square("e1"), {:white, :king})
   |> Position.put_piece(BenchmarkHelpers.square("a1"), {:white, :rook})
   |> Position.put_piece(BenchmarkHelpers.square("e2"), {:white, :pawn})
@@ -83,7 +84,7 @@ Benchee.run(
   %{
     "legal_moves starting position" => fn ->
       moves = Position.legal_moves(Position.starting_position())
-      unless length(moves) == 20, do: raise("expected 20 moves")
+      if length(moves) != 20, do: raise("expected 20 moves")
       moves
     end,
     "legal_moves middlegame" => fn ->

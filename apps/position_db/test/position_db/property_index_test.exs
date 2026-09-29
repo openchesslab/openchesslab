@@ -7,9 +7,7 @@ defmodule PositionDB.PropertyIndexTest do
   alias PositionDB.PropertyIndex
 
   test "adds and finds a position" do
-    index =
-      PropertyIndex.new()
-      |> PropertyIndex.add({:open_files, :e}, 42)
+    index = PropertyIndex.add(PropertyIndex.new(), {:open_files, :e}, 42)
 
     assert PropertyIndex.lookup(index, {:open_files, :e}) ==
              MapSet.new([42])
@@ -46,17 +44,11 @@ defmodule PositionDB.PropertyIndexTest do
         {:open_files, &PositionProperties.open_files/1}
       ])
 
-    position_1 =
-      Position.new()
-      |> Position.put_piece(Chess.Square.from_algebraic("a4"), {:white, :pawn})
+    position_1 = Position.put_piece(Position.new(), Chess.Square.from_algebraic("a4"), {:white, :pawn})
 
-    position_2 =
-      Position.new()
-      |> Position.put_piece(Chess.Square.from_algebraic("b4"), {:white, :pawn})
+    position_2 = Position.put_piece(Position.new(), Chess.Square.from_algebraic("b4"), {:white, :pawn})
 
-    position_3 =
-      Position.new()
-      |> Position.put_piece(Chess.Square.from_algebraic("a5"), {:black, :pawn})
+    position_3 = Position.put_piece(Position.new(), Chess.Square.from_algebraic("a5"), {:black, :pawn})
 
     indexer =
       indexer

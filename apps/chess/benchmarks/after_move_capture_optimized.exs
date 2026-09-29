@@ -1,10 +1,11 @@
+import Bitwise
+
 alias Chess.Bitboard
 alias Chess.Move
 alias Chess.Square
 
-import Bitwise
-
 defmodule BenchmarkHelpers do
+  @moduledoc false
   import Bitwise
 
   def captured_enemy_piece(board, to, color) do
@@ -103,6 +104,19 @@ defmodule BenchmarkHelpers do
     end
   end
 
+  #
+  #   1. e4 e5
+  #   2. Nf3 Nc6
+  #   3. Bb5 a6
+  #   4. Ba4 Nf6
+  #   5. O-O Be7
+  #
+  # Relevant pieces:
+  #   White bishop: a4
+  #   Black knight: c6
+  #   b5 is empty
+  #
+  # This is all we need for the after_move benchmark.
   def optimized_non_capture(board, move, moving_piece) do
     {color, piece_type} = moving_piece
 
@@ -120,26 +134,12 @@ defmodule BenchmarkHelpers do
     |> set_piece(move.to, color, piece_type)
   end
 
+  # Build the middlegame position directly as a bitboard.
+  #
   defp opposite_color(:white), do: :black
+  # Position after:
   defp opposite_color(:black), do: :white
 end
-
-# Build the middlegame position directly as a bitboard.
-#
-# Position after:
-#
-#   1. e4 e5
-#   2. Nf3 Nc6
-#   3. Bb5 a6
-#   4. Ba4 Nf6
-#   5. O-O Be7
-#
-# Relevant pieces:
-#   White bishop: a4
-#   Black knight: c6
-#   b5 is empty
-#
-# This is all we need for the after_move benchmark.
 
 board =
   %{
@@ -181,11 +181,11 @@ capture =
 
 moving_piece = {:white, :bishop}
 
-unless BenchmarkHelpers.captured_enemy_piece(board, non_capture.to, :white) == nil do
+if BenchmarkHelpers.captured_enemy_piece(board, non_capture.to, :white) != nil do
   raise "Expected a non-capture on b5"
 end
 
-unless BenchmarkHelpers.captured_enemy_piece(board, capture.to, :white) == {:ok, :knight} do
+if BenchmarkHelpers.captured_enemy_piece(board, capture.to, :white) != {:ok, :knight} do
   raise "Expected a black knight on c6"
 end
 

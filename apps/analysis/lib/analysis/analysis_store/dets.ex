@@ -1,9 +1,9 @@
 defmodule Analysis.AnalysisStore.Dets do
   @moduledoc false
 
-  use GenServer
-
   @behaviour Analysis.AnalysisStore
+
+  use GenServer
 
   alias Analysis.Analysis
 
@@ -85,27 +85,17 @@ defmodule Analysis.AnalysisStore.Dets do
   end
 
   @impl true
-  def handle_call(
-        :ping,
-        _from,
-        table
-      ) do
+  def handle_call(:ping, _from, table) do
     {:reply, :ok, table}
   end
 
   @impl true
-  def handle_call(
-        {:insert, %Analysis{id: id} = analysis},
-        _from,
-        table
-      ) do
-    case :dets.insert_new(table, {id, 1, analysis}) do
-      true ->
-        :ok = :dets.sync(table)
-        {:reply, {:ok, 1}, table}
-
-      false ->
-        {:reply, {:error, :already_exists}, table}
+  def handle_call({:insert, %Analysis{id: id} = analysis}, _from, table) do
+    if :dets.insert_new(table, {id, 1, analysis}) do
+      :ok = :dets.sync(table)
+      {:reply, {:ok, 1}, table}
+    else
+      {:reply, {:error, :already_exists}, table}
     end
   end
 
@@ -135,11 +125,7 @@ defmodule Analysis.AnalysisStore.Dets do
     {:reply, analyses, table}
   end
 
-  def handle_call(
-        {:update, %Analysis{id: id} = analysis, expected_revision},
-        _from,
-        table
-      ) do
+  def handle_call({:update, %Analysis{id: id} = analysis, expected_revision}, _from, table) do
     case :dets.lookup(table, id) do
       [] ->
         {:reply, {:error, :not_found}, table}
@@ -163,11 +149,7 @@ defmodule Analysis.AnalysisStore.Dets do
     end
   end
 
-  def handle_call(
-        {:delete, analysis_id, expected_revision},
-        _from,
-        table
-      ) do
+  def handle_call({:delete, analysis_id, expected_revision}, _from, table) do
     case :dets.lookup(table, analysis_id) do
       [] ->
         {:reply, {:error, :not_found}, table}

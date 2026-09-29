@@ -102,6 +102,5 @@ defmodule Analysis.AnalysisJSON do
 
   defp encode_promotion(nil), do: nil
 
-  defp encode_promotion(promotion) when is_atom(promotion),
-    do: Atom.to_string(promotion)
+  defp encode_promotion(promotion) when is_atom(promotion), do: Atom.to_string(promotion)
 end

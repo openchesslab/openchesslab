@@ -1,18 +1,18 @@
 defmodule Analysis.Analyses do
   @moduledoc false
 
-  alias Analysis.Node
   alias Analysis.AnalysisEvents
   alias Analysis.AnalysisStore
   alias Analysis.GameContent
   alias Analysis.GameRecord
   alias Analysis.GameRecords
+  alias Analysis.Node
   alias Analysis.PositionStore
   alias Analysis.Transition
-  alias GameDB.Occurrence
   alias Chess.Move
   alias Chess.Position
   alias Chess.PositionDraft
+  alias GameDB.Occurrence
 
   @type position_store_error ::
           {:position_store, term()}
@@ -29,10 +29,7 @@ defmodule Analysis.Analyses do
              :already_exists
              | {:invalid_position, [atom()]}
              | position_store_error()}
-  def create(
-        analysis_id,
-        opts \\ []
-      ) do
+  def create(analysis_id, opts \\ []) do
     with {:ok, initial_position} <-
            initial_position(opts),
          {:ok, position_id} <-
@@ -83,10 +80,7 @@ defmodule Analysis.Analyses do
              | {:game_not_found, GameDB.game_id()}
              | game_store_error()}
 
-  def create_from_game_record(
-        analysis_id,
-        game_record_id
-      ) do
+  def create_from_game_record(analysis_id, game_record_id) do
     case get(analysis_id) do
       {:ok, _analysis, _revision} ->
         {:error, :already_exists}
@@ -164,11 +158,7 @@ defmodule Analysis.Analyses do
              | :node_not_found
              | :invalid_nags
              | :conflict}
-  def set_nags(
-        analysis_id,
-        path,
-        nags
-      ) do
+  def set_nags(analysis_id, path, nags) do
     case get(analysis_id) do
       {:ok, analysis, revision} ->
         set_nags(
@@ -222,10 +212,7 @@ defmodule Analysis.Analyses do
     end
   end
 
-  defp do_create_from_game_record(
-         analysis_id,
-         game_record_id
-       ) do
+  defp do_create_from_game_record(analysis_id, game_record_id) do
     with {:ok, record, content, occurrences} <-
            load_game_record(game_record_id),
          {:ok, analysis} <-
@@ -241,15 +228,7 @@ defmodule Analysis.Analyses do
     end
   end
 
-  defp build_analysis(
-         analysis_id,
-         record,
-         content,
-         [
-           %Occurrence{} = initial_occurrence
-           | move_occurrences
-         ]
-       ) do
+  defp build_analysis(analysis_id, record, content, [%Occurrence{} = initial_occurrence | move_occurrences]) do
     analysis =
       Analysis.Analysis.new(
         analysis_id,
@@ -297,12 +276,7 @@ defmodule Analysis.Analyses do
     {:ok, analysis}
   end
 
-  defp set_nags(
-         analysis,
-         revision,
-         path,
-         nags
-       ) do
+  defp set_nags(analysis, revision, path, nags) do
     with {:ok, updated_analysis} <-
            Analysis.Analysis.set_nags(
              analysis,
@@ -325,12 +299,7 @@ defmodule Analysis.Analyses do
     end
   end
 
-  defp play(
-         analysis,
-         revision,
-         path,
-         move
-       ) do
+  defp play(analysis, revision, path, move) do
     with %Node{} = node <-
            Analysis.Analysis.node_at(
              analysis,
@@ -420,12 +389,7 @@ defmodule Analysis.Analyses do
     end
   end
 
-  defp edit(
-         analysis,
-         revision,
-         path,
-         draft
-       ) do
+  defp edit(analysis, revision, path, draft) do
     with %Node{} <-
            Analysis.Analysis.node_at(
              analysis,

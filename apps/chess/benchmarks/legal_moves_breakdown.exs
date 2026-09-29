@@ -3,13 +3,13 @@ alias Chess.Move
 alias Chess.Position
 
 defmodule BenchmarkHelpers do
+  @moduledoc false
   import Bitwise
 
   def square(algebraic), do: Chess.Square.from_algebraic(algebraic)
 
   def middlegame_position do
-    Position.starting_position()
-    |> apply_moves([
+    apply_moves(Position.starting_position(), [
       {"e2", "e4"},
       {"e7", "e5"},
       {"g1", "f3"},
@@ -24,7 +24,8 @@ defmodule BenchmarkHelpers do
   end
 
   def check_position do
-    Position.new(side_to_move: :white)
+    [side_to_move: :white]
+    |> Position.new()
     |> Position.put_piece(square("e1"), {:white, :king})
     |> Position.put_piece(square("a1"), {:white, :rook})
     |> Position.put_piece(square("e2"), {:white, :pawn})
@@ -88,18 +89,18 @@ defmodule BenchmarkHelpers do
             Enum.count(0..63, fn to ->
               band(destinations, bsl(1, to)) != 0
             end) +
-            if piece != nil, do: 0, else: 0
+            if piece == nil, do: 0, else: 0
         end)
       end,
       destinations_and_move_new: fn ->
         Enum.reduce(pseudo_moves, 0, fn {from, destinations}, count ->
           count +
             Enum.reduce(0..63, 0, fn to, count ->
-              if band(destinations, bsl(1, to)) != 0 do
+              if band(destinations, bsl(1, to)) == 0 do
+                count
+              else
                 move = Move.new(from, to)
                 count + if move.from == from, do: 1, else: 0
-              else
-                count
               end
             end)
         end)
@@ -110,17 +111,18 @@ defmodule BenchmarkHelpers do
 
           count +
             Enum.reduce(0..63, 0, fn to, count ->
-              if band(destinations, bsl(1, to)) != 0 do
+              if band(destinations, bsl(1, to)) == 0 do
+                count
+              else
                 move = Move.new(from, to)
                 count + if move.from == from and piece != nil, do: 1, else: 0
-              else
-                count
               end
             end)
         end)
       end,
       candidate_generation: fn ->
-        Enum.flat_map(pseudo_moves, fn {from, destinations} ->
+        pseudo_moves
+        |> Enum.flat_map(fn {from, destinations} ->
           piece = Position.piece_at(position, from)
 
           for to <- 0..63,
@@ -286,12 +288,9 @@ Benchee.run(
     "starting: destinations + Move.new" => starting_breakdown.destinations_and_move_new,
     "middlegame: destinations + Move.new" => middlegame_breakdown.destinations_and_move_new,
     "in check: destinations + Move.new" => check_breakdown.destinations_and_move_new,
-    "starting: destinations + piece_at + Move.new" =>
-      starting_breakdown.destinations_piece_at_move_new,
-    "middlegame: destinations + piece_at + Move.new" =>
-      middlegame_breakdown.destinations_piece_at_move_new,
-    "in check: destinations + piece_at + Move.new" =>
-      check_breakdown.destinations_piece_at_move_new,
+    "starting: destinations + piece_at + Move.new" => starting_breakdown.destinations_piece_at_move_new,
+    "middlegame: destinations + piece_at + Move.new" => middlegame_breakdown.destinations_piece_at_move_new,
+    "in check: destinations + piece_at + Move.new" => check_breakdown.destinations_piece_at_move_new,
     "starting: candidate generation" => starting_breakdown.candidate_generation,
     "middlegame: candidate generation" => middlegame_breakdown.candidate_generation,
     "in check: candidate generation" => check_breakdown.candidate_generation,
@@ -325,7 +324,7 @@ Benchee.run(
     "starting: legal_moves" => fn ->
       moves = Position.legal_moves(starting_position)
 
-      unless length(moves) == 20 do
+      if length(moves) != 20 do
         raise("expected 20 moves")
       end
 

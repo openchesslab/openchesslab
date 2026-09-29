@@ -24,11 +24,7 @@ defmodule PositionDB.QueryResult do
           {:ok, position_id(), t()}
           | :done
           | {:error, term()}
-  def next(
-        %__MODULE__{
-          executor: executor
-        } = result
-      ) do
+  def next(%__MODULE__{executor: executor} = result) do
     case QueryExecutor.next(executor) do
       {
         :ok,

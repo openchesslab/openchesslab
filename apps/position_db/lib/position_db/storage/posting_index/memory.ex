@@ -5,6 +5,8 @@ defmodule PositionDB.Storage.PostingIndex.Memory do
 
   @behaviour PositionDB.Storage.PostingIndex
 
+  alias PositionDB.Storage.PostingIndex
+
   @type t :: %__MODULE__{
           entries: %{
             binary() => MapSet.t(pos_integer())
@@ -18,15 +20,8 @@ defmodule PositionDB.Storage.PostingIndex.Memory do
     %__MODULE__{}
   end
 
-  @impl PositionDB.Storage.PostingIndex
-  def add(
-        %__MODULE__{} = index,
-        key,
-        position_id
-      )
-      when is_binary(key) and
-             is_integer(position_id) and
-             position_id > 0 do
+  @impl PostingIndex
+  def add(%__MODULE__{} = index, key, position_id) when is_binary(key) and is_integer(position_id) and position_id > 0 do
     entries =
       Map.update(
         index.entries,
@@ -45,12 +40,8 @@ defmodule PositionDB.Storage.PostingIndex.Memory do
      }}
   end
 
-  @impl PositionDB.Storage.PostingIndex
-  def lookup(
-        %__MODULE__{} = index,
-        key
-      )
-      when is_binary(key) do
+  @impl PostingIndex
+  def lookup(%__MODULE__{} = index, key) when is_binary(key) do
     position_ids =
       index.entries
       |> Map.get(
@@ -63,12 +54,8 @@ defmodule PositionDB.Storage.PostingIndex.Memory do
     {:ok, position_ids}
   end
 
-  @impl PositionDB.Storage.PostingIndex
-  def cardinality(
-        %__MODULE__{} = index,
-        key
-      )
-      when is_binary(key) do
+  @impl PostingIndex
+  def cardinality(%__MODULE__{} = index, key) when is_binary(key) do
     count =
       index.entries
       |> Map.get(

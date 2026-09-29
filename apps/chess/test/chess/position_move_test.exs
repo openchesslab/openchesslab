@@ -86,9 +86,7 @@ defmodule Chess.PositionMoveTest do
     end
 
     test "cannot move through another piece" do
-      position =
-        Position.starting_position()
-        |> Position.put_piece(square("e3"), {:white, :knight})
+      position = Position.put_piece(Position.starting_position(), square("e3"), {:white, :knight})
 
       move = Move.new(square("e2"), square("e4"))
 
@@ -97,9 +95,7 @@ defmodule Chess.PositionMoveTest do
     end
 
     test "cannot capture a piece directly ahead" do
-      position =
-        Position.starting_position()
-        |> Position.put_piece(square("e3"), {:black, :knight})
+      position = Position.put_piece(Position.starting_position(), square("e3"), {:black, :knight})
 
       move = Move.new(square("e2"), square("e3"))
 
@@ -108,9 +104,7 @@ defmodule Chess.PositionMoveTest do
     end
 
     test "can capture diagonally" do
-      position =
-        Position.starting_position()
-        |> Position.put_piece(square("f3"), {:black, :knight})
+      position = Position.put_piece(Position.starting_position(), square("f3"), {:black, :knight})
 
       move = Move.new(square("e2"), square("f3"))
 
@@ -129,9 +123,7 @@ defmodule Chess.PositionMoveTest do
     end
 
     test "black pawn moves one square forward" do
-      position =
-        Position.starting_position()
-        |> Map.put(:side_to_move, :black)
+      position = Map.put(Position.starting_position(), :side_to_move, :black)
 
       move = Move.new(square("e7"), square("e6"))
 
@@ -142,9 +134,7 @@ defmodule Chess.PositionMoveTest do
     end
 
     test "black pawn moves two squares from the starting position" do
-      position =
-        Position.starting_position()
-        |> Map.put(:side_to_move, :black)
+      position = Map.put(Position.starting_position(), :side_to_move, :black)
 
       move = Move.new(square("e7"), square("e5"))
 
@@ -185,7 +175,8 @@ defmodule Chess.PositionMoveTest do
   describe "capturing the opposing king" do
     test "a pawn cannot capture the opposing king" do
       position =
-        Position.new(side_to_move: :white)
+        [side_to_move: :white]
+        |> Position.new()
         |> Position.put_piece(square("e7"), {:white, :pawn})
         |> Position.put_piece(square("e8"), {:black, :king})
         |> Position.put_piece(square("a1"), {:white, :king})
@@ -197,7 +188,8 @@ defmodule Chess.PositionMoveTest do
 
     test "a knight cannot capture the opposing king" do
       position =
-        Position.new(side_to_move: :white)
+        [side_to_move: :white]
+        |> Position.new()
         |> Position.put_piece(square("e6"), {:white, :knight})
         |> Position.put_piece(square("f8"), {:black, :king})
         |> Position.put_piece(square("a1"), {:white, :king})
@@ -209,7 +201,8 @@ defmodule Chess.PositionMoveTest do
 
     test "a bishop cannot capture the opposing king" do
       position =
-        Position.new(side_to_move: :white)
+        [side_to_move: :white]
+        |> Position.new()
         |> Position.put_piece(square("b5"), {:white, :bishop})
         |> Position.put_piece(square("e8"), {:black, :king})
         |> Position.put_piece(square("a1"), {:white, :king})
@@ -221,7 +214,8 @@ defmodule Chess.PositionMoveTest do
 
     test "a rook cannot capture the opposing king" do
       position =
-        Position.new(side_to_move: :white)
+        [side_to_move: :white]
+        |> Position.new()
         |> Position.put_piece(square("a1"), {:white, :rook})
         |> Position.put_piece(square("a8"), {:black, :king})
         |> Position.put_piece(square("h1"), {:white, :king})
@@ -233,7 +227,8 @@ defmodule Chess.PositionMoveTest do
 
     test "a queen cannot capture the opposing king" do
       position =
-        Position.new(side_to_move: :white)
+        [side_to_move: :white]
+        |> Position.new()
         |> Position.put_piece(square("d1"), {:white, :queen})
         |> Position.put_piece(square("d8"), {:black, :king})
         |> Position.put_piece(square("a1"), {:white, :king})
@@ -245,7 +240,8 @@ defmodule Chess.PositionMoveTest do
 
     test "legal_moves does not contain a move capturing the opposing king" do
       position =
-        Position.new(side_to_move: :white)
+        [side_to_move: :white]
+        |> Position.new()
         |> Position.put_piece(square("a1"), {:white, :king})
         |> Position.put_piece(square("a2"), {:white, :rook})
         |> Position.put_piece(square("a8"), {:black, :king})
@@ -260,9 +256,7 @@ defmodule Chess.PositionMoveTest do
     test "promotes a white pawn to a queen" do
       position =
         Position.new(
-          board:
-            Chess.Board.empty()
-            |> Chess.Board.put(square("e7"), {:white, :pawn}),
+          board: Chess.Board.put(Chess.Board.empty(), square("e7"), {:white, :pawn}),
           side_to_move: :white
         )
 
@@ -277,9 +271,7 @@ defmodule Chess.PositionMoveTest do
     test "promotes a white pawn to a rook" do
       position =
         Position.new(
-          board:
-            Chess.Board.empty()
-            |> Chess.Board.put(square("e7"), {:white, :pawn}),
+          board: Chess.Board.put(Chess.Board.empty(), square("e7"), {:white, :pawn}),
           side_to_move: :white
         )
 
@@ -293,9 +285,7 @@ defmodule Chess.PositionMoveTest do
     test "promotes a white pawn to a bishop" do
       position =
         Position.new(
-          board:
-            Chess.Board.empty()
-            |> Chess.Board.put(square("e7"), {:white, :pawn}),
+          board: Chess.Board.put(Chess.Board.empty(), square("e7"), {:white, :pawn}),
           side_to_move: :white
         )
 
@@ -309,9 +299,7 @@ defmodule Chess.PositionMoveTest do
     test "promotes a white pawn to a knight" do
       position =
         Position.new(
-          board:
-            Chess.Board.empty()
-            |> Chess.Board.put(square("e7"), {:white, :pawn}),
+          board: Chess.Board.put(Chess.Board.empty(), square("e7"), {:white, :pawn}),
           side_to_move: :white
         )
 
@@ -325,9 +313,7 @@ defmodule Chess.PositionMoveTest do
     test "white pawn cannot promote before reaching the last rank" do
       position =
         Position.new(
-          board:
-            Chess.Board.empty()
-            |> Chess.Board.put(square("e6"), {:white, :pawn}),
+          board: Chess.Board.put(Chess.Board.empty(), square("e6"), {:white, :pawn}),
           side_to_move: :white
         )
 
@@ -340,9 +326,7 @@ defmodule Chess.PositionMoveTest do
     test "promotes a black pawn to a queen" do
       position =
         Position.new(
-          board:
-            Chess.Board.empty()
-            |> Chess.Board.put(square("e2"), {:black, :pawn}),
+          board: Chess.Board.put(Chess.Board.empty(), square("e2"), {:black, :pawn}),
           side_to_move: :black
         )
 
@@ -356,9 +340,7 @@ defmodule Chess.PositionMoveTest do
     test "promotes a black pawn to a rook" do
       position =
         Position.new(
-          board:
-            Chess.Board.empty()
-            |> Chess.Board.put(square("e2"), {:black, :pawn}),
+          board: Chess.Board.put(Chess.Board.empty(), square("e2"), {:black, :pawn}),
           side_to_move: :black
         )
 
@@ -372,9 +354,7 @@ defmodule Chess.PositionMoveTest do
     test "promotes a black pawn to a bishop" do
       position =
         Position.new(
-          board:
-            Chess.Board.empty()
-            |> Chess.Board.put(square("e2"), {:black, :pawn}),
+          board: Chess.Board.put(Chess.Board.empty(), square("e2"), {:black, :pawn}),
           side_to_move: :black
         )
 
@@ -388,9 +368,7 @@ defmodule Chess.PositionMoveTest do
     test "promotes a black pawn to a knight" do
       position =
         Position.new(
-          board:
-            Chess.Board.empty()
-            |> Chess.Board.put(square("e2"), {:black, :pawn}),
+          board: Chess.Board.put(Chess.Board.empty(), square("e2"), {:black, :pawn}),
           side_to_move: :black
         )
 
@@ -404,9 +382,7 @@ defmodule Chess.PositionMoveTest do
     test "black pawn cannot promote before reaching the last rank" do
       position =
         Position.new(
-          board:
-            Chess.Board.empty()
-            |> Chess.Board.put(square("e3"), {:black, :pawn}),
+          board: Chess.Board.put(Chess.Board.empty(), square("e3"), {:black, :pawn}),
           side_to_move: :black
         )
 
@@ -419,9 +395,7 @@ defmodule Chess.PositionMoveTest do
     test "a pawn reaching the last rank without promotion is illegal" do
       position =
         Position.new(
-          board:
-            Chess.Board.empty()
-            |> Chess.Board.put(square("e7"), {:white, :pawn}),
+          board: Chess.Board.put(Chess.Board.empty(), square("e7"), {:white, :pawn}),
           side_to_move: :white
         )
 
@@ -646,10 +620,8 @@ defmodule Chess.PositionMoveTest do
 
     test "en passant is illegal when it exposes the king to a rook" do
       position =
-        Position.new(
-          side_to_move: :white,
-          en_passant: square("d6")
-        )
+        [side_to_move: :white, en_passant: square("d6")]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("e5"), {:white, :pawn})
         |> Position.put_piece(square("d5"), {:black, :pawn})
@@ -664,10 +636,8 @@ defmodule Chess.PositionMoveTest do
 
     test "black en passant is illegal when it exposes the king to a rook" do
       position =
-        Position.new(
-          side_to_move: :black,
-          en_passant: square("d3")
-        )
+        [side_to_move: :black, en_passant: square("d3")]
+        |> Position.new()
         |> Position.put_piece(square("e8"), {:black, :king})
         |> Position.put_piece(square("e4"), {:black, :pawn})
         |> Position.put_piece(square("d4"), {:white, :pawn})
@@ -682,10 +652,8 @@ defmodule Chess.PositionMoveTest do
 
     test "legal_moves and apply_move both reject en passant that exposes the king" do
       position =
-        Position.new(
-          side_to_move: :white,
-          en_passant: square("d6")
-        )
+        [side_to_move: :white, en_passant: square("d6")]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("e5"), {:white, :pawn})
         |> Position.put_piece(square("d5"), {:black, :pawn})
@@ -705,9 +673,7 @@ defmodule Chess.PositionMoveTest do
     test "king can move one square horizontally" do
       position =
         Position.new(
-          board:
-            Chess.Board.empty()
-            |> Chess.Board.put(square("e4"), {:white, :king}),
+          board: Chess.Board.put(Chess.Board.empty(), square("e4"), {:white, :king}),
           side_to_move: :white
         )
 
@@ -723,9 +689,7 @@ defmodule Chess.PositionMoveTest do
     test "king can move one square vertically" do
       position =
         Position.new(
-          board:
-            Chess.Board.empty()
-            |> Chess.Board.put(square("e4"), {:white, :king}),
+          board: Chess.Board.put(Chess.Board.empty(), square("e4"), {:white, :king}),
           side_to_move: :white
         )
 
@@ -739,9 +703,7 @@ defmodule Chess.PositionMoveTest do
     test "king can move one square diagonally" do
       position =
         Position.new(
-          board:
-            Chess.Board.empty()
-            |> Chess.Board.put(square("e4"), {:white, :king}),
+          board: Chess.Board.put(Chess.Board.empty(), square("e4"), {:white, :king}),
           side_to_move: :white
         )
 
@@ -755,9 +717,7 @@ defmodule Chess.PositionMoveTest do
     test "king cannot move more than one square" do
       position =
         Position.new(
-          board:
-            Chess.Board.empty()
-            |> Chess.Board.put(square("e4"), {:white, :king}),
+          board: Chess.Board.put(Chess.Board.empty(), square("e4"), {:white, :king}),
           side_to_move: :white
         )
 
@@ -804,9 +764,7 @@ defmodule Chess.PositionMoveTest do
     test "king cannot move with a promotion" do
       position =
         Position.new(
-          board:
-            Chess.Board.empty()
-            |> Chess.Board.put(square("e4"), {:white, :king}),
+          board: Chess.Board.put(Chess.Board.empty(), square("e4"), {:white, :king}),
           side_to_move: :white
         )
 
@@ -855,9 +813,7 @@ defmodule Chess.PositionMoveTest do
     test "rook can move horizontally" do
       position =
         Position.new(
-          board:
-            Chess.Board.empty()
-            |> Chess.Board.put(square("d4"), {:white, :rook}),
+          board: Chess.Board.put(Chess.Board.empty(), square("d4"), {:white, :rook}),
           side_to_move: :white
         )
 
@@ -873,9 +829,7 @@ defmodule Chess.PositionMoveTest do
     test "rook can move vertically" do
       position =
         Position.new(
-          board:
-            Chess.Board.empty()
-            |> Chess.Board.put(square("d4"), {:white, :rook}),
+          board: Chess.Board.put(Chess.Board.empty(), square("d4"), {:white, :rook}),
           side_to_move: :white
         )
 
@@ -889,9 +843,7 @@ defmodule Chess.PositionMoveTest do
     test "rook cannot move diagonally" do
       position =
         Position.new(
-          board:
-            Chess.Board.empty()
-            |> Chess.Board.put(square("d4"), {:white, :rook}),
+          board: Chess.Board.put(Chess.Board.empty(), square("d4"), {:white, :rook}),
           side_to_move: :white
         )
 
@@ -988,9 +940,7 @@ defmodule Chess.PositionMoveTest do
     test "rook cannot move with a promotion" do
       position =
         Position.new(
-          board:
-            Chess.Board.empty()
-            |> Chess.Board.put(square("d4"), {:white, :rook}),
+          board: Chess.Board.put(Chess.Board.empty(), square("d4"), {:white, :rook}),
           side_to_move: :white
         )
 
@@ -1003,9 +953,7 @@ defmodule Chess.PositionMoveTest do
 
   describe "bishop moves" do
     test "can move diagonally" do
-      position =
-        Position.new()
-        |> Position.put_piece(square("c1"), {:white, :bishop})
+      position = Position.put_piece(Position.new(), square("c1"), {:white, :bishop})
 
       assert {:ok, new_position} =
                Position.apply_move(
@@ -1018,9 +966,7 @@ defmodule Chess.PositionMoveTest do
     end
 
     test "cannot move straight" do
-      position =
-        Position.new()
-        |> Position.put_piece(square("c1"), {:white, :bishop})
+      position = Position.put_piece(Position.new(), square("c1"), {:white, :bishop})
 
       assert {:error, :illegal_move} =
                Position.apply_move(
@@ -1101,9 +1047,7 @@ defmodule Chess.PositionMoveTest do
 
   describe "knight moves" do
     test "can move in an L-shape" do
-      position =
-        Position.new()
-        |> Position.put_piece(square("b1"), {:white, :knight})
+      position = Position.put_piece(Position.new(), square("b1"), {:white, :knight})
 
       assert {:ok, new_position} =
                Position.apply_move(
@@ -1132,9 +1076,7 @@ defmodule Chess.PositionMoveTest do
     end
 
     test "cannot move like a bishop" do
-      position =
-        Position.new()
-        |> Position.put_piece(square("b1"), {:white, :knight})
+      position = Position.put_piece(Position.new(), square("b1"), {:white, :knight})
 
       assert {:error, :illegal_move} =
                Position.apply_move(
@@ -1174,9 +1116,7 @@ defmodule Chess.PositionMoveTest do
 
   describe "queen moves" do
     test "can move horizontally" do
-      position =
-        Position.new()
-        |> Position.put_piece(square("d1"), {:white, :queen})
+      position = Position.put_piece(Position.new(), square("d1"), {:white, :queen})
 
       assert {:ok, new_position} =
                Position.apply_move(
@@ -1189,9 +1129,7 @@ defmodule Chess.PositionMoveTest do
     end
 
     test "can move vertically" do
-      position =
-        Position.new()
-        |> Position.put_piece(square("d1"), {:white, :queen})
+      position = Position.put_piece(Position.new(), square("d1"), {:white, :queen})
 
       assert {:ok, new_position} =
                Position.apply_move(
@@ -1204,9 +1142,7 @@ defmodule Chess.PositionMoveTest do
     end
 
     test "can move diagonally" do
-      position =
-        Position.new()
-        |> Position.put_piece(square("d1"), {:white, :queen})
+      position = Position.put_piece(Position.new(), square("d1"), {:white, :queen})
 
       assert {:ok, new_position} =
                Position.apply_move(
@@ -1232,9 +1168,7 @@ defmodule Chess.PositionMoveTest do
     end
 
     test "cannot make a knight move" do
-      position =
-        Position.new()
-        |> Position.put_piece(square("d1"), {:white, :queen})
+      position = Position.put_piece(Position.new(), square("d1"), {:white, :queen})
 
       assert {:error, :illegal_move} =
                Position.apply_move(
@@ -1275,7 +1209,8 @@ defmodule Chess.PositionMoveTest do
   describe "castling" do
     test "can castle kingside" do
       position =
-        Position.new(castling_rights: MapSet.new([:white_kingside]))
+        [castling_rights: MapSet.new([:white_kingside])]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("h1"), {:white, :rook})
 
@@ -1294,7 +1229,8 @@ defmodule Chess.PositionMoveTest do
 
     test "can castle queenside" do
       position =
-        Position.new(castling_rights: MapSet.new([:white_queenside]))
+        [castling_rights: MapSet.new([:white_queenside])]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("a1"), {:white, :rook})
 
@@ -1326,7 +1262,8 @@ defmodule Chess.PositionMoveTest do
 
     test "cannot castle when a square between king and rook is occupied" do
       position =
-        Position.new(castling_rights: MapSet.new([:white_kingside]))
+        [castling_rights: MapSet.new([:white_kingside])]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("f1"), {:white, :bishop})
         |> Position.put_piece(square("h1"), {:white, :rook})
@@ -1340,7 +1277,8 @@ defmodule Chess.PositionMoveTest do
 
     test "cannot castle while in check" do
       position =
-        Position.new(castling_rights: MapSet.new([:white_kingside]))
+        [castling_rights: MapSet.new([:white_kingside])]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("h1"), {:white, :rook})
         |> Position.put_piece(square("e8"), {:black, :rook})
@@ -1354,7 +1292,8 @@ defmodule Chess.PositionMoveTest do
 
     test "cannot castle through an attacked square" do
       position =
-        Position.new(castling_rights: MapSet.new([:white_kingside]))
+        [castling_rights: MapSet.new([:white_kingside])]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("h1"), {:white, :rook})
         |> Position.put_piece(square("f8"), {:black, :rook})
@@ -1368,7 +1307,8 @@ defmodule Chess.PositionMoveTest do
 
     test "cannot castle onto an attacked square" do
       position =
-        Position.new(castling_rights: MapSet.new([:white_kingside]))
+        [castling_rights: MapSet.new([:white_kingside])]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("h1"), {:white, :rook})
         |> Position.put_piece(square("g8"), {:black, :rook})
@@ -1382,7 +1322,8 @@ defmodule Chess.PositionMoveTest do
 
     test "king loses both castling rights when it moves" do
       position =
-        Position.new(castling_rights: MapSet.new([:white_kingside, :white_queenside]))
+        [castling_rights: MapSet.new([:white_kingside, :white_queenside])]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
 
       assert {:ok, new_position} =
@@ -1397,7 +1338,8 @@ defmodule Chess.PositionMoveTest do
 
     test "rook loses kingside castling right when it moves" do
       position =
-        Position.new(castling_rights: MapSet.new([:white_kingside]))
+        [castling_rights: MapSet.new([:white_kingside])]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("h1"), {:white, :rook})
 
@@ -1412,10 +1354,8 @@ defmodule Chess.PositionMoveTest do
 
     test "loses white kingside castling right when the h1 rook is captured" do
       position =
-        Position.new(
-          side_to_move: :black,
-          castling_rights: MapSet.new([:white_kingside])
-        )
+        [side_to_move: :black, castling_rights: MapSet.new([:white_kingside])]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("h1"), {:white, :rook})
         |> Position.put_piece(square("h8"), {:black, :rook})
@@ -1431,10 +1371,8 @@ defmodule Chess.PositionMoveTest do
 
     test "loses white queenside castling right when the a1 rook is captured" do
       position =
-        Position.new(
-          side_to_move: :black,
-          castling_rights: MapSet.new([:white_queenside])
-        )
+        [side_to_move: :black, castling_rights: MapSet.new([:white_queenside])]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("a1"), {:white, :rook})
         |> Position.put_piece(square("a8"), {:black, :rook})
@@ -1450,10 +1388,8 @@ defmodule Chess.PositionMoveTest do
 
     test "loses black kingside castling right when the h8 rook is captured" do
       position =
-        Position.new(
-          side_to_move: :white,
-          castling_rights: MapSet.new([:black_kingside])
-        )
+        [side_to_move: :white, castling_rights: MapSet.new([:black_kingside])]
+        |> Position.new()
         |> Position.put_piece(square("e8"), {:black, :king})
         |> Position.put_piece(square("h8"), {:black, :rook})
         |> Position.put_piece(square("h1"), {:white, :rook})
@@ -1469,10 +1405,8 @@ defmodule Chess.PositionMoveTest do
 
     test "loses black queenside castling right when the a8 rook is captured" do
       position =
-        Position.new(
-          side_to_move: :white,
-          castling_rights: MapSet.new([:black_queenside])
-        )
+        [side_to_move: :white, castling_rights: MapSet.new([:black_queenside])]
+        |> Position.new()
         |> Position.put_piece(square("e8"), {:black, :king})
         |> Position.put_piece(square("a8"), {:black, :rook})
         |> Position.put_piece(square("a1"), {:white, :rook})
@@ -1488,10 +1422,8 @@ defmodule Chess.PositionMoveTest do
 
     test "black can castle kingside" do
       position =
-        Position.new(
-          side_to_move: :black,
-          castling_rights: MapSet.new([:black_kingside])
-        )
+        [side_to_move: :black, castling_rights: MapSet.new([:black_kingside])]
+        |> Position.new()
         |> Position.put_piece(square("e8"), {:black, :king})
         |> Position.put_piece(square("h8"), {:black, :rook})
 
@@ -1511,10 +1443,8 @@ defmodule Chess.PositionMoveTest do
 
     test "black can castle queenside" do
       position =
-        Position.new(
-          side_to_move: :black,
-          castling_rights: MapSet.new([:black_queenside])
-        )
+        [side_to_move: :black, castling_rights: MapSet.new([:black_queenside])]
+        |> Position.new()
         |> Position.put_piece(square("e8"), {:black, :king})
         |> Position.put_piece(square("a8"), {:black, :rook})
 
@@ -1534,10 +1464,8 @@ defmodule Chess.PositionMoveTest do
 
     test "black cannot castle while in check" do
       position =
-        Position.new(
-          side_to_move: :black,
-          castling_rights: MapSet.new([:black_kingside])
-        )
+        [side_to_move: :black, castling_rights: MapSet.new([:black_kingside])]
+        |> Position.new()
         |> Position.put_piece(square("e8"), {:black, :king})
         |> Position.put_piece(square("h8"), {:black, :rook})
         |> Position.put_piece(square("e1"), {:white, :rook})
@@ -1551,10 +1479,8 @@ defmodule Chess.PositionMoveTest do
 
     test "black cannot castle through an attacked square" do
       position =
-        Position.new(
-          side_to_move: :black,
-          castling_rights: MapSet.new([:black_kingside])
-        )
+        [side_to_move: :black, castling_rights: MapSet.new([:black_kingside])]
+        |> Position.new()
         |> Position.put_piece(square("e8"), {:black, :king})
         |> Position.put_piece(square("h8"), {:black, :rook})
         |> Position.put_piece(square("f1"), {:white, :rook})
@@ -1568,10 +1494,8 @@ defmodule Chess.PositionMoveTest do
 
     test "black cannot castle onto an attacked square" do
       position =
-        Position.new(
-          side_to_move: :black,
-          castling_rights: MapSet.new([:black_kingside])
-        )
+        [side_to_move: :black, castling_rights: MapSet.new([:black_kingside])]
+        |> Position.new()
         |> Position.put_piece(square("e8"), {:black, :king})
         |> Position.put_piece(square("h8"), {:black, :rook})
         |> Position.put_piece(square("g1"), {:white, :rook})
@@ -1585,10 +1509,8 @@ defmodule Chess.PositionMoveTest do
 
     test "black cannot castle when a square between king and rook is occupied" do
       position =
-        Position.new(
-          side_to_move: :black,
-          castling_rights: MapSet.new([:black_kingside])
-        )
+        [side_to_move: :black, castling_rights: MapSet.new([:black_kingside])]
+        |> Position.new()
         |> Position.put_piece(square("e8"), {:black, :king})
         |> Position.put_piece(square("f8"), {:black, :bishop})
         |> Position.put_piece(square("h8"), {:black, :rook})
@@ -1602,7 +1524,8 @@ defmodule Chess.PositionMoveTest do
 
     test "moving the queenside rook preserves the kingside castling right" do
       position =
-        Position.new(castling_rights: MapSet.new([:white_kingside, :white_queenside]))
+        [castling_rights: MapSet.new([:white_kingside, :white_queenside])]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("a1"), {:white, :rook})
 
@@ -1618,10 +1541,8 @@ defmodule Chess.PositionMoveTest do
 
     test "capturing the queenside rook preserves the kingside castling right" do
       position =
-        Position.new(
-          side_to_move: :black,
-          castling_rights: MapSet.new([:white_kingside, :white_queenside])
-        )
+        [side_to_move: :black, castling_rights: MapSet.new([:white_kingside, :white_queenside])]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("a1"), {:white, :rook})
         |> Position.put_piece(square("a8"), {:black, :rook})
@@ -1638,7 +1559,8 @@ defmodule Chess.PositionMoveTest do
 
     test "moving a rook that is not on its original square preserves castling rights" do
       position =
-        Position.new(castling_rights: MapSet.new([:white_kingside, :white_queenside]))
+        [castling_rights: MapSet.new([:white_kingside, :white_queenside])]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("d2"), {:white, :rook})
 
@@ -1656,10 +1578,8 @@ defmodule Chess.PositionMoveTest do
 
     test "capturing a rook that is not on its original square preserves castling rights" do
       position =
-        Position.new(
-          side_to_move: :black,
-          castling_rights: MapSet.new([:white_kingside, :white_queenside])
-        )
+        [side_to_move: :black, castling_rights: MapSet.new([:white_kingside, :white_queenside])]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("d2"), {:white, :rook})
         |> Position.put_piece(square("d8"), {:black, :rook})
@@ -1679,17 +1599,16 @@ defmodule Chess.PositionMoveTest do
     test "queenside castling is not blocked by an attacked kingside cross square" do
       positions = [
         {
-          Position.new(castling_rights: MapSet.new([:white_queenside]))
+          [castling_rights: MapSet.new([:white_queenside])]
+          |> Position.new()
           |> Position.put_piece(square("e1"), {:white, :king})
           |> Position.put_piece(square("a1"), {:white, :rook})
           |> Position.put_piece(square("f8"), {:black, :rook}),
           Move.new(square("e1"), square("c1"))
         },
         {
-          Position.new(
-            side_to_move: :black,
-            castling_rights: MapSet.new([:black_queenside])
-          )
+          [side_to_move: :black, castling_rights: MapSet.new([:black_queenside])]
+          |> Position.new()
           |> Position.put_piece(square("e8"), {:black, :king})
           |> Position.put_piece(square("a8"), {:black, :rook})
           |> Position.put_piece(square("f1"), {:white, :rook}),
@@ -1708,7 +1627,8 @@ defmodule Chess.PositionMoveTest do
 
     test "cannot castle queenside through an attacked square" do
       position =
-        Position.new(castling_rights: MapSet.new([:white_queenside]))
+        [castling_rights: MapSet.new([:white_queenside])]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("a1"), {:white, :rook})
         |> Position.put_piece(square("d8"), {:black, :rook})
@@ -1725,7 +1645,8 @@ defmodule Chess.PositionMoveTest do
 
     test "can castle queenside when only f1 is attacked" do
       position =
-        Position.new(castling_rights: MapSet.new([:white_queenside]))
+        [castling_rights: MapSet.new([:white_queenside])]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("a1"), {:white, :rook})
         |> Position.put_piece(square("f8"), {:black, :rook})
@@ -1744,7 +1665,8 @@ defmodule Chess.PositionMoveTest do
   describe "castling rights after castling" do
     test "kingside castling removes both white castling rights" do
       position =
-        Position.new(castling_rights: MapSet.new([:white_kingside, :white_queenside]))
+        [castling_rights: MapSet.new([:white_kingside, :white_queenside])]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("h1"), {:white, :rook})
 
@@ -1759,7 +1681,8 @@ defmodule Chess.PositionMoveTest do
 
     test "queenside castling removes both white castling rights" do
       position =
-        Position.new(castling_rights: MapSet.new([:white_kingside, :white_queenside]))
+        [castling_rights: MapSet.new([:white_kingside, :white_queenside])]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("a1"), {:white, :rook})
 
@@ -1774,10 +1697,8 @@ defmodule Chess.PositionMoveTest do
 
     test "kingside castling removes both black castling rights" do
       position =
-        Position.new(
-          side_to_move: :black,
-          castling_rights: MapSet.new([:black_kingside, :black_queenside])
-        )
+        [side_to_move: :black, castling_rights: MapSet.new([:black_kingside, :black_queenside])]
+        |> Position.new()
         |> Position.put_piece(square("e8"), {:black, :king})
         |> Position.put_piece(square("h8"), {:black, :rook})
 
@@ -1792,10 +1713,8 @@ defmodule Chess.PositionMoveTest do
 
     test "queenside castling removes both black castling rights" do
       position =
-        Position.new(
-          side_to_move: :black,
-          castling_rights: MapSet.new([:black_kingside, :black_queenside])
-        )
+        [side_to_move: :black, castling_rights: MapSet.new([:black_kingside, :black_queenside])]
+        |> Position.new()
         |> Position.put_piece(square("e8"), {:black, :king})
         |> Position.put_piece(square("a8"), {:black, :rook})
 
@@ -1812,7 +1731,8 @@ defmodule Chess.PositionMoveTest do
   describe "castling rights after promotion capture" do
     test "white promotion capture on a8 removes black queenside castling rights" do
       position =
-        Position.new(castling_rights: MapSet.new([:black_kingside, :black_queenside]))
+        [castling_rights: MapSet.new([:black_kingside, :black_queenside])]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("b7"), {:white, :pawn})
         |> Position.put_piece(square("a8"), {:black, :rook})
@@ -1829,7 +1749,8 @@ defmodule Chess.PositionMoveTest do
 
     test "white promotion capture on h8 removes black kingside castling rights" do
       position =
-        Position.new(castling_rights: MapSet.new([:black_kingside, :black_queenside]))
+        [castling_rights: MapSet.new([:black_kingside, :black_queenside])]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("g7"), {:white, :pawn})
         |> Position.put_piece(square("h8"), {:black, :rook})
@@ -1846,10 +1767,8 @@ defmodule Chess.PositionMoveTest do
 
     test "black promotion capture on a1 removes white queenside castling rights" do
       position =
-        Position.new(
-          side_to_move: :black,
-          castling_rights: MapSet.new([:white_kingside, :white_queenside])
-        )
+        [side_to_move: :black, castling_rights: MapSet.new([:white_kingside, :white_queenside])]
+        |> Position.new()
         |> Position.put_piece(square("e8"), {:black, :king})
         |> Position.put_piece(square("b2"), {:black, :pawn})
         |> Position.put_piece(square("a1"), {:white, :rook})
@@ -1866,10 +1785,8 @@ defmodule Chess.PositionMoveTest do
 
     test "black promotion capture on h1 removes white kingside castling rights" do
       position =
-        Position.new(
-          side_to_move: :black,
-          castling_rights: MapSet.new([:white_kingside, :white_queenside])
-        )
+        [side_to_move: :black, castling_rights: MapSet.new([:white_kingside, :white_queenside])]
+        |> Position.new()
         |> Position.put_piece(square("e8"), {:black, :king})
         |> Position.put_piece(square("g2"), {:black, :pawn})
         |> Position.put_piece(square("h1"), {:white, :rook})
@@ -1933,10 +1850,8 @@ defmodule Chess.PositionMoveTest do
             {:black, "e8", "c8", "a8", "d8", :black_queenside}
           ] do
         position =
-          Position.new(
-            side_to_move: side,
-            castling_rights: MapSet.new([right])
-          )
+          [side_to_move: side, castling_rights: MapSet.new([right])]
+          |> Position.new()
           |> Position.put_piece(square(king_from), {side, :king})
           |> Position.put_piece(square(rook_from), {side, :rook})
 
@@ -1953,18 +1868,14 @@ defmodule Chess.PositionMoveTest do
 
     test "every legal en passant move can be applied" do
       positions = [
-        Position.new(
-          side_to_move: :white,
-          en_passant: square("d6")
-        )
+        [side_to_move: :white, en_passant: square("d6")]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("e5"), {:white, :pawn})
         |> Position.put_piece(square("d5"), {:black, :pawn})
         |> Position.put_piece(square("e8"), {:black, :king}),
-        Position.new(
-          side_to_move: :black,
-          en_passant: square("e3")
-        )
+        [side_to_move: :black, en_passant: square("e3")]
+        |> Position.new()
         |> Position.put_piece(square("e8"), {:black, :king})
         |> Position.put_piece(square("d4"), {:black, :pawn})
         |> Position.put_piece(square("e4"), {:white, :pawn})
@@ -1991,10 +1902,8 @@ defmodule Chess.PositionMoveTest do
   describe "state transitions" do
     test "en passant clears the target after the capture" do
       position =
-        Position.new(
-          side_to_move: :white,
-          en_passant: square("d6")
-        )
+        [side_to_move: :white, en_passant: square("d6")]
+        |> Position.new()
         |> Position.put_piece(square("e5"), {:white, :pawn})
         |> Position.put_piece(square("d5"), {:black, :pawn})
         |> Position.put_piece(square("e1"), {:white, :king})
@@ -2013,10 +1922,8 @@ defmodule Chess.PositionMoveTest do
 
     test "promotion replaces the pawn and clears en passant" do
       position =
-        Position.new(
-          side_to_move: :white,
-          en_passant: square("d6")
-        )
+        [side_to_move: :white, en_passant: square("d6")]
+        |> Position.new()
         |> Position.put_piece(square("e7"), {:white, :pawn})
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("a8"), {:black, :king})
@@ -2033,10 +1940,8 @@ defmodule Chess.PositionMoveTest do
 
     test "promotion capture replaces the pawn and removes the captured piece" do
       position =
-        Position.new(
-          side_to_move: :white,
-          en_passant: square("d6")
-        )
+        [side_to_move: :white, en_passant: square("d6")]
+        |> Position.new()
         |> Position.put_piece(square("e7"), {:white, :pawn})
         |> Position.put_piece(square("d8"), {:black, :bishop})
         |> Position.put_piece(square("e1"), {:white, :king})
@@ -2062,11 +1967,8 @@ defmodule Chess.PositionMoveTest do
         ])
 
       position =
-        Position.new(
-          side_to_move: :white,
-          castling_rights: rights,
-          en_passant: square("d6")
-        )
+        [side_to_move: :white, castling_rights: rights, en_passant: square("d6")]
+        |> Position.new()
         |> Position.put_piece(square("e1"), {:white, :king})
         |> Position.put_piece(square("h1"), {:white, :rook})
         |> Position.put_piece(square("a1"), {:white, :rook})
@@ -2100,10 +2002,8 @@ defmodule Chess.PositionMoveTest do
         ])
 
       position =
-        Position.new(
-          side_to_move: :white,
-          castling_rights: rights
-        )
+        [side_to_move: :white, castling_rights: rights]
+        |> Position.new()
         |> Position.put_piece(square("a1"), {:white, :rook})
         |> Position.put_piece(square("a8"), {:black, :rook})
         |> Position.put_piece(square("e1"), {:white, :king})
@@ -2137,10 +2037,8 @@ defmodule Chess.PositionMoveTest do
         ])
 
       position =
-        Position.new(
-          side_to_move: :white,
-          castling_rights: rights
-        )
+        [side_to_move: :white, castling_rights: rights]
+        |> Position.new()
         |> Position.put_piece(square("b7"), {:white, :pawn})
         |> Position.put_piece(square("a8"), {:black, :rook})
         |> Position.put_piece(square("e1"), {:white, :king})

@@ -82,19 +82,17 @@ defmodule Analysis.GameRecordStore do
 
   @spec ready?() :: boolean()
   def ready? do
-    try do
-      GenServer.call(
-        store(),
-        :ping,
-        1_000
-      ) == :ok
-    rescue
-      ArgumentError ->
-        false
-    catch
-      :exit, _reason ->
-        false
-    end
+    GenServer.call(
+      store(),
+      :ping,
+      1_000
+    ) == :ok
+  rescue
+    ArgumentError ->
+      false
+  catch
+    :exit, _reason ->
+      false
   end
 
   @spec insert(GameRecord.t()) ::
@@ -137,12 +135,7 @@ defmodule Analysis.GameRecordStore do
           pos_integer()
         ) ::
           record_page()
-  def records_page_by_game_id(
-        game_id,
-        page_size
-      )
-      when is_integer(page_size) and
-             page_size > 0 do
+  def records_page_by_game_id(game_id, page_size) when is_integer(page_size) and page_size > 0 do
     adapter().records_page_by_game_id(
       store(),
       game_id,
@@ -155,13 +148,7 @@ defmodule Analysis.GameRecordStore do
           pos_integer()
         ) ::
           record_page()
-  def next_records_page(
-        cursor,
-        page_size
-      )
-      when is_reference(cursor) and
-             is_integer(page_size) and
-             page_size > 0 do
+  def next_records_page(cursor, page_size) when is_reference(cursor) and is_integer(page_size) and page_size > 0 do
     adapter().next_records_page(
       store(),
       cursor,
@@ -171,8 +158,7 @@ defmodule Analysis.GameRecordStore do
 
   @spec close_record_scan(record_cursor()) ::
           :ok
-  def close_record_scan(cursor)
-      when is_reference(cursor) do
+  def close_record_scan(cursor) when is_reference(cursor) do
     adapter().close_record_scan(
       store(),
       cursor
@@ -180,19 +166,11 @@ defmodule Analysis.GameRecordStore do
   end
 
   defp adapter do
-    config()
-    |> Keyword.get(
-      :adapter,
-      @default_adapter
-    )
+    Keyword.get(config(), :adapter, @default_adapter)
   end
 
   defp store do
-    config()
-    |> Keyword.get(
-      :store,
-      clustered_store()
-    )
+    Keyword.get(config(), :store, clustered_store())
   end
 
   defp config do

@@ -1,14 +1,14 @@
+import Bitwise
+
 alias Chess.Bitboard
 alias Chess.Position
 
-import Bitwise
-
 defmodule RayPieceLookupBenchmark do
+  @moduledoc false
   def square(algebraic), do: Chess.Square.from_algebraic(algebraic)
 
   def starting_board do
-    Position.starting_position()
-    |> Bitboard.from_position()
+    Bitboard.from_position(Position.starting_position())
   end
 
   def middlegame_board do
@@ -61,6 +61,8 @@ defmodule RayPieceLookupBenchmark do
   defp color_bishops(board, :white), do: board.white_bishops
   defp color_bishops(board, :black), do: board.black_bishops
 
+  # These are deliberately occupied squares, because this is the case
+  # encountered by first_piece_on_ray/5.
   defp color_queens(board, :white), do: board.white_queens
   defp color_queens(board, :black), do: board.black_queens
 
@@ -80,8 +82,6 @@ end
 starting = RayPieceLookupBenchmark.starting_board()
 middlegame = RayPieceLookupBenchmark.middlegame_board()
 
-# These are deliberately occupied squares, because this is the case
-# encountered by first_piece_on_ray/5.
 starting_squares = %{
   "white rook a1" => {starting, "a1", :white},
   "white bishop c1" => {starting, "c1", :white},

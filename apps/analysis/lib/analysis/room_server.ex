@@ -23,8 +23,7 @@ defmodule Analysis.RoomServer do
     child_spec({room, @default_registry})
   end
 
-  def child_spec({%Room{} = room, registry})
-      when is_atom(registry) do
+  def child_spec({%Room{} = room, registry}) when is_atom(registry) do
     %{
       id: {__MODULE__, Room.id(room)},
       start: {
@@ -42,8 +41,7 @@ defmodule Analysis.RoomServer do
     start_link({room, @default_registry})
   end
 
-  def start_link({%Room{} = room, registry})
-      when is_atom(registry) do
+  def start_link({%Room{} = room, registry}) when is_atom(registry) do
     GenServer.start_link(
       __MODULE__,
       room,
@@ -67,10 +65,7 @@ defmodule Analysis.RoomServer do
           server(),
           Room.analysis_id()
         ) :: :ok
-  def add_analysis(
-        server,
-        analysis_id
-      ) do
+  def add_analysis(server, analysis_id) do
     GenServer.call(
       server,
       {:add_analysis, analysis_id}
@@ -81,10 +76,7 @@ defmodule Analysis.RoomServer do
           server(),
           Room.analysis_id()
         ) :: :ok
-  def remove_analysis(
-        server,
-        analysis_id
-      ) do
+  def remove_analysis(server, analysis_id) do
     GenServer.call(
       server,
       {:remove_analysis, analysis_id}
@@ -102,10 +94,7 @@ defmodule Analysis.RoomServer do
   @spec send_message(server(), map()) ::
           {:ok, RoomChat.Message.t()}
           | {:error, :empty}
-  def send_message(
-        server,
-        attrs
-      ) do
+  def send_message(server, attrs) do
     GenServer.call(
       server,
       {:send_message, attrs}
@@ -122,19 +111,11 @@ defmodule Analysis.RoomServer do
   end
 
   @impl true
-  def handle_call(
-        :get,
-        _from,
-        %{room: room} = state
-      ) do
+  def handle_call(:get, _from, %{room: room} = state) do
     {:reply, room, state}
   end
 
-  def handle_call(
-        {:add_analysis, analysis_id},
-        _from,
-        %{room: room} = state
-      ) do
+  def handle_call({:add_analysis, analysis_id}, _from, %{room: room} = state) do
     updated_room =
       Room.add_analysis(
         room,
@@ -149,11 +130,7 @@ defmodule Analysis.RoomServer do
     {:reply, :ok, %{state | room: updated_room}}
   end
 
-  def handle_call(
-        {:remove_analysis, analysis_id},
-        _from,
-        %{room: room} = state
-      ) do
+  def handle_call({:remove_analysis, analysis_id}, _from, %{room: room} = state) do
     updated_room =
       Room.remove_analysis(
         room,
@@ -168,19 +145,11 @@ defmodule Analysis.RoomServer do
     {:reply, :ok, %{state | room: updated_room}}
   end
 
-  def handle_call(
-        :chat,
-        _from,
-        %{chat: chat} = state
-      ) do
+  def handle_call(:chat, _from, %{chat: chat} = state) do
     {:reply, RoomChat.messages(chat), state}
   end
 
-  def handle_call(
-        {:send_message, attrs},
-        _from,
-        %{chat: chat} = state
-      ) do
+  def handle_call({:send_message, attrs}, _from, %{chat: chat} = state) do
     case RoomChat.send_message(
            chat,
            attrs
@@ -193,23 +162,13 @@ defmodule Analysis.RoomServer do
     end
   end
 
-  defp publish_if_changed(
-         room,
-         room
-       ),
-       do: :ok
+  defp publish_if_changed(room, room), do: :ok
 
-  defp publish_if_changed(
-         _room,
-         updated_room
-       ) do
+  defp publish_if_changed(_room, updated_room) do
     RoomEvents.publish_changed(Room.id(updated_room))
   end
 
-  defp via_tuple(
-         registry,
-         room_id
-       ) do
+  defp via_tuple(registry, room_id) do
     {:via, Horde.Registry, {registry, room_id}}
   end
 end

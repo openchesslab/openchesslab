@@ -18,8 +18,7 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStore do
   ]
 
   @spec new(Path.t(), keyword()) :: t()
-  def new(directory, opts)
-      when is_binary(directory) do
+  def new(directory, opts) when is_binary(directory) do
     hash_size =
       Keyword.fetch!(opts, :hash_size)
 
@@ -43,15 +42,8 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStore do
           | :done
           | {:error, :partial_entry}
           | {:error, term()}
-  def get(
-        %__MODULE__{} = store,
-        bucket,
-        entry_index
-      )
-      when is_integer(bucket) and
-             bucket >= 0 and
-             is_integer(entry_index) and
-             entry_index >= 0 do
+  def get(%__MODULE__{} = store, bucket, entry_index)
+      when is_integer(bucket) and bucket >= 0 and is_integer(entry_index) and entry_index >= 0 do
     path =
       Layout.bucket_path(
         store.directory,
@@ -98,17 +90,8 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStore do
           | {:error, :invalid_hash_size}
           | {:error, :partial_entry}
           | {:error, term()}
-  def append(
-        %__MODULE__{} = store,
-        bucket,
-        hash,
-        position_id
-      )
-      when is_integer(bucket) and
-             bucket >= 0 and
-             is_binary(hash) and
-             is_integer(position_id) and
-             position_id > 0 do
+  def append(%__MODULE__{} = store, bucket, hash, position_id)
+      when is_integer(bucket) and bucket >= 0 and is_binary(hash) and is_integer(position_id) and position_id > 0 do
     if byte_size(hash) == store.hash_size do
       path =
         Layout.bucket_path(
@@ -147,17 +130,8 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStore do
           | {:error, :invalid_hash_size}
           | {:error, :partial_entry}
           | {:error, term()}
-  def append_durable(
-        %__MODULE__{} = store,
-        bucket,
-        hash,
-        position_id
-      )
-      when is_integer(bucket) and
-             bucket >= 0 and
-             is_binary(hash) and
-             is_integer(position_id) and
-             position_id > 0 do
+  def append_durable(%__MODULE__{} = store, bucket, hash, position_id)
+      when is_integer(bucket) and bucket >= 0 and is_binary(hash) and is_integer(position_id) and position_id > 0 do
     if byte_size(hash) == store.hash_size do
       path =
         Layout.bucket_path(
@@ -204,17 +178,8 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStore do
           | {:error, :invalid_hash_size}
           | {:error, :unexpected_partial_entry}
           | {:error, term()}
-  def recover_pending_append(
-        %__MODULE__{} = store,
-        bucket,
-        hash,
-        position_id
-      )
-      when is_integer(bucket) and
-             bucket >= 0 and
-             is_binary(hash) and
-             is_integer(position_id) and
-             position_id > 0 do
+  def recover_pending_append(%__MODULE__{} = store, bucket, hash, position_id)
+      when is_integer(bucket) and bucket >= 0 and is_binary(hash) and is_integer(position_id) and position_id > 0 do
     if byte_size(hash) == store.hash_size do
       path =
         Layout.bucket_path(
@@ -272,14 +237,7 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStore do
           | {:error, :invalid_hash_size}
           | {:error, :partial_entry}
           | {:error, term()}
-  def lookup(
-        %__MODULE__{} = store,
-        bucket,
-        hash
-      )
-      when is_integer(bucket) and
-             bucket >= 0 and
-             is_binary(hash) do
+  def lookup(%__MODULE__{} = store, bucket, hash) when is_integer(bucket) and bucket >= 0 and is_binary(hash) do
     if byte_size(hash) == store.hash_size do
       path =
         Layout.bucket_path(
@@ -315,13 +273,7 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStore do
     end
   end
 
-  defp lookup_entries(
-         file,
-         hash,
-         hash_size,
-         entry_size,
-         position_ids
-       ) do
+  defp lookup_entries(file, hash, hash_size, entry_size, position_ids) do
     case :file.read(
            file,
            entry_size
@@ -360,10 +312,7 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStore do
     end
   end
 
-  defp validate_bucket_size(
-         path,
-         entry_size
-       ) do
+  defp validate_bucket_size(path, entry_size) do
     case File.stat(path) do
       {:ok, %{size: size}} ->
         if rem(size, entry_size) == 0 do
@@ -400,12 +349,7 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStore do
     end
   end
 
-  defp read_entry(
-         file,
-         offset,
-         entry_size,
-         hash_size
-       ) do
+  defp read_entry(file, offset, entry_size, hash_size) do
     case :file.pread(
            file,
            offset,
@@ -429,10 +373,7 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStore do
     end
   end
 
-  defp bucket_state(
-         path,
-         entry_size
-       ) do
+  defp bucket_state(path, entry_size) do
     case File.stat(path) do
       {:ok, %{size: size}} ->
         if rem(size, entry_size) == 0 do
@@ -449,12 +390,7 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStore do
     end
   end
 
-  defp append_entry_durable(
-         directory,
-         path,
-         bucket_state,
-         entry
-       ) do
+  defp append_entry_durable(directory, path, bucket_state, entry) do
     case :file.open(
            path,
            [:append, :binary, :raw]
@@ -466,10 +402,8 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStore do
                    :file.write(
                      file,
                      entry
-                   ),
-                 :ok <-
-                   :file.sync(file) do
-              :ok
+                   ) do
+              :file.sync(file)
             end
           after
             :file.close(file)
@@ -487,30 +421,15 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStore do
     end
   end
 
-  defp sync_bucket_directory(
-         directory,
-         :new
-       ) do
+  defp sync_bucket_directory(directory, :new) do
     Durability.sync_directory(directory)
   end
 
-  defp sync_bucket_directory(
-         _directory,
-         :existing
-       ) do
+  defp sync_bucket_directory(_directory, :existing) do
     :ok
   end
 
-  defp recover_bucket_append(
-         store,
-         bucket,
-         hash,
-         position_id,
-         path,
-         size,
-         entry_size,
-         entry
-       ) do
+  defp recover_bucket_append(store, bucket, hash, position_id, path, size, entry_size, entry) do
     partial_size =
       rem(
         size,
@@ -547,31 +466,21 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStore do
              truncate_bucket(
                path,
                complete_size
-             ),
-           :ok <-
-             persist_pending_entry(
-               store,
-               bucket,
-               hash,
-               position_id,
-               path,
-               :existing,
-               entry
              ) do
-        :ok
+        persist_pending_entry(
+          store,
+          bucket,
+          hash,
+          position_id,
+          path,
+          :existing,
+          entry
+        )
       end
     end
   end
 
-  defp persist_pending_entry(
-         store,
-         bucket,
-         hash,
-         position_id,
-         path,
-         bucket_state,
-         entry
-       ) do
+  defp persist_pending_entry(store, bucket, hash, position_id, path, bucket_state, entry) do
     with {:ok, candidates} <-
            lookup(
              store,
@@ -586,21 +495,12 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStore do
              entry,
              position_id,
              candidates
-           ),
-         :ok <-
-           Durability.sync_directory(store.directory) do
-      :ok
+           ) do
+      Durability.sync_directory(store.directory)
     end
   end
 
-  defp ensure_pending_entry(
-         store,
-         path,
-         bucket_state,
-         entry,
-         position_id,
-         candidates
-       ) do
+  defp ensure_pending_entry(store, path, bucket_state, entry, position_id, candidates) do
     if position_id in candidates do
       Durability.sync_file(path)
     else
@@ -613,11 +513,7 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStore do
     end
   end
 
-  defp read_partial_tail(
-         path,
-         offset,
-         size
-       ) do
+  defp read_partial_tail(path, offset, size) do
     case :file.open(
            path,
            [:read, :binary, :raw]
@@ -651,10 +547,7 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStore do
     end
   end
 
-  defp validate_partial_entry(
-         partial,
-         entry
-       ) do
+  defp validate_partial_entry(partial, entry) do
     expected =
       binary_part(
         entry,
@@ -669,10 +562,7 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStore do
     end
   end
 
-  defp truncate_bucket(
-         path,
-         size
-       ) do
+  defp truncate_bucket(path, size) do
     case :file.open(
            path,
            [
@@ -690,10 +580,8 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStore do
                    size
                  ),
                :ok <-
-                 :file.truncate(file),
-               :ok <-
-                 :file.sync(file) do
-            :ok
+                 :file.truncate(file) do
+            :file.sync(file)
           end
         after
           :file.close(file)

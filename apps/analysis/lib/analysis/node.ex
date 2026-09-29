@@ -107,11 +107,7 @@ defmodule Analysis.Node do
 
   @spec child_index(t(), Transition.t(), position_id()) ::
           non_neg_integer() | nil
-  def child_index(
-        %__MODULE__{children: children},
-        transition,
-        position_id
-      ) do
+  def child_index(%__MODULE__{children: children}, transition, position_id) do
     Enum.find_index(children, fn child ->
       transition(child) == transition and
         position_id(child) == position_id
@@ -167,6 +163,5 @@ defimpl Jason.Encoder, for: Analysis.Node do
 
   defp encode_promotion(nil), do: nil
 
-  defp encode_promotion(promotion) when is_atom(promotion),
-    do: Atom.to_string(promotion)
+  defp encode_promotion(promotion) when is_atom(promotion), do: Atom.to_string(promotion)
 end

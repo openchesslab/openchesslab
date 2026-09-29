@@ -245,8 +245,7 @@ defmodule Chess.PositionProperties do
     |> squares_in()
   end
 
-  defp attack_bitboard(_board, :pawn, color, square),
-    do: Bitboard.pawn_attacks(color, square)
+  defp attack_bitboard(_board, :pawn, color, square), do: Bitboard.pawn_attacks(color, square)
 
   defp attack_bitboard(_board, :knight, _color, square), do: Bitboard.knight_attacks(square)
 

@@ -1,8 +1,8 @@
 defmodule Chess.MapBoardTest do
   use ExUnit.Case
 
-  alias Chess.Square
   alias Chess.MapBoard
+  alias Chess.Square
 
   describe "empty/0" do
     test "creates an empty board" do
@@ -21,9 +21,7 @@ defmodule Chess.MapBoardTest do
     test "returns the piece on a square" do
       square = Square.from_algebraic("e4")
 
-      board =
-        MapBoard.empty()
-        |> MapBoard.put(square, {:white, :pawn})
+      board = MapBoard.put(MapBoard.empty(), square, {:white, :pawn})
 
       assert MapBoard.get(board, square) == {:white, :pawn}
     end
@@ -44,9 +42,7 @@ defmodule Chess.MapBoardTest do
     test "replaces an existing piece" do
       square = Square.from_algebraic("e4")
 
-      board =
-        MapBoard.empty()
-        |> MapBoard.put(square, {:white, :pawn})
+      board = MapBoard.put(MapBoard.empty(), square, {:white, :pawn})
 
       updated =
         MapBoard.put(board, square, {:white, :queen})
@@ -59,9 +55,7 @@ defmodule Chess.MapBoardTest do
     test "removes a piece" do
       square = Square.from_algebraic("e4")
 
-      board =
-        MapBoard.empty()
-        |> MapBoard.put(square, {:white, :pawn})
+      board = MapBoard.put(MapBoard.empty(), square, {:white, :pawn})
 
       updated = MapBoard.remove(board, square)
 

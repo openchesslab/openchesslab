@@ -101,12 +101,7 @@ defmodule PositionDB.Storage.Memory do
   end
 
   @impl PositionDB.Storage
-  def scan_next(
-        %{
-          storage: storage,
-          next_id: position_id
-        } = state
-      ) do
+  def scan_next(%{storage: storage, next_id: position_id} = state) do
     if position_id < storage.next_id do
       {:ok, position_id, %{state | next_id: position_id + 1}}
     else

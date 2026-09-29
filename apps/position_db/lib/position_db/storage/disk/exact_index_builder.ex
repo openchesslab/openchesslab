@@ -20,10 +20,7 @@ defmodule PositionDB.Storage.Disk.ExactIndexBuilder do
         ) ::
           {:ok, ExactIndex.t()}
           | {:error, term()}
-  def build(
-        %RecordStore{} = record_store,
-        %ExactIndex{} = exact_index
-      ) do
+  def build(%RecordStore{} = record_store, %ExactIndex{} = exact_index) do
     with :ok <-
            ensure_empty(exact_index),
          {:ok, scan} <-
@@ -40,11 +37,7 @@ defmodule PositionDB.Storage.Disk.ExactIndexBuilder do
     end
   end
 
-  defp build_entries(
-         record_store,
-         exact_index,
-         scan
-       ) do
+  defp build_entries(record_store, exact_index, scan) do
     case RecordStore.scan_next(scan) do
       {:ok, position_id, next_scan} ->
         with {:ok, record} <-
@@ -70,10 +63,7 @@ defmodule PositionDB.Storage.Disk.ExactIndexBuilder do
     end
   end
 
-  defp read_record(
-         record_store,
-         position_id
-       ) do
+  defp read_record(record_store, position_id) do
     case RecordStore.get(
            record_store,
            position_id
@@ -89,11 +79,7 @@ defmodule PositionDB.Storage.Disk.ExactIndexBuilder do
     end
   end
 
-  defp append_entry(
-         exact_index,
-         record,
-         position_id
-       ) do
+  defp append_entry(exact_index, record, position_id) do
     with {:ok, hash} <-
            ExactIndex.key_hash(
              exact_index,
@@ -140,17 +126,12 @@ defmodule PositionDB.Storage.Disk.ExactIndexBuilder do
            sync_files(
              directory,
              filenames
-           ),
-         :ok <-
-           Durability.sync_directory(directory) do
-      :ok
+           ) do
+      Durability.sync_directory(directory)
     end
   end
 
-  defp sync_files(
-         directory,
-         filenames
-       ) do
+  defp sync_files(directory, filenames) do
     Enum.reduce_while(
       filenames,
       :ok,

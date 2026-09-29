@@ -30,18 +30,13 @@ defmodule GameDB.Storage.Disk.GameInsertMarker do
           :ok
           | {:error, :append_marker_exists}
           | {:error, term()}
-  def create(
-        directory,
-        game_id,
-        position_ids
-      )
-      when is_binary(directory) do
+  def create(directory, game_id, position_ids) when is_binary(directory) do
     with :ok <-
            validate(
              game_id,
              position_ids
            ),
-         encoded <-
+         encoded =
            encode(
              game_id,
              position_ids
@@ -50,10 +45,8 @@ defmodule GameDB.Storage.Disk.GameInsertMarker do
            create_file(
              marker_path(directory),
              encoded
-           ),
-         :ok <-
-           sync_directory(directory) do
-      :ok
+           ) do
+      sync_directory(directory)
     end
   end
 
@@ -62,8 +55,7 @@ defmodule GameDB.Storage.Disk.GameInsertMarker do
           | :none
           | {:error, :invalid_game_insert_marker}
           | {:error, term()}
-  def read(directory)
-      when is_binary(directory) do
+  def read(directory) when is_binary(directory) do
     case File.read(marker_path(directory)) do
       {:ok, encoded} ->
         decode(encoded)
@@ -79,8 +71,7 @@ defmodule GameDB.Storage.Disk.GameInsertMarker do
   @spec clear(Path.t()) ::
           :ok
           | {:error, term()}
-  def clear(directory)
-      when is_binary(directory) do
+  def clear(directory) when is_binary(directory) do
     case File.rm(marker_path(directory)) do
       :ok ->
         sync_directory(directory)
@@ -93,22 +84,14 @@ defmodule GameDB.Storage.Disk.GameInsertMarker do
     end
   end
 
-  defp validate(
-         game_id,
-         position_ids
-       ) do
+  defp validate(game_id, position_ids) do
     with :ok <-
-           validate_game_id(game_id),
-         :ok <-
-           validate_position_ids(position_ids) do
-      :ok
+           validate_game_id(game_id) do
+      validate_position_ids(position_ids)
     end
   end
 
-  defp validate_game_id(game_id)
-       when is_integer(game_id) and
-              game_id > 0 and
-              game_id <= @max_id do
+  defp validate_game_id(game_id) when is_integer(game_id) and game_id > 0 and game_id <= @max_id do
     :ok
   end
 
@@ -120,8 +103,7 @@ defmodule GameDB.Storage.Disk.GameInsertMarker do
     {:error, :missing_initial_position}
   end
 
-  defp validate_position_ids(position_ids)
-       when is_list(position_ids) do
+  defp validate_position_ids(position_ids) when is_list(position_ids) do
     count =
       length(position_ids)
 
@@ -148,10 +130,7 @@ defmodule GameDB.Storage.Disk.GameInsertMarker do
     {:error, :invalid_position_ids}
   end
 
-  defp encode(
-         game_id,
-         position_ids
-       ) do
+  defp encode(game_id, position_ids) do
     encoded_position_ids =
       for position_id <- position_ids,
           into: <<>> do
@@ -168,14 +147,8 @@ defmodule GameDB.Storage.Disk.GameInsertMarker do
     >>
   end
 
-  defp decode(<<
-         @magic::binary,
-         game_id::unsigned-big-64,
-         count::unsigned-big-32,
-         encoded_position_ids::binary
-       >>)
-       when game_id > 0 and
-              count > 0 do
+  defp decode(<<@magic::binary, game_id::unsigned-big-64, count::unsigned-big-32, encoded_position_ids::binary>>)
+       when game_id > 0 and count > 0 do
     expected_size =
       count * 8
 
@@ -204,21 +177,11 @@ defmodule GameDB.Storage.Disk.GameInsertMarker do
     {:error, :invalid_game_insert_marker}
   end
 
-  defp decode_position_ids(
-         <<>>,
-         reversed
-       ) do
+  defp decode_position_ids(<<>>, reversed) do
     {:ok, Enum.reverse(reversed)}
   end
 
-  defp decode_position_ids(
-         <<
-           position_id::unsigned-big-64,
-           rest::binary
-         >>,
-         reversed
-       )
-       when position_id > 0 do
+  defp decode_position_ids(<<position_id::unsigned-big-64, rest::binary>>, reversed) when position_id > 0 do
     decode_position_ids(
       rest,
       [
@@ -228,17 +191,11 @@ defmodule GameDB.Storage.Disk.GameInsertMarker do
     )
   end
 
-  defp decode_position_ids(
-         _encoded,
-         _reversed
-       ) do
+  defp decode_position_ids(_encoded, _reversed) do
     :error
   end
 
-  defp create_file(
-         path,
-         encoded
-       ) do
+  defp create_file(path, encoded) do
     case :file.open(
            path,
            [
@@ -254,10 +211,8 @@ defmodule GameDB.Storage.Disk.GameInsertMarker do
                  :file.write(
                    file,
                    encoded
-                 ),
-               :ok <-
-                 :file.sync(file) do
-            :ok
+                 ) do
+            :file.sync(file)
           end
         after
           :file.close(file)

@@ -19,8 +19,8 @@ defmodule Chess.PositionCodec do
       |> Enum.map(&encode_piece/1)
       |> IO.iodata_to_binary()
 
-    <<board::binary, encode_side_to_move(position.side_to_move),
-      encode_castling_rights(position.castling_rights), encode_en_passant(position.en_passant)>>
+    <<board::binary, encode_side_to_move(position.side_to_move), encode_castling_rights(position.castling_rights),
+      encode_en_passant(position.en_passant)>>
   end
 
   @spec decode(binary()) ::
@@ -30,8 +30,7 @@ defmodule Chess.PositionCodec do
           | {:error, {:invalid_side_to_move, byte()}}
           | {:error, {:invalid_castling_rights, byte()}}
           | {:error, {:invalid_en_passant, byte()}}
-  def decode(encoded)
-      when is_binary(encoded) do
+  def decode(encoded) when is_binary(encoded) do
     if byte_size(encoded) == @record_size do
       <<
         board::binary-size(64),
@@ -104,20 +103,15 @@ defmodule Chess.PositionCodec do
   defp decode_piece(11), do: {:ok, {:black, :queen}}
   defp decode_piece(12), do: {:ok, {:black, :king}}
 
-  defp decode_piece(value),
-    do: {:error, {:invalid_piece, value}}
+  defp decode_piece(value), do: {:error, {:invalid_piece, value}}
 
-  defp decode_side_to_move(0),
-    do: {:ok, :white}
+  defp decode_side_to_move(0), do: {:ok, :white}
 
-  defp decode_side_to_move(1),
-    do: {:ok, :black}
+  defp decode_side_to_move(1), do: {:ok, :black}
 
-  defp decode_side_to_move(value),
-    do: {:error, {:invalid_side_to_move, value}}
+  defp decode_side_to_move(value), do: {:error, {:invalid_side_to_move, value}}
 
-  defp decode_castling_rights(value)
-       when value in 0..15 do
+  defp decode_castling_rights(value) when value in 0..15 do
     rights =
       []
       |> maybe_decode_castling_right(
@@ -145,34 +139,24 @@ defmodule Chess.PositionCodec do
     {:ok, rights}
   end
 
-  defp decode_castling_rights(value),
-    do: {:error, {:invalid_castling_rights, value}}
+  defp decode_castling_rights(value), do: {:error, {:invalid_castling_rights, value}}
 
-  defp maybe_decode_castling_right(
-         rights,
-         value,
-         right,
-         bit
-       ) do
+  defp maybe_decode_castling_right(rights, value, right, bit) do
     if Bitwise.band(
          value,
          Bitwise.bsl(1, bit)
-       ) != 0 do
-      [right | rights]
-    else
+       ) == 0 do
       rights
+    else
+      [right | rights]
     end
   end
 
-  defp decode_en_passant(255),
-    do: {:ok, nil}
+  defp decode_en_passant(255), do: {:ok, nil}
 
-  defp decode_en_passant(square)
-       when square in 0..63,
-       do: {:ok, square}
+  defp decode_en_passant(square) when square in 0..63, do: {:ok, square}
 
-  defp decode_en_passant(value),
-    do: {:error, {:invalid_en_passant, value}}
+  defp decode_en_passant(value), do: {:error, {:invalid_en_passant, value}}
 
   defp encode_piece(nil), do: 0
 

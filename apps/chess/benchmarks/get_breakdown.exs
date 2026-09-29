@@ -2,9 +2,7 @@ alias Chess.Bitboard
 alias Chess.Position
 alias Chess.Square
 
-board =
-  Position.starting_position()
-  |> Bitboard.from_position()
+board = Bitboard.from_position(Position.starting_position())
 
 occupied = [
   Square.from_algebraic("a1"),

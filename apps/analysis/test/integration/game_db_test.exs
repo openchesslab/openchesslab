@@ -5,12 +5,10 @@ defmodule Analysis.GameDbIntegrationTest do
   alias Analysis.GameFingerprint
   alias Analysis.GameRecord
   alias Analysis.GameReplay
-
   alias Chess.Move
   alias Chess.Position
   alias Chess.PositionKey
   alias Chess.Square
-
   alias GameDB.Storage.Memory, as: GameStorage
 
   test "stores canonical game content with PositionDB occurrences" do
@@ -236,11 +234,7 @@ defmodule Analysis.GameDbIntegrationTest do
     )
   end
 
-  defp append_replay(
-         position_db,
-         initial_position_id,
-         replay
-       ) do
+  defp append_replay(position_db, initial_position_id, replay) do
     {position_db, reversed_ids} =
       Enum.reduce(
         replay,
@@ -268,10 +262,7 @@ defmodule Analysis.GameDbIntegrationTest do
     }
   end
 
-  defp move(
-         from,
-         to
-       ) do
+  defp move(from, to) do
     Move.new(
       Square.from_algebraic(from),
       Square.from_algebraic(to)

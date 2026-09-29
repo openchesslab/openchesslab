@@ -496,10 +496,7 @@ defmodule Analysis.GameStoreTest do
              {:error, :cursor_not_found}
   end
 
-  defp move(
-         from,
-         to
-       ) do
+  defp move(from, to) do
     Move.new(
       Square.from_algebraic(from),
       Square.from_algebraic(to)

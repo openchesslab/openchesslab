@@ -4,21 +4,23 @@ defmodule PositionDB.Storage.Disk.ExactIndexBuilderTest do
   alias PositionDB.Storage.Disk.ExactIndexBuilder
   alias PositionDB.Storage.Disk.RecordStore
   alias PositionDB.Storage.ExactIndex.Disk, as: ExactIndex
+  alias PositionDB.Storage.ExactKeyHash
 
   defmodule TestHash do
-    @behaviour PositionDB.Storage.ExactKeyHash
+    @moduledoc false
+    @behaviour ExactKeyHash
 
-    @impl PositionDB.Storage.ExactKeyHash
+    @impl ExactKeyHash
     def format_id do
       <<"test-exact-hash-v1">>
     end
 
-    @impl PositionDB.Storage.ExactKeyHash
+    @impl ExactKeyHash
     def hash_size do
       4
     end
 
-    @impl PositionDB.Storage.ExactKeyHash
+    @impl ExactKeyHash
     def hash(<<"aaaa">>) do
       {:ok, <<0, 0, 0, 1>>}
     end
@@ -37,19 +39,20 @@ defmodule PositionDB.Storage.Disk.ExactIndexBuilderTest do
   end
 
   defmodule FailingHash do
-    @behaviour PositionDB.Storage.ExactKeyHash
+    @moduledoc false
+    @behaviour ExactKeyHash
 
-    @impl PositionDB.Storage.ExactKeyHash
+    @impl ExactKeyHash
     def format_id do
       <<"failing-hash-v1">>
     end
 
-    @impl PositionDB.Storage.ExactKeyHash
+    @impl ExactKeyHash
     def hash_size do
       4
     end
 
-    @impl PositionDB.Storage.ExactKeyHash
+    @impl ExactKeyHash
     def hash(_record) do
       {:error, :cannot_hash}
     end

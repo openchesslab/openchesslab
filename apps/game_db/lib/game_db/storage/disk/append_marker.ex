@@ -17,22 +17,14 @@ defmodule GameDB.Storage.Disk.AppendMarker do
           :ok
           | {:error, :append_marker_exists}
           | {:error, term()}
-  def create(
-        directory,
-        game_id
-      )
-      when is_binary(directory) and
-             is_integer(game_id) and
-             game_id > 0 and
-             game_id <= @max_game_id do
+  def create(directory, game_id)
+      when is_binary(directory) and is_integer(game_id) and game_id > 0 and game_id <= @max_game_id do
     with :ok <-
            create_file(
              marker_path(directory),
              encode(game_id)
-           ),
-         :ok <-
-           sync_directory(directory) do
-      :ok
+           ) do
+      sync_directory(directory)
     end
   end
 
@@ -41,8 +33,7 @@ defmodule GameDB.Storage.Disk.AppendMarker do
           | :none
           | {:error, :invalid_append_marker}
           | {:error, term()}
-  def read(directory)
-      when is_binary(directory) do
+  def read(directory) when is_binary(directory) do
     case File.read(marker_path(directory)) do
       {:ok, encoded} ->
         decode(encoded)
@@ -58,8 +49,7 @@ defmodule GameDB.Storage.Disk.AppendMarker do
   @spec clear(Path.t()) ::
           :ok
           | {:error, term()}
-  def clear(directory)
-      when is_binary(directory) do
+  def clear(directory) when is_binary(directory) do
     case File.rm(marker_path(directory)) do
       :ok ->
         sync_directory(directory)
@@ -72,10 +62,7 @@ defmodule GameDB.Storage.Disk.AppendMarker do
     end
   end
 
-  defp create_file(
-         path,
-         encoded
-       ) do
+  defp create_file(path, encoded) do
     case :file.open(
            path,
            [
@@ -91,10 +78,8 @@ defmodule GameDB.Storage.Disk.AppendMarker do
                  :file.write(
                    file,
                    encoded
-                 ),
-               :ok <-
-                 :file.sync(file) do
-            :ok
+                 ) do
+            :file.sync(file)
           end
         after
           :file.close(file)
@@ -114,10 +99,7 @@ defmodule GameDB.Storage.Disk.AppendMarker do
     >>
   end
 
-  defp decode(<<
-         game_id::unsigned-big-64
-       >>)
-       when game_id > 0 do
+  defp decode(<<game_id::unsigned-big-64>>) when game_id > 0 do
     {:ok, game_id}
   end
 

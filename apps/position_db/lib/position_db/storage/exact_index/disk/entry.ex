@@ -14,18 +14,13 @@ defmodule PositionDB.Storage.ExactIndex.Disk.Entry do
   @type position_id :: pos_integer()
 
   @spec size(pos_integer()) :: pos_integer()
-  def size(hash_size)
-      when is_integer(hash_size) and
-             hash_size > 0 do
+  def size(hash_size) when is_integer(hash_size) and hash_size > 0 do
     hash_size + @position_id_size
   end
 
   @spec encode(binary(), position_id()) :: binary()
   def encode(hash, position_id)
-      when is_binary(hash) and
-             byte_size(hash) > 0 and
-             is_integer(position_id) and
-             position_id > 0 and
+      when is_binary(hash) and byte_size(hash) > 0 and is_integer(position_id) and position_id > 0 and
              position_id <= @max_position_id do
     <<hash::binary, position_id::unsigned-big-64>>
   end
@@ -33,10 +28,7 @@ defmodule PositionDB.Storage.ExactIndex.Disk.Entry do
   @spec decode(binary(), pos_integer()) ::
           {:ok, binary(), position_id()}
           | {:error, :invalid_entry_size}
-  def decode(entry, hash_size)
-      when is_binary(entry) and
-             is_integer(hash_size) and
-             hash_size > 0 do
+  def decode(entry, hash_size) when is_binary(entry) and is_integer(hash_size) and hash_size > 0 do
     expected_size = size(hash_size)
 
     if byte_size(entry) == expected_size do

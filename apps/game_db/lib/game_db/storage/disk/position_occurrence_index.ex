@@ -40,8 +40,7 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
   ]
 
   @spec new(Path.t(), keyword()) :: t()
-  def new(directory, opts)
-      when is_binary(directory) do
+  def new(directory, opts) when is_binary(directory) do
     bucket_count =
       Keyword.fetch!(
         opts,
@@ -65,11 +64,7 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
         ) ::
           {:ok, t()}
           | {:error, term()}
-  def add_all(
-        %__MODULE__{} = index,
-        postings
-      )
-      when is_list(postings) do
+  def add_all(%__MODULE__{} = index, postings) when is_list(postings) do
     with {:ok, postings} <-
            validate_postings(postings) do
       postings
@@ -108,13 +103,8 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
           pos_integer()
         ) ::
           scan_state()
-  def scan(
-        %__MODULE__{} = index,
-        position_id
-      )
-      when is_integer(position_id) and
-             position_id > 0 and
-             position_id <= @max_id do
+  def scan(%__MODULE__{} = index, position_id)
+      when is_integer(position_id) and position_id > 0 and position_id <= @max_id do
     %{
       path:
         bucket_path(
@@ -130,13 +120,7 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
           {:ok, pos_integer(), scan_state()}
           | :done
           | {:error, term()}
-  def scan_next(
-        %{
-          path: path,
-          position_id: position_id,
-          offset: offset
-        } = state
-      ) do
+  def scan_next(%{path: path, position_id: position_id, offset: offset} = state) do
     case :file.open(
            path,
            [
@@ -179,11 +163,7 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
         ) ::
           :ok
           | {:error, term()}
-  def recover_pending_appends(
-        %__MODULE__{} = index,
-        postings
-      )
-      when is_list(postings) do
+  def recover_pending_appends(%__MODULE__{} = index, postings) when is_list(postings) do
     with {:ok, postings} <-
            validate_postings(postings) do
       postings
@@ -217,11 +197,7 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
     end
   end
 
-  defp append_bucket_postings(
-         index,
-         bucket,
-         postings
-       ) do
+  defp append_bucket_postings(index, bucket, postings) do
     path =
       bucket_file_path(
         index,
@@ -245,12 +221,7 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
     end
   end
 
-  defp scan_file(
-         file,
-         position_id,
-         offset,
-         state
-       ) do
+  defp scan_file(file, position_id, offset, state) do
     case :file.pread(
            file,
            offset,
@@ -293,11 +264,7 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
     end
   end
 
-  defp recover_bucket(
-         index,
-         bucket,
-         postings
-       ) do
+  defp recover_bucket(index, bucket, postings) do
     path =
       bucket_file_path(
         index,
@@ -344,12 +311,7 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
     end
   end
 
-  defp recover_existing_bucket(
-         index,
-         path,
-         size,
-         expected
-       ) do
+  defp recover_existing_bucket(index, path, size, expected) do
     complete_size =
       div(
         size,
@@ -384,24 +346,18 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
              complete_size,
              partial_size,
              expected
-           ),
-         :ok <-
-           persist_missing(
-             index,
-             path,
-             :existing,
-             expected,
-             found
            ) do
-      :ok
+      persist_missing(
+        index,
+        path,
+        :existing,
+        expected,
+        found
+      )
     end
   end
 
-  defp inspect_complete_entries(
-         path,
-         complete_size,
-         expected
-       ) do
+  defp inspect_complete_entries(path, complete_size, expected) do
     case :file.open(
            path,
            [
@@ -428,24 +384,11 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
     end
   end
 
-  defp inspect_complete_entries(
-         _file,
-         offset,
-         complete_size,
-         _expected,
-         found
-       )
-       when offset == complete_size do
+  defp inspect_complete_entries(_file, offset, complete_size, _expected, found) when offset == complete_size do
     {:ok, found}
   end
 
-  defp inspect_complete_entries(
-         file,
-         offset,
-         complete_size,
-         expected,
-         found
-       ) do
+  defp inspect_complete_entries(file, offset, complete_size, expected, found) do
     case :file.pread(
            file,
            offset,
@@ -496,21 +439,11 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
     end
   end
 
-  defp recover_partial_tail(
-         _path,
-         _offset,
-         0,
-         _expected
-       ) do
+  defp recover_partial_tail(_path, _offset, 0, _expected) do
     :ok
   end
 
-  defp recover_partial_tail(
-         path,
-         offset,
-         partial_size,
-         expected
-       ) do
+  defp recover_partial_tail(path, offset, partial_size, expected) do
     with {:ok, partial} <-
            read_exact(
              path,
@@ -521,20 +454,15 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
            validate_partial(
              partial,
              expected
-           ),
-         :ok <-
-           truncate_file(
-             path,
-             offset
            ) do
-      :ok
+      truncate_file(
+        path,
+        offset
+      )
     end
   end
 
-  defp validate_partial(
-         partial,
-         expected
-       ) do
+  defp validate_partial(partial, expected) do
     matches? =
       Enum.any?(
         expected,
@@ -555,13 +483,7 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
     end
   end
 
-  defp persist_missing(
-         index,
-         path,
-         bucket_state,
-         expected,
-         found
-       ) do
+  defp persist_missing(index, path, bucket_state, expected, found) do
     missing =
       Enum.reject(
         expected,
@@ -598,12 +520,7 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
     end
   end
 
-  defp append_entries(
-         index,
-         path,
-         bucket_state,
-         entries
-       ) do
+  defp append_entries(index, path, bucket_state, entries) do
     case :file.open(
            path,
            [
@@ -619,22 +536,18 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
                    :file.write(
                      file,
                      entries
-                   ),
-                 :ok <-
-                   :file.sync(file) do
-              :ok
+                   ) do
+              :file.sync(file)
             end
           after
             :file.close(file)
           end
 
-        with :ok <- result,
-             :ok <-
-               sync_new_bucket(
-                 index,
-                 bucket_state
-               ) do
-          :ok
+        with :ok <- result do
+          sync_new_bucket(
+            index,
+            bucket_state
+          )
         end
 
       {:error, reason} ->
@@ -669,22 +582,14 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
     end
   end
 
-  defp bucket(
-         %__MODULE__{
-           bucket_count: bucket_count
-         },
-         position_id
-       ) do
+  defp bucket(%__MODULE__{bucket_count: bucket_count}, position_id) do
     rem(
       position_id,
       bucket_count
     )
   end
 
-  defp bucket_path(
-         %__MODULE__{} = index,
-         position_id
-       ) do
+  defp bucket_path(%__MODULE__{} = index, position_id) do
     index
     |> bucket(position_id)
     |> then(
@@ -695,14 +600,7 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
     )
   end
 
-  defp bucket_file_path(
-         %__MODULE__{
-           directory: directory
-         },
-         bucket
-       )
-       when is_integer(bucket) and
-              bucket >= 0 do
+  defp bucket_file_path(%__MODULE__{directory: directory}, bucket) when is_integer(bucket) and bucket >= 0 do
     filename =
       bucket
       |> Integer.to_string()
@@ -718,22 +616,15 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
     )
   end
 
-  defp encode({
-         position_id,
-         occurrence_id
-       }) do
+  defp encode({position_id, occurrence_id}) do
     <<
       position_id::unsigned-big-64,
       occurrence_id::unsigned-big-64
     >>
   end
 
-  defp decode(<<
-         position_id::unsigned-big-64,
-         occurrence_id::unsigned-big-64
-       >>)
-       when position_id > 0 and
-              occurrence_id > 0 do
+  defp decode(<<position_id::unsigned-big-64, occurrence_id::unsigned-big-64>>)
+       when position_id > 0 and occurrence_id > 0 do
     {:ok, position_id, occurrence_id}
   end
 
@@ -792,11 +683,7 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
     end
   end
 
-  defp read_exact(
-         path,
-         offset,
-         size
-       ) do
+  defp read_exact(path, offset, size) do
     case :file.open(
            path,
            [
@@ -835,10 +722,7 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
     end
   end
 
-  defp truncate_file(
-         path,
-         size
-       ) do
+  defp truncate_file(path, size) do
     case :file.open(
            path,
            [
@@ -856,10 +740,8 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
                    size
                  ),
                :ok <-
-                 :file.truncate(file),
-               :ok <-
-                 :file.sync(file) do
-            :ok
+                 :file.truncate(file) do
+            :file.sync(file)
           end
         after
           :file.close(file)
@@ -870,17 +752,11 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
     end
   end
 
-  defp sync_existing_file(
-         _path,
-         :new
-       ) do
+  defp sync_existing_file(_path, :new) do
     :ok
   end
 
-  defp sync_existing_file(
-         path,
-         :existing
-       ) do
+  defp sync_existing_file(path, :existing) do
     case :file.open(
            path,
            [
@@ -902,17 +778,11 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
     end
   end
 
-  defp sync_new_bucket(
-         index,
-         :new
-       ) do
+  defp sync_new_bucket(index, :new) do
     sync_directory(index.directory)
   end
 
-  defp sync_new_bucket(
-         _index,
-         :existing
-       ) do
+  defp sync_new_bucket(_index, :existing) do
     :ok
   end
 

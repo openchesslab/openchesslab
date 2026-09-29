@@ -38,11 +38,7 @@ defmodule Analysis.GameContentCodec do
   @spec encode(term()) ::
           {:ok, encoded()}
           | {:error, term()}
-  def encode(%GameContent{
-        initial_position_id: initial_position_id,
-        moves: moves
-      })
-      when is_list(moves) do
+  def encode(%GameContent{initial_position_id: initial_position_id, moves: moves}) when is_list(moves) do
     move_count =
       length(moves)
 
@@ -71,8 +67,7 @@ defmodule Analysis.GameContentCodec do
           {:ok, GameContent.t()}
           | {:error, term()}
 
-  def decode(encoded)
-      when is_binary(encoded) do
+  def decode(encoded) when is_binary(encoded) do
     case encoded do
       <<
         format_id::binary-size(@format_size),
@@ -119,9 +114,7 @@ defmodule Analysis.GameContentCodec do
   end
 
   defp validate_initial_position_id(initial_position_id)
-       when is_integer(initial_position_id) and
-              initial_position_id > 0 and
-              initial_position_id <= @max_position_id do
+       when is_integer(initial_position_id) and initial_position_id > 0 and initial_position_id <= @max_position_id do
     :ok
   end
 
@@ -129,15 +122,11 @@ defmodule Analysis.GameContentCodec do
     {:error, :invalid_initial_position_id}
   end
 
-  defp validate_move_count(move_count)
-       when move_count <= @max_move_count do
+  defp validate_move_count(move_count) when move_count <= @max_move_count do
     :ok
   end
 
-  defp validate_encoded_moves_size(
-         encoded_moves,
-         move_count
-       ) do
+  defp validate_encoded_moves_size(encoded_moves, move_count) do
     if byte_size(encoded_moves) ==
          move_count * 3 do
       :ok
@@ -177,13 +166,7 @@ defmodule Analysis.GameContentCodec do
     end
   end
 
-  defp encode_move(%Move{
-         from: from,
-         to: to,
-         promotion: promotion
-       })
-       when from in 0..63 and
-              to in 0..63 do
+  defp encode_move(%Move{from: from, to: to, promotion: promotion}) when from in 0..63 and to in 0..63 do
     case promotion_code(promotion) do
       {:ok, promotion_code} ->
         {:ok,
@@ -202,22 +185,11 @@ defmodule Analysis.GameContentCodec do
     {:error, :invalid_move}
   end
 
-  defp decode_moves(
-         <<>>,
-         reversed_moves
-       ) do
+  defp decode_moves(<<>>, reversed_moves) do
     {:ok, Enum.reverse(reversed_moves)}
   end
 
-  defp decode_moves(
-         <<
-           from,
-           to,
-           promotion_code,
-           remaining::binary
-         >>,
-         reversed_moves
-       ) do
+  defp decode_moves(<<from, to, promotion_code, remaining::binary>>, reversed_moves) do
     with :ok <-
            validate_square(from),
          :ok <-
@@ -238,15 +210,11 @@ defmodule Analysis.GameContentCodec do
     end
   end
 
-  defp decode_moves(
-         _encoded_moves,
-         _reversed_moves
-       ) do
+  defp decode_moves(_encoded_moves, _reversed_moves) do
     {:error, :invalid_record}
   end
 
-  defp validate_square(square)
-       when square in 0..63 do
+  defp validate_square(square) when square in 0..63 do
     :ok
   end
 

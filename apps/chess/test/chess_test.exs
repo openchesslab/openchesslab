@@ -1,5 +1,6 @@
 defmodule ChessTest do
   use ExUnit.Case
+
   doctest Chess
 
   test "greets the world" do

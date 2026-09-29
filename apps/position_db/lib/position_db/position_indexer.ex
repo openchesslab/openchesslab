@@ -34,10 +34,7 @@ defmodule PositionDB.PositionIndexer do
           [property()],
           PropertyIndex.t()
         ) :: t()
-  def new(
-        properties,
-        %PropertyIndex{} = index
-      ) do
+  def new(properties, %PropertyIndex{} = index) do
     %__MODULE__{
       properties: properties,
       index: index
@@ -49,10 +46,7 @@ defmodule PositionDB.PositionIndexer do
           term()
         ) ::
           [indexed_property()]
-  def properties_for(
-        %__MODULE__{} = indexer,
-        position
-      ) do
+  def properties_for(%__MODULE__{} = indexer, position) do
     Enum.flat_map(
       indexer.properties,
       fn {name, property} ->
@@ -83,11 +77,7 @@ defmodule PositionDB.PositionIndexer do
         ) ::
           t()
           | {:error, term()}
-  def index(
-        %__MODULE__{} = indexer,
-        position_id,
-        position
-      ) do
+  def index(%__MODULE__{} = indexer, position_id, position) do
     with {:ok, index} <-
            index_properties(
              properties_for(
@@ -109,11 +99,7 @@ defmodule PositionDB.PositionIndexer do
     end
   end
 
-  defp index_properties(
-         properties,
-         index,
-         position_id
-       ) do
+  defp index_properties(properties, index, position_id) do
     Enum.reduce_while(
       properties,
       {:ok, index},

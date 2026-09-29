@@ -1,14 +1,15 @@
+import Bitwise
+
 alias Chess.Bitboard
 alias Chess.Move
 alias Chess.Position
-import Bitwise
 
 defmodule BenchmarkHelpers do
+  @moduledoc false
   def square(algebraic), do: Chess.Square.from_algebraic(algebraic)
 
   def middlegame_position do
-    Position.starting_position()
-    |> apply_moves([
+    apply_moves(Position.starting_position(), [
       {"e2", "e4"},
       {"e7", "e5"},
       {"g1", "f3"},
@@ -55,11 +56,7 @@ defmodule BenchmarkHelpers do
   #
   # Bewust hier in de benchmark gedefinieerd, zodat we nog niets
   # aan productiecode hoeven te veranderen.
-  def remove_piece(
-        board,
-        square,
-        {color, piece_type}
-      ) do
+  def remove_piece(board, square, {color, piece_type}) do
     field = piece_field(color, piece_type)
     mask = Bitwise.bnot(1 <<< square)
 

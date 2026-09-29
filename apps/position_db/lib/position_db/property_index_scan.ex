@@ -28,10 +28,7 @@ defmodule PositionDB.PropertyIndexScan do
           property()
         ) ::
           QueryExecutor.t()
-  def new(
-        %PropertyIndex{} = index,
-        property
-      ) do
+  def new(%PropertyIndex{} = index, property) do
     QueryExecutor.new(
       __MODULE__,
       %__MODULE__{
@@ -45,11 +42,7 @@ defmodule PositionDB.PropertyIndexScan do
           {:ok, pos_integer(), t()}
           | :done
           | {:error, term()}
-  def next(
-        %__MODULE__{
-          ids: nil
-        } = state
-      ) do
+  def next(%__MODULE__{ids: nil} = state) do
     case PropertyIndex.lookup_ids(
            state.index,
            state.property
@@ -65,11 +58,7 @@ defmodule PositionDB.PropertyIndexScan do
     end
   end
 
-  def next(
-        %__MODULE__{
-          ids: [position_id | rest]
-        } = state
-      ) do
+  def next(%__MODULE__{ids: [position_id | rest]} = state) do
     {:ok, position_id,
      %{
        state
@@ -77,9 +66,7 @@ defmodule PositionDB.PropertyIndexScan do
      }}
   end
 
-  def next(%__MODULE__{
-        ids: []
-      }) do
+  def next(%__MODULE__{ids: []}) do
     :done
   end
 end

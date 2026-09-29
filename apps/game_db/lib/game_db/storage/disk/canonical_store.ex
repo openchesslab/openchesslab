@@ -47,8 +47,7 @@ defmodule GameDB.Storage.Disk.CanonicalStore do
           {:ok, t()}
           | {:error, :storage_exists}
           | {:error, term()}
-  def create(directory, opts)
-      when is_binary(directory) do
+  def create(directory, opts) when is_binary(directory) do
     {codec, bucket_count} =
       storage_options(opts)
 
@@ -81,8 +80,7 @@ defmodule GameDB.Storage.Disk.CanonicalStore do
   @spec open(Path.t(), keyword()) ::
           {:ok, t()}
           | {:error, term()}
-  def open(directory, opts)
-      when is_binary(directory) do
+  def open(directory, opts) when is_binary(directory) do
     {codec, bucket_count} =
       storage_options(opts)
 
@@ -114,12 +112,7 @@ defmodule GameDB.Storage.Disk.CanonicalStore do
         ) ::
           {:ok, t(), pos_integer()}
           | {:error, term()}
-  def put(
-        %__MODULE__{} = store,
-        fingerprint,
-        record
-      )
-      when is_binary(fingerprint) do
+  def put(%__MODULE__{} = store, fingerprint, record) when is_binary(fingerprint) do
     with :ok <-
            ensure_no_pending_append(store) do
       case find(
@@ -143,11 +136,7 @@ defmodule GameDB.Storage.Disk.CanonicalStore do
     end
   end
 
-  def put(
-        %__MODULE__{},
-        _fingerprint,
-        _record
-      ) do
+  def put(%__MODULE__{}, _fingerprint, _record) do
     {:error, :invalid_fingerprint}
   end
 
@@ -159,12 +148,7 @@ defmodule GameDB.Storage.Disk.CanonicalStore do
           {:ok, pos_integer()}
           | :not_found
           | {:error, term()}
-  def find(
-        %__MODULE__{} = store,
-        fingerprint,
-        record
-      )
-      when is_binary(fingerprint) do
+  def find(%__MODULE__{} = store, fingerprint, record) when is_binary(fingerprint) do
     with {:ok, candidates} <-
            FingerprintIndex.lookup(
              store.fingerprint_index,
@@ -178,11 +162,7 @@ defmodule GameDB.Storage.Disk.CanonicalStore do
     end
   end
 
-  def find(
-        %__MODULE__{},
-        _fingerprint,
-        _record
-      ) do
+  def find(%__MODULE__{}, _fingerprint, _record) do
     {:error, :invalid_fingerprint}
   end
 
@@ -193,10 +173,7 @@ defmodule GameDB.Storage.Disk.CanonicalStore do
           {:ok, term()}
           | :not_found
           | {:error, term()}
-  def get(
-        %__MODULE__{} = store,
-        game_id
-      ) do
+  def get(%__MODULE__{} = store, game_id) do
     GameRecordStore.get(
       store.game_records,
       game_id
@@ -230,13 +207,7 @@ defmodule GameDB.Storage.Disk.CanonicalStore do
   @spec scan_next(scan_state()) ::
           {:ok, pos_integer(), scan_state()}
           | :done
-  def scan_next(
-        %{
-          next_id: next_id,
-          last_id: last_id
-        } = state
-      )
-      when next_id <= last_id do
+  def scan_next(%{next_id: next_id, last_id: last_id} = state) when next_id <= last_id do
     {:ok, next_id,
      %{
        state
@@ -244,11 +215,7 @@ defmodule GameDB.Storage.Disk.CanonicalStore do
      }}
   end
 
-  def scan_next(%{
-        next_id: next_id,
-        last_id: last_id
-      })
-      when next_id > last_id do
+  def scan_next(%{next_id: next_id, last_id: last_id}) when next_id > last_id do
     :done
   end
 
@@ -265,13 +232,13 @@ defmodule GameDB.Storage.Disk.CanonicalStore do
         :bucket_count
       )
 
-    unless is_atom(codec) do
+    if !is_atom(codec) do
       raise ArgumentError,
             "codec must be a module"
     end
 
-    unless is_integer(bucket_count) and
-             bucket_count > 0 do
+    if !(is_integer(bucket_count) and
+           bucket_count > 0) do
       raise ArgumentError,
             "bucket_count must be positive"
     end
@@ -282,12 +249,7 @@ defmodule GameDB.Storage.Disk.CanonicalStore do
     }
   end
 
-  defp build_store(
-         directory,
-         record_store,
-         codec,
-         bucket_count
-       ) do
+  defp build_store(directory, record_store, codec, bucket_count) do
     %__MODULE__{
       directory: directory,
       game_records:
@@ -303,22 +265,11 @@ defmodule GameDB.Storage.Disk.CanonicalStore do
     }
   end
 
-  defp find_candidate(
-         _store,
-         [],
-         _record
-       ) do
+  defp find_candidate(_store, [], _record) do
     :not_found
   end
 
-  defp find_candidate(
-         store,
-         [
-           game_id
-           | remaining
-         ],
-         record
-       ) do
+  defp find_candidate(store, [game_id | remaining], record) do
     case GameRecordStore.get(
            store.game_records,
            game_id
@@ -346,11 +297,7 @@ defmodule GameDB.Storage.Disk.CanonicalStore do
     end
   end
 
-  defp append_new_game(
-         store,
-         fingerprint,
-         record
-       ) do
+  defp append_new_game(store, fingerprint, record) do
     with {:ok, count} <-
            cardinality(store) do
       game_id =
@@ -385,12 +332,7 @@ defmodule GameDB.Storage.Disk.CanonicalStore do
     end
   end
 
-  defp append_expected_record(
-         store,
-         expected_game_id,
-         fingerprint,
-         record
-       ) do
+  defp append_expected_record(store, expected_game_id, fingerprint, record) do
     case GameRecordStore.append(
            store.game_records,
            fingerprint,
@@ -428,10 +370,7 @@ defmodule GameDB.Storage.Disk.CanonicalStore do
     end
   end
 
-  defp recover_pending_append(
-         store,
-         game_id
-       ) do
+  defp recover_pending_append(store, game_id) do
     case GameRecordStore.fingerprint(
            store.game_records,
            game_id
@@ -442,10 +381,8 @@ defmodule GameDB.Storage.Disk.CanonicalStore do
                  store.fingerprint_index,
                  fingerprint,
                  game_id
-               ),
-             :ok <-
-               AppendMarker.clear(store.directory) do
-          :ok
+               ) do
+          AppendMarker.clear(store.directory)
         end
 
       :not_found ->
@@ -459,10 +396,7 @@ defmodule GameDB.Storage.Disk.CanonicalStore do
     end
   end
 
-  defp recover_missing_record(
-         store,
-         game_id
-       ) do
+  defp recover_missing_record(store, game_id) do
     with {:ok, count} <-
            cardinality(store) do
       expected_game_id =
@@ -510,19 +444,15 @@ defmodule GameDB.Storage.Disk.CanonicalStore do
 
   defp create_root_directory(directory) do
     with :ok <-
-           File.mkdir(directory),
-         :ok <-
-           sync_directory(Path.dirname(directory)) do
-      :ok
+           File.mkdir(directory) do
+      sync_directory(Path.dirname(directory))
     end
   end
 
   defp create_directory(directory) do
     with :ok <-
-           File.mkdir(directory),
-         :ok <-
-           sync_directory(Path.dirname(directory)) do
-      :ok
+           File.mkdir(directory) do
+      sync_directory(Path.dirname(directory))
     end
   end
 

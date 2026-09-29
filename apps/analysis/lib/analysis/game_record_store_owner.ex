@@ -3,8 +3,8 @@ defmodule Analysis.GameRecordStoreOwner do
 
   @spec owner?() :: boolean()
   def owner? do
-    Application.get_env(
-      :analysis,
+    :analysis
+    |> Application.get_env(
       __MODULE__,
       []
     )

@@ -41,8 +41,7 @@ defmodule GameDB.Storage.Disk.GameOccurrenceIndex do
           {:ok, t()}
           | {:error, :storage_exists}
           | {:error, term()}
-  def create(directory)
-      when is_binary(directory) do
+  def create(directory) when is_binary(directory) do
     index =
       new(directory)
 
@@ -69,8 +68,7 @@ defmodule GameDB.Storage.Disk.GameOccurrenceIndex do
   @spec open(Path.t()) ::
           {:ok, t()}
           | {:error, term()}
-  def open(directory)
-      when is_binary(directory) do
+  def open(directory) when is_binary(directory) do
     index =
       new(directory)
 
@@ -90,19 +88,14 @@ defmodule GameDB.Storage.Disk.GameOccurrenceIndex do
         ) ::
           :ok
           | {:error, term()}
-  def append(
-        %__MODULE__{} = index,
-        game_id,
-        first_occurrence_id,
-        occurrence_count
-      ) do
+  def append(%__MODULE__{} = index, game_id, first_occurrence_id, occurrence_count) do
     with :ok <-
            validate_game_id(game_id),
          :ok <-
            validate_first_occurrence_id(first_occurrence_id),
          :ok <-
            validate_occurrence_count(occurrence_count),
-         expected_size <-
+         expected_size =
            expected_offset(game_id),
          :ok <-
            validate_file_size(
@@ -126,12 +119,7 @@ defmodule GameDB.Storage.Disk.GameOccurrenceIndex do
           {:ok, span()}
           | :not_found
           | {:error, term()}
-  def get(
-        %__MODULE__{} = index,
-        game_id
-      )
-      when is_integer(game_id) and
-             game_id > 0 do
+  def get(%__MODULE__{} = index, game_id) when is_integer(game_id) and game_id > 0 do
     case cardinality(index) do
       {:ok, count}
       when game_id > count ->
@@ -210,12 +198,7 @@ defmodule GameDB.Storage.Disk.GameOccurrenceIndex do
         ) ::
           :ok
           | {:error, term()}
-  def recover_pending_append(
-        %__MODULE__{} = index,
-        game_id,
-        first_occurrence_id,
-        occurrence_count
-      ) do
+  def recover_pending_append(%__MODULE__{} = index, game_id, first_occurrence_id, occurrence_count) do
     with :ok <-
            validate_game_id(game_id),
          :ok <-
@@ -252,22 +235,15 @@ defmodule GameDB.Storage.Disk.GameOccurrenceIndex do
       @entry_size
   end
 
-  defp encode(
-         first_occurrence_id,
-         occurrence_count
-       ) do
+  defp encode(first_occurrence_id, occurrence_count) do
     <<
       first_occurrence_id::unsigned-big-64,
       occurrence_count::unsigned-big-32
     >>
   end
 
-  defp decode(<<
-         first_occurrence_id::unsigned-big-64,
-         occurrence_count::unsigned-big-32
-       >>)
-       when first_occurrence_id > 0 and
-              occurrence_count > 0 do
+  defp decode(<<first_occurrence_id::unsigned-big-64, occurrence_count::unsigned-big-32>>)
+       when first_occurrence_id > 0 and occurrence_count > 0 do
     {:ok,
      {
        first_occurrence_id,
@@ -279,11 +255,7 @@ defmodule GameDB.Storage.Disk.GameOccurrenceIndex do
     {:error, :invalid_entry}
   end
 
-  defp recover_entry(
-         path,
-         expected_offset,
-         entry
-       ) do
+  defp recover_entry(path, expected_offset, entry) do
     case File.stat(path) do
       {:ok, %{size: size}}
       when size == expected_offset ->
@@ -323,12 +295,7 @@ defmodule GameDB.Storage.Disk.GameOccurrenceIndex do
     end
   end
 
-  defp recover_partial_entry(
-         path,
-         offset,
-         partial_size,
-         entry
-       ) do
+  defp recover_partial_entry(path, offset, partial_size, entry) do
     with {:ok, partial} <-
            pread(
              path,
@@ -344,21 +311,15 @@ defmodule GameDB.Storage.Disk.GameOccurrenceIndex do
            truncate_file(
              path,
              offset
-           ),
-         :ok <-
-           append_and_sync(
-             path,
-             entry
            ) do
-      :ok
+      append_and_sync(
+        path,
+        entry
+      )
     end
   end
 
-  defp recover_complete_entry(
-         path,
-         offset,
-         entry
-       ) do
+  defp recover_complete_entry(path, offset, entry) do
     case pread(
            path,
            offset,
@@ -378,10 +339,7 @@ defmodule GameDB.Storage.Disk.GameOccurrenceIndex do
     end
   end
 
-  defp validate_partial_entry(
-         partial,
-         entry
-       ) do
+  defp validate_partial_entry(partial, entry) do
     expected =
       binary_part(
         entry,
@@ -396,10 +354,7 @@ defmodule GameDB.Storage.Disk.GameOccurrenceIndex do
     end
   end
 
-  defp validate_file_size(
-         path,
-         expected_size
-       ) do
+  defp validate_file_size(path, expected_size) do
     case File.stat(path) do
       {:ok, %{size: ^expected_size}} ->
         :ok
@@ -417,10 +372,7 @@ defmodule GameDB.Storage.Disk.GameOccurrenceIndex do
     end
   end
 
-  defp validate_game_id(game_id)
-       when is_integer(game_id) and
-              game_id > 0 and
-              game_id <= @max_id do
+  defp validate_game_id(game_id) when is_integer(game_id) and game_id > 0 and game_id <= @max_id do
     :ok
   end
 
@@ -429,9 +381,7 @@ defmodule GameDB.Storage.Disk.GameOccurrenceIndex do
   end
 
   defp validate_first_occurrence_id(occurrence_id)
-       when is_integer(occurrence_id) and
-              occurrence_id > 0 and
-              occurrence_id <= @max_id do
+       when is_integer(occurrence_id) and occurrence_id > 0 and occurrence_id <= @max_id do
     :ok
   end
 
@@ -439,10 +389,7 @@ defmodule GameDB.Storage.Disk.GameOccurrenceIndex do
     {:error, :invalid_occurrence_id}
   end
 
-  defp validate_occurrence_count(count)
-       when is_integer(count) and
-              count > 0 and
-              count <= @max_count do
+  defp validate_occurrence_count(count) when is_integer(count) and count > 0 and count <= @max_count do
     :ok
   end
 
@@ -450,10 +397,7 @@ defmodule GameDB.Storage.Disk.GameOccurrenceIndex do
     {:error, :invalid_occurrence_count}
   end
 
-  defp append_and_sync(
-         path,
-         data
-       ) do
+  defp append_and_sync(path, data) do
     case :file.open(
            path,
            [
@@ -468,10 +412,8 @@ defmodule GameDB.Storage.Disk.GameOccurrenceIndex do
                  :file.write(
                    file,
                    data
-                 ),
-               :ok <-
-                 :file.sync(file) do
-            :ok
+                 ) do
+            :file.sync(file)
           end
         after
           :file.close(file)
@@ -482,11 +424,7 @@ defmodule GameDB.Storage.Disk.GameOccurrenceIndex do
     end
   end
 
-  defp pread(
-         path,
-         offset,
-         size
-       ) do
+  defp pread(path, offset, size) do
     case :file.open(
            path,
            [
@@ -511,10 +449,7 @@ defmodule GameDB.Storage.Disk.GameOccurrenceIndex do
     end
   end
 
-  defp truncate_file(
-         path,
-         size
-       ) do
+  defp truncate_file(path, size) do
     case :file.open(
            path,
            [
@@ -532,10 +467,8 @@ defmodule GameDB.Storage.Disk.GameOccurrenceIndex do
                    size
                  ),
                :ok <-
-                 :file.truncate(file),
-               :ok <-
-                 :file.sync(file) do
-            :ok
+                 :file.truncate(file) do
+            :file.sync(file)
           end
         after
           :file.close(file)
@@ -570,10 +503,8 @@ defmodule GameDB.Storage.Disk.GameOccurrenceIndex do
 
   defp create_directory(directory) do
     with :ok <-
-           File.mkdir(directory),
-         :ok <-
-           sync_directory(Path.dirname(directory)) do
-      :ok
+           File.mkdir(directory) do
+      sync_directory(Path.dirname(directory))
     end
   end
 
@@ -595,10 +526,8 @@ defmodule GameDB.Storage.Disk.GameOccurrenceIndex do
             :file.close(file)
           end
 
-        with :ok <- result,
-             :ok <-
-               sync_directory(Path.dirname(path)) do
-          :ok
+        with :ok <- result do
+          sync_directory(Path.dirname(path))
         end
 
       {:error, reason} ->

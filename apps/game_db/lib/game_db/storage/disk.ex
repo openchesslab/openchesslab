@@ -32,8 +32,7 @@ defmodule GameDB.Storage.Disk do
           {:ok, t()}
           | {:error, :storage_exists}
           | {:error, term()}
-  def create(directory, opts)
-      when is_binary(directory) do
+  def create(directory, opts) when is_binary(directory) do
     case create_root_directory(directory) do
       :ok ->
         case create_components(
@@ -60,8 +59,7 @@ defmodule GameDB.Storage.Disk do
   @spec open(Path.t(), keyword()) ::
           {:ok, t()}
           | {:error, term()}
-  def open(directory, opts)
-      when is_binary(directory) do
+  def open(directory, opts) when is_binary(directory) do
     with :ok <-
            validate_directory(directory),
          {:ok, canonical_store} <-
@@ -89,10 +87,7 @@ defmodule GameDB.Storage.Disk do
     end
   end
 
-  defp create_components(
-         directory,
-         opts
-       ) do
+  defp create_components(directory, opts) do
     with {:ok, canonical_store} <-
            CanonicalStore.create(
              canonical_directory(directory),
@@ -112,11 +107,7 @@ defmodule GameDB.Storage.Disk do
     end
   end
 
-  defp build_storage(
-         directory,
-         canonical_store,
-         occurrence_storage
-       ) do
+  defp build_storage(directory, canonical_store, occurrence_storage) do
     %__MODULE__{
       directory: directory,
       canonical_store: canonical_store,
@@ -165,10 +156,8 @@ defmodule GameDB.Storage.Disk do
 
   defp create_root_directory(directory) do
     with :ok <-
-           File.mkdir(directory),
-         :ok <-
-           sync_directory(Path.dirname(directory)) do
-      :ok
+           File.mkdir(directory) do
+      sync_directory(Path.dirname(directory))
     end
   end
 

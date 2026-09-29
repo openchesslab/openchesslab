@@ -5,12 +5,10 @@ defmodule Analysis.GameRecordStoreTest do
   alias Analysis.GameRecordStore
 
   defmodule RecordingAdapter do
-    @behaviour Analysis.GameRecordStore
+    @moduledoc false
+    @behaviour GameRecordStore
 
-    def insert(
-          store,
-          record
-        ) do
+    def insert(store, record) do
       send(
         self(),
         {:insert, store, record}
@@ -19,10 +17,7 @@ defmodule Analysis.GameRecordStoreTest do
       :ok
     end
 
-    def get(
-          store,
-          record_id
-        ) do
+    def get(store, record_id) do
       send(
         self(),
         {:get, store, record_id}
@@ -40,10 +35,7 @@ defmodule Analysis.GameRecordStoreTest do
       []
     end
 
-    def list_by_game_id(
-          store,
-          game_id
-        ) do
+    def list_by_game_id(store, game_id) do
       send(
         self(),
         {
@@ -56,11 +48,7 @@ defmodule Analysis.GameRecordStoreTest do
       []
     end
 
-    def records_page_by_game_id(
-          store,
-          game_id,
-          page_size
-        ) do
+    def records_page_by_game_id(store, game_id, page_size) do
       send(
         self(),
         {
@@ -74,11 +62,7 @@ defmodule Analysis.GameRecordStoreTest do
       {:ok, [], :done}
     end
 
-    def next_records_page(
-          store,
-          cursor,
-          page_size
-        ) do
+    def next_records_page(store, cursor, page_size) do
       send(
         self(),
         {
@@ -92,10 +76,7 @@ defmodule Analysis.GameRecordStoreTest do
       {:ok, [], :done}
     end
 
-    def close_record_scan(
-          store,
-          cursor
-        ) do
+    def close_record_scan(store, cursor) do
       send(
         self(),
         {

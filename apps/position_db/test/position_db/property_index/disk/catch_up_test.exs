@@ -9,57 +9,42 @@ defmodule PositionDB.PropertyIndex.Disk.CatchUpTest do
   alias PositionDB.Storage.Disk.IndexProgressStore
   alias PositionDB.Storage.PostingIndex.Disk.Entry
   alias PositionDB.Storage.PostingIndex.Disk.Layout
+  alias PositionDB.Storage.PropertyKeyCodec
 
   defmodule TestCodec do
-    @behaviour PositionDB.Storage.PropertyKeyCodec
+    @moduledoc false
+    @behaviour PropertyKeyCodec
 
-    @impl PositionDB.Storage.PropertyKeyCodec
+    @impl PropertyKeyCodec
     def format_id do
       <<"catch-up-property-v1">>
     end
 
-    @impl PositionDB.Storage.PropertyKeyCodec
-    def encode(
-          :color,
-          :white
-        ) do
+    @impl PropertyKeyCodec
+    def encode(:color, :white) do
       {:ok, <<1, 1>>}
     end
 
-    def encode(
-          :color,
-          :black
-        ) do
+    def encode(:color, :black) do
       {:ok, <<1, 2>>}
     end
 
-    def encode(
-          :selected,
-          true
-        ) do
+    def encode(:selected, true) do
       {:ok, <<2, 1>>}
     end
 
-    def encode(
-          :selected,
-          false
-        ) do
+    def encode(:selected, false) do
       {:ok, <<2, 0>>}
     end
 
-    def encode(
-          _name,
-          _value
-        ) do
+    def encode(_name, _value) do
       {:error, :unsupported_property}
     end
   end
 
   defmodule TrackingStorage do
-    def get(
-          storage,
-          position_id
-        ) do
+    @moduledoc false
+    def get(storage, position_id) do
       send(
         storage.test_pid,
         {:get, position_id}

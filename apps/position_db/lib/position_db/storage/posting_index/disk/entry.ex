@@ -28,14 +28,8 @@ defmodule PositionDB.Storage.PostingIndex.Disk.Entry do
           binary(),
           position_id()
         ) :: binary()
-  def encode(
-        key,
-        position_id
-      )
-      when is_binary(key) and
-             byte_size(key) <= @max_key_size and
-             is_integer(position_id) and
-             position_id > 0 and
+  def encode(key, position_id)
+      when is_binary(key) and byte_size(key) <= @max_key_size and is_integer(position_id) and position_id > 0 and
              position_id <= @max_position_id do
     key_size =
       byte_size(key)
@@ -51,10 +45,7 @@ defmodule PositionDB.Storage.PostingIndex.Disk.Entry do
           {:ok, non_neg_integer(), position_id()}
           | {:error, :invalid_header_size}
           | {:error, :invalid_position_id}
-  def decode_header(<<
-        key_size::unsigned-big-32,
-        position_id::unsigned-big-64
-      >>) do
+  def decode_header(<<key_size::unsigned-big-32, position_id::unsigned-big-64>>) do
     if position_id > 0 do
       {:ok, key_size, position_id}
     else
@@ -70,8 +61,7 @@ defmodule PositionDB.Storage.PostingIndex.Disk.Entry do
           {:ok, binary(), position_id()}
           | {:error, :invalid_entry_size}
           | {:error, :invalid_position_id}
-  def decode(encoded)
-      when is_binary(encoded) do
+  def decode(encoded) when is_binary(encoded) do
     case encoded do
       <<
         header::binary-size(@header_size),
@@ -92,10 +82,7 @@ defmodule PositionDB.Storage.PostingIndex.Disk.Entry do
     end
   end
 
-  defp validate_key_size(
-         key,
-         key_size
-       ) do
+  defp validate_key_size(key, key_size) do
     if byte_size(key) == key_size do
       :ok
     else

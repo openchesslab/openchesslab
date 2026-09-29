@@ -68,13 +68,7 @@ defmodule Analysis.GameRecords do
           {:ok, GameRecord.t()}
           | {:error, create_error()}
 
-  def create(
-        record_id,
-        %GameContent{} = content,
-        %GameStart{} = start,
-        metadata
-      )
-      when is_map(metadata) do
+  def create(record_id, %GameContent{} = content, %GameStart{} = start, metadata) when is_map(metadata) do
     case GameRecordStore.get(record_id) do
       {:ok, _record} ->
         {:error, :already_exists}
@@ -97,7 +91,7 @@ defmodule Analysis.GameRecords do
   end
 
   @spec load(GameRecord.id()) ::
-          {:ok, GameRecord.t(), GameContent.t(), [GameDB.Occurrence.t()]}
+          {:ok, GameRecord.t(), GameContent.t(), [Occurrence.t()]}
           | :not_found
           | {:error, load_error()}
   def load(record_id) do
@@ -148,12 +142,7 @@ defmodule Analysis.GameRecords do
           pos_integer()
         ) ::
           occurrence_page()
-  def occurrences_page_by_position_id(
-        position_id,
-        page_size
-      )
-      when is_integer(page_size) and
-             page_size > 0 do
+  def occurrences_page_by_position_id(position_id, page_size) when is_integer(page_size) and page_size > 0 do
     case GameStore.occurrences_page(
            position_id,
            1
@@ -176,11 +165,10 @@ defmodule Analysis.GameRecords do
         ],
         occurrence_cursor
       } ->
-        %OccurrenceCursor{
-          occurrence_cursor: occurrence_cursor,
-          current_occurrence: occurrence
-        }
-        |> take_occurrence_matches_page(page_size)
+        take_occurrence_matches_page(
+          %OccurrenceCursor{occurrence_cursor: occurrence_cursor, current_occurrence: occurrence},
+          page_size
+        )
 
       {:error, reason} ->
         {
@@ -198,12 +186,7 @@ defmodule Analysis.GameRecords do
           pos_integer()
         ) ::
           occurrence_page()
-  def next_occurrences_page(
-        %OccurrenceCursor{} = cursor,
-        page_size
-      )
-      when is_integer(page_size) and
-             page_size > 0 do
+  def next_occurrences_page(%OccurrenceCursor{} = cursor, page_size) when is_integer(page_size) and page_size > 0 do
     take_occurrence_matches_page(
       cursor,
       page_size
@@ -220,10 +203,7 @@ defmodule Analysis.GameRecords do
     :ok
   end
 
-  defp take_occurrence_matches_page(
-         cursor,
-         page_size
-       ) do
+  defp take_occurrence_matches_page(cursor, page_size) do
     take_occurrence_matches_page(
       cursor,
       page_size,
@@ -231,11 +211,7 @@ defmodule Analysis.GameRecords do
     )
   end
 
-  defp take_occurrence_matches_page(
-         cursor,
-         0,
-         reversed_matches
-       ) do
+  defp take_occurrence_matches_page(cursor, 0, reversed_matches) do
     if occurrence_cursor_finished?(cursor) do
       {
         :ok,
@@ -251,11 +227,7 @@ defmodule Analysis.GameRecords do
     end
   end
 
-  defp take_occurrence_matches_page(
-         cursor,
-         remaining,
-         reversed_matches
-       ) do
+  defp take_occurrence_matches_page(cursor, remaining, reversed_matches) do
     case next_occurrence_match(cursor) do
       {
         :ok,
@@ -283,19 +255,11 @@ defmodule Analysis.GameRecords do
     end
   end
 
-  defp next_occurrence_match(%OccurrenceCursor{
-         current_occurrence: nil,
-         occurrence_cursor: :done
-       }) do
+  defp next_occurrence_match(%OccurrenceCursor{current_occurrence: nil, occurrence_cursor: :done}) do
     :done
   end
 
-  defp next_occurrence_match(
-         %OccurrenceCursor{
-           current_occurrence: nil,
-           occurrence_cursor: occurrence_cursor
-         } = cursor
-       ) do
+  defp next_occurrence_match(%OccurrenceCursor{current_occurrence: nil, occurrence_cursor: occurrence_cursor} = cursor) do
     case GameStore.next_occurrences_page(
            occurrence_cursor,
            1
@@ -334,10 +298,7 @@ defmodule Analysis.GameRecords do
   end
 
   defp next_occurrence_match(
-         %OccurrenceCursor{
-           current_occurrence: %Occurrence{} = occurrence,
-           record_cursor: nil
-         } = cursor
+         %OccurrenceCursor{current_occurrence: %Occurrence{} = occurrence, record_cursor: nil} = cursor
        ) do
     case GameRecordStore.records_page_by_game_id(
            occurrence.game_id,
@@ -406,10 +367,7 @@ defmodule Analysis.GameRecords do
   end
 
   defp next_occurrence_match(
-         %OccurrenceCursor{
-           current_occurrence: %Occurrence{} = occurrence,
-           record_cursor: record_cursor
-         } = cursor
+         %OccurrenceCursor{current_occurrence: %Occurrence{} = occurrence, record_cursor: record_cursor} = cursor
        ) do
     case GameRecordStore.next_records_page(
            record_cursor,
@@ -507,12 +465,7 @@ defmodule Analysis.GameRecords do
     GameRecordStore.close_record_scan(cursor)
   end
 
-  defp do_create(
-         record_id,
-         content,
-         start,
-         metadata
-       ) do
+  defp do_create(record_id, content, start, metadata) do
     with {:ok, fingerprint} <-
            fingerprint(content),
          {:ok, replay} <-
@@ -645,10 +598,7 @@ defmodule Analysis.GameRecords do
     end
   end
 
-  defp append_replay_positions(
-         content,
-         replay
-       ) do
+  defp append_replay_positions(content, replay) do
     initial_position_id =
       GameContent.initial_position_id(content)
 
@@ -687,11 +637,7 @@ defmodule Analysis.GameRecords do
     end
   end
 
-  defp store_canonical_game(
-         fingerprint,
-         content,
-         position_ids
-       ) do
+  defp store_canonical_game(fingerprint, content, position_ids) do
     case GameStore.put(
            fingerprint,
            content,
@@ -742,11 +688,7 @@ defmodule Analysis.GameRecords do
     end
   end
 
-  defp records_for_occurrence(
-         %Occurrence{
-           game_id: game_id
-         } = occurrence
-       ) do
+  defp records_for_occurrence(%Occurrence{game_id: game_id} = occurrence) do
     game_id
     |> list_by_game_id()
     |> Enum.map(

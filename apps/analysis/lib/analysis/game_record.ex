@@ -37,10 +37,7 @@ defmodule Analysis.GameRecord do
           id(),
           game_id()
         ) :: t()
-  def new(
-        id,
-        game_id
-      ) do
+  def new(id, game_id) do
     new(
       id,
       game_id,
@@ -54,12 +51,7 @@ defmodule Analysis.GameRecord do
           game_id(),
           map()
         ) :: t()
-  def new(
-        id,
-        game_id,
-        metadata
-      )
-      when is_map(metadata) do
+  def new(id, game_id, metadata) when is_map(metadata) do
     new(
       id,
       game_id,
@@ -74,15 +66,7 @@ defmodule Analysis.GameRecord do
           GameStart.t(),
           map()
         ) :: t()
-  def new(
-        id,
-        game_id,
-        %GameStart{} = start,
-        metadata
-      )
-      when is_integer(game_id) and
-             game_id > 0 and
-             is_map(metadata) do
+  def new(id, game_id, %GameStart{} = start, metadata) when is_integer(game_id) and game_id > 0 and is_map(metadata) do
     %__MODULE__{
       id: id,
       game_id: game_id,

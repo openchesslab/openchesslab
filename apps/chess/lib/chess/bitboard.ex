@@ -5,16 +5,18 @@ defmodule Chess.Bitboard do
 
   import Bitwise
 
+  alias Chess.Bitboard.AttackTables
+
   @type piece_type :: Chess.Board.piece_type()
   @type color :: Chess.Board.color()
   @type piece :: Chess.Board.piece()
 
   @type pseudo_move :: {Chess.Square.t(), non_neg_integer()}
 
-  @king_attacks Chess.Bitboard.AttackTables.king_attacks()
-  @knight_attacks Chess.Bitboard.AttackTables.knight_attacks()
-  @white_pawn_attacks Chess.Bitboard.AttackTables.pawn_attacks(1)
-  @black_pawn_attacks Chess.Bitboard.AttackTables.pawn_attacks(-1)
+  @king_attacks AttackTables.king_attacks()
+  @knight_attacks AttackTables.knight_attacks()
+  @white_pawn_attacks AttackTables.pawn_attacks(1)
+  @black_pawn_attacks AttackTables.pawn_attacks(-1)
 
   @type t :: %__MODULE__{
           white_pawns: non_neg_integer(),
@@ -83,8 +85,7 @@ defmodule Chess.Bitboard do
   end
 
   @spec put(t(), Chess.Square.t(), piece()) :: t()
-  def put(board, square, {color, type})
-      when square in 0..63 do
+  def put(board, square, {color, type}) when square in 0..63 do
     board
     |> remove(square)
     |> set_piece(square, color, type)
@@ -159,11 +160,7 @@ defmodule Chess.Bitboard do
   end
 
   @spec after_move(t(), Chess.Move.t(), piece()) :: t()
-  def after_move(
-        board,
-        %Chess.Move{from: from, to: to, promotion: promotion},
-        {color, :pawn} = piece
-      ) do
+  def after_move(board, %Chess.Move{from: from, to: to, promotion: promotion}, {color, :pawn} = piece) do
     piece_type = promotion || :pawn
 
     board
@@ -172,11 +169,7 @@ defmodule Chess.Bitboard do
     |> set_piece(to, color, piece_type)
   end
 
-  def after_move(
-        board,
-        %Chess.Move{from: from, to: to},
-        {color, piece_type} = piece
-      ) do
+  def after_move(board, %Chess.Move{from: from, to: to}, {color, piece_type} = piece) do
     board
     |> remove_piece(from, piece)
     |> remove(to)
@@ -230,74 +223,37 @@ defmodule Chess.Bitboard do
     |> Enum.sort_by(&elem(&1, 0))
   end
 
-  defp pseudo_moves_for_piece(
-         board,
-         occupied,
-         square,
-         :pawn,
-         color,
-         friendly
-       ) do
+  defp pseudo_moves_for_piece(board, occupied, square, :pawn, color, friendly) do
     pawn_pseudo_moves(board, occupied, square, color, friendly)
   end
 
-  defp pseudo_moves_for_piece(
-         _board,
-         _occupied,
-         square,
-         :knight,
-         _color,
-         friendly
-       ) do
-    knight_attacks(square)
+  defp pseudo_moves_for_piece(_board, _occupied, square, :knight, _color, friendly) do
+    square
+    |> knight_attacks()
     |> band(bnot(friendly))
   end
 
-  defp pseudo_moves_for_piece(
-         _board,
-         occupied,
-         square,
-         :bishop,
-         _color,
-         friendly
-       ) do
-    bishop_attacks_from_occupied(occupied, square)
+  defp pseudo_moves_for_piece(_board, occupied, square, :bishop, _color, friendly) do
+    occupied
+    |> bishop_attacks_from_occupied(square)
     |> band(bnot(friendly))
   end
 
-  defp pseudo_moves_for_piece(
-         _board,
-         occupied,
-         square,
-         :rook,
-         _color,
-         friendly
-       ) do
-    rook_attacks_from_occupied(occupied, square)
+  defp pseudo_moves_for_piece(_board, occupied, square, :rook, _color, friendly) do
+    occupied
+    |> rook_attacks_from_occupied(square)
     |> band(bnot(friendly))
   end
 
-  defp pseudo_moves_for_piece(
-         _board,
-         occupied,
-         square,
-         :queen,
-         _color,
-         friendly
-       ) do
-    queen_attacks_from_occupied(occupied, square)
+  defp pseudo_moves_for_piece(_board, occupied, square, :queen, _color, friendly) do
+    occupied
+    |> queen_attacks_from_occupied(square)
     |> band(bnot(friendly))
   end
 
-  defp pseudo_moves_for_piece(
-         _board,
-         _occupied,
-         square,
-         :king,
-         _color,
-         friendly
-       ) do
-    king_attacks(square)
+  defp pseudo_moves_for_piece(_board, _occupied, square, :king, _color, friendly) do
+    square
+    |> king_attacks()
     |> band(bnot(friendly))
   end
 
@@ -335,7 +291,8 @@ defmodule Chess.Bitboard do
       end
 
     captures =
-      pawn_attacks(color, square)
+      color
+      |> pawn_attacks(square)
       |> band(enemy)
 
     push ||| double_push ||| captures
@@ -371,18 +328,17 @@ defmodule Chess.Bitboard do
 
   defp piece_squares(bitboard, square, acc) do
     acc =
-      if (bitboard &&& 1) != 0 do
-        [square | acc]
-      else
+      if (bitboard &&& 1) == 0 do
         acc
+      else
+        [square | acc]
       end
 
     piece_squares(bitboard >>> 1, square + 1, acc)
   end
 
   @spec attacked?(t(), color(), Chess.Square.t()) :: boolean()
-  def attacked?(board, color, square)
-      when color in [:white, :black] and square in 0..63 do
+  def attacked?(board, color, square) when color in [:white, :black] and square in 0..63 do
     occupied = occupied(board)
 
     pawn_attackers =
@@ -440,7 +396,16 @@ defmodule Chess.Bitboard do
     next = square + step
 
     if valid_ray_square?(square, next, step) do
-      if (occupied &&& 1 <<< next) != 0 do
+      if (occupied &&& 1 <<< next) == 0 do
+        first_piece_on_ray(
+          board,
+          occupied,
+          next,
+          step,
+          color,
+          piece_types
+        )
+      else
         mask = 1 <<< next
 
         case piece_types do
@@ -452,15 +417,6 @@ defmodule Chess.Bitboard do
             band(color_bishops(board, color), mask) != 0 or
               band(color_queens(board, color), mask) != 0
         end
-      else
-        first_piece_on_ray(
-          board,
-          occupied,
-          next,
-          step,
-          color,
-          piece_types
-        )
       end
     else
       false
@@ -555,10 +511,10 @@ defmodule Chess.Bitboard do
     if valid_ray_square?(square, next, step) do
       attacks = bor(attacks, 1 <<< next)
 
-      if (occupied &&& 1 <<< next) != 0 do
-        attacks
-      else
+      if (occupied &&& 1 <<< next) == 0 do
         ray_attacks(occupied, next, step, attacks)
+      else
+        attacks
       end
     else
       attacks

@@ -5,6 +5,8 @@ defmodule PositionDB.Storage.ExactIndex.Memory do
 
   @behaviour PositionDB.Storage.ExactIndex
 
+  alias PositionDB.Storage.ExactIndex
+
   @type t :: %__MODULE__{
           entries: %{binary() => MapSet.t(pos_integer())}
         }
@@ -16,15 +18,8 @@ defmodule PositionDB.Storage.ExactIndex.Memory do
     %__MODULE__{}
   end
 
-  @impl PositionDB.Storage.ExactIndex
-  def add(
-        %__MODULE__{} = index,
-        key,
-        position_id
-      )
-      when is_binary(key) and
-             is_integer(position_id) and
-             position_id > 0 do
+  @impl ExactIndex
+  def add(%__MODULE__{} = index, key, position_id) when is_binary(key) and is_integer(position_id) and position_id > 0 do
     entries =
       Map.update(
         index.entries,
@@ -36,12 +31,8 @@ defmodule PositionDB.Storage.ExactIndex.Memory do
     {:ok, %{index | entries: entries}}
   end
 
-  @impl PositionDB.Storage.ExactIndex
-  def lookup(
-        %__MODULE__{} = index,
-        key
-      )
-      when is_binary(key) do
+  @impl ExactIndex
+  def lookup(%__MODULE__{} = index, key) when is_binary(key) do
     position_ids =
       index.entries
       |> Map.get(key, MapSet.new())

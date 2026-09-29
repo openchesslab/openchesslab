@@ -56,8 +56,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStorage do
           {:ok, t()}
           | {:error, :storage_exists}
           | {:error, term()}
-  def create(directory, opts)
-      when is_binary(directory) do
+  def create(directory, opts) when is_binary(directory) do
     position_bucket_count =
       position_bucket_count(opts)
 
@@ -87,8 +86,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStorage do
   @spec open(Path.t(), keyword()) ::
           {:ok, t()}
           | {:error, term()}
-  def open(directory, opts)
-      when is_binary(directory) do
+  def open(directory, opts) when is_binary(directory) do
     position_bucket_count =
       position_bucket_count(opts)
 
@@ -124,14 +122,8 @@ defmodule GameDB.Storage.Disk.OccurrenceStorage do
         ) ::
           :ok
           | {:error, term()}
-  def append(
-        %__MODULE__{} = storage,
-        game_id,
-        position_ids
-      )
-      when is_integer(game_id) and
-             game_id > 0 and
-             is_list(position_ids) do
+  def append(%__MODULE__{} = storage, game_id, position_ids)
+      when is_integer(game_id) and game_id > 0 and is_list(position_ids) do
     with :ok <-
            ensure_no_pending_append(storage),
          :ok <-
@@ -153,21 +145,11 @@ defmodule GameDB.Storage.Disk.OccurrenceStorage do
     end
   end
 
-  def append(
-        %__MODULE__{},
-        game_id,
-        _position_ids
-      )
-      when not is_integer(game_id) or
-             game_id <= 0 do
+  def append(%__MODULE__{}, game_id, _position_ids) when not is_integer(game_id) or game_id <= 0 do
     {:error, :invalid_game_id}
   end
 
-  def append(
-        %__MODULE__{},
-        _game_id,
-        _position_ids
-      ) do
+  def append(%__MODULE__{}, _game_id, _position_ids) do
     {:error, :invalid_position_ids}
   end
 
@@ -178,12 +160,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStorage do
           {:ok, [Occurrence.t()]}
           | :not_found
           | {:error, term()}
-  def occurrences(
-        %__MODULE__{} = storage,
-        game_id
-      )
-      when is_integer(game_id) and
-             game_id > 0 do
+  def occurrences(%__MODULE__{} = storage, game_id) when is_integer(game_id) and game_id > 0 do
     case GameOccurrenceIndex.get(
            storage.game_index,
            game_id
@@ -215,10 +192,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStorage do
           {:ok, Occurrence.t()}
           | :not_found
           | {:error, term()}
-  def get_occurrence(
-        %__MODULE__{} = storage,
-        occurrence_id
-      ) do
+  def get_occurrence(%__MODULE__{} = storage, occurrence_id) do
     OccurrenceStore.get(
       storage.occurrence_store,
       occurrence_id
@@ -230,12 +204,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStorage do
           pos_integer()
         ) ::
           scan_state()
-  def scan(
-        %__MODULE__{} = storage,
-        position_id
-      )
-      when is_integer(position_id) and
-             position_id > 0 do
+  def scan(%__MODULE__{} = storage, position_id) when is_integer(position_id) and position_id > 0 do
     %{
       occurrence_store: storage.occurrence_store,
       position_id: position_id,
@@ -251,13 +220,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStorage do
           {:ok, Occurrence.t(), scan_state()}
           | :done
           | {:error, term()}
-  def scan_next(
-        %{
-          occurrence_store: occurrence_store,
-          position_id: position_id,
-          position_scan: position_scan
-        } = state
-      ) do
+  def scan_next(%{occurrence_store: occurrence_store, position_id: position_id, position_scan: position_scan} = state) do
     case PositionOccurrenceIndex.scan_next(position_scan) do
       {
         :ok,
@@ -304,12 +267,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStorage do
     end
   end
 
-  defp persist_batch(
-         storage,
-         game_id,
-         first_occurrence_id,
-         position_ids
-       ) do
+  defp persist_batch(storage, game_id, first_occurrence_id, position_ids) do
     occurrence_count =
       length(position_ids)
 
@@ -342,20 +300,12 @@ defmodule GameDB.Storage.Disk.OccurrenceStorage do
                position_ids,
                first_occurrence_id
              )
-           ),
-         :ok <-
-           OccurrenceAppendMarker.clear(storage.directory) do
-      :ok
+           ) do
+      OccurrenceAppendMarker.clear(storage.directory)
     end
   end
 
-  defp append_expected_occurrences(
-         storage,
-         game_id,
-         expected_first_occurrence_id,
-         expected_count,
-         position_ids
-       ) do
+  defp append_expected_occurrences(storage, game_id, expected_first_occurrence_id, expected_count, position_ids) do
     case OccurrenceStore.append(
            storage.occurrence_store,
            game_id,
@@ -383,10 +333,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStorage do
     end
   end
 
-  defp validate_expected_game_id(
-         storage,
-         game_id
-       ) do
+  defp validate_expected_game_id(storage, game_id) do
     with {:ok, game_count} <-
            GameOccurrenceIndex.cardinality(storage.game_index) do
       expected_game_id =
@@ -406,12 +353,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStorage do
     end
   end
 
-  defp read_game_occurrences(
-         storage,
-         game_id,
-         first_occurrence_id,
-         occurrence_count
-       ) do
+  defp read_game_occurrences(storage, game_id, first_occurrence_id, occurrence_count) do
     0..(occurrence_count - 1)
     |> Enum.reduce_while(
       {:ok, []},
@@ -489,12 +431,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStorage do
     end
   end
 
-  defp recover_pending_append(
-         storage,
-         game_id,
-         first_occurrence_id,
-         position_ids
-       ) do
+  defp recover_pending_append(storage, game_id, first_occurrence_id, position_ids) do
     occurrence_count =
       length(position_ids)
 
@@ -519,17 +456,12 @@ defmodule GameDB.Storage.Disk.OccurrenceStorage do
                position_ids,
                first_occurrence_id
              )
-           ),
-         :ok <-
-           OccurrenceAppendMarker.clear(storage.directory) do
-      :ok
+           ) do
+      OccurrenceAppendMarker.clear(storage.directory)
     end
   end
 
-  defp position_postings(
-         position_ids,
-         first_occurrence_id
-       ) do
+  defp position_postings(position_ids, first_occurrence_id) do
     position_ids
     |> Enum.with_index(first_occurrence_id)
     |> Enum.map(fn
@@ -577,19 +509,11 @@ defmodule GameDB.Storage.Disk.OccurrenceStorage do
     end
   end
 
-  defp validate_storage_counts(
-         _storage,
-         0,
-         0
-       ) do
+  defp validate_storage_counts(_storage, 0, 0) do
     :ok
   end
 
-  defp validate_storage_counts(
-         _storage,
-         0,
-         occurrence_count
-       ) do
+  defp validate_storage_counts(_storage, 0, occurrence_count) do
     {:error,
      {
        :orphan_occurrences,
@@ -597,11 +521,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStorage do
      }}
   end
 
-  defp validate_storage_counts(
-         storage,
-         game_count,
-         occurrence_count
-       ) do
+  defp validate_storage_counts(storage, game_count, occurrence_count) do
     case GameOccurrenceIndex.get(
            storage.game_index,
            game_count
@@ -640,10 +560,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStorage do
     end
   end
 
-  defp create_components(
-         directory,
-         position_bucket_count
-       ) do
+  defp create_components(directory, position_bucket_count) do
     with {:ok, occurrence_store} <-
            OccurrenceStore.create(occurrence_records_directory(directory)),
          {:ok, game_index} <-
@@ -660,12 +577,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStorage do
     end
   end
 
-  defp build_storage(
-         directory,
-         occurrence_store,
-         game_index,
-         position_bucket_count
-       ) do
+  defp build_storage(directory, occurrence_store, game_index, position_bucket_count) do
     %__MODULE__{
       directory: directory,
       occurrence_store: occurrence_store,
@@ -685,8 +597,8 @@ defmodule GameDB.Storage.Disk.OccurrenceStorage do
         :position_bucket_count
       )
 
-    unless is_integer(bucket_count) and
-             bucket_count > 0 do
+    if !(is_integer(bucket_count) and
+           bucket_count > 0) do
       raise ArgumentError,
             "position_bucket_count must be positive"
     end
@@ -717,19 +629,15 @@ defmodule GameDB.Storage.Disk.OccurrenceStorage do
 
   defp create_root_directory(directory) do
     with :ok <-
-           File.mkdir(directory),
-         :ok <-
-           sync_directory(Path.dirname(directory)) do
-      :ok
+           File.mkdir(directory) do
+      sync_directory(Path.dirname(directory))
     end
   end
 
   defp create_directory(directory) do
     with :ok <-
-           File.mkdir(directory),
-         :ok <-
-           sync_directory(Path.dirname(directory)) do
-      :ok
+           File.mkdir(directory) do
+      sync_directory(Path.dirname(directory))
     end
   end
 

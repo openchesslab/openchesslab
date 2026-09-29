@@ -677,11 +677,7 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStoreTest do
     end
   end
 
-  defp write_bucket(
-         directory,
-         bucket,
-         entries
-       ) do
+  defp write_bucket(directory, bucket, entries) do
     path =
       Layout.bucket_path(
         directory,

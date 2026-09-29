@@ -66,9 +66,7 @@ defmodule Chess.PositionTransformTest do
     test "does not modify the original position" do
       square = Square.from_algebraic("e4")
 
-      position =
-        Position.new()
-        |> Position.put_piece(square, {:white, :pawn})
+      position = Position.put_piece(Position.new(), square, {:white, :pawn})
 
       transformed = PositionTransform.swap_colors(position)
 

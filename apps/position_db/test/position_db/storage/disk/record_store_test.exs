@@ -597,11 +597,7 @@ defmodule PositionDB.Storage.Disk.RecordStoreTest do
     end
   end
 
-  defp write_segment(
-         directory,
-         segment,
-         records
-       ) do
+  defp write_segment(directory, segment, records) do
     path =
       Layout.segment_path(
         directory,

@@ -18,21 +18,15 @@ defmodule PositionDB.Storage.PostingIndex.Disk.ManifestStore do
           :ok
           | {:error, :posting_manifest_exists}
           | {:error, term()}
-  def create(
-        directory,
-        %Manifest{} = manifest
-      )
-      when is_binary(directory) do
+  def create(directory, %Manifest{} = manifest) when is_binary(directory) do
     with {:ok, encoded} <-
            Manifest.encode(manifest),
          :ok <-
            create_file(
              manifest_path(directory),
              encoded
-           ),
-         :ok <-
-           Durability.sync_directory(directory) do
-      :ok
+           ) do
+      Durability.sync_directory(directory)
     end
   end
 
@@ -40,8 +34,7 @@ defmodule PositionDB.Storage.PostingIndex.Disk.ManifestStore do
           {:ok, Manifest.t()}
           | {:error, :posting_manifest_not_found}
           | {:error, term()}
-  def read(directory)
-      when is_binary(directory) do
+  def read(directory) when is_binary(directory) do
     case File.read(manifest_path(directory)) do
       {:ok, encoded} ->
         Manifest.decode(encoded)
@@ -61,10 +54,7 @@ defmodule PositionDB.Storage.PostingIndex.Disk.ManifestStore do
     )
   end
 
-  defp create_file(
-         path,
-         encoded
-       ) do
+  defp create_file(path, encoded) do
     case :file.open(
            path,
            [
@@ -80,10 +70,8 @@ defmodule PositionDB.Storage.PostingIndex.Disk.ManifestStore do
                  :file.write(
                    file,
                    encoded
-                 ),
-               :ok <-
-                 :file.sync(file) do
-            :ok
+                 ) do
+            :file.sync(file)
           end
         after
           :file.close(file)

@@ -58,8 +58,8 @@ defmodule Analysis.PositionStore do
 
   @spec server() :: GenServer.server()
   def server do
-    Application.get_env(
-      :analysis,
+    :analysis
+    |> Application.get_env(
       __MODULE__,
       []
     )
@@ -71,19 +71,17 @@ defmodule Analysis.PositionStore do
 
   @spec ready?() :: boolean()
   def ready? do
-    try do
-      GenServer.call(
-        server(),
-        :ping,
-        1_000
-      ) == :ok
-    rescue
-      ArgumentError ->
-        false
-    catch
-      :exit, _reason ->
-        false
-    end
+    GenServer.call(
+      server(),
+      :ping,
+      1_000
+    ) == :ok
+  rescue
+    ArgumentError ->
+      false
+  catch
+    :exit, _reason ->
+      false
   end
 
   @spec get(PositionDB.position_id()) ::
@@ -102,12 +100,7 @@ defmodule Analysis.PositionStore do
           pos_integer()
         ) ::
           query_page()
-  def query_page(
-        query,
-        page_size
-      )
-      when is_integer(page_size) and
-             page_size > 0 do
+  def query_page(query, page_size) when is_integer(page_size) and page_size > 0 do
     GenServer.call(
       server(),
       {
@@ -123,13 +116,7 @@ defmodule Analysis.PositionStore do
           pos_integer()
         ) ::
           query_page()
-  def next_query_page(
-        cursor,
-        page_size
-      )
-      when is_reference(cursor) and
-             is_integer(page_size) and
-             page_size > 0 do
+  def next_query_page(cursor, page_size) when is_reference(cursor) and is_integer(page_size) and page_size > 0 do
     GenServer.call(
       server(),
       {
@@ -141,8 +128,7 @@ defmodule Analysis.PositionStore do
   end
 
   @spec close_query(query_cursor()) :: :ok
-  def close_query(cursor)
-      when is_reference(cursor) do
+  def close_query(cursor) when is_reference(cursor) do
     GenServer.call(
       server(),
       {
@@ -177,11 +163,7 @@ defmodule Analysis.PositionStore do
   end
 
   @impl true
-  def handle_call(
-        :ping,
-        _from,
-        %State{} = state
-      ) do
+  def handle_call(:ping, _from, %State{} = state) do
     {
       :reply,
       :ok,
@@ -189,11 +171,7 @@ defmodule Analysis.PositionStore do
     }
   end
 
-  def handle_call(
-        {:get, position_id},
-        _from,
-        %State{db: db} = state
-      ) do
+  def handle_call({:get, position_id}, _from, %State{db: db} = state) do
     {
       :reply,
       PositionDB.get(
@@ -204,11 +182,7 @@ defmodule Analysis.PositionStore do
     }
   end
 
-  def handle_call(
-        {:append, position},
-        _from,
-        %State{db: db} = state
-      ) do
+  def handle_call({:append, position}, _from, %State{db: db} = state) do
     case PositionDB.append(
            db,
            position
@@ -236,15 +210,7 @@ defmodule Analysis.PositionStore do
     end
   end
 
-  def handle_call(
-        {
-          :query_page,
-          query,
-          page_size
-        },
-        _from,
-        %State{db: db} = state
-      ) do
+  def handle_call({:query_page, query, page_size}, _from, %State{db: db} = state) do
     cursor_state =
       %CursorState{
         result:
@@ -300,15 +266,7 @@ defmodule Analysis.PositionStore do
     end
   end
 
-  def handle_call(
-        {
-          :next_query_page,
-          cursor,
-          page_size
-        },
-        _from,
-        %State{} = state
-      ) do
+  def handle_call({:next_query_page, cursor, page_size}, _from, %State{} = state) do
     case Map.fetch(
            state.cursors,
            cursor
@@ -330,14 +288,7 @@ defmodule Analysis.PositionStore do
     end
   end
 
-  def handle_call(
-        {
-          :close_query,
-          cursor
-        },
-        _from,
-        %State{} = state
-      ) do
+  def handle_call({:close_query, cursor}, _from, %State{} = state) do
     {
       :reply,
       :ok,
@@ -364,10 +315,7 @@ defmodule Analysis.PositionStore do
     end
   end
 
-  defp init_persistent(
-         directory,
-         opts
-       ) do
+  defp init_persistent(directory, opts) do
     case PositionDatabase.open_or_create(
            directory,
            opts
@@ -396,12 +344,7 @@ defmodule Analysis.PositionStore do
     )
   end
 
-  defp continue_query(
-         state,
-         cursor,
-         cursor_state,
-         page_size
-       ) do
+  defp continue_query(state, cursor, cursor_state, page_size) do
     case take_page(
            cursor_state,
            page_size
@@ -451,10 +394,7 @@ defmodule Analysis.PositionStore do
     end
   end
 
-  defp take_page(
-         cursor_state,
-         page_size
-       ) do
+  defp take_page(cursor_state, page_size) do
     take_page(
       cursor_state,
       page_size,
@@ -462,22 +402,14 @@ defmodule Analysis.PositionStore do
     )
   end
 
-  defp take_page(
-         cursor_state,
-         0,
-         reversed_position_ids
-       ) do
+  defp take_page(cursor_state, 0, reversed_position_ids) do
     finish_page(
       cursor_state,
       reversed_position_ids
     )
   end
 
-  defp take_page(
-         cursor_state,
-         remaining,
-         reversed_position_ids
-       ) do
+  defp take_page(cursor_state, remaining, reversed_position_ids) do
     case next_position(cursor_state) do
       {
         :ok,
@@ -505,10 +437,7 @@ defmodule Analysis.PositionStore do
     end
   end
 
-  defp finish_page(
-         cursor_state,
-         reversed_position_ids
-       ) do
+  defp finish_page(cursor_state, reversed_position_ids) do
     case next_position(cursor_state) do
       {
         :ok,
@@ -536,12 +465,7 @@ defmodule Analysis.PositionStore do
     end
   end
 
-  defp next_position(
-         %CursorState{
-           pending_position_id: position_id
-         } = cursor_state
-       )
-       when not is_nil(position_id) do
+  defp next_position(%CursorState{pending_position_id: position_id} = cursor_state) when not is_nil(position_id) do
     {
       :ok,
       position_id,
@@ -552,11 +476,7 @@ defmodule Analysis.PositionStore do
     }
   end
 
-  defp next_position(
-         %CursorState{
-           result: result
-         } = cursor_state
-       ) do
+  defp next_position(%CursorState{result: result} = cursor_state) do
     case QueryResult.next(result) do
       {
         :ok,
@@ -580,11 +500,7 @@ defmodule Analysis.PositionStore do
     end
   end
 
-  defp put_cursor(
-         state,
-         cursor,
-         cursor_state
-       ) do
+  defp put_cursor(state, cursor, cursor_state) do
     %{
       state
       | cursors:
@@ -596,10 +512,7 @@ defmodule Analysis.PositionStore do
     }
   end
 
-  defp delete_cursor(
-         state,
-         cursor
-       ) do
+  defp delete_cursor(state, cursor) do
     %{
       state
       | cursors:

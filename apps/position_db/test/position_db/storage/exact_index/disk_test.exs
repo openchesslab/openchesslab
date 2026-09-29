@@ -4,63 +4,60 @@ defmodule PositionDB.Storage.ExactIndex.DiskTest do
   alias PositionDB.Storage.ExactIndex.Disk
   alias PositionDB.Storage.ExactIndex.Disk.Entry
   alias PositionDB.Storage.ExactIndex.Disk.Layout
+  alias PositionDB.Storage.ExactKeyHash
 
   defmodule TestHash do
-    @behaviour PositionDB.Storage.ExactKeyHash
+    @moduledoc false
+    @behaviour ExactKeyHash
 
-    @impl PositionDB.Storage.ExactKeyHash
+    @impl ExactKeyHash
     def format_id do
       <<"test-exact-hash-v1">>
     end
 
-    @impl PositionDB.Storage.ExactKeyHash
+    @impl ExactKeyHash
     def hash_size do
       4
     end
 
-    @impl PositionDB.Storage.ExactKeyHash
-    def hash(<<"a">>),
-      do: {:ok, <<0, 0, 0, 1>>}
+    @impl ExactKeyHash
+    def hash(<<"a">>), do: {:ok, <<0, 0, 0, 1>>}
 
-    def hash(<<"b">>),
-      do: {:ok, <<0, 0, 0, 2>>}
+    def hash(<<"b">>), do: {:ok, <<0, 0, 0, 2>>}
 
-    def hash(<<"collision-a">>),
-      do: {:ok, <<0, 0, 0, 3>>}
+    def hash(<<"collision-a">>), do: {:ok, <<0, 0, 0, 3>>}
 
-    def hash(<<"collision-b">>),
-      do: {:ok, <<0, 0, 0, 3>>}
+    def hash(<<"collision-b">>), do: {:ok, <<0, 0, 0, 3>>}
 
-    def hash(_key),
-      do: {:ok, <<0, 0, 0, 15>>}
+    def hash(_key), do: {:ok, <<0, 0, 0, 15>>}
   end
 
   defmodule FailingHash do
-    @behaviour PositionDB.Storage.ExactKeyHash
+    @moduledoc false
+    @behaviour ExactKeyHash
 
-    @impl PositionDB.Storage.ExactKeyHash
+    @impl ExactKeyHash
     def format_id, do: <<"failing-v1">>
 
-    @impl PositionDB.Storage.ExactKeyHash
+    @impl ExactKeyHash
     def hash_size, do: 4
 
-    @impl PositionDB.Storage.ExactKeyHash
-    def hash(_key),
-      do: {:error, :cannot_hash}
+    @impl ExactKeyHash
+    def hash(_key), do: {:error, :cannot_hash}
   end
 
   defmodule WrongSizeHash do
-    @behaviour PositionDB.Storage.ExactKeyHash
+    @moduledoc false
+    @behaviour ExactKeyHash
 
-    @impl PositionDB.Storage.ExactKeyHash
+    @impl ExactKeyHash
     def format_id, do: <<"wrong-size-v1">>
 
-    @impl PositionDB.Storage.ExactKeyHash
+    @impl ExactKeyHash
     def hash_size, do: 4
 
-    @impl PositionDB.Storage.ExactKeyHash
-    def hash(_key),
-      do: {:ok, <<1, 2, 3>>}
+    @impl ExactKeyHash
+    def hash(_key), do: {:ok, <<1, 2, 3>>}
   end
 
   setup do

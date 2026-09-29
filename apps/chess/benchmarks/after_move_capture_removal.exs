@@ -3,13 +3,13 @@ alias Chess.Move
 alias Chess.Position
 
 defmodule BenchmarkHelpers do
+  @moduledoc false
   use Bitwise
 
   def square(algebraic), do: Chess.Square.from_algebraic(algebraic)
 
   def middlegame_position do
-    Position.starting_position()
-    |> apply_moves([
+    apply_moves(Position.starting_position(), [
       {"e2", "e4"},
       {"e7", "e5"},
       {"g1", "f3"},
@@ -73,9 +73,7 @@ defmodule BenchmarkHelpers do
   end
 
   def print_case(name, %{from: from, to: to, piece: piece}) do
-    IO.puts(
-      "#{name}: #{Chess.Square.to_algebraic(from)}-#{Chess.Square.to_algebraic(to)} #{inspect(piece)}"
-    )
+    IO.puts("#{name}: #{Chess.Square.to_algebraic(from)}-#{Chess.Square.to_algebraic(to)} #{inspect(piece)}")
   end
 
   # Removes the piece occupying `square`.
@@ -86,10 +84,10 @@ defmodule BenchmarkHelpers do
     mask = bnot(1 <<< square)
 
     Enum.reduce_while(piece_fields(), board, fn {field, _color, _type}, board ->
-      if (Map.fetch!(board, field) &&& 1 <<< square) != 0 do
-        {:halt, Map.update!(board, field, &band(&1, mask))}
-      else
+      if (Map.fetch!(board, field) &&& 1 <<< square) == 0 do
         {:cont, board}
+      else
+        {:halt, Map.update!(board, field, &band(&1, mask))}
       end
     end)
   end

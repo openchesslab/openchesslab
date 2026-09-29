@@ -4,10 +4,8 @@ defmodule Analysis.PositionDatabase do
   alias Analysis.PositionExactKeyHash
   alias Analysis.PositionPropertyKeyCodec
   alias Analysis.PositionRecordCodec
-
   alias Chess.PositionKey
   alias Chess.PositionProperties
-
   alias PositionDB.PropertyIndex
   alias PositionDB.PropertyIndex.Disk, as: PropertyIndexDisk
   alias PositionDB.PropertyIndex.Disk.CatchUp
@@ -17,8 +15,7 @@ defmodule Analysis.PositionDatabase do
   @spec open_or_create(Path.t(), keyword()) ::
           {:ok, PositionDB.t()}
           | {:error, term()}
-  def open_or_create(directory, opts)
-      when is_binary(directory) do
+  def open_or_create(directory, opts) when is_binary(directory) do
     case File.stat(directory) do
       {:ok, %{type: :directory}} ->
         open(directory)
@@ -40,8 +37,7 @@ defmodule Analysis.PositionDatabase do
   @spec create(Path.t(), keyword()) ::
           {:ok, PositionDB.t()}
           | {:error, term()}
-  def create(directory, opts)
-      when is_binary(directory) do
+  def create(directory, opts) when is_binary(directory) do
     records_per_segment =
       Keyword.fetch!(
         opts,
@@ -87,8 +83,7 @@ defmodule Analysis.PositionDatabase do
   @spec open(Path.t()) ::
           {:ok, PositionDB.t()}
           | {:error, term()}
-  def open(directory)
-      when is_binary(directory) do
+  def open(directory) when is_binary(directory) do
     with {:ok, storage} <-
            StorageDisk.open(
              positions_directory(directory),
@@ -123,10 +118,7 @@ defmodule Analysis.PositionDatabase do
     end
   end
 
-  defp build_db(
-         storage,
-         property_backend
-       ) do
+  defp build_db(storage, property_backend) do
     property_index =
       PropertyIndex.new(
         PropertyIndexDisk,

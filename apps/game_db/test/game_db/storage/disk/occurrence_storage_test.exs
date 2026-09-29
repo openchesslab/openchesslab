@@ -496,10 +496,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStorageTest do
               }}
   end
 
-  defp collect_scan(
-         scan,
-         reversed
-       ) do
+  defp collect_scan(scan, reversed) do
     case OccurrenceStorage.scan_next(scan) do
       {
         :ok,

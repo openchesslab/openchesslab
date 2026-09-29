@@ -5,9 +5,7 @@ defmodule PositionDB.QueryExecutionError do
 
   defexception [:reason]
 
-  def message(%__MODULE__{
-        reason: reason
-      }) do
+  def message(%__MODULE__{reason: reason}) do
     "query execution failed: #{inspect(reason)}"
   end
 end

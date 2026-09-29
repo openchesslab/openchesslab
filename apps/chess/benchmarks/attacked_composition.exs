@@ -1,4 +1,5 @@
 defmodule AttackedCompositionBenchmark do
+  @moduledoc false
   import Bitwise
 
   alias Chess.Bitboard
@@ -214,18 +215,20 @@ defmodule AttackedCompositionBenchmark do
     end)
   end
 
-  defp first_piece_on_ray(
-         board,
-         occupied,
-         square,
-         step,
-         color,
-         piece_types
-       ) do
+  defp first_piece_on_ray(board, occupied, square, step, color, piece_types) do
     next = square + step
 
     if valid_ray_square?(square, next, step) do
-      if (occupied &&& 1 <<< next) != 0 do
+      if (occupied &&& 1 <<< next) == 0 do
+        first_piece_on_ray(
+          board,
+          occupied,
+          next,
+          step,
+          color,
+          piece_types
+        )
+      else
         mask = 1 <<< next
 
         case piece_types do
@@ -237,23 +240,13 @@ defmodule AttackedCompositionBenchmark do
             (color_bishops(board, color) &&& mask) != 0 or
               (color_queens(board, color) &&& mask) != 0
         end
-      else
-        first_piece_on_ray(
-          board,
-          occupied,
-          next,
-          step,
-          color,
-          piece_types
-        )
       end
     else
       false
     end
   end
 
-  defp valid_ray_square?(_from, to, step)
-       when step in [8, -8] do
+  defp valid_ray_square?(_from, to, step) when step in [8, -8] do
     to in 0..63
   end
 

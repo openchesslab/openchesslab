@@ -22,14 +22,7 @@ defmodule PositionDB.PropertyIndex.Disk.CatchUp do
         ) ::
           {:ok, PositionIndexer.t()}
           | {:error, term()}
-  def run(
-        %PositionStore{} = store,
-        %PositionIndexer{
-          index: %PropertyIndex{
-            backend_module: Disk
-          }
-        } = indexer
-      ) do
+  def run(%PositionStore{} = store, %PositionIndexer{index: %PropertyIndex{backend_module: Disk}} = indexer) do
     first_pending_id =
       Disk.indexed_through(indexer.index.backend) + 1
 
@@ -44,22 +37,11 @@ defmodule PositionDB.PropertyIndex.Disk.CatchUp do
     )
   end
 
-  defp catch_up_first(
-         _store,
-         indexer,
-         position_id,
-         last_committed_id
-       )
-       when position_id > last_committed_id do
+  defp catch_up_first(_store, indexer, position_id, last_committed_id) when position_id > last_committed_id do
     {:ok, indexer}
   end
 
-  defp catch_up_first(
-         store,
-         indexer,
-         position_id,
-         last_committed_id
-       ) do
+  defp catch_up_first(store, indexer, position_id, last_committed_id) do
     with {:ok, position} <-
            read_position(
              store,
@@ -80,22 +62,11 @@ defmodule PositionDB.PropertyIndex.Disk.CatchUp do
     end
   end
 
-  defp catch_up_remaining(
-         _store,
-         indexer,
-         position_id,
-         last_committed_id
-       )
-       when position_id > last_committed_id do
+  defp catch_up_remaining(_store, indexer, position_id, last_committed_id) when position_id > last_committed_id do
     {:ok, indexer}
   end
 
-  defp catch_up_remaining(
-         store,
-         indexer,
-         position_id,
-         last_committed_id
-       ) do
+  defp catch_up_remaining(store, indexer, position_id, last_committed_id) do
     with {:ok, position} <-
            read_position(
              store,
@@ -116,11 +87,7 @@ defmodule PositionDB.PropertyIndex.Disk.CatchUp do
     end
   end
 
-  defp recover_position(
-         indexer,
-         position_id,
-         position
-       ) do
+  defp recover_position(indexer, position_id, position) do
     properties =
       PositionIndexer.properties_for(
         indexer,
@@ -140,19 +107,11 @@ defmodule PositionDB.PropertyIndex.Disk.CatchUp do
     end
   end
 
-  defp recover_properties(
-         indexer,
-         [],
-         _position_id
-       ) do
+  defp recover_properties(indexer, [], _position_id) do
     {:ok, indexer}
   end
 
-  defp recover_properties(
-         indexer,
-         properties,
-         position_id
-       ) do
+  defp recover_properties(indexer, properties, position_id) do
     case Disk.recover_adds(
            indexer.index.backend,
            properties,
@@ -170,11 +129,7 @@ defmodule PositionDB.PropertyIndex.Disk.CatchUp do
     end
   end
 
-  defp index_position(
-         indexer,
-         position_id,
-         position
-       ) do
+  defp index_position(indexer, position_id, position) do
     case PositionIndexer.index(
            indexer,
            position_id,
@@ -188,10 +143,7 @@ defmodule PositionDB.PropertyIndex.Disk.CatchUp do
     end
   end
 
-  defp advance(
-         indexer,
-         position_id
-       ) do
+  defp advance(indexer, position_id) do
     case Disk.advance(
            indexer.index.backend,
            position_id
@@ -208,10 +160,7 @@ defmodule PositionDB.PropertyIndex.Disk.CatchUp do
     end
   end
 
-  defp put_backend(
-         indexer,
-         backend
-       ) do
+  defp put_backend(indexer, backend) do
     index =
       %{
         indexer.index
@@ -224,10 +173,7 @@ defmodule PositionDB.PropertyIndex.Disk.CatchUp do
     }
   end
 
-  defp read_position(
-         store,
-         position_id
-       ) do
+  defp read_position(store, position_id) do
     case PositionStore.get(
            store,
            position_id

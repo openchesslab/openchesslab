@@ -72,24 +72,14 @@ defmodule PositionDB.QueryEngine do
     Empty.new()
   end
 
-  defp build_executor(
-         index,
-         _store,
-         {:property, property, value},
-         _equivalence
-       ) do
+  defp build_executor(index, _store, {:property, property, value}, _equivalence) do
     PropertyIndexScan.new(
       index,
       {property, value}
     )
   end
 
-  defp build_executor(
-         _index,
-         store,
-         {:equivalent, position},
-         equivalence
-       ) do
+  defp build_executor(_index, store, {:equivalent, position}, equivalence) do
     EquivalenceScan.new(
       equivalence.index,
       store,
@@ -99,12 +89,7 @@ defmodule PositionDB.QueryEngine do
     )
   end
 
-  defp build_executor(
-         index,
-         store,
-         {:not, query},
-         equivalence
-       ) do
+  defp build_executor(index, store, {:not, query}, equivalence) do
     universe = UniverseScan.new(store)
 
     child =
@@ -118,12 +103,7 @@ defmodule PositionDB.QueryEngine do
     Not.new(universe, child)
   end
 
-  defp build_executor(
-         index,
-         store,
-         {:and, queries},
-         equivalence
-       ) do
+  defp build_executor(index, store, {:and, queries}, equivalence) do
     queries
     |> Enum.map(
       &build_executor(
@@ -136,12 +116,7 @@ defmodule PositionDB.QueryEngine do
     |> build_and()
   end
 
-  defp build_executor(
-         index,
-         store,
-         {:or, queries},
-         equivalence
-       ) do
+  defp build_executor(index, store, {:or, queries}, equivalence) do
     queries
     |> Enum.map(
       &build_executor(

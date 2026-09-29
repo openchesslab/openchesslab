@@ -2,77 +2,59 @@ defmodule PositionDB.PropertyIndexBackendTest do
   use ExUnit.Case, async: true
 
   alias PositionDB.EquivalenceContext
+  alias PositionDB.PositionStore
   alias PositionDB.PropertyIndex
+  alias PositionDB.PropertyIndex.Backend
   alias PositionDB.PropertyIndex.Disk
   alias PositionDB.Query
   alias PositionDB.QueryEngine
   alias PositionDB.QueryExecutionError
-  alias PositionDB.PositionStore
+  alias PositionDB.Storage.PropertyKeyCodec
 
   defmodule TestCodec do
-    @behaviour PositionDB.Storage.PropertyKeyCodec
+    @moduledoc false
+    @behaviour PropertyKeyCodec
 
-    @impl PositionDB.Storage.PropertyKeyCodec
+    @impl PropertyKeyCodec
     def format_id do
       <<"query-property-v1">>
     end
 
-    @impl PositionDB.Storage.PropertyKeyCodec
-    def encode(
-          :color,
-          :white
-        ) do
+    @impl PropertyKeyCodec
+    def encode(:color, :white) do
       {:ok, <<1, 1>>}
     end
 
-    def encode(
-          :color,
-          :black
-        ) do
+    def encode(:color, :black) do
       {:ok, <<1, 2>>}
     end
 
-    def encode(
-          _property,
-          _value
-        ) do
+    def encode(_property, _value) do
       {:error, :unsupported_property}
     end
   end
 
   defmodule FailingBackend do
-    @behaviour PositionDB.PropertyIndex.Backend
+    @moduledoc false
+    @behaviour Backend
 
-    @impl PositionDB.PropertyIndex.Backend
-    def add(
-          _backend,
-          _property,
-          _position_id
-        ) do
+    @impl Backend
+    def add(_backend, _property, _position_id) do
       {:error, :disk_failure}
     end
 
-    @impl PositionDB.PropertyIndex.Backend
-    def advance(
-          _backend,
-          _property
-        ) do
+    @impl Backend
+    def advance(_backend, _property) do
       {:error, :disk_failure}
     end
 
-    @impl PositionDB.PropertyIndex.Backend
-    def lookup(
-          _backend,
-          _property
-        ) do
+    @impl Backend
+    def lookup(_backend, _property) do
       {:error, :disk_failure}
     end
 
-    @impl PositionDB.PropertyIndex.Backend
-    def cardinality(
-          _backend,
-          _property
-        ) do
+    @impl Backend
+    def cardinality(_backend, _property) do
       {:error, :disk_failure}
     end
   end

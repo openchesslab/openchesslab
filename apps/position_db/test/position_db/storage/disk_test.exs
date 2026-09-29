@@ -9,109 +9,111 @@ defmodule PositionDB.Storage.DiskTest do
   alias PositionDB.Storage.ExactIndex.Disk, as: ExactIndex
   alias PositionDB.Storage.ExactIndex.Disk.Entry
   alias PositionDB.Storage.ExactIndex.Disk.Layout, as: ExactIndexLayout
+  alias PositionDB.Storage.ExactKeyHash
+  alias PositionDB.Storage.RecordCodec
 
   defmodule OtherFormatCodec do
-    @behaviour PositionDB.Storage.RecordCodec
+    @moduledoc false
+    @behaviour RecordCodec
 
-    @impl PositionDB.Storage.RecordCodec
+    @impl RecordCodec
     def format_id, do: <<"other-position-v1">>
 
-    @impl PositionDB.Storage.RecordCodec
+    @impl RecordCodec
     def record_size, do: 4
 
-    @impl PositionDB.Storage.RecordCodec
-    def encode(_position),
-      do: {:error, :not_implemented}
+    @impl RecordCodec
+    def encode(_position), do: {:error, :not_implemented}
 
-    @impl PositionDB.Storage.RecordCodec
-    def decode(_record),
-      do: {:error, :not_implemented}
+    @impl RecordCodec
+    def decode(_record), do: {:error, :not_implemented}
   end
 
   defmodule WrongSizeCodec do
-    @behaviour PositionDB.Storage.RecordCodec
+    @moduledoc false
+    @behaviour RecordCodec
 
-    @impl PositionDB.Storage.RecordCodec
+    @impl RecordCodec
     def format_id, do: <<"test-position-v1">>
 
-    @impl PositionDB.Storage.RecordCodec
+    @impl RecordCodec
     def record_size, do: 8
 
-    @impl PositionDB.Storage.RecordCodec
-    def encode(_position),
-      do: {:error, :not_implemented}
+    @impl RecordCodec
+    def encode(_position), do: {:error, :not_implemented}
 
-    @impl PositionDB.Storage.RecordCodec
-    def decode(_record),
-      do: {:error, :not_implemented}
+    @impl RecordCodec
+    def decode(_record), do: {:error, :not_implemented}
   end
 
   defmodule OtherFormatHash do
-    @behaviour PositionDB.Storage.ExactKeyHash
+    @moduledoc false
+    @behaviour ExactKeyHash
 
-    @impl PositionDB.Storage.ExactKeyHash
+    @impl ExactKeyHash
     def format_id, do: <<"other-exact-hash-v1">>
 
-    @impl PositionDB.Storage.ExactKeyHash
+    @impl ExactKeyHash
     def hash_size, do: 4
 
-    @impl PositionDB.Storage.ExactKeyHash
-    def hash(_key),
-      do: {:ok, <<0, 0, 0, 1>>}
+    @impl ExactKeyHash
+    def hash(_key), do: {:ok, <<0, 0, 0, 1>>}
   end
 
   defmodule WrongSizeHash do
-    @behaviour PositionDB.Storage.ExactKeyHash
+    @moduledoc false
+    @behaviour ExactKeyHash
 
-    @impl PositionDB.Storage.ExactKeyHash
+    @impl ExactKeyHash
     def format_id, do: <<"test-exact-hash-v1">>
 
-    @impl PositionDB.Storage.ExactKeyHash
+    @impl ExactKeyHash
     def hash_size, do: 8
 
-    @impl PositionDB.Storage.ExactKeyHash
-    def hash(_key),
-      do: {:ok, <<0, 0, 0, 0, 0, 0, 0, 1>>}
+    @impl ExactKeyHash
+    def hash(_key), do: {:ok, <<0, 0, 0, 0, 0, 0, 0, 1>>}
   end
 
   defmodule InvalidFormatCodec do
-    @behaviour PositionDB.Storage.RecordCodec
+    @moduledoc false
+    @behaviour RecordCodec
 
-    @impl PositionDB.Storage.RecordCodec
+    @impl RecordCodec
     def format_id do
       <<>>
     end
 
-    @impl PositionDB.Storage.RecordCodec
+    @impl RecordCodec
     def record_size do
       4
     end
 
-    @impl PositionDB.Storage.RecordCodec
+    @impl RecordCodec
     def encode(_position) do
       {:error, :not_implemented}
     end
 
-    @impl PositionDB.Storage.RecordCodec
+    @impl RecordCodec
     def decode(_record) do
       {:error, :not_implemented}
     end
   end
 
   defmodule TestCodec do
-    @behaviour PositionDB.Storage.RecordCodec
+    @moduledoc false
+    @behaviour RecordCodec
 
-    @impl PositionDB.Storage.RecordCodec
+    @impl RecordCodec
     def format_id do
       <<"test-position-v1">>
     end
 
-    @impl PositionDB.Storage.RecordCodec
+    @impl RecordCodec
     def record_size do
       4
     end
 
-    @impl PositionDB.Storage.RecordCodec
+    @impl RecordCodec
     def encode(:position_a) do
       {:ok, <<"aaaa">>}
     end
@@ -124,7 +126,7 @@ defmodule PositionDB.Storage.DiskTest do
       {:error, :invalid_position}
     end
 
-    @impl PositionDB.Storage.RecordCodec
+    @impl RecordCodec
     def decode(<<"aaaa">>) do
       {:ok, :position_a}
     end
@@ -139,23 +141,21 @@ defmodule PositionDB.Storage.DiskTest do
   end
 
   defmodule TestHash do
-    @behaviour PositionDB.Storage.ExactKeyHash
+    @moduledoc false
+    @behaviour ExactKeyHash
 
-    @impl PositionDB.Storage.ExactKeyHash
+    @impl ExactKeyHash
     def format_id, do: <<"test-exact-hash-v1">>
 
-    @impl PositionDB.Storage.ExactKeyHash
+    @impl ExactKeyHash
     def hash_size, do: 4
 
-    @impl PositionDB.Storage.ExactKeyHash
-    def hash(<<"aaaa">>),
-      do: {:ok, <<0, 0, 0, 1>>}
+    @impl ExactKeyHash
+    def hash(<<"aaaa">>), do: {:ok, <<0, 0, 0, 1>>}
 
-    def hash(<<"bbbb">>),
-      do: {:ok, <<0, 0, 0, 1>>}
+    def hash(<<"bbbb">>), do: {:ok, <<0, 0, 0, 1>>}
 
-    def hash(_key),
-      do: {:ok, <<0, 0, 0, 15>>}
+    def hash(_key), do: {:ok, <<0, 0, 0, 15>>}
   end
 
   setup do
@@ -675,9 +675,7 @@ defmodule PositionDB.Storage.DiskTest do
                codec: OtherFormatCodec,
                hash: TestHash
              ) ==
-               {:error,
-                {:storage_format_mismatch, :record_format_id, <<"test-position-v1">>,
-                 <<"other-position-v1">>}}
+               {:error, {:storage_format_mismatch, :record_format_id, <<"test-position-v1">>, <<"other-position-v1">>}}
     end
 
     test "rejects a different record size", %{
@@ -706,8 +704,7 @@ defmodule PositionDB.Storage.DiskTest do
                hash: OtherFormatHash
              ) ==
                {:error,
-                {:storage_format_mismatch, :exact_hash_format_id, <<"test-exact-hash-v1">>,
-                 <<"other-exact-hash-v1">>}}
+                {:storage_format_mismatch, :exact_hash_format_id, <<"test-exact-hash-v1">>, <<"other-exact-hash-v1">>}}
     end
 
     test "rejects a different exact hash size", %{

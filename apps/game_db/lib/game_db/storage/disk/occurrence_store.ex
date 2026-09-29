@@ -44,8 +44,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStore do
           {:ok, t()}
           | {:error, :storage_exists}
           | {:error, term()}
-  def create(directory)
-      when is_binary(directory) do
+  def create(directory) when is_binary(directory) do
     store =
       new(directory)
 
@@ -72,8 +71,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStore do
   @spec open(Path.t()) ::
           {:ok, t()}
           | {:error, term()}
-  def open(directory)
-      when is_binary(directory) do
+  def open(directory) when is_binary(directory) do
     store =
       new(directory)
 
@@ -92,14 +90,8 @@ defmodule GameDB.Storage.Disk.OccurrenceStore do
         ) ::
           {:ok, pos_integer(), pos_integer()}
           | {:error, term()}
-  def append(
-        %__MODULE__{} = store,
-        game_id,
-        position_ids
-      )
-      when is_integer(game_id) and
-             game_id > 0 and
-             is_list(position_ids) do
+  def append(%__MODULE__{} = store, game_id, position_ids)
+      when is_integer(game_id) and game_id > 0 and is_list(position_ids) do
     with :ok <-
            validate_game_id(game_id),
          :ok <-
@@ -131,21 +123,11 @@ defmodule GameDB.Storage.Disk.OccurrenceStore do
     end
   end
 
-  def append(
-        %__MODULE__{},
-        game_id,
-        _position_ids
-      )
-      when not is_integer(game_id) or
-             game_id <= 0 do
+  def append(%__MODULE__{}, game_id, _position_ids) when not is_integer(game_id) or game_id <= 0 do
     {:error, :invalid_game_id}
   end
 
-  def append(
-        %__MODULE__{},
-        _game_id,
-        _position_ids
-      ) do
+  def append(%__MODULE__{}, _game_id, _position_ids) do
     {:error, :invalid_position_ids}
   end
 
@@ -167,16 +149,8 @@ defmodule GameDB.Storage.Disk.OccurrenceStore do
         ) ::
           :ok
           | {:error, term()}
-  def recover_pending_append(
-        %__MODULE__{} = store,
-        game_id,
-        first_occurrence_id,
-        position_ids
-      )
-      when is_integer(game_id) and
-             game_id > 0 and
-             is_integer(first_occurrence_id) and
-             first_occurrence_id > 0 and
+  def recover_pending_append(%__MODULE__{} = store, game_id, first_occurrence_id, position_ids)
+      when is_integer(game_id) and game_id > 0 and is_integer(first_occurrence_id) and first_occurrence_id > 0 and
              is_list(position_ids) do
     with :ok <-
            validate_game_id(game_id),
@@ -209,12 +183,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStore do
     end
   end
 
-  def recover_pending_append(
-        %__MODULE__{},
-        _game_id,
-        _first_occurrence_id,
-        _position_ids
-      ) do
+  def recover_pending_append(%__MODULE__{}, _game_id, _first_occurrence_id, _position_ids) do
     {:error, :invalid_recovery_batch}
   end
 
@@ -225,12 +194,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStore do
           {:ok, Occurrence.t()}
           | :not_found
           | {:error, term()}
-  def get(
-        %__MODULE__{} = store,
-        occurrence_id
-      )
-      when is_integer(occurrence_id) and
-             occurrence_id > 0 do
+  def get(%__MODULE__{} = store, occurrence_id) when is_integer(occurrence_id) and occurrence_id > 0 do
     case cardinality(store) do
       {:ok, count}
       when occurrence_id > count ->
@@ -305,10 +269,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStore do
     }
   end
 
-  defp encode_records(
-         game_id,
-         position_ids
-       ) do
+  defp encode_records(game_id, position_ids) do
     position_ids
     |> Enum.with_index()
     |> Enum.map(fn {position_id, ply} ->
@@ -320,16 +281,8 @@ defmodule GameDB.Storage.Disk.OccurrenceStore do
     end)
   end
 
-  defp decode_record(
-         occurrence_id,
-         <<
-           game_id::unsigned-big-64,
-           ply::unsigned-big-32,
-           position_id::unsigned-big-64
-         >>
-       )
-       when game_id > 0 and
-              position_id > 0 do
+  defp decode_record(occurrence_id, <<game_id::unsigned-big-64, ply::unsigned-big-32, position_id::unsigned-big-64>>)
+       when game_id > 0 and position_id > 0 do
     {:ok,
      Occurrence.new(
        occurrence_id,
@@ -339,15 +292,11 @@ defmodule GameDB.Storage.Disk.OccurrenceStore do
      )}
   end
 
-  defp decode_record(
-         _occurrence_id,
-         _record
-       ) do
+  defp decode_record(_occurrence_id, _record) do
     {:error, :invalid_occurrence_record}
   end
 
-  defp validate_game_id(game_id)
-       when game_id <= @max_game_id do
+  defp validate_game_id(game_id) when game_id <= @max_game_id do
     :ok
   end
 
@@ -384,10 +333,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStore do
     end
   end
 
-  defp append_and_sync(
-         path,
-         records
-       ) do
+  defp append_and_sync(path, records) do
     case :file.open(
            path,
            [
@@ -402,10 +348,8 @@ defmodule GameDB.Storage.Disk.OccurrenceStore do
                  :file.write(
                    file,
                    records
-                 ),
-               :ok <-
-                 :file.sync(file) do
-            :ok
+                 ) do
+            :file.sync(file)
           end
         after
           :file.close(file)
@@ -416,11 +360,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStore do
     end
   end
 
-  defp pread(
-         path,
-         offset,
-         size
-       ) do
+  defp pread(path, offset, size) do
     case :file.open(
            path,
            [
@@ -447,10 +387,8 @@ defmodule GameDB.Storage.Disk.OccurrenceStore do
 
   defp create_directory(directory) do
     with :ok <-
-           File.mkdir(directory),
-         :ok <-
-           sync_directory(Path.dirname(directory)) do
-      :ok
+           File.mkdir(directory) do
+      sync_directory(Path.dirname(directory))
     end
   end
 
@@ -472,10 +410,8 @@ defmodule GameDB.Storage.Disk.OccurrenceStore do
             :file.close(file)
           end
 
-        with :ok <- result,
-             :ok <-
-               sync_directory(Path.dirname(path)) do
-          :ok
+        with :ok <- result do
+          sync_directory(Path.dirname(path))
         end
 
       {:error, reason} ->
@@ -541,12 +477,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStore do
     end
   end
 
-  defp recover_batch(
-         path,
-         actual_size,
-         expected_offset,
-         expected
-       ) do
+  defp recover_batch(path, actual_size, expected_offset, expected) do
     expected_end =
       expected_offset +
         byte_size(expected)
@@ -591,12 +522,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStore do
     end
   end
 
-  defp recover_partial_batch(
-         path,
-         offset,
-         partial_size,
-         expected
-       ) do
+  defp recover_partial_batch(path, offset, partial_size, expected) do
     with {:ok, partial} <-
            read_exact(
              path,
@@ -612,21 +538,15 @@ defmodule GameDB.Storage.Disk.OccurrenceStore do
            truncate_file(
              path,
              offset
-           ),
-         :ok <-
-           append_and_sync(
-             path,
-             expected
            ) do
-      :ok
+      append_and_sync(
+        path,
+        expected
+      )
     end
   end
 
-  defp recover_complete_batch(
-         path,
-         offset,
-         expected
-       ) do
+  defp recover_complete_batch(path, offset, expected) do
     with {:ok, actual} <-
            read_exact(
              path,
@@ -641,10 +561,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStore do
     end
   end
 
-  defp validate_batch_prefix(
-         partial,
-         expected
-       ) do
+  defp validate_batch_prefix(partial, expected) do
     if partial ==
          binary_part(
            expected,
@@ -657,9 +574,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStore do
     end
   end
 
-  defp validate_first_occurrence_id(occurrence_id)
-       when occurrence_id <=
-              @max_occurrence_id do
+  defp validate_first_occurrence_id(occurrence_id) when occurrence_id <= @max_occurrence_id do
     :ok
   end
 
@@ -667,10 +582,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStore do
     {:error, :invalid_occurrence_id}
   end
 
-  defp validate_occurrence_range(
-         first_occurrence_id,
-         count
-       ) do
+  defp validate_occurrence_range(first_occurrence_id, count) do
     last_occurrence_id =
       first_occurrence_id +
         count -
@@ -694,11 +606,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStore do
     end
   end
 
-  defp read_exact(
-         path,
-         offset,
-         size
-       ) do
+  defp read_exact(path, offset, size) do
     case pread(
            path,
            offset,
@@ -720,10 +628,7 @@ defmodule GameDB.Storage.Disk.OccurrenceStore do
     end
   end
 
-  defp truncate_file(
-         path,
-         size
-       ) do
+  defp truncate_file(path, size) do
     case :file.open(
            path,
            [
@@ -741,10 +646,8 @@ defmodule GameDB.Storage.Disk.OccurrenceStore do
                    size
                  ),
                :ok <-
-                 :file.truncate(file),
-               :ok <-
-                 :file.sync(file) do
-            :ok
+                 :file.truncate(file) do
+            :file.sync(file)
           end
         after
           :file.close(file)
