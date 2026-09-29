@@ -15,6 +15,8 @@ primary_region = 'ams'
   PHX_HOST = 'openchesslab.com'
   DNS_CLUSTER_QUERY = 'openchesslab.internal'
   POSITION_STORE_OWNER = 'true'
+  GAME_STORE_OWNER = 'true'
+  GAME_RECORD_STORE_OWNER = 'true'
   ANALYSIS_STORE_OWNER = 'true'
   POSITION_STORE_DIRECTORY = '/data/position-db'
   ANALYSIS_STORE_PATH = '/data/analysis-store.dets'
@@ -23,8 +25,8 @@ primary_region = 'ams'
   POSITION_STORE_PROPERTY_BUCKET_COUNT = '65536'
 
 [processes]
-  app = "env POSITION_STORE_OWNER=true ANALYSIS_STORE_OWNER=true /app/bin/openchesslab start"
-  replica = "env POSITION_STORE_OWNER=false ANALYSIS_STORE_OWNER=false /app/bin/openchesslab start"
+  app = "env POSITION_STORE_OWNER=true GAME_STORE_OWNER=true GAME_RECORD_STORE_OWNER=true ANALYSIS_STORE_OWNER=true /app/bin/openchesslab start"
+  replica = "env POSITION_STORE_OWNER=false GAME_STORE_OWNER=false GAME_RECORD_STORE_OWNER=false ANALYSIS_STORE_OWNER=false /app/bin/openchesslab start"
 
 [http_service]
   internal_port = 8080
