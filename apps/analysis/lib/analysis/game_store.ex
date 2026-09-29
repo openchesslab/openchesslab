@@ -91,6 +91,9 @@ defmodule Analysis.GameStore do
         :ping,
         1_000
       ) == :ok
+    rescue
+      ArgumentError ->
+        false
     catch
       :exit, _reason ->
         false

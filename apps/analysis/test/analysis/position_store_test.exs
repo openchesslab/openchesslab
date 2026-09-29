@@ -174,6 +174,34 @@ defmodule Analysis.PositionStoreTest do
     refute PositionStore.ready?()
   end
 
+  test "reports not ready when the Horde registry is unavailable" do
+    previous =
+      Application.get_env(
+        :analysis,
+        PositionStore,
+        :not_configured
+      )
+
+    on_exit(fn ->
+      restore_position_store_config(previous)
+    end)
+
+    Application.put_env(
+      :analysis,
+      PositionStore,
+      server: {
+        :via,
+        Horde.Registry,
+        {
+          :unavailable_position_store_registry,
+          :position_store
+        }
+      }
+    )
+
+    refute PositionStore.ready?()
+  end
+
   test "returns an empty page for a query with no matches" do
     assert PositionStore.query_page(
              Query.match_none(),

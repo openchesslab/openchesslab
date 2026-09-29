@@ -245,6 +245,23 @@ defmodule Analysis.GameStoreTest do
     refute GameStore.ready?()
   end
 
+  test "reports not ready when the Horde registry is unavailable" do
+    Application.put_env(
+      :analysis,
+      GameStore,
+      server: {
+        :via,
+        Horde.Registry,
+        {
+          :unavailable_game_store_registry,
+          :game_store
+        }
+      }
+    )
+
+    refute GameStore.ready?()
+  end
+
   test "loads canonical game content with its occurrences" do
     content =
       GameContent.new(

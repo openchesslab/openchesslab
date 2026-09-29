@@ -148,6 +148,47 @@ defmodule Web.ReadinessControllerTest do
              }
   end
 
+  test "GET /ready returns service unavailable when a Horde registry is unavailable",
+       %{conn: conn} do
+    previous =
+      Application.get_env(
+        :analysis,
+        GameStore,
+        :not_configured
+      )
+
+    on_exit(fn ->
+      restore_game_store_config(previous)
+    end)
+
+    Application.put_env(
+      :analysis,
+      GameStore,
+      server: {
+        :via,
+        Horde.Registry,
+        {
+          :unavailable_game_store_registry,
+          :game_store
+        }
+      }
+    )
+
+    conn =
+      get(
+        conn,
+        "/ready"
+      )
+
+    assert json_response(
+             conn,
+             503
+           ) ==
+             %{
+               "status" => "unavailable"
+             }
+  end
+
   defp restore_position_store_config(:not_configured) do
     Application.delete_env(
       :analysis,

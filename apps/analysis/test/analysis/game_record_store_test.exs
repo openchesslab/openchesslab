@@ -301,4 +301,21 @@ defmodule Analysis.GameRecordStoreTest do
 
     refute GameRecordStore.ready?()
   end
+
+  test "reports not ready when the Horde registry is unavailable" do
+    Application.put_env(
+      :analysis,
+      GameRecordStore,
+      store: {
+        :via,
+        Horde.Registry,
+        {
+          :unavailable_game_record_store_registry,
+          :game_record_store
+        }
+      }
+    )
+
+    refute GameRecordStore.ready?()
+  end
 end

@@ -104,4 +104,21 @@ defmodule Analysis.AnalysisStoreTest do
 
     refute AnalysisStore.ready?()
   end
+
+  test "reports not ready when the Horde registry is unavailable" do
+    Application.put_env(
+      :analysis,
+      AnalysisStore,
+      store: {
+        :via,
+        Horde.Registry,
+        {
+          :unavailable_analysis_store_registry,
+          :analysis_store
+        }
+      }
+    )
+
+    refute AnalysisStore.ready?()
+  end
 end
