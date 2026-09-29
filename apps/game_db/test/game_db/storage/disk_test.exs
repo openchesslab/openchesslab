@@ -542,6 +542,64 @@ defmodule GameDB.Storage.DiskTest do
     refute File.exists?(directory)
   end
 
+  test "rejects canonical games without occurrence spans when reopening", %{
+    directory: directory,
+    opts: opts
+  } do
+    assert {:ok, storage} =
+             Disk.create(
+               directory,
+               opts
+             )
+
+    assert {:ok, _canonical_store, 1} =
+             CanonicalStore.put(
+               storage.canonical_store,
+               fingerprint(1),
+               {:game, 42}
+             )
+
+    assert Disk.open(
+             directory,
+             open_options(opts)
+           ) ==
+             {:error,
+              {
+                :game_count_mismatch,
+                1,
+                0
+              }}
+  end
+
+  test "rejects occurrence spans without canonical games when reopening", %{
+    directory: directory,
+    opts: opts
+  } do
+    assert {:ok, storage} =
+             Disk.create(
+               directory,
+               opts
+             )
+
+    assert :ok =
+             OccurrenceStorage.append(
+               storage.occurrence_storage,
+               1,
+               [10, 20]
+             )
+
+    assert Disk.open(
+             directory,
+             open_options(opts)
+           ) ==
+             {:error,
+              {
+                :game_count_mismatch,
+                0,
+                1
+              }}
+  end
+
   test "refuses another insert while outer recovery is pending", %{
     directory: directory,
     opts: opts
@@ -697,5 +755,16 @@ defmodule GameDB.Storage.DiskTest do
       prefix::unsigned-big-32,
       0::size(224)
     >>
+  end
+
+  defp open_options(opts) do
+    Keyword.take(
+      opts,
+      [
+        :codec,
+        :fingerprint_format_id,
+        :fingerprint_size
+      ]
+    )
   end
 end

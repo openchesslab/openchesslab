@@ -154,6 +154,13 @@ defmodule GameDB.Storage.Disk.OccurrenceStorage do
     {:error, :invalid_position_ids}
   end
 
+  @spec game_cardinality(t()) ::
+          {:ok, non_neg_integer()}
+          | {:error, term()}
+  def game_cardinality(%__MODULE__{} = storage) do
+    GameOccurrenceIndex.cardinality(storage.game_index)
+  end
+
   @spec occurrences(
           t(),
           pos_integer()

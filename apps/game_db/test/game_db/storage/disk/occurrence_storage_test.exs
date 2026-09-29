@@ -496,6 +496,33 @@ defmodule GameDB.Storage.Disk.OccurrenceStorageTest do
               }}
   end
 
+  test "reports the number of games with published occurrence spans", %{
+    storage: storage
+  } do
+    assert OccurrenceStorage.game_cardinality(storage) ==
+             {:ok, 0}
+
+    assert :ok =
+             OccurrenceStorage.append(
+               storage,
+               1,
+               [10, 20]
+             )
+
+    assert OccurrenceStorage.game_cardinality(storage) ==
+             {:ok, 1}
+
+    assert :ok =
+             OccurrenceStorage.append(
+               storage,
+               2,
+               [30]
+             )
+
+    assert OccurrenceStorage.game_cardinality(storage) ==
+             {:ok, 2}
+  end
+
   defp collect_scan(scan, reversed) do
     case OccurrenceStorage.scan_next(scan) do
       {

@@ -128,13 +128,27 @@ defmodule GameDB.Storage.Disk do
              canonical_store,
              occurrence_storage
            ),
-         {:ok, game_count} <- CanonicalStore.cardinality(canonical_store) do
+         :ok <-
+           GameInsertRecovery.recover(
+             directory,
+             canonical_store,
+             occurrence_storage
+           ),
+         {:ok, canonical_game_count} <-
+           CanonicalStore.cardinality(canonical_store),
+         {:ok, occurrence_game_count} <-
+           OccurrenceStorage.game_cardinality(occurrence_storage),
+         :ok <-
+           validate_game_counts(
+             canonical_game_count,
+             occurrence_game_count
+           ) do
       {:ok,
        build_storage(
          directory,
          canonical_store,
          occurrence_storage,
-         game_count
+         canonical_game_count
        )}
     end
   end
@@ -560,5 +574,18 @@ defmodule GameDB.Storage.Disk do
          fingerprint_size
        }}
     end
+  end
+
+  defp validate_game_counts(game_count, game_count) do
+    :ok
+  end
+
+  defp validate_game_counts(canonical_game_count, occurrence_game_count) do
+    {:error,
+     {
+       :game_count_mismatch,
+       canonical_game_count,
+       occurrence_game_count
+     }}
   end
 end
