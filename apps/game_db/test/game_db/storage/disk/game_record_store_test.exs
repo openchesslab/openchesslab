@@ -9,6 +9,12 @@ defmodule GameDB.Storage.Disk.GameRecordStoreTest do
     @behaviour GameDB.RecordCodec
 
     @impl true
+    @spec format_id() :: binary()
+    def format_id do
+      <<"test-game-v1">>
+    end
+
+    @impl true
     def encode({:game, value}) when is_integer(value) and value >= 0 do
       {:ok,
        <<

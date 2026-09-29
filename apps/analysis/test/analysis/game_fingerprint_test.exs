@@ -40,6 +40,14 @@ defmodule Analysis.GameFingerprintTest do
     assert byte_size(fingerprint) == 32
   end
 
+  test "exposes its durable fingerprint format" do
+    assert GameFingerprint.format_id() ==
+             <<"game-content-sha256-v1">>
+
+    assert GameFingerprint.fingerprint_size() ==
+             32
+  end
+
   test "different initial positions produce different fingerprints" do
     moves = [
       move("e2", "e4")

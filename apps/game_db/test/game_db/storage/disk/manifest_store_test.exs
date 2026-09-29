@@ -19,6 +19,8 @@ defmodule GameDB.Storage.Disk.ManifestStoreTest do
 
     manifest = %Manifest{
       record_format_id: <<"game-v1">>,
+      fingerprint_format_id: <<"game-sha256-v1">>,
+      fingerprint_size: 32,
       canonical_bucket_count: 65_536,
       position_bucket_count: 131_072
     }

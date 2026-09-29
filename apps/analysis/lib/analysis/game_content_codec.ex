@@ -29,6 +29,7 @@ defmodule Analysis.GameContentCodec do
 
   @type encoded :: binary()
 
+  @impl GameDB.RecordCodec
   @spec format_id() :: binary()
   def format_id do
     @format_id

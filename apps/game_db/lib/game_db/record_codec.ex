@@ -4,9 +4,15 @@ defmodule GameDB.RecordCodec do
 
   GameDB storage remains independent of the application-level game
   representation by depending only on this contract.
+
+  A codec's format ID must change whenever its durable binary
+  representation changes incompatibly.
   """
 
+  @type format_id :: binary()
   @type encoded :: binary()
+
+  @callback format_id() :: format_id()
 
   @callback encode(term()) ::
               {:ok, encoded()}
