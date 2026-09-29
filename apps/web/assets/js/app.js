@@ -9,6 +9,8 @@ const Board = {
     this.drawing = null;
     this.arrowStart = null;
     this.suppressClick = false;
+    this.pendingMove = null;
+    this.pendingShapes = [];
     this.pendingTimer = null;
     this.longPress = null;
 
@@ -119,16 +121,12 @@ const Board = {
       if (this.drawing) {
         const { from, color } = this.drawing;
         this.drawing = null;
+        if (square === from) {
+          this.pushAnnotation({ type: "square", square, color });
+        } else if (square !== null) {
+          this.pushAnnotation({ type: "arrow", from, to: square, color });
+        }
         this.removeDrawingPreview();
-        if (square === from)
-          this.pushEvent("board-annotation", { type: "square", square, color });
-        else if (square !== null)
-          this.pushEvent("board-annotation", {
-            type: "arrow",
-            from,
-            to: square,
-            color,
-          });
         return;
       }
 
@@ -141,7 +139,7 @@ const Board = {
         window.setTimeout(() => {
           this.suppressClick = false;
         }, 0);
-        this.holdPendingMove(from, square);
+        this.beginPendingMove(from, square);
         this.pushEvent("board-move", { from, to: square }, () =>
           this.clearPendingMove(),
         );
@@ -173,6 +171,7 @@ const Board = {
           this.cancelArrow();
           return;
         }
+        this.clearPendingShapes();
         this.pushEvent("clear-annotations", {});
         return;
       }
@@ -185,6 +184,7 @@ const Board = {
       }
 
       if (event.key.toLowerCase() === "c") {
+        this.clearPendingShapes();
         this.pushEvent("clear-annotations", {});
         return;
       }
@@ -195,7 +195,7 @@ const Board = {
 
       if (event.key.toLowerCase() === "h") {
         event.preventDefault();
-        this.pushEvent("board-annotation", {
+        this.pushAnnotation({
           type: "square",
           square: current,
           color: this.el.dataset.annotationColor || "blue",
@@ -243,6 +243,29 @@ const Board = {
       }
     };
 
+    // Click-to-move: hold the piece on the target as soon as a legal target is
+    // clicked, so a slow (cross-region) round trip doesn't show it jump back.
+    this.clickToMove = (event) => {
+      if (this.pendingMove) return;
+      const squareEl = event.target.closest("[data-square]");
+      if (!squareEl) return;
+      // `aria-pressed` is rendered as an empty boolean attribute when selected
+      const selected = this.el.querySelector("[data-square][aria-pressed]");
+      if (!selected) return;
+      const from = Number(selected.dataset.square);
+      const to = Number(squareEl.dataset.square);
+      if (to === from) return;
+      const legalTarget =
+        squareEl.querySelector('[class*="board-legal"]') !== null ||
+        squareEl.classList.contains("ring-4");
+      if (!legalTarget) return;
+      this.beginPendingMove(from, to);
+    };
+    this.el.addEventListener("click", this.clickToMove, true);
+
+    this.clearPending = () => this.clearPendingShapes();
+    document.addEventListener("openchesslab:clear-annotations", this.clearPending);
+
     this.contextMenu = (event) => event.preventDefault();
     this.el.addEventListener("pointerdown", this.pointerDown);
     this.el.addEventListener("pointermove", this.pointerMove);
@@ -258,6 +281,9 @@ const Board = {
     this.clearArrowState();
     this.boardFitObserver?.disconnect();
     if (this.fitBoard) window.removeEventListener("resize", this.fitBoard);
+    document.removeEventListener("openchesslab:clear-annotations", this.clearPending);
+    this.clearPendingShapes();
+    this.el.removeEventListener("click", this.clickToMove, true);
     this.el.removeEventListener("pointerdown", this.pointerDown);
     this.el.removeEventListener("pointermove", this.pointerMove);
     this.el.removeEventListener("pointerup", this.pointerUp);
@@ -280,6 +306,8 @@ const Board = {
       this.clearArrowState();
     }
 
+    this.confirmPendingMove();
+    this.reconcilePendingShapes();
     this.renderKeyboardArrowPreview();
   },
 
@@ -332,16 +360,18 @@ const Board = {
 
   finishArrow(square) {
     const from = this.arrowStart;
-    this.cancelArrow();
 
+    // push first: the optimistic shape is cloned from the live preview
     if (from !== null && square !== null && from !== square) {
-      this.pushEvent("board-annotation", {
+      this.pushAnnotation({
         type: "arrow",
         from,
         to: square,
         color: this.el.dataset.annotationColor || "blue",
       });
     }
+
+    this.cancelArrow();
   },
 
   cancelArrow() {
@@ -549,27 +579,159 @@ const Board = {
       ?.removeAttribute("data-drag-source");
   },
 
-  // Keep the dragged piece visually on the target square until the server has
-  // applied the move, so it never flashes back to its origin in between.
-  holdPendingMove(_from, to) {
+  // Keep the piece visually on the target square until the server confirms the
+  // move. Cross-region round trips can take seconds, so the hold is only
+  // cleared by the confirmation (or a long safety timeout) — never by a short
+  // timer that made the piece snap back and forth.
+  beginPendingMove(from, to) {
+    if (!this.ensureGhost(from, to)) return;
+
+    this.pendingMove = { from, to };
+    window.clearTimeout(this.pendingTimer);
+    this.pendingTimer = window.setTimeout(() => this.clearPendingMove(), 12000);
+  },
+
+  ensureGhost(from, to) {
     const grid = this.el.querySelector("[data-board-grid]");
-    const ghost = grid?.querySelector("[data-drag-ghost]");
+    const source = this.el.querySelector(`[data-square="${from}"]`);
     const target = this.el.querySelector(`[data-square="${to}"]`);
-    if (!grid || !ghost || !target) {
-      this.clearDragPreview();
-      return;
+    if (!grid || !source || !target) return false;
+
+    let ghost = grid.querySelector("[data-drag-ghost]");
+    if (!ghost) {
+      const piece = source.querySelector("[data-piece]");
+      if (!piece) return false;
+      ghost = document.createElement("span");
+      ghost.dataset.dragGhost = "true";
+      Object.assign(ghost.style, {
+        position: "absolute",
+        width: "12.5%",
+        height: "12.5%",
+        display: "grid",
+        placeItems: "center",
+        pointerEvents: "none",
+        transform: "translate(-50%, -50%)",
+        zIndex: "40",
+      });
+      const clone = piece.cloneNode(true);
+      clone.setAttribute("aria-hidden", "true");
+      ghost.append(clone);
+      grid.append(ghost);
     }
+
+    source.dataset.dragSource = "true";
+    this.snapGhost(ghost, grid, target);
+    ghost.dataset.dragPending = "true";
+    return true;
+  },
+
+  snapGhost(ghost, grid, target) {
     const gridRect = grid.getBoundingClientRect();
     const targetRect = target.getBoundingClientRect();
     ghost.style.left = `${targetRect.left - gridRect.left + targetRect.width / 2}px`;
     ghost.style.top = `${targetRect.top - gridRect.top + targetRect.height / 2}px`;
-    ghost.dataset.dragPending = "true";
-    window.clearTimeout(this.pendingTimer);
-    this.pendingTimer = window.setTimeout(() => this.clearPendingMove(), 2500);
+  },
+
+  confirmPendingMove() {
+    if (!this.pendingMove) return;
+    const { from, to } = this.pendingMove;
+    const source = this.el.querySelector(`[data-square="${from}"]`);
+    const target = this.el.querySelector(`[data-square="${to}"]`);
+
+    if (target?.querySelector("[data-piece]") && !source?.querySelector("[data-piece]")) {
+      this.clearPendingMove();
+      return;
+    }
+
+    // Patches can drop the ghost; put it back so the piece stays on the target.
+    this.ensureGhost(from, to);
   },
 
   clearPendingMove() {
+    this.pendingMove = null;
     this.clearDragPreview();
+  },
+
+  // Annotations: keep the local shape until the server renders it, so arrows
+  // and highlights don't blink out during the round trip.
+  pushAnnotation(payload) {
+    const key =
+      payload.type === "arrow"
+        ? `arrow-${payload.from}-${payload.to}-${payload.color}`
+        : `square-${payload.square}-${payload.color}`;
+
+    // If the server already renders this shape, this is a removal: don't add
+    // an optimistic copy.
+    if (!this.el.querySelector(`[data-shape-key="${key}"]`)) {
+      this.addPendingShape(key, payload);
+    }
+
+    this.pushEvent("board-annotation", payload);
+  },
+
+  addPendingShape(key, payload) {
+    if (this.pendingShapes.some((shape) => shape.key === key)) return;
+    const grid = this.el.querySelector("[data-board-grid]");
+    if (!grid) return;
+
+    let el = null;
+
+    if (payload.type === "arrow") {
+      const preview = this.el.querySelector("[data-drawing-preview]");
+      if (!preview) return;
+      el = preview.cloneNode(true);
+      el.removeAttribute("data-drawing-preview");
+    } else {
+      const file = payload.square % 8;
+      const rank = Math.floor(payload.square / 8);
+      const black = this.el.dataset.orientation === "black";
+      el = document.createElement("div");
+      Object.assign(el.style, {
+        position: "absolute",
+        left: `${(black ? 7 - file : file) * 12.5}%`,
+        top: `${(black ? rank : 7 - rank) * 12.5}%`,
+        width: "12.5%",
+        height: "12.5%",
+        border: `5px solid ${this.shapeColor(payload.color)}`,
+        pointerEvents: "none",
+        zIndex: "10",
+        boxSizing: "border-box",
+      });
+    }
+
+    el.dataset.pendingShape = key;
+    grid.append(el);
+    this.pendingShapes.push({
+      key,
+      el,
+      timer: window.setTimeout(() => this.clearPendingShape(key), 8000),
+    });
+  },
+
+  clearPendingShape(key) {
+    const index = this.pendingShapes.findIndex((shape) => shape.key === key);
+    if (index === -1) return;
+    const [shape] = this.pendingShapes.splice(index, 1);
+    window.clearTimeout(shape.timer);
+
+    // LiveView's morph can reuse our optimistic node as the real server shape
+    // (it then carries data-shape-key and lost the pending marker). Only
+    // remove the node while it is still the pending copy.
+    if (shape.el.dataset.pendingShape) shape.el.remove();
+  },
+
+  clearPendingShapes() {
+    for (const shape of [...this.pendingShapes]) this.clearPendingShape(shape.key);
+  },
+
+  reconcilePendingShapes() {
+    for (const shape of [...this.pendingShapes]) {
+      if (this.el.querySelector(`[data-shape-key="${shape.key}"]`)) {
+        this.clearPendingShape(shape.key);
+      } else if (!shape.el.isConnected) {
+        this.el.querySelector("[data-board-grid]")?.append(shape.el);
+      }
+    }
   },
 
   removeDrawingPreview() {

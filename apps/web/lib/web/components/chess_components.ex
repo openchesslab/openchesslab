@@ -162,6 +162,7 @@ defmodule Web.ChessComponents do
             <% {x1, y1} = square_center(shape.from, @orientation) %> <% {x2, y2} =
               square_center(shape.to, @orientation) %>
             <svg
+              data-shape-key={"arrow-#{shape.from}-#{shape.to}-#{shape.color}"}
               class="pointer-events-none absolute inset-0 z-20 h-full w-full"
               viewBox="0 0 800 800"
               aria-hidden="true"
@@ -185,6 +186,7 @@ defmodule Web.ChessComponents do
           <% else %>
             <% {visual_file, visual_rank} = visual_coords(shape.square, @orientation) %>
             <div
+              data-shape-key={"square-#{shape.square}-#{shape.color}"}
               data-highlight-square={shape.square}
               aria-hidden="true"
               class="pointer-events-none absolute z-10"
