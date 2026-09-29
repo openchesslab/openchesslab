@@ -1,5 +1,5 @@
-import { Socket } from "../../../../deps/phoenix/priv/static/phoenix.mjs";
-import { LiveSocket } from "../../../../deps/phoenix_live_view/priv/static/phoenix_live_view.esm.js";
+import { Socket } from "phoenix";
+import { LiveSocket } from "phoenix_live_view";
 
 const COLORS = ["yellow", "blue", "red", "orange", "purple"];
 
@@ -47,7 +47,13 @@ const Board = {
       if (event.button === 2) {
         event.preventDefault();
         const color = this.annotationColor(event);
-        this.drawing = { from: square, color, x: event.clientX, y: event.clientY, moved: false };
+        this.drawing = {
+          from: square,
+          color,
+          x: event.clientX,
+          y: event.clientY,
+          moved: false,
+        };
         return;
       }
 
@@ -58,27 +64,44 @@ const Board = {
       }
 
       if (!event.target.closest("[data-piece]")) return;
-      this.drag = { from: square, x: event.clientX, y: event.clientY, moved: false };
+      this.drag = {
+        from: square,
+        x: event.clientX,
+        y: event.clientY,
+        moved: false,
+      };
     };
 
     this.pointerMove = (event) => {
       if (this.longPress) {
         const travelled =
-          Math.abs(event.clientX - this.longPress.x) + Math.abs(event.clientY - this.longPress.y);
+          Math.abs(event.clientX - this.longPress.x) +
+          Math.abs(event.clientY - this.longPress.y);
         if (travelled > 10) this.cancelLongPress();
       }
 
       if (this.drawing) {
-        if (!this.drawing.moved && Math.abs(event.clientX - this.drawing.x) + Math.abs(event.clientY - this.drawing.y) > 6) {
+        if (
+          !this.drawing.moved &&
+          Math.abs(event.clientX - this.drawing.x) +
+            Math.abs(event.clientY - this.drawing.y) >
+            6
+        ) {
           this.drawing.moved = true;
           this.el.setPointerCapture?.(event.pointerId);
         }
-        if (this.drawing.moved) this.renderDrawingPreview(event.clientX, event.clientY);
+        if (this.drawing.moved)
+          this.renderDrawingPreview(event.clientX, event.clientY);
         return;
       }
 
       if (!this.drag) return;
-      if (!this.drag.moved && Math.abs(event.clientX - this.drag.x) + Math.abs(event.clientY - this.drag.y) > 6) {
+      if (
+        !this.drag.moved &&
+        Math.abs(event.clientX - this.drag.x) +
+          Math.abs(event.clientY - this.drag.y) >
+          6
+      ) {
         this.drag.moved = true;
         this.cancelLongPress();
         this.el.dataset.dragging = "true";
@@ -97,8 +120,15 @@ const Board = {
         const { from, color } = this.drawing;
         this.drawing = null;
         this.removeDrawingPreview();
-        if (square === from) this.pushEvent("board-annotation", { type: "square", square, color });
-        else if (square !== null) this.pushEvent("board-annotation", { type: "arrow", from, to: square, color });
+        if (square === from)
+          this.pushEvent("board-annotation", { type: "square", square, color });
+        else if (square !== null)
+          this.pushEvent("board-annotation", {
+            type: "arrow",
+            from,
+            to: square,
+            color,
+          });
         return;
       }
 
@@ -108,9 +138,13 @@ const Board = {
       delete this.el.dataset.dragging;
       if (moved && square !== null && square !== from) {
         this.suppressClick = true;
-        window.setTimeout(() => { this.suppressClick = false; }, 0);
+        window.setTimeout(() => {
+          this.suppressClick = false;
+        }, 0);
         this.holdPendingMove(from, square);
-        this.pushEvent("board-move", { from, to: square }, () => this.clearPendingMove());
+        this.pushEvent("board-move", { from, to: square }, () =>
+          this.clearPendingMove(),
+        );
       } else {
         this.clearDragPreview();
       }
@@ -144,7 +178,9 @@ const Board = {
       }
 
       if (/^[1-5]$/.test(event.key)) {
-        this.pushEvent("annotation-color", { color: COLORS[Number(event.key) - 1] });
+        this.pushEvent("annotation-color", {
+          color: COLORS[Number(event.key) - 1],
+        });
         return;
       }
 
@@ -173,7 +209,10 @@ const Board = {
         return;
       }
 
-      if (this.arrowStart !== null && (event.key === "Enter" || event.key === " ")) {
+      if (
+        this.arrowStart !== null &&
+        (event.key === "Enter" || event.key === " ")
+      ) {
         event.preventDefault();
         this.finishArrow(current);
         return;
@@ -245,7 +284,13 @@ const Board = {
       this.drag = null;
       delete this.el.dataset.dragging;
       this.clearDragPreview();
-      this.drawing = { from: square, color, x: event.clientX, y: event.clientY, moved: false };
+      this.drawing = {
+        from: square,
+        color,
+        x: event.clientX,
+        y: event.clientY,
+        moved: false,
+      };
       navigator.vibrate?.(10);
     }, 350);
     this.longPress = { square, x: event.clientX, y: event.clientY, timer };
@@ -299,8 +344,12 @@ const Board = {
   showArrowState(square) {
     document.body.dataset.boardArrow = "armed";
 
-    this.el.querySelectorAll("[data-arrow-start]").forEach((el) => delete el.dataset.arrowStart);
-    this.el.querySelector(`[data-square="${square}"]`)?.setAttribute("data-arrow-start", "true");
+    this.el
+      .querySelectorAll("[data-arrow-start]")
+      .forEach((el) => delete el.dataset.arrowStart);
+    this.el
+      .querySelector(`[data-square="${square}"]`)
+      ?.setAttribute("data-arrow-start", "true");
 
     const hint = document.querySelector("[data-arrow-hint] [data-arrow-from]");
     if (hint) hint.textContent = this.squareName(square);
@@ -308,7 +357,9 @@ const Board = {
 
   clearArrowState() {
     delete document.body.dataset.boardArrow;
-    this.el.querySelectorAll("[data-arrow-start]").forEach((el) => delete el.dataset.arrowStart);
+    this.el
+      .querySelectorAll("[data-arrow-start]")
+      .forEach((el) => delete el.dataset.arrowStart);
   },
 
   squareName(square) {
@@ -324,20 +375,27 @@ const Board = {
     const current = this.el.dataset.annotationColor || "blue";
     const index = COLORS.indexOf(current);
     if (event.altKey) return COLORS[(index + 1) % COLORS.length];
-    if (event.shiftKey) return COLORS[(index + COLORS.length - 1) % COLORS.length];
+    if (event.shiftKey)
+      return COLORS[(index + COLORS.length - 1) % COLORS.length];
     return current;
   },
 
   renderDrawingPreview(clientX, clientY) {
     if (!this.drawing) return;
-    const targetSquare = this.squareAt(document.elementFromPoint(clientX, clientY));
+    const targetSquare = this.squareAt(
+      document.elementFromPoint(clientX, clientY),
+    );
 
     if (targetSquare === null || targetSquare === this.drawing.from) {
       this.removeDrawingPreview();
       return;
     }
 
-    this.renderArrowPreview(this.drawing.from, targetSquare, this.drawing.color);
+    this.renderArrowPreview(
+      this.drawing.from,
+      targetSquare,
+      this.drawing.color,
+    );
   },
 
   renderKeyboardArrowPreview() {
@@ -395,11 +453,21 @@ const Board = {
 
     const gridRect = grid.getBoundingClientRect();
     const startRect = fromSquare.getBoundingClientRect();
-    const x1 = ((startRect.left + startRect.width / 2 - gridRect.left) / gridRect.width) * 800;
-    const y1 = ((startRect.top + startRect.height / 2 - gridRect.top) / gridRect.height) * 800;
+    const x1 =
+      ((startRect.left + startRect.width / 2 - gridRect.left) /
+        gridRect.width) *
+      800;
+    const y1 =
+      ((startRect.top + startRect.height / 2 - gridRect.top) /
+        gridRect.height) *
+      800;
     const endRect = toSquare.getBoundingClientRect();
-    const x2 = ((endRect.left + endRect.width / 2 - gridRect.left) / gridRect.width) * 800;
-    const y2 = ((endRect.top + endRect.height / 2 - gridRect.top) / gridRect.height) * 800;
+    const x2 =
+      ((endRect.left + endRect.width / 2 - gridRect.left) / gridRect.width) *
+      800;
+    const y2 =
+      ((endRect.top + endRect.height / 2 - gridRect.top) / gridRect.height) *
+      800;
     const color = this.shapeColor(colorName);
     const line = svg.querySelector("[data-preview-line]");
     const head = svg.querySelector("[data-preview-head]");
@@ -419,7 +487,10 @@ const Board = {
     const leftY = baseY - Math.cos(angle) * halfWidth;
     const rightX = baseX - Math.sin(angle) * halfWidth;
     const rightY = baseY + Math.cos(angle) * halfWidth;
-    head.setAttribute("points", `${x2},${y2} ${leftX},${leftY} ${rightX},${rightY}`);
+    head.setAttribute(
+      "points",
+      `${x2},${y2} ${leftX},${leftY} ${rightX},${rightY}`,
+    );
   },
 
   startDragPreview(from, clientX, clientY) {
@@ -464,7 +535,9 @@ const Board = {
     window.clearTimeout(this.pendingTimer);
     this.pendingTimer = null;
     this.el.querySelector("[data-drag-ghost]")?.remove();
-    this.el.querySelector("[data-drag-source]")?.removeAttribute("data-drag-source");
+    this.el
+      .querySelector("[data-drag-source]")
+      ?.removeAttribute("data-drag-source");
   },
 
   // Keep the dragged piece visually on the target square until the server has
@@ -495,13 +568,15 @@ const Board = {
   },
 
   shapeColor(color) {
-    return {
-      yellow: "#f2c200",
-      blue: "#3b6fe0",
-      red: "#d6453d",
-      orange: "#e08a1e",
-      purple: "#8b5cf6",
-    }[color] || "#3b6fe0";
+    return (
+      {
+        yellow: "#f2c200",
+        blue: "#3b6fe0",
+        red: "#d6453d",
+        orange: "#e08a1e",
+        purple: "#8b5cf6",
+      }[color] || "#3b6fe0"
+    );
   },
 };
 
@@ -528,7 +603,8 @@ const ScrollLog = {
     // arrive; measuring afterwards fails for messages taller than the threshold.
     this.stick = true;
     this.onScroll = () => {
-      const remaining = this.el.scrollHeight - this.el.scrollTop - this.el.clientHeight;
+      const remaining =
+        this.el.scrollHeight - this.el.scrollTop - this.el.clientHeight;
       this.stick = remaining < 48;
     };
     this.el.addEventListener("scroll", this.onScroll);
@@ -553,7 +629,9 @@ const ScrollLog = {
 const EvalBar = {
   mounted() {
     this.findBoard = () =>
-      this.el.closest("[data-tour='board']")?.querySelector("#chess-board [data-board-grid]");
+      this.el
+        .closest("[data-tour='board']")
+        ?.querySelector("#chess-board [data-board-grid]");
 
     this.syncHeight = () => {
       const board = this.findBoard();
@@ -594,12 +672,20 @@ const RoomTabs = {
         button.classList.toggle("room-tab--active", active);
         button.setAttribute("aria-selected", active ? "true" : "false");
       }
-      try { localStorage.setItem(this.tabKey, tab); } catch (_) { /* optional */ }
+      try {
+        localStorage.setItem(this.tabKey, tab);
+      } catch (_) {
+        /* optional */
+      }
     };
 
     this.setPanelSize = (size) => {
       document.body.dataset.roomPanelSize = size;
-      try { localStorage.setItem(this.sizeKey, size); } catch (_) { /* optional */ }
+      try {
+        localStorage.setItem(this.sizeKey, size);
+      } catch (_) {
+        /* optional */
+      }
     };
 
     this.onClick = (event) => {
@@ -609,7 +695,9 @@ const RoomTabs = {
         return;
       }
       if (event.target.closest("#room-panel-size")) {
-        this.setPanelSize(document.body.dataset.roomPanelSize === "roomy" ? "big" : "roomy");
+        this.setPanelSize(
+          document.body.dataset.roomPanelSize === "roomy" ? "big" : "roomy",
+        );
       }
     };
     this.el.addEventListener("click", this.onClick);
@@ -619,7 +707,9 @@ const RoomTabs = {
     try {
       tab = localStorage.getItem(this.tabKey) || "moves";
       size = localStorage.getItem(this.sizeKey) || "big";
-    } catch (_) { /* optional */ }
+    } catch (_) {
+      /* optional */
+    }
 
     this.setTab(["moves", "games", "chat"].includes(tab) ? tab : "moves");
     this.setPanelSize(size === "roomy" ? "roomy" : "big");
@@ -642,7 +732,12 @@ const PaletteDrag = {
       const button = event.target.closest("[data-piece-code]");
       if (!button || event.button !== 0) return;
       const rect = button.getBoundingClientRect();
-      this.drag = { piece: button.dataset.pieceCode, x: event.clientX, y: event.clientY, started: false };
+      this.drag = {
+        piece: button.dataset.pieceCode,
+        x: event.clientX,
+        y: event.clientY,
+        started: false,
+      };
       this.grab = { w: rect.width, h: rect.height, html: button.innerHTML };
       button.setPointerCapture?.(event.pointerId);
     };
@@ -651,7 +746,8 @@ const PaletteDrag = {
       if (!this.drag) return;
       if (!this.drag.started) {
         const travelled =
-          Math.abs(event.clientX - this.drag.x) + Math.abs(event.clientY - this.drag.y);
+          Math.abs(event.clientX - this.drag.x) +
+          Math.abs(event.clientY - this.drag.y);
         if (travelled < 6) return;
         this.drag.started = true;
         this.showGhost();
@@ -672,8 +768,14 @@ const PaletteDrag = {
       if (!squareButton) return;
 
       const board = squareButton.closest("#setup-board, #chess-board");
-      const name = board && board.id === "setup-board" ? "setup-palette-drop" : "palette-drop";
-      this.pushEvent(name, { piece: drag.piece, square: squareButton.dataset.square });
+      const name =
+        board && board.id === "setup-board"
+          ? "setup-palette-drop"
+          : "palette-drop";
+      this.pushEvent(name, {
+        piece: drag.piece,
+        square: squareButton.dataset.square,
+      });
     };
 
     this.onPointerCancel = () => {
@@ -767,7 +869,11 @@ const MoveList = {
     this.keepCurrentMoveVisible();
 
     const focused = document.activeElement;
-    if (focused && this.el.contains(focused) && focused.hasAttribute?.("data-move-path")) {
+    if (
+      focused &&
+      this.el.contains(focused) &&
+      focused.hasAttribute?.("data-move-path")
+    ) {
       this.setTabstop(focused);
     }
   },
@@ -782,39 +888,62 @@ const AppUI = {
     this.handleEvent("set-theme", ({ theme }) => {
       document.documentElement.dataset.theme = theme;
       this.el.dataset.theme = theme;
-      try { localStorage.setItem("openchesslab:theme", theme); } catch (_) { /* optional */ }
+      try {
+        localStorage.setItem("openchesslab:theme", theme);
+      } catch (_) {
+        /* optional */
+      }
     });
 
     this.handleEvent("set-locale", ({ locale }) => {
       document.documentElement.lang = locale;
-      try { localStorage.setItem("openchesslab:locale", locale); } catch (_) { /* optional */ }
+      try {
+        localStorage.setItem("openchesslab:locale", locale);
+      } catch (_) {
+        /* optional */
+      }
     });
 
     this.handleEvent("set-piece-set", ({ piece_set }) => {
-      try { localStorage.setItem("openchesslab:piece-set", piece_set); } catch (_) { /* optional */ }
+      try {
+        localStorage.setItem("openchesslab:piece-set", piece_set);
+      } catch (_) {
+        /* optional */
+      }
     });
 
     this.handleEvent("set-annotation-color", ({ color }) => {
-      try { localStorage.setItem("openchesslab:annotation-color", color); } catch (_) { /* optional */ }
+      try {
+        localStorage.setItem("openchesslab:annotation-color", color);
+      } catch (_) {
+        /* optional */
+      }
     });
 
     this.handleEvent("set-strip-preference", ({ open, tab }) => {
       try {
         localStorage.setItem("openchesslab:strip-open", String(open));
         localStorage.setItem("openchesslab:strip-tab", tab);
-      } catch (_) { /* optional */ }
+      } catch (_) {
+        /* optional */
+      }
     });
 
     this.handleEvent("focus-move", ({ path }) => {
-      const selector = path ? `[data-move-path="${path}"]` : `[data-move-path="0"]`;
+      const selector = path
+        ? `[data-move-path="${path}"]`
+        : `[data-move-path="0"]`;
       requestAnimationFrame(() => this.el.querySelector(selector)?.focus());
     });
 
     this.handleEvent("copy-text", async ({ text, notice }) => {
       try {
-        const copyValue = text.startsWith("/") ? new URL(text, window.location.origin).toString() : text;
+        const copyValue = text.startsWith("/")
+          ? new URL(text, window.location.origin).toString()
+          : text;
         await navigator.clipboard.writeText(copyValue);
-        if (notice) this.pushEvent("clipboard-result", { success: true, notice });
+        if (notice)
+          this.pushEvent("clipboard-result", { success: true, notice });
       } catch (_) {
         this.pushEvent("clipboard-result", { success: false, notice: text });
       }
@@ -840,7 +969,9 @@ const AppUI = {
         strip_open: localStorage.getItem("openchesslab:strip-open"),
         strip_tab: localStorage.getItem("openchesslab:strip-tab"),
       };
-    } catch (_) { /* optional */ }
+    } catch (_) {
+      /* optional */
+    }
     if (["system", "light", "dark"].includes(preferences.theme)) {
       this.el.dataset.theme = preferences.theme;
       document.documentElement.dataset.theme = preferences.theme;
@@ -852,7 +983,9 @@ const AppUI = {
 
     this.keyDown = (event) => {
       const target = event.target;
-      const typing = target?.matches?.("input, textarea, select, [contenteditable='true']");
+      const typing = target?.matches?.(
+        "input, textarea, select, [contenteditable='true']",
+      );
       if (typing || event.metaKey || event.ctrlKey || event.altKey) return;
 
       if (document.querySelector("[data-tour-dialog]")) {
@@ -880,13 +1013,22 @@ const AppUI = {
         (event.key === "ArrowLeft" || event.key === "ArrowRight")
       ) {
         event.preventDefault();
-        this.pushEvent(event.key === "ArrowRight" ? "next-move" : "previous-move", {});
+        this.pushEvent(
+          event.key === "ArrowRight" ? "next-move" : "previous-move",
+          {},
+        );
         return;
       }
 
-      if (moveButton && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
+      if (
+        moveButton &&
+        ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)
+      ) {
         event.preventDefault();
-        this.pushEvent("move-tree-key", { path: moveButton.dataset.movePath, key: event.key });
+        this.pushEvent("move-tree-key", {
+          path: moveButton.dataset.movePath,
+          key: event.key,
+        });
         return;
       }
 
@@ -899,12 +1041,17 @@ const AppUI = {
         (event.key === "ArrowLeft" || event.key === "ArrowRight")
       ) {
         event.preventDefault();
-        this.pushEvent(event.key === "ArrowRight" ? "next-move" : "previous-move", {});
+        this.pushEvent(
+          event.key === "ArrowRight" ? "next-move" : "previous-move",
+          {},
+        );
         return;
       }
 
       if (!board && this.el.dataset.roomCode && /^[1-5]$/.test(event.key)) {
-        this.pushEvent("annotation-color", { color: COLORS[Number(event.key) - 1] });
+        this.pushEvent("annotation-color", {
+          color: COLORS[Number(event.key) - 1],
+        });
         return;
       }
 
@@ -915,10 +1062,14 @@ const AppUI = {
         this.pushEvent("close-modal", {});
       } else if (event.key.toLowerCase() === "b" && this.el.dataset.roomCode) {
         event.preventDefault();
-        this.el.querySelector("#chess-board [data-square][tabindex='0']")?.focus();
+        this.el
+          .querySelector("#chess-board [data-square][tabindex='0']")
+          ?.focus();
       } else if (event.key.toLowerCase() === "m" && this.el.dataset.roomCode) {
         event.preventDefault();
-        const moveTarget = this.el.querySelector("#move-list [tabindex='0']") || this.el.querySelector("#move-list");
+        const moveTarget =
+          this.el.querySelector("#move-list [tabindex='0']") ||
+          this.el.querySelector("#move-list");
         moveTarget?.focus();
       } else if (event.key.toLowerCase() === "f" && this.el.dataset.roomCode) {
         this.pushEvent("toggle-orientation", {});
@@ -937,7 +1088,9 @@ const AppUI = {
         const started = performance.now();
         this.pushEvent("latency-ping", {}, () => {
           const value = Math.max(0, Math.round(performance.now() - started));
-          this.el.querySelector("[data-latency]")?.replaceChildren(`${value} ms`);
+          this.el
+            .querySelector("[data-latency]")
+            ?.replaceChildren(`${value} ms`);
         });
       }, 10000);
     }
