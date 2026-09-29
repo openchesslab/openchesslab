@@ -27,8 +27,7 @@ defmodule Web.IconComponents do
         <% "sliders" -> %>
           <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" />
         <% "search" -> %>
-          <circle cx="11" cy="11" r="7" />
-          <path d="m20 20-3.5-3.5" />
+          <circle cx="11" cy="11" r="7" /> <path d="m20 20-3.5-3.5" />
         <% "import" -> %>
           <path d="M12 3v12M7 10l5 5 5-5M4 21h16" />
         <% "add" -> %>
@@ -39,8 +38,7 @@ defmodule Web.IconComponents do
         <% "chevron" -> %>
           <path d={if @up, do: "m6 15 6-6 6 6", else: "m6 9 6 6 6-6"} />
         <% "monitor" -> %>
-          <rect x="2" y="3" width="20" height="14" rx="2" />
-          <path d="M8 21h8M12 17v4" />
+          <rect x="2" y="3" width="20" height="14" rx="2" /> <path d="M8 21h8M12 17v4" />
         <% "sun" -> %>
           <circle cx="12" cy="12" r="4" />
           <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />

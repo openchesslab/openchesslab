@@ -4,7 +4,6 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content={get_csrf_token()} />
-
     <!-- Brand marks (official assets, see /brand). Browsers that
          support media-aware icons pick the one matching the OS theme;
          the rest use the light-background mark. -->
@@ -29,11 +28,11 @@
     <.live_title default="OpenChessLab">
       {assigns[:page_title]}
     </.live_title>
-
-    <link phx-track-static rel="stylesheet" href={~p"/assets/app.css"} />
+     <link phx-track-static rel="stylesheet" href={~p"/assets/app.css"} />
     <script defer phx-track-static type="text/javascript" src={~p"/assets/app.js"}>
     </script>
   </head>
+  
   <body>
     {@inner_content}
   </body>

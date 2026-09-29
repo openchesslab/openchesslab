@@ -54,31 +54,22 @@ defmodule Web.ChessComponents do
         class="relative grid aspect-square grid-cols-8 grid-rows-8 overflow-hidden border border-border-strong"
       >
         <%= for {rank, file, square, piece} <- @squares do %>
-          <% algebraic = Square.to_algebraic(square) %>
-          <% selected = square == @selected_square %>
-          <% target = square in @legal_targets %>
-          <% checked = square in @check_squares %>
-          <% last_move = square == @last_from or square == @last_to %>
-          <% {visual_file, visual_rank} = visual_coords(square, @orientation) %>
-          <% open_file =
+          <% algebraic = Square.to_algebraic(square) %> <% selected = square == @selected_square %> <% target =
+            square in @legal_targets %> <% checked = square in @check_squares %> <% last_move =
+            square == @last_from or square == @last_to %> <% {visual_file, visual_rank} =
+            visual_coords(square, @orientation) %> <% open_file =
             @layers[:files] && @insights && @insights[:open_files] &&
-              file_atom(file) in @insights.open_files %>
-          <% white_attack =
+              file_atom(file) in @insights.open_files %> <% white_attack =
             @layers[:attacks] && @insights && @insights[:attacked_squares] &&
-              square in @insights.attacked_squares.white %>
-          <% black_attack =
+              square in @insights.attacked_squares.white %> <% black_attack =
             @layers[:attacks] && @insights && @insights[:attacked_squares] &&
-              square in @insights.attacked_squares.black %>
-          <% white_king_zone =
+              square in @insights.attacked_squares.black %> <% white_king_zone =
             @layers[:king_zone] && @insights && @insights[:king_zone] &&
-              square in @insights.king_zone.white.squares %>
-          <% black_king_zone =
+              square in @insights.king_zone.white.squares %> <% black_king_zone =
             @layers[:king_zone] && @insights && @insights[:king_zone] &&
-              square in @insights.king_zone.black.squares %>
-          <% white_outpost =
+              square in @insights.king_zone.black.squares %> <% white_outpost =
             @layers[:outposts] && @insights && @insights[:outposts] &&
-              square in @insights.outposts.white %>
-          <% black_outpost =
+              square in @insights.outposts.white %> <% black_outpost =
             @layers[:outposts] && @insights && @insights[:outposts] &&
               square in @insights.outposts.black %>
           <button
@@ -164,11 +155,11 @@ defmodule Web.ChessComponents do
             >{coordinate_rank(visual_rank, @orientation)}</span>
           </button>
         <% end %>
-
+        
         <%= for shape <- @shapes do %>
           <%= if shape.type == :arrow do %>
-            <% {x1, y1} = square_center(shape.from, @orientation) %>
-            <% {x2, y2} = square_center(shape.to, @orientation) %>
+            <% {x1, y1} = square_center(shape.from, @orientation) %> <% {x2, y2} =
+              square_center(shape.to, @orientation) %>
             <svg
               class="pointer-events-none absolute inset-0 z-20 h-full w-full"
               viewBox="0 0 800 800"
