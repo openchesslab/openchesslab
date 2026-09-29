@@ -303,4 +303,281 @@ defmodule GameDB.Storage.Disk.OccurrenceStoreTest do
            ) ==
              {:error, :invalid_occurrence_record}
   end
+
+  test "recovers a batch when no occurrence bytes were written", %{
+    store: store
+  } do
+    assert :ok =
+             OccurrenceStore.recover_pending_append(
+               store,
+               10,
+               1,
+               [
+                 100,
+                 200
+               ]
+             )
+
+    assert OccurrenceStore.cardinality(store) ==
+             {:ok, 2}
+
+    assert OccurrenceStore.get(
+             store,
+             1
+           ) ==
+             {:ok,
+              Occurrence.new(
+                1,
+                10,
+                0,
+                100
+              )}
+
+    assert OccurrenceStore.get(
+             store,
+             2
+           ) ==
+             {:ok,
+              Occurrence.new(
+                2,
+                10,
+                1,
+                200
+              )}
+  end
+
+  test "recovers a matching partial occurrence batch", %{
+    store: store
+  } do
+    expected =
+      encoded_occurrences(
+        10,
+        [
+          100,
+          200,
+          300
+        ]
+      )
+
+    File.write!(
+      store.path,
+      binary_part(
+        expected,
+        0,
+        27
+      )
+    )
+
+    assert :ok =
+             OccurrenceStore.recover_pending_append(
+               store,
+               10,
+               1,
+               [
+                 100,
+                 200,
+                 300
+               ]
+             )
+
+    assert OccurrenceStore.cardinality(store) ==
+             {:ok, 3}
+
+    assert OccurrenceStore.get(
+             store,
+             3
+           ) ==
+             {:ok,
+              Occurrence.new(
+                3,
+                10,
+                2,
+                300
+              )}
+  end
+
+  test "recovers a partial batch after existing occurrences", %{
+    store: store
+  } do
+    assert {:ok, 1, 2} =
+             OccurrenceStore.append(
+               store,
+               10,
+               [
+                 100,
+                 200
+               ]
+             )
+
+    expected =
+      encoded_occurrences(
+        20,
+        [
+          300,
+          400
+        ]
+      )
+
+    File.write!(
+      store.path,
+      binary_part(
+        expected,
+        0,
+        13
+      ),
+      [:append]
+    )
+
+    assert :ok =
+             OccurrenceStore.recover_pending_append(
+               store,
+               20,
+               3,
+               [
+                 300,
+                 400
+               ]
+             )
+
+    assert OccurrenceStore.cardinality(store) ==
+             {:ok, 4}
+
+    assert OccurrenceStore.get(
+             store,
+             3
+           ) ==
+             {:ok,
+              Occurrence.new(
+                3,
+                20,
+                0,
+                300
+              )}
+
+    assert OccurrenceStore.get(
+             store,
+             4
+           ) ==
+             {:ok,
+              Occurrence.new(
+                4,
+                20,
+                1,
+                400
+              )}
+  end
+
+  test "recovery is idempotent for a complete matching batch", %{
+    store: store
+  } do
+    assert {:ok, 1, 2} =
+             OccurrenceStore.append(
+               store,
+               10,
+               [
+                 100,
+                 200
+               ]
+             )
+
+    assert :ok =
+             OccurrenceStore.recover_pending_append(
+               store,
+               10,
+               1,
+               [
+                 100,
+                 200
+               ]
+             )
+
+    assert OccurrenceStore.cardinality(store) ==
+             {:ok, 2}
+  end
+
+  test "refuses an unrelated partial occurrence batch", %{
+    store: store
+  } do
+    File.write!(
+      store.path,
+      <<
+        255,
+        255,
+        255
+      >>
+    )
+
+    assert OccurrenceStore.recover_pending_append(
+             store,
+             10,
+             1,
+             [
+               100,
+               200
+             ]
+           ) ==
+             {:error, :unexpected_partial_occurrence_batch}
+
+    assert File.read!(store.path) ==
+             <<
+               255,
+               255,
+               255
+             >>
+  end
+
+  test "refuses data beyond the expected pending batch", %{
+    store: store
+  } do
+    assert {:ok, 1, 2} =
+             OccurrenceStore.append(
+               store,
+               10,
+               [
+                 100,
+                 200
+               ]
+             )
+
+    File.write!(
+      store.path,
+      encoded_occurrences(
+        20,
+        [300]
+      ),
+      [:append]
+    )
+
+    assert OccurrenceStore.recover_pending_append(
+             store,
+             10,
+             1,
+             [
+               100,
+               200
+             ]
+           ) ==
+             {:error,
+              {
+                :unexpected_occurrence_store_size,
+                40,
+                60
+              }}
+  end
+
+  defp encoded_occurrences(
+         game_id,
+         position_ids
+       ) do
+    position_ids
+    |> Enum.with_index()
+    |> Enum.map(fn {position_id, ply} ->
+      <<
+        game_id::unsigned-big-64,
+        ply::unsigned-big-32,
+        position_id::unsigned-big-64
+      >>
+    end)
+    |> IO.iodata_to_binary()
+  end
 end
