@@ -16,6 +16,8 @@ defmodule Analysis.GameContentCodec do
   and can later be stored directly by durable GameDB storage.
   """
 
+  @behaviour GameDB.RecordCodec
+
   alias Analysis.GameContent
   alias Chess.Move
 
@@ -32,7 +34,8 @@ defmodule Analysis.GameContentCodec do
     @format_id
   end
 
-  @spec encode(GameContent.t()) ::
+  @impl true
+  @spec encode(term()) ::
           {:ok, encoded()}
           | {:error, term()}
   def encode(%GameContent{
@@ -63,9 +66,11 @@ defmodule Analysis.GameContentCodec do
     {:error, :invalid_game_content}
   end
 
-  @spec decode(encoded()) ::
+  @impl true
+  @spec decode(binary()) ::
           {:ok, GameContent.t()}
           | {:error, term()}
+
   def decode(encoded)
       when is_binary(encoded) do
     case encoded do
