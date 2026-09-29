@@ -591,6 +591,251 @@ defmodule Analysis.GameRecordsTest do
              {:ok, []}
   end
 
+  test "pages concrete game records for position occurrences without duplicates or omissions" do
+    position_id =
+      unique_id()
+
+    middle_position_id =
+      unique_id()
+
+    other_initial_position_id =
+      unique_id()
+
+    first_content =
+      GameContent.new(
+        position_id,
+        [
+          move("g1", "f3"),
+          move("g8", "f6")
+        ]
+      )
+
+    second_content =
+      GameContent.new(
+        other_initial_position_id,
+        [
+          move("e2", "e4")
+        ]
+      )
+
+    assert {:ok, first_fingerprint} =
+             GameFingerprint.for_content(first_content)
+
+    assert {:ok, second_fingerprint} =
+             GameFingerprint.for_content(second_content)
+
+    assert {:ok, first_game_id} =
+             GameStore.put(
+               first_fingerprint,
+               first_content,
+               [
+                 position_id,
+                 middle_position_id,
+                 position_id
+               ]
+             )
+
+    assert {:ok, second_game_id} =
+             GameStore.put(
+               second_fingerprint,
+               second_content,
+               [
+                 other_initial_position_id,
+                 position_id
+               ]
+             )
+
+    first_record =
+      GameRecord.new(
+        "record-#{unique_id()}",
+        first_game_id
+      )
+
+    second_record =
+      GameRecord.new(
+        "record-#{unique_id()}",
+        first_game_id
+      )
+
+    third_record =
+      GameRecord.new(
+        "record-#{unique_id()}",
+        second_game_id
+      )
+
+    assert :ok =
+             GameRecordStore.insert(first_record)
+
+    assert :ok =
+             GameRecordStore.insert(second_record)
+
+    assert :ok =
+             GameRecordStore.insert(third_record)
+
+    assert {
+             :ok,
+             first_page,
+             cursor
+           } =
+             GameRecords.occurrences_page_by_position_id(
+               position_id,
+               2
+             )
+
+    assert length(first_page) ==
+             2
+
+    assert {
+             :ok,
+             second_page,
+             cursor
+           } =
+             GameRecords.next_occurrences_page(
+               cursor,
+               2
+             )
+
+    assert length(second_page) ==
+             2
+
+    assert {
+             :ok,
+             third_page,
+             :done
+           } =
+             GameRecords.next_occurrences_page(
+               cursor,
+               2
+             )
+
+    assert length(third_page) ==
+             1
+
+    matches =
+      first_page ++
+        second_page ++
+        third_page
+
+    assert MapSet.new(
+             Enum.map(
+               matches,
+               fn {record, occurrence} ->
+                 {
+                   record,
+                   occurrence.game_id,
+                   occurrence.ply,
+                   occurrence.position_id
+                 }
+               end
+             )
+           ) ==
+             MapSet.new([
+               {
+                 first_record,
+                 first_game_id,
+                 0,
+                 position_id
+               },
+               {
+                 second_record,
+                 first_game_id,
+                 0,
+                 position_id
+               },
+               {
+                 first_record,
+                 first_game_id,
+                 2,
+                 position_id
+               },
+               {
+                 second_record,
+                 first_game_id,
+                 2,
+                 position_id
+               },
+               {
+                 third_record,
+                 second_game_id,
+                 1,
+                 position_id
+               }
+             ])
+  end
+
+  test "returns an empty occurrence page for an unknown position" do
+    assert GameRecords.occurrences_page_by_position_id(
+             unique_id(),
+             10
+           ) ==
+             {
+               :ok,
+               [],
+               :done
+             }
+  end
+
+  test "closes an unfinished concrete occurrence cursor" do
+    position_id =
+      unique_id()
+
+    content =
+      GameContent.new(position_id)
+
+    assert {:ok, fingerprint} =
+             GameFingerprint.for_content(content)
+
+    assert {:ok, game_id} =
+             GameStore.put(
+               fingerprint,
+               content,
+               [position_id]
+             )
+
+    first =
+      GameRecord.new(
+        "record-#{unique_id()}",
+        game_id
+      )
+
+    second =
+      GameRecord.new(
+        "record-#{unique_id()}",
+        game_id
+      )
+
+    assert :ok =
+             GameRecordStore.insert(first)
+
+    assert :ok =
+             GameRecordStore.insert(second)
+
+    assert {
+             :ok,
+             [_match],
+             cursor
+           } =
+             GameRecords.occurrences_page_by_position_id(
+               position_id,
+               1
+             )
+
+    assert :ok =
+             GameRecords.close_occurrences(cursor)
+
+    assert GameRecords.next_occurrences_page(
+             cursor,
+             1
+           ) ==
+             {
+               :error,
+               {
+                 :game_record_store,
+                 :cursor_not_found
+               }
+             }
+  end
+
   defp move(
          from,
          to

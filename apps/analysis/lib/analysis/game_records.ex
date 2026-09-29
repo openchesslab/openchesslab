@@ -16,6 +16,16 @@ defmodule Analysis.GameRecords do
   alias Analysis.PositionStore
   alias GameDB.Occurrence
 
+  defmodule OccurrenceCursor do
+    @moduledoc false
+
+    @enforce_keys [:occurrence_cursor]
+
+    defstruct occurrence_cursor: :done,
+              current_occurrence: nil,
+              record_cursor: nil
+  end
+
   @type create_error ::
           :already_exists
           | {:invalid_game, term()}
@@ -31,6 +41,23 @@ defmodule Analysis.GameRecords do
 
   @type occurrence_query_error ::
           {:game_store, term()}
+          | {:game_record_store, term()}
+
+  @opaque occurrence_cursor :: %OccurrenceCursor{
+            occurrence_cursor:
+              :done
+              | GameStore.occurrence_cursor(),
+            current_occurrence:
+              Occurrence.t()
+              | nil,
+            record_cursor:
+              GameRecordStore.record_cursor()
+              | nil
+          }
+
+  @type occurrence_page ::
+          {:ok, [occurrence_match()], :done | occurrence_cursor()}
+          | {:error, occurrence_query_error()}
 
   @spec create(
           GameRecord.id(),
@@ -40,6 +67,7 @@ defmodule Analysis.GameRecords do
         ) ::
           {:ok, GameRecord.t()}
           | {:error, create_error()}
+
   def create(
         record_id,
         %GameContent{} = content,
@@ -113,6 +141,370 @@ defmodule Analysis.GameRecords do
            reason
          }}
     end
+  end
+
+  @spec occurrences_page_by_position_id(
+          GameDB.position_id(),
+          pos_integer()
+        ) ::
+          occurrence_page()
+  def occurrences_page_by_position_id(
+        position_id,
+        page_size
+      )
+      when is_integer(page_size) and
+             page_size > 0 do
+    case GameStore.occurrences_page(
+           position_id,
+           1
+         ) do
+      {
+        :ok,
+        [],
+        :done
+      } ->
+        {
+          :ok,
+          [],
+          :done
+        }
+
+      {
+        :ok,
+        [
+          %Occurrence{} = occurrence
+        ],
+        occurrence_cursor
+      } ->
+        %OccurrenceCursor{
+          occurrence_cursor: occurrence_cursor,
+          current_occurrence: occurrence
+        }
+        |> take_occurrence_matches_page(page_size)
+
+      {:error, reason} ->
+        {
+          :error,
+          {
+            :game_store,
+            reason
+          }
+        }
+    end
+  end
+
+  @spec next_occurrences_page(
+          occurrence_cursor(),
+          pos_integer()
+        ) ::
+          occurrence_page()
+  def next_occurrences_page(
+        %OccurrenceCursor{} = cursor,
+        page_size
+      )
+      when is_integer(page_size) and
+             page_size > 0 do
+    take_occurrence_matches_page(
+      cursor,
+      page_size
+    )
+  end
+
+  @spec close_occurrences(occurrence_cursor()) ::
+          :ok
+  def close_occurrences(%OccurrenceCursor{} = cursor) do
+    close_record_cursor(cursor.record_cursor)
+
+    close_occurrence_cursor(cursor.occurrence_cursor)
+
+    :ok
+  end
+
+  defp take_occurrence_matches_page(
+         cursor,
+         page_size
+       ) do
+    take_occurrence_matches_page(
+      cursor,
+      page_size,
+      []
+    )
+  end
+
+  defp take_occurrence_matches_page(
+         cursor,
+         0,
+         reversed_matches
+       ) do
+    if occurrence_cursor_finished?(cursor) do
+      {
+        :ok,
+        Enum.reverse(reversed_matches),
+        :done
+      }
+    else
+      {
+        :ok,
+        Enum.reverse(reversed_matches),
+        cursor
+      }
+    end
+  end
+
+  defp take_occurrence_matches_page(
+         cursor,
+         remaining,
+         reversed_matches
+       ) do
+    case next_occurrence_match(cursor) do
+      {
+        :ok,
+        match,
+        cursor
+      } ->
+        take_occurrence_matches_page(
+          cursor,
+          remaining - 1,
+          [
+            match
+            | reversed_matches
+          ]
+        )
+
+      :done ->
+        {
+          :ok,
+          Enum.reverse(reversed_matches),
+          :done
+        }
+
+      {:error, _reason} = error ->
+        error
+    end
+  end
+
+  defp next_occurrence_match(%OccurrenceCursor{
+         current_occurrence: nil,
+         occurrence_cursor: :done
+       }) do
+    :done
+  end
+
+  defp next_occurrence_match(
+         %OccurrenceCursor{
+           current_occurrence: nil,
+           occurrence_cursor: occurrence_cursor
+         } = cursor
+       ) do
+    case GameStore.next_occurrences_page(
+           occurrence_cursor,
+           1
+         ) do
+      {
+        :ok,
+        [
+          %Occurrence{} = occurrence
+        ],
+        next_occurrence_cursor
+      } ->
+        next_occurrence_match(%{
+          cursor
+          | occurrence_cursor: next_occurrence_cursor,
+            current_occurrence: occurrence
+        })
+
+      {
+        :ok,
+        [],
+        :done
+      } ->
+        :done
+
+      {:error, reason} ->
+        close_record_cursor(cursor.record_cursor)
+
+        {
+          :error,
+          {
+            :game_store,
+            reason
+          }
+        }
+    end
+  end
+
+  defp next_occurrence_match(
+         %OccurrenceCursor{
+           current_occurrence: %Occurrence{} = occurrence,
+           record_cursor: nil
+         } = cursor
+       ) do
+    case GameRecordStore.records_page_by_game_id(
+           occurrence.game_id,
+           1
+         ) do
+      {
+        :ok,
+        [
+          %GameRecord{} = record
+        ],
+        :done
+      } ->
+        {
+          :ok,
+          {
+            record,
+            occurrence
+          },
+          %{
+            cursor
+            | current_occurrence: nil
+          }
+        }
+
+      {
+        :ok,
+        [
+          %GameRecord{} = record
+        ],
+        record_cursor
+      }
+      when is_reference(record_cursor) ->
+        {
+          :ok,
+          {
+            record,
+            occurrence
+          },
+          %{
+            cursor
+            | record_cursor: record_cursor
+          }
+        }
+
+      {
+        :ok,
+        [],
+        :done
+      } ->
+        next_occurrence_match(%{
+          cursor
+          | current_occurrence: nil
+        })
+
+      {:error, reason} ->
+        close_occurrence_cursor(cursor.occurrence_cursor)
+
+        {
+          :error,
+          {
+            :game_record_store,
+            reason
+          }
+        }
+    end
+  end
+
+  defp next_occurrence_match(
+         %OccurrenceCursor{
+           current_occurrence: %Occurrence{} = occurrence,
+           record_cursor: record_cursor
+         } = cursor
+       ) do
+    case GameRecordStore.next_records_page(
+           record_cursor,
+           1
+         ) do
+      {
+        :ok,
+        [
+          %GameRecord{} = record
+        ],
+        :done
+      } ->
+        {
+          :ok,
+          {
+            record,
+            occurrence
+          },
+          %{
+            cursor
+            | current_occurrence: nil,
+              record_cursor: nil
+          }
+        }
+
+      {
+        :ok,
+        [
+          %GameRecord{} = record
+        ],
+        next_record_cursor
+      }
+      when is_reference(next_record_cursor) ->
+        {
+          :ok,
+          {
+            record,
+            occurrence
+          },
+          %{
+            cursor
+            | record_cursor: next_record_cursor
+          }
+        }
+
+      {
+        :ok,
+        [],
+        :done
+      } ->
+        next_occurrence_match(%{
+          cursor
+          | current_occurrence: nil,
+            record_cursor: nil
+        })
+
+      {:error, reason} ->
+        close_occurrence_cursor(cursor.occurrence_cursor)
+
+        {
+          :error,
+          {
+            :game_record_store,
+            reason
+          }
+        }
+    end
+  end
+
+  defp occurrence_cursor_finished?(%OccurrenceCursor{
+         occurrence_cursor: :done,
+         current_occurrence: nil,
+         record_cursor: nil
+       }) do
+    true
+  end
+
+  defp occurrence_cursor_finished?(%OccurrenceCursor{}) do
+    false
+  end
+
+  defp close_occurrence_cursor(:done) do
+    :ok
+  end
+
+  defp close_occurrence_cursor(cursor) do
+    GameStore.close_occurrence_scan(cursor)
+  end
+
+  defp close_record_cursor(nil) do
+    :ok
+  end
+
+  defp close_record_cursor(cursor) do
+    GameRecordStore.close_record_scan(cursor)
   end
 
   defp do_create(
