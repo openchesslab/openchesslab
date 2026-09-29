@@ -390,6 +390,131 @@ defmodule GameDB.Storage.DiskTest do
              {:ok, 0}
   end
 
+  test "implements the GameDB storage contract", %{
+    directory: directory,
+    opts: opts
+  } do
+    assert {:ok, storage} = Disk.create(directory, opts)
+
+    assert {:ok, storage, game_1} =
+             Disk.put(
+               storage,
+               fingerprint(1),
+               {:game, 42},
+               [10, 20, 10]
+             )
+
+    assert {:ok, storage, game_2} =
+             Disk.put(
+               storage,
+               fingerprint(2),
+               {:game, 84},
+               [30, 10]
+             )
+
+    db = GameDB.new(Disk, storage)
+
+    assert GameDB.cardinality(db) == 2
+
+    assert GameDB.find(db, fingerprint(1), {:game, 42}) ==
+             {:ok, game_1}
+
+    assert GameDB.get(db, game_2) ==
+             {:ok, {:game, 84}}
+
+    assert GameDB.occurrences(db, game_1) ==
+             {:ok,
+              [
+                Occurrence.new(1, game_1, 0, 10),
+                Occurrence.new(2, game_1, 1, 20),
+                Occurrence.new(3, game_1, 2, 10)
+              ]}
+
+    assert GameDB.get_occurrence(db, 4) ==
+             {:ok, Occurrence.new(4, game_2, 0, 30)}
+
+    assert {:ok, occurrences} =
+             GameDB.occurrences_by_position_id(
+               db,
+               10
+             )
+
+    assert MapSet.new(occurrences) ==
+             MapSet.new([
+               Occurrence.new(1, game_1, 0, 10),
+               Occurrence.new(3, game_1, 2, 10),
+               Occurrence.new(5, game_2, 1, 10)
+             ])
+  end
+
+  test "scans position occurrences incrementally through GameDB", %{
+    directory: directory,
+    opts: opts
+  } do
+    assert {:ok, storage} = Disk.create(directory, opts)
+
+    assert {:ok, storage, game_id} =
+             Disk.put(
+               storage,
+               fingerprint(1),
+               {:game, 42},
+               [10, 20, 10]
+             )
+
+    db = GameDB.new(Disk, storage)
+
+    scan = GameDB.scan_occurrences(db, 10)
+
+    assert {:ok, first, scan} =
+             GameDB.scan_occurrences_next(scan)
+
+    assert {:ok, second, scan} =
+             GameDB.scan_occurrences_next(scan)
+
+    assert :done =
+             GameDB.scan_occurrences_next(scan)
+
+    assert MapSet.new([first, second]) ==
+             MapSet.new([
+               Occurrence.new(1, game_id, 0, 10),
+               Occurrence.new(3, game_id, 2, 10)
+             ])
+  end
+
+  test "restores game cardinality when reopened", %{
+    directory: directory,
+    opts: opts
+  } do
+    assert {:ok, storage} = Disk.create(directory, opts)
+
+    assert Disk.cardinality(storage) == 0
+
+    assert {:ok, storage, 1} =
+             Disk.put(
+               storage,
+               fingerprint(1),
+               {:game, 42},
+               [10]
+             )
+
+    assert Disk.cardinality(storage) == 1
+
+    assert {:ok, reopened} =
+             Disk.open(
+               directory,
+               opts
+             )
+
+    assert Disk.cardinality(reopened) == 1
+
+    assert {:ok, 1, scan} =
+             reopened
+             |> Disk.scan()
+             |> Disk.scan_next()
+
+    assert Disk.scan_next(scan) == :done
+  end
+
   defp fingerprint(prefix) do
     <<
       prefix::unsigned-big-32,

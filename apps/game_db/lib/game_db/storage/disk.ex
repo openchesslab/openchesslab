@@ -6,6 +6,9 @@ defmodule GameDB.Storage.Disk do
   An outer game-insert marker coordinates recovery across both stores.
   """
 
+  @behaviour GameDB.Storage
+
+  alias GameDB.Storage
   alias GameDB.Storage.Disk.CanonicalStore
   alias GameDB.Storage.Disk.GameInsertMarker
   alias GameDB.Storage.Disk.GameInsertRecovery
@@ -17,19 +20,27 @@ defmodule GameDB.Storage.Disk do
   @type t :: %__MODULE__{
           directory: Path.t(),
           canonical_store: CanonicalStore.t(),
-          occurrence_storage: OccurrenceStorage.t()
+          occurrence_storage: OccurrenceStorage.t(),
+          game_count: non_neg_integer()
+        }
+
+  @type scan_state :: %{
+          next_game_id: pos_integer(),
+          last_game_id: non_neg_integer()
         }
 
   @enforce_keys [
     :directory,
     :canonical_store,
-    :occurrence_storage
+    :occurrence_storage,
+    :game_count
   ]
 
   defstruct [
     :directory,
     :canonical_store,
-    :occurrence_storage
+    :occurrence_storage,
+    :game_count
   ]
 
   @spec create(Path.t(), keyword()) ::
@@ -64,8 +75,7 @@ defmodule GameDB.Storage.Disk do
           {:ok, t()}
           | {:error, term()}
   def open(directory, opts) when is_binary(directory) do
-    with :ok <-
-           validate_directory(directory),
+    with :ok <- validate_directory(directory),
          {:ok, canonical_store} <-
            CanonicalStore.open(
              canonical_directory(directory),
@@ -81,16 +91,19 @@ defmodule GameDB.Storage.Disk do
              directory,
              canonical_store,
              occurrence_storage
-           ) do
+           ),
+         {:ok, game_count} <- CanonicalStore.cardinality(canonical_store) do
       {:ok,
        build_storage(
          directory,
          canonical_store,
-         occurrence_storage
+         occurrence_storage,
+         game_count
        )}
     end
   end
 
+  @impl Storage
   @spec put(
           t(),
           binary(),
@@ -133,6 +146,83 @@ defmodule GameDB.Storage.Disk do
     {:error, :invalid_position_ids}
   end
 
+  @impl Storage
+  def find(%__MODULE__{} = storage, fingerprint, record) do
+    CanonicalStore.find(
+      storage.canonical_store,
+      fingerprint,
+      record
+    )
+  end
+
+  @impl Storage
+  def get(%__MODULE__{} = storage, game_id) do
+    CanonicalStore.get(
+      storage.canonical_store,
+      game_id
+    )
+  end
+
+  @impl Storage
+  def occurrences(%__MODULE__{} = storage, game_id) do
+    OccurrenceStorage.occurrences(
+      storage.occurrence_storage,
+      game_id
+    )
+  end
+
+  @impl Storage
+  def occurrences_by_position_id(%__MODULE__{} = storage, position_id) do
+    storage
+    |> scan_occurrences(position_id)
+    |> collect_occurrences([])
+  end
+
+  @impl Storage
+  def scan_occurrences(%__MODULE__{} = storage, position_id) do
+    OccurrenceStorage.scan(
+      storage.occurrence_storage,
+      position_id
+    )
+  end
+
+  @impl Storage
+  def scan_occurrences_next(scan) do
+    OccurrenceStorage.scan_next(scan)
+  end
+
+  @impl Storage
+  def get_occurrence(%__MODULE__{} = storage, occurrence_id) do
+    OccurrenceStorage.get_occurrence(
+      storage.occurrence_storage,
+      occurrence_id
+    )
+  end
+
+  @impl Storage
+  def cardinality(%__MODULE__{game_count: game_count}) do
+    game_count
+  end
+
+  @impl Storage
+  def scan(%__MODULE__{game_count: game_count}) do
+    %{
+      next_game_id: 1,
+      last_game_id: game_count
+    }
+  end
+
+  @impl Storage
+  def scan_next(%{next_game_id: next_game_id, last_game_id: last_game_id} = scan)
+      when next_game_id <= last_game_id do
+    {:ok, next_game_id, %{scan | next_game_id: next_game_id + 1}}
+  end
+
+  def scan_next(%{next_game_id: next_game_id, last_game_id: last_game_id})
+      when next_game_id > last_game_id do
+    :done
+  end
+
   defp create_components(directory, opts) do
     with {:ok, canonical_store} <-
            CanonicalStore.create(
@@ -148,16 +238,18 @@ defmodule GameDB.Storage.Disk do
        build_storage(
          directory,
          canonical_store,
-         occurrence_storage
+         occurrence_storage,
+         0
        )}
     end
   end
 
-  defp build_storage(directory, canonical_store, occurrence_storage) do
+  defp build_storage(directory, canonical_store, occurrence_storage, game_count) do
     %__MODULE__{
       directory: directory,
       canonical_store: canonical_store,
-      occurrence_storage: occurrence_storage
+      occurrence_storage: occurrence_storage,
+      game_count: game_count
     }
   end
 
@@ -253,31 +345,34 @@ defmodule GameDB.Storage.Disk do
   end
 
   defp append_new_game(storage, fingerprint, record, position_ids) do
-    with {:ok, game_count} <- CanonicalStore.cardinality(storage.canonical_store) do
-      game_id = game_count + 1
+    game_id = storage.game_count + 1
 
-      with :ok <-
-             GameInsertMarker.create(
-               storage.directory,
-               game_id,
-               position_ids
-             ),
-           {:ok, canonical_store} <-
-             put_expected_canonical_game(
-               storage.canonical_store,
-               game_id,
-               fingerprint,
-               record
-             ),
-           :ok <-
-             OccurrenceStorage.append(
-               storage.occurrence_storage,
-               game_id,
-               position_ids
-             ),
-           :ok <- GameInsertMarker.clear(storage.directory) do
-        {:ok, %{storage | canonical_store: canonical_store}, game_id}
-      end
+    with :ok <-
+           GameInsertMarker.create(
+             storage.directory,
+             game_id,
+             position_ids
+           ),
+         {:ok, canonical_store} <-
+           put_expected_canonical_game(
+             storage.canonical_store,
+             game_id,
+             fingerprint,
+             record
+           ),
+         :ok <-
+           OccurrenceStorage.append(
+             storage.occurrence_storage,
+             game_id,
+             position_ids
+           ),
+         :ok <- GameInsertMarker.clear(storage.directory) do
+      {:ok,
+       %{
+         storage
+         | canonical_store: canonical_store,
+           game_count: game_id
+       }, game_id}
     end
   end
 
@@ -328,6 +423,22 @@ defmodule GameDB.Storage.Disk do
 
       true ->
         {:error, :invalid_position_ids}
+    end
+  end
+
+  defp collect_occurrences(scan, reversed) do
+    case OccurrenceStorage.scan_next(scan) do
+      {:ok, occurrence, scan} ->
+        collect_occurrences(
+          scan,
+          [occurrence | reversed]
+        )
+
+      :done ->
+        {:ok, Enum.reverse(reversed)}
+
+      {:error, _reason} = error ->
+        error
     end
   end
 end
