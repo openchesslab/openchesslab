@@ -5,23 +5,42 @@ defmodule Analysis.GameRecordStore.Memory do
 
   use GenServer
 
-  @behaviour Analysis.GameRecordStore
-
   alias Analysis.GameRecord
+  alias Analysis.GameRecordStore
+
+  @behaviour GameRecordStore
 
   @type store :: GenServer.server()
+
+  @opaque record_cursor :: reference()
+
+  defmodule CursorState do
+    @moduledoc false
+
+    @enforce_keys [:record_ids]
+
+    @type t :: %__MODULE__{
+            record_ids: [Analysis.GameRecord.id()]
+          }
+
+    defstruct record_ids: []
+  end
 
   @type t :: %__MODULE__{
           records: %{
             GameRecord.id() => GameRecord.t()
           },
           record_ids_by_game: %{
-            GameDB.game_id() => MapSet.t(GameRecord.id())
+            GameDB.game_id() => [GameRecord.id()]
+          },
+          cursors: %{
+            record_cursor() => CursorState.t()
           }
         }
 
   defstruct records: %{},
-            record_ids_by_game: %{}
+            record_ids_by_game: %{},
+            cursors: %{}
 
   @spec start_link(keyword()) ::
           GenServer.on_start()
@@ -54,7 +73,7 @@ defmodule Analysis.GameRecordStore.Memory do
     }
   end
 
-  @impl Analysis.GameRecordStore
+  @impl GameRecordStore
   @spec insert(
           store(),
           GameRecord.t()
@@ -71,7 +90,7 @@ defmodule Analysis.GameRecordStore.Memory do
     )
   end
 
-  @impl Analysis.GameRecordStore
+  @impl GameRecordStore
   @spec get(
           store(),
           GameRecord.id()
@@ -88,7 +107,7 @@ defmodule Analysis.GameRecordStore.Memory do
     )
   end
 
-  @impl Analysis.GameRecordStore
+  @impl GameRecordStore
   @spec list(store()) ::
           [GameRecord.t()]
   def list(store) do
@@ -98,7 +117,7 @@ defmodule Analysis.GameRecordStore.Memory do
     )
   end
 
-  @impl Analysis.GameRecordStore
+  @impl GameRecordStore
   @spec list_by_game_id(
           store(),
           GameDB.game_id()
@@ -111,6 +130,75 @@ defmodule Analysis.GameRecordStore.Memory do
     GenServer.call(
       store,
       {:list_by_game_id, game_id}
+    )
+  end
+
+  @impl GameRecordStore
+  @spec records_page_by_game_id(
+          store(),
+          GameDB.game_id(),
+          pos_integer()
+        ) ::
+          GameRecordStore.record_page()
+  def records_page_by_game_id(
+        store,
+        game_id,
+        page_size
+      )
+      when is_integer(page_size) and
+             page_size > 0 do
+    GenServer.call(
+      store,
+      {
+        :records_page_by_game_id,
+        game_id,
+        page_size
+      }
+    )
+  end
+
+  @impl GameRecordStore
+  @spec next_records_page(
+          store(),
+          GameRecordStore.record_cursor(),
+          pos_integer()
+        ) ::
+          GameRecordStore.record_page()
+  def next_records_page(
+        store,
+        cursor,
+        page_size
+      )
+      when is_reference(cursor) and
+             is_integer(page_size) and
+             page_size > 0 do
+    GenServer.call(
+      store,
+      {
+        :next_records_page,
+        cursor,
+        page_size
+      }
+    )
+  end
+
+  @impl GameRecordStore
+  @spec close_record_scan(
+          store(),
+          GameRecordStore.record_cursor()
+        ) ::
+          :ok
+  def close_record_scan(
+        store,
+        cursor
+      )
+      when is_reference(cursor) do
+    GenServer.call(
+      store,
+      {
+        :close_record_scan,
+        cursor
+      }
     )
   end
 
@@ -162,8 +250,8 @@ defmodule Analysis.GameRecordStore.Memory do
             Map.update(
               state.record_ids_by_game,
               game_id,
-              MapSet.new([id]),
-              &MapSet.put(&1, id)
+              [id],
+              &[id | &1]
             )
       }
 
@@ -220,7 +308,7 @@ defmodule Analysis.GameRecordStore.Memory do
       state.record_ids_by_game
       |> Map.get(
         game_id,
-        MapSet.new()
+        []
       )
       |> Enum.map(
         &Map.fetch!(
@@ -233,6 +321,281 @@ defmodule Analysis.GameRecordStore.Memory do
       :reply,
       records,
       state
+    }
+  end
+
+  def handle_call(
+        {
+          :records_page_by_game_id,
+          game_id,
+          page_size
+        },
+        _from,
+        state
+      ) do
+    cursor_state =
+      %CursorState{
+        record_ids:
+          Map.get(
+            state.record_ids_by_game,
+            game_id,
+            []
+          )
+      }
+
+    case take_records_page(
+           state.records,
+           cursor_state,
+           page_size
+         ) do
+      {:ok, records, :done} ->
+        {
+          :reply,
+          {
+            :ok,
+            records,
+            :done
+          },
+          state
+        }
+
+      {
+        :ok,
+        records,
+        %CursorState{} = cursor_state
+      } ->
+        cursor =
+          make_ref()
+
+        {
+          :reply,
+          {
+            :ok,
+            records,
+            cursor
+          },
+          put_cursor(
+            state,
+            cursor,
+            cursor_state
+          )
+        }
+
+      {:error, reason} ->
+        {
+          :reply,
+          {:error, reason},
+          state
+        }
+    end
+  end
+
+  def handle_call(
+        {
+          :next_records_page,
+          cursor,
+          page_size
+        },
+        _from,
+        state
+      ) do
+    case Map.fetch(
+           state.cursors,
+           cursor
+         ) do
+      {:ok, cursor_state} ->
+        continue_records_page(
+          state,
+          cursor,
+          cursor_state,
+          page_size
+        )
+
+      :error ->
+        {
+          :reply,
+          {:error, :cursor_not_found},
+          state
+        }
+    end
+  end
+
+  def handle_call(
+        {
+          :close_record_scan,
+          cursor
+        },
+        _from,
+        state
+      ) do
+    {
+      :reply,
+      :ok,
+      delete_cursor(
+        state,
+        cursor
+      )
+    }
+  end
+
+  defp continue_records_page(
+         state,
+         cursor,
+         cursor_state,
+         page_size
+       ) do
+    case take_records_page(
+           state.records,
+           cursor_state,
+           page_size
+         ) do
+      {:ok, records, :done} ->
+        {
+          :reply,
+          {
+            :ok,
+            records,
+            :done
+          },
+          delete_cursor(
+            state,
+            cursor
+          )
+        }
+
+      {
+        :ok,
+        records,
+        %CursorState{} = cursor_state
+      } ->
+        {
+          :reply,
+          {
+            :ok,
+            records,
+            cursor
+          },
+          put_cursor(
+            state,
+            cursor,
+            cursor_state
+          )
+        }
+
+      {:error, reason} ->
+        {
+          :reply,
+          {:error, reason},
+          delete_cursor(
+            state,
+            cursor
+          )
+        }
+    end
+  end
+
+  defp take_records_page(
+         records,
+         cursor_state,
+         page_size
+       ) do
+    take_records_page(
+      records,
+      cursor_state,
+      page_size,
+      []
+    )
+  end
+
+  defp take_records_page(
+         _records,
+         %CursorState{
+           record_ids: []
+         },
+         _remaining,
+         reversed_records
+       ) do
+    {
+      :ok,
+      Enum.reverse(reversed_records),
+      :done
+    }
+  end
+
+  defp take_records_page(
+         _records,
+         %CursorState{} = cursor_state,
+         0,
+         reversed_records
+       ) do
+    {
+      :ok,
+      Enum.reverse(reversed_records),
+      cursor_state
+    }
+  end
+
+  defp take_records_page(
+         records,
+         %CursorState{
+           record_ids: [
+             record_id
+             | remaining_record_ids
+           ]
+         } = cursor_state,
+         remaining,
+         reversed_records
+       ) do
+    case Map.fetch(
+           records,
+           record_id
+         ) do
+      {:ok, record} ->
+        take_records_page(
+          records,
+          %{
+            cursor_state
+            | record_ids: remaining_record_ids
+          },
+          remaining - 1,
+          [
+            record
+            | reversed_records
+          ]
+        )
+
+      :error ->
+        {:error, :record_not_found}
+    end
+  end
+
+  defp put_cursor(
+         state,
+         cursor,
+         cursor_state
+       ) do
+    %{
+      state
+      | cursors:
+          Map.put(
+            state.cursors,
+            cursor,
+            cursor_state
+          )
+    }
+  end
+
+  defp delete_cursor(
+         state,
+         cursor
+       ) do
+    %{
+      state
+      | cursors:
+          Map.delete(
+            state.cursors,
+            cursor
+          )
     }
   end
 end

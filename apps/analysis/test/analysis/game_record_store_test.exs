@@ -55,6 +55,58 @@ defmodule Analysis.GameRecordStoreTest do
 
       []
     end
+
+    def records_page_by_game_id(
+          store,
+          game_id,
+          page_size
+        ) do
+      send(
+        self(),
+        {
+          :records_page_by_game_id,
+          store,
+          game_id,
+          page_size
+        }
+      )
+
+      {:ok, [], :done}
+    end
+
+    def next_records_page(
+          store,
+          cursor,
+          page_size
+        ) do
+      send(
+        self(),
+        {
+          :next_records_page,
+          store,
+          cursor,
+          page_size
+        }
+      )
+
+      {:ok, [], :done}
+    end
+
+    def close_record_scan(
+          store,
+          cursor
+        ) do
+      send(
+        self(),
+        {
+          :close_record_scan,
+          store,
+          cursor
+        }
+      )
+
+      :ok
+    end
   end
 
   setup do
@@ -160,6 +212,74 @@ defmodule Analysis.GameRecordStoreTest do
       :list_by_game_id,
       :configured_store,
       42
+    }
+  end
+
+  test "delegates records_page_by_game_id to the configured adapter" do
+    Application.put_env(
+      :analysis,
+      GameRecordStore,
+      adapter: RecordingAdapter,
+      store: :configured_store
+    )
+
+    assert GameRecordStore.records_page_by_game_id(
+             42,
+             25
+           ) ==
+             {:ok, [], :done}
+
+    assert_received {
+      :records_page_by_game_id,
+      :configured_store,
+      42,
+      25
+    }
+  end
+
+  test "delegates next_records_page to the configured adapter" do
+    Application.put_env(
+      :analysis,
+      GameRecordStore,
+      adapter: RecordingAdapter,
+      store: :configured_store
+    )
+
+    cursor =
+      make_ref()
+
+    assert GameRecordStore.next_records_page(
+             cursor,
+             25
+           ) ==
+             {:ok, [], :done}
+
+    assert_received {
+      :next_records_page,
+      :configured_store,
+      ^cursor,
+      25
+    }
+  end
+
+  test "delegates close_record_scan to the configured adapter" do
+    Application.put_env(
+      :analysis,
+      GameRecordStore,
+      adapter: RecordingAdapter,
+      store: :configured_store
+    )
+
+    cursor =
+      make_ref()
+
+    assert :ok =
+             GameRecordStore.close_record_scan(cursor)
+
+    assert_received {
+      :close_record_scan,
+      :configured_store,
+      ^cursor
     }
   end
 

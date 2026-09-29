@@ -232,4 +232,213 @@ defmodule Analysis.GameRecordStore.MemoryTest do
              999
            ) == []
   end
+
+  test "pages through records for a canonical game without duplicates or omissions",
+       %{
+         store: store
+       } do
+    first =
+      GameRecord.new(
+        "record-1",
+        42
+      )
+
+    second =
+      GameRecord.new(
+        "record-2",
+        42
+      )
+
+    third =
+      GameRecord.new(
+        "record-3",
+        42
+      )
+
+    other =
+      GameRecord.new(
+        "record-4",
+        43
+      )
+
+    assert :ok =
+             Memory.insert(
+               store,
+               first
+             )
+
+    assert :ok =
+             Memory.insert(
+               store,
+               second
+             )
+
+    assert :ok =
+             Memory.insert(
+               store,
+               third
+             )
+
+    assert :ok =
+             Memory.insert(
+               store,
+               other
+             )
+
+    assert {
+             :ok,
+             first_page,
+             cursor
+           } =
+             Memory.records_page_by_game_id(
+               store,
+               42,
+               2
+             )
+
+    assert is_reference(cursor)
+    assert length(first_page) == 2
+
+    assert {
+             :ok,
+             second_page,
+             :done
+           } =
+             Memory.next_records_page(
+               store,
+               cursor,
+               2
+             )
+
+    records =
+      first_page ++
+        second_page
+
+    assert MapSet.new(records) ==
+             MapSet.new([
+               first,
+               second,
+               third
+             ])
+
+    assert Memory.next_records_page(
+             store,
+             cursor,
+             2
+           ) ==
+             {:error, :cursor_not_found}
+  end
+
+  test "returns an empty page for an unknown canonical game", %{
+    store: store
+  } do
+    assert Memory.records_page_by_game_id(
+             store,
+             999,
+             10
+           ) ==
+             {
+               :ok,
+               [],
+               :done
+             }
+  end
+
+  test "does not create a cursor when the first page exhausts the records",
+       %{
+         store: store
+       } do
+    first =
+      GameRecord.new(
+        "record-1",
+        42
+      )
+
+    second =
+      GameRecord.new(
+        "record-2",
+        42
+      )
+
+    assert :ok =
+             Memory.insert(
+               store,
+               first
+             )
+
+    assert :ok =
+             Memory.insert(
+               store,
+               second
+             )
+
+    assert {
+             :ok,
+             records,
+             :done
+           } =
+             Memory.records_page_by_game_id(
+               store,
+               42,
+               2
+             )
+
+    assert MapSet.new(records) ==
+             MapSet.new([
+               first,
+               second
+             ])
+  end
+
+  test "closes an unfinished record cursor", %{
+    store: store
+  } do
+    first =
+      GameRecord.new(
+        "record-1",
+        42
+      )
+
+    second =
+      GameRecord.new(
+        "record-2",
+        42
+      )
+
+    assert :ok =
+             Memory.insert(
+               store,
+               first
+             )
+
+    assert :ok =
+             Memory.insert(
+               store,
+               second
+             )
+
+    assert {
+             :ok,
+             [_record],
+             cursor
+           } =
+             Memory.records_page_by_game_id(
+               store,
+               42,
+               1
+             )
+
+    assert :ok =
+             Memory.close_record_scan(
+               store,
+               cursor
+             )
+
+    assert Memory.next_records_page(
+             store,
+             cursor,
+             1
+           ) ==
+             {:error, :cursor_not_found}
+  end
 end

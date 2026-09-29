@@ -18,6 +18,12 @@ defmodule Analysis.GameRecordStore do
 
   @type store :: GenServer.server()
 
+  @opaque record_cursor :: reference()
+
+  @type record_page ::
+          {:ok, [GameRecord.t()], :done | record_cursor()}
+          | {:error, term()}
+
   @callback insert(
               store(),
               GameRecord.t()
@@ -40,6 +46,26 @@ defmodule Analysis.GameRecordStore do
               GameDB.game_id()
             ) ::
               [GameRecord.t()]
+
+  @callback records_page_by_game_id(
+              store(),
+              GameDB.game_id(),
+              pos_integer()
+            ) ::
+              record_page()
+
+  @callback next_records_page(
+              store(),
+              record_cursor(),
+              pos_integer()
+            ) ::
+              record_page()
+
+  @callback close_record_scan(
+              store(),
+              record_cursor()
+            ) ::
+              :ok
 
   @spec clustered_store() ::
           GenServer.server()
@@ -100,6 +126,53 @@ defmodule Analysis.GameRecordStore do
     adapter().list_by_game_id(
       store(),
       game_id
+    )
+  end
+
+  @spec records_page_by_game_id(
+          GameDB.game_id(),
+          pos_integer()
+        ) ::
+          record_page()
+  def records_page_by_game_id(
+        game_id,
+        page_size
+      )
+      when is_integer(page_size) and
+             page_size > 0 do
+    adapter().records_page_by_game_id(
+      store(),
+      game_id,
+      page_size
+    )
+  end
+
+  @spec next_records_page(
+          record_cursor(),
+          pos_integer()
+        ) ::
+          record_page()
+  def next_records_page(
+        cursor,
+        page_size
+      )
+      when is_reference(cursor) and
+             is_integer(page_size) and
+             page_size > 0 do
+    adapter().next_records_page(
+      store(),
+      cursor,
+      page_size
+    )
+  end
+
+  @spec close_record_scan(record_cursor()) ::
+          :ok
+  def close_record_scan(cursor)
+      when is_reference(cursor) do
+    adapter().close_record_scan(
+      store(),
+      cursor
     )
   end
 
