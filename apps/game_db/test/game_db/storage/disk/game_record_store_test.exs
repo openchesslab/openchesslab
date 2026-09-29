@@ -60,18 +60,26 @@ defmodule GameDB.Storage.Disk.GameRecordStoreTest do
     }
   end
 
-  test "encodes, stores and decodes canonical game records", %{
+  test "stores and decodes canonical game records with their fingerprints", %{
     store: store
   } do
+    first_fingerprint =
+      fingerprint(1)
+
+    second_fingerprint =
+      fingerprint(2)
+
     assert {:ok, 1} =
              GameRecordStore.append(
                store,
+               first_fingerprint,
                {:game, 42}
              )
 
     assert {:ok, 2} =
              GameRecordStore.append(
                store,
+               second_fingerprint,
                {:game, 99}
              )
 
@@ -86,6 +94,54 @@ defmodule GameDB.Storage.Disk.GameRecordStoreTest do
              2
            ) ==
              {:ok, {:game, 99}}
+
+    assert GameRecordStore.fingerprint(
+             store,
+             1
+           ) ==
+             {:ok, first_fingerprint}
+
+    assert GameRecordStore.fingerprint(
+             store,
+             2
+           ) ==
+             {:ok, second_fingerprint}
+  end
+
+  test "persists the fingerprint with the game record", %{
+    directory: directory,
+    store: store
+  } do
+    fingerprint =
+      fingerprint(42)
+
+    assert {:ok, 1} =
+             GameRecordStore.append(
+               store,
+               fingerprint,
+               {:game, 123}
+             )
+
+    assert {:ok, reopened_record_store} =
+             RecordStore.open(directory)
+
+    reopened =
+      GameRecordStore.new(
+        reopened_record_store,
+        TestCodec
+      )
+
+    assert GameRecordStore.get(
+             reopened,
+             1
+           ) ==
+             {:ok, {:game, 123}}
+
+    assert GameRecordStore.fingerprint(
+             reopened,
+             1
+           ) ==
+             {:ok, fingerprint}
   end
 
   test "returns not_found for an unknown game id", %{
@@ -96,6 +152,26 @@ defmodule GameDB.Storage.Disk.GameRecordStoreTest do
              1
            ) ==
              :not_found
+
+    assert GameRecordStore.fingerprint(
+             store,
+             1
+           ) ==
+             :not_found
+  end
+
+  test "rejects fingerprints with the wrong size", %{
+    store: store
+  } do
+    assert GameRecordStore.append(
+             store,
+             <<"too-short">>,
+             {:game, 42}
+           ) ==
+             {:error, :invalid_fingerprint_size}
+
+    assert GameRecordStore.cardinality(store) ==
+             {:ok, 0}
   end
 
   test "does not append a record rejected by the codec", %{
@@ -103,6 +179,7 @@ defmodule GameDB.Storage.Disk.GameRecordStoreTest do
   } do
     assert GameRecordStore.append(
              store,
+             fingerprint(1),
              :invalid
            ) ==
              {:error, :invalid_game}
@@ -126,6 +203,38 @@ defmodule GameDB.Storage.Disk.GameRecordStoreTest do
              1
            ) ==
              {:error, :invalid_game_record}
+
+    assert GameRecordStore.fingerprint(
+             store,
+             1
+           ) ==
+             {:error, :invalid_game_record}
+  end
+
+  test "reports an invalid encoded canonical game", %{
+    record_store: record_store,
+    store: store
+  } do
+    assert {:ok, 1} =
+             RecordStore.append(
+               record_store,
+               <<
+                 fingerprint(1)::binary,
+                 "broken"::binary
+               >>
+             )
+
+    assert GameRecordStore.fingerprint(
+             store,
+             1
+           ) ==
+             {:ok, fingerprint(1)}
+
+    assert GameRecordStore.get(
+             store,
+             1
+           ) ==
+             {:error, :invalid_game_record}
   end
 
   test "reports the number of stored games", %{
@@ -137,10 +246,18 @@ defmodule GameDB.Storage.Disk.GameRecordStoreTest do
     assert {:ok, 1} =
              GameRecordStore.append(
                store,
+               fingerprint(1),
                {:game, 1}
              )
 
     assert GameRecordStore.cardinality(store) ==
              {:ok, 1}
+  end
+
+  defp fingerprint(prefix) do
+    <<
+      prefix::unsigned-big-32,
+      0::size(224)
+    >>
   end
 end
