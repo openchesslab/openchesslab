@@ -9,6 +9,7 @@ defmodule Analysis.GameStore do
   use GenServer
 
   alias Analysis.GameContent
+  alias Analysis.GameDatabase
   alias GameDB.Occurrence
   alias GameDB.Storage.Memory, as: GameStorage
 
@@ -250,29 +251,16 @@ defmodule Analysis.GameStore do
 
   @impl true
   def init(opts) do
-    {
-      storage_module,
-      storage
-    } =
-      Keyword.get_lazy(
-        opts,
-        :storage,
-        fn ->
-          {
-            GameStorage,
-            GameStorage.new()
-          }
-        end
-      )
+    case init_db(opts) do
+      {:ok, db} ->
+        {:ok,
+         %State{
+           db: db
+         }}
 
-    {:ok,
-     %State{
-       db:
-         GameDB.new(
-           storage_module,
-           storage
-         )
-     }}
+      {:stop, _reason} = error ->
+        error
+    end
   end
 
   @impl true
@@ -475,6 +463,59 @@ defmodule Analysis.GameStore do
       GameDB.cardinality(db),
       state
     }
+  end
+
+  defp init_db(opts) do
+    case Keyword.fetch(
+           opts,
+           :storage
+         ) do
+      {:ok, {storage_module, storage}} ->
+        {:ok,
+         GameDB.new(
+           storage_module,
+           storage
+         )}
+
+      :error ->
+        init_default_db(opts)
+    end
+  end
+
+  defp init_default_db(opts) do
+    case Keyword.fetch(
+           opts,
+           :directory
+         ) do
+      {:ok, directory} ->
+        init_persistent(
+          directory,
+          opts
+        )
+
+      :error ->
+        {:ok, new_memory_db()}
+    end
+  end
+
+  defp init_persistent(directory, opts) do
+    case GameDatabase.open_or_create(
+           directory,
+           opts
+         ) do
+      {:ok, db} ->
+        {:ok, db}
+
+      {:error, reason} ->
+        {:stop, reason}
+    end
+  end
+
+  defp new_memory_db do
+    GameDB.new(
+      GameStorage,
+      GameStorage.new()
+    )
   end
 
   defp continue_occurrence_scan(state, cursor, cursor_state, page_size) do

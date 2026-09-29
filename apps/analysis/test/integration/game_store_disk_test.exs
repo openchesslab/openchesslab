@@ -2,13 +2,11 @@ defmodule Analysis.GameStoreDiskIntegrationTest do
   use ExUnit.Case, async: false
 
   alias Analysis.GameContent
-  alias Analysis.GameContentCodec
   alias Analysis.GameFingerprint
   alias Analysis.GameStore
   alias Chess.Move
   alias Chess.Square
   alias GameDB.Occurrence
-  alias GameDB.Storage.Disk
 
   setup do
     directory =
@@ -28,9 +26,7 @@ defmodule Analysis.GameStoreDiskIntegrationTest do
       )
 
     opts = [
-      codec: GameContentCodec,
-      fingerprint_format_id: GameFingerprint.format_id(),
-      fingerprint_size: GameFingerprint.fingerprint_size(),
+      directory: directory,
       bucket_count: 4,
       position_bucket_count: 4
     ]
@@ -41,14 +37,12 @@ defmodule Analysis.GameStoreDiskIntegrationTest do
     end)
 
     %{
-      directory: directory,
       server: server,
       opts: opts
     }
   end
 
   test "persists GameStore data across a disk reopen", %{
-    directory: directory,
     server: server,
     opts: opts
   } do
@@ -70,19 +64,13 @@ defmodule Analysis.GameStoreDiskIntegrationTest do
     assert {:ok, fingerprint} =
              GameFingerprint.for_content(content)
 
-    assert {:ok, disk} =
-             Disk.create(
-               directory,
-               opts
-             )
-
     {:ok, first_store} =
       GameStore.start_link(
-        server: server,
-        storage: {
-          Disk,
-          disk
-        }
+        Keyword.put(
+          opts,
+          :server,
+          server
+        )
       )
 
     Application.put_env(
@@ -127,19 +115,13 @@ defmodule Analysis.GameStoreDiskIntegrationTest do
 
     GenServer.stop(first_store)
 
-    assert {:ok, reopened_disk} =
-             Disk.open(
-               directory,
-               opts
-             )
-
     {:ok, second_store} =
       GameStore.start_link(
-        server: server,
-        storage: {
-          Disk,
-          reopened_disk
-        }
+        Keyword.put(
+          opts,
+          :server,
+          server
+        )
       )
 
     on_exit(fn ->

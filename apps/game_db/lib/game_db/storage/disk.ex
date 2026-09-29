@@ -128,12 +128,6 @@ defmodule GameDB.Storage.Disk do
              canonical_store,
              occurrence_storage
            ),
-         :ok <-
-           GameInsertRecovery.recover(
-             directory,
-             canonical_store,
-             occurrence_storage
-           ),
          {:ok, canonical_game_count} <-
            CanonicalStore.cardinality(canonical_store),
          {:ok, occurrence_game_count} <-
