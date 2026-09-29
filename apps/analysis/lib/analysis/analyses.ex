@@ -20,30 +20,55 @@ defmodule Analysis.Analyses do
   @type game_store_error ::
           {:game_store, term()}
 
-  @spec create(Analysis.Analysis.id()) ::
+  @spec create(
+          Analysis.Analysis.id(),
+          keyword()
+        ) ::
           {:ok, Analysis.Analysis.t(), pos_integer()}
           | {:error,
              :already_exists
+             | {:invalid_position, [atom()]}
              | position_store_error()}
-  def create(analysis_id) do
-    case append_position(Position.starting_position()) do
-      {:ok, position_id} ->
-        analysis =
-          Analysis.Analysis.new(
-            analysis_id,
-            position_id
-          )
+  def create(
+        analysis_id,
+        opts \\ []
+      ) do
+    with {:ok, initial_position} <-
+           initial_position(opts),
+         {:ok, position_id} <-
+           append_position(initial_position) do
+      analysis =
+        Analysis.Analysis.new(
+          analysis_id,
+          position_id
+        )
 
-        case insert(analysis) do
-          {:ok, revision} ->
-            {:ok, analysis, revision}
+      case insert(analysis) do
+        {:ok, revision} ->
+          {:ok, analysis, revision}
 
-          {:error, :already_exists} = error ->
-            error
+        {:error, :already_exists} = error ->
+          error
+      end
+    end
+  end
+
+  defp initial_position(opts) do
+    case Keyword.fetch(
+           opts,
+           :position
+         ) do
+      :error ->
+        {:ok, Position.starting_position()}
+
+      {:ok, position} ->
+        case Position.validate(position) do
+          :ok ->
+            {:ok, position}
+
+          {:error, reasons} ->
+            {:error, {:invalid_position, reasons}}
         end
-
-      {:error, _reason} = error ->
-        error
     end
   end
 
@@ -122,6 +147,36 @@ defmodule Analysis.Analyses do
     case get(analysis_id) do
       {:ok, analysis, revision} ->
         edit(analysis, revision, path, draft)
+
+      :not_found ->
+        {:error, :analysis_not_found}
+    end
+  end
+
+  @spec set_nags(
+          Analysis.Analysis.id(),
+          Analysis.Analysis.path(),
+          [Node.nag()]
+        ) ::
+          {:ok, Analysis.Analysis.t(), pos_integer()}
+          | {:error,
+             :analysis_not_found
+             | :node_not_found
+             | :invalid_nags
+             | :conflict}
+  def set_nags(
+        analysis_id,
+        path,
+        nags
+      ) do
+    case get(analysis_id) do
+      {:ok, analysis, revision} ->
+        set_nags(
+          analysis,
+          revision,
+          path,
+          nags
+        )
 
       :not_found ->
         {:error, :analysis_not_found}
@@ -240,6 +295,27 @@ defmodule Analysis.Analyses do
       |> elem(0)
 
     {:ok, analysis}
+  end
+
+  defp set_nags(
+         analysis,
+         revision,
+         path,
+         nags
+       ) do
+    with {:ok, updated_analysis} <-
+           Analysis.Analysis.set_nags(
+             analysis,
+             path,
+             nags
+           ),
+         {:ok, new_revision} <-
+           persist(
+             updated_analysis,
+             revision
+           ) do
+      {:ok, updated_analysis, new_revision}
+    end
   end
 
   defp set_comment(analysis, revision, path, comment) do

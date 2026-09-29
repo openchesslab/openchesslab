@@ -83,4 +83,40 @@ defmodule Analysis.RoomServerTest do
                end
              )
   end
+
+  test "starts with empty chat and appends messages", %{
+    server: server
+  } do
+    assert RoomServer.chat(server) == []
+
+    assert {:ok, message} =
+             RoomServer.send_message(
+               server,
+               %{
+                 text: "hello",
+                 author: "A"
+               }
+             )
+
+    assert message.text == "hello"
+
+    assert [
+             %{
+               text: "hello",
+               author: "A"
+             }
+           ] = RoomServer.chat(server)
+
+    assert {:error, :empty} =
+             RoomServer.send_message(
+               server,
+               %{
+                 text: "  ",
+                 author: "A"
+               }
+             )
+
+    assert [%{text: "hello"}] =
+             RoomServer.chat(server)
+  end
 end

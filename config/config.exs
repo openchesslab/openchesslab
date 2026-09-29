@@ -28,13 +28,19 @@ config :web, Web.Endpoint,
   pubsub_server: Web.PubSub,
   live_view: [signing_salt: "3afc4cc97cfdd88a2e57b7b628e59b47"]
 
-# Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",
   web: [
-    args: ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js),
-    cd: Path.expand("../apps/web/assets", __DIR__),
-    env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
+    args: ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets),
+    cd: Path.expand("../apps/web/assets", __DIR__)
+  ]
+
+config :tailwind,
+  version: "3.4.17",
+  web: [
+    args:
+      ~w(--config=tailwind.config.js --input=css/app.css --output=../priv/static/assets/app.css),
+    cd: Path.expand("../apps/web/assets", __DIR__)
   ]
 
 # Configure Elixir's Logger
@@ -49,6 +55,9 @@ config :localize,
   default_locale: :en,
   supported_locales: [:en, :nl],
   otp_app: :web
+
+# Phoenix LiveView needs a registered media type for PGN uploads.
+config :mime, :types, %{"application/x-chess-pgn" => ["pgn"]}
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

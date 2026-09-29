@@ -1,0 +1,88 @@
+<main
+  id="main-content"
+  class="mx-auto flex w-full max-w-5xl flex-col items-center gap-9 px-4 py-10 sm:py-14"
+>
+  <section class="flex max-w-2xl flex-col items-center gap-4 text-center">
+    <img
+      src="/brand/openchesslab-mark-dark.svg"
+      alt=""
+      class="brand-mark brand-mark-dark h-16 w-16"
+    />
+    <img
+      src="/brand/openchesslab-mark-light.svg"
+      alt=""
+      class="brand-mark brand-mark-light h-16 w-16"
+    />
+    <h1 class="m-0 text-3xl font-bold tracking-tight sm:text-4xl">OpenChessLab</h1>
+    <p class="m-0 max-w-xl text-base text-muted">{Web.I18n.t("home.tagline", @locale)}</p>
+  </section>
+
+  <div class="grid w-full gap-4 md:grid-cols-2">
+    <section
+      class="flex min-h-64 flex-col gap-3 rounded-xl border border-border bg-panel p-5 sm:p-6"
+      aria-labelledby="home-create-heading"
+    >
+      <h2 id="home-create-heading" class="m-0 text-lg font-semibold">
+        {Web.I18n.t("home.createHeading", @locale)}
+      </h2>
+      <p class="m-0 text-sm text-muted">{Web.I18n.t("home.createDescription", @locale)}</p>
+      <form phx-submit="create-room" class="mt-auto pt-4">
+        <button
+          type="submit"
+          class="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-accent-strong bg-accent px-4 font-semibold text-white hover:bg-accent-strong disabled:cursor-wait disabled:opacity-60"
+          phx-disable-with={Web.I18n.t("common.creating", @locale)}
+        >
+          {Web.I18n.t("home.createButton", @locale)}
+        </button>
+      </form>
+      <p class="m-0 text-center text-xs text-faint">{Web.I18n.t("home.noAccount", @locale)}</p>
+      <p :if={@create_error} role="alert" class="m-0 text-sm text-error">
+        {Web.I18n.t("home.createError", @locale, %{message: @create_error})}
+      </p>
+    </section>
+
+    <section
+      class="flex min-h-64 flex-col gap-3 rounded-xl border border-border bg-panel p-5 sm:p-6"
+      aria-labelledby="home-join-heading"
+    >
+      <h2 id="home-join-heading" class="m-0 text-lg font-semibold">
+        {Web.I18n.t("home.joinHeading", @locale)}
+      </h2>
+      <p class="m-0 text-sm text-muted">{Web.I18n.t("home.joinDescription", @locale)}</p>
+      <form
+        id="join-room-form"
+        phx-submit="join-room"
+        phx-change="update-code"
+        class="mt-auto flex flex-col gap-2 pt-4"
+      >
+        <label class="sr-only" for="room-code">{Web.I18n.t("home.joinPlaceholder", @locale)}</label>
+        <input
+          id="room-code"
+          name="code"
+          value={@join_code}
+          type="text"
+          maxlength="6"
+          autocomplete="off"
+          spellcheck="false"
+          autocapitalize="characters"
+          placeholder={Web.I18n.t("home.joinPlaceholder", @locale)}
+          class="w-full rounded-lg border border-border-strong bg-canvas px-3 py-3 text-center font-mono text-lg tracking-[.35em] uppercase"
+          aria-describedby="room-code-counter"
+          aria-invalid={@join_error != nil}
+        />
+        <span id="room-code-counter" class="text-right text-xs text-faint" aria-live="polite">
+          {Web.I18n.t("home.codeCounter", @locale, %{count: String.length(@join_code), max: 6})}
+        </span>
+        <button
+          type="submit"
+          class="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-border-strong bg-panel px-4 font-semibold text-foreground hover:bg-panel-hover disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={@join_code == ""}
+          phx-disable-with={Web.I18n.t("home.joining", @locale)}
+        >
+          {Web.I18n.t("home.joinButton", @locale)}
+        </button>
+      </form>
+      <p :if={@join_error} role="alert" class="m-0 text-sm text-error">{@join_error}</p>
+    </section>
+  </div>
+</main>

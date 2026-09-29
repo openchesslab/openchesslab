@@ -9,6 +9,7 @@ defmodule Web.Application do
   def start(_type, _args) do
     children = [
       {Phoenix.PubSub, name: Web.PubSub},
+      Web.Presence,
       # Start to serve requests, typically the last entry
       Web.Endpoint
     ]

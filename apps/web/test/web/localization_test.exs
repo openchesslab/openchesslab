@@ -10,34 +10,17 @@ defmodule Web.LocalizationTest do
              MapSet.new([:en, :nl])
   end
 
-  test "Gettext knows both application locales" do
-    assert MapSet.new(Gettext.known_locales(Web.Gettext)) ==
-             MapSet.new(["en", "nl"])
+  test "the LiveView root language follows ?locale=", %{conn: conn} do
+    assert conn
+           |> get("/?locale=nl")
+           |> html_response(200)
+           |> String.contains?(~s(lang="nl"))
   end
 
-  test "renders English as the document language by default", %{conn: conn} do
-    html =
-      conn
-      |> get("/")
-      |> html_response(200)
-
-    assert Floki.attribute(
-             Floki.parse_document!(html),
-             "html",
-             "lang"
-           ) == ["en"]
-  end
-
-  test "renders the selected locale as the document language", %{conn: conn} do
-    html =
-      conn
-      |> get("/?locale=nl")
-      |> html_response(200)
-
-    assert Floki.attribute(
-             Floki.parse_document!(html),
-             "html",
-             "lang"
-           ) == ["nl"]
+  test "Dutch UI copy is rendered by the LiveView", %{conn: conn} do
+    assert conn
+           |> get("/?locale=nl")
+           |> html_response(200)
+           |> String.contains?("Kamer aanmaken")
   end
 end

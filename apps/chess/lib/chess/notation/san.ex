@@ -3,6 +3,26 @@ defmodule Chess.Notation.SAN do
   Formats legal chess moves using Standard Algebraic Notation (SAN).
 
   SAN is canonical chess notation and is not localized.
+
+  ## Future: a server-side SAN parser
+
+  The `format/2` side is implemented; the inverse — taking a SAN
+  string plus the current position and producing a `Chess.Move` — is
+  not. Today, the SPA imports a PGN game client-side and the
+  analysis tree is built there; PGN import that needs to be
+  persisted server-side would call a future `parse/2` here so that
+  the chess engine, not the SPA, is the authority on what move a
+  given SAN string refers to. See the SPA PGN export in
+  `apps/web/assets/src/spa/chess-utils.ts` for the round-trip
+  partner.
+
+  Scope decisions deferred until that work is picked up:
+  - disambiguation (file / rank / both)
+  - under-promotion suffixes (e.g. `e1=N`)
+  - castling (`O-O`, `O-O-O`, with optional `+` / `#`)
+  - ambiguity across promotion variants (e.g. `e1=Q` vs `e1=N`)
+  - locale: SAN stays language-independent; any PGN-tag localisation
+    lives outside this module.
   """
 
   alias Chess.Move

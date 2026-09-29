@@ -102,4 +102,233 @@ defmodule Chess.PositionProperties do
   defp popcount(value, count) do
     popcount(Bitwise.band(value, value - 1), count + 1)
   end
+
+  # --- Square-level facts (board overlays) -----------------------------
+
+  @doc """
+  Files with no pawns of `color` but at least one enemy pawn.
+  """
+  @spec semi_open_files(Position.t()) :: %{white: [atom()], black: [atom()]}
+  def semi_open_files(%Position{} = position) do
+    board = Bitboard.from_position(position)
+
+    %{
+      white: semi_open_files_for(board, :white),
+      black: semi_open_files_for(board, :black)
+    }
+  end
+
+  @doc """
+  Every square attacked by `color`, including squares occupied by its
+  own pieces (a pinned or defended piece still attacks).
+  """
+  @spec attacked_squares(Position.t()) :: %{white: [0..63], black: [0..63]}
+  def attacked_squares(%Position{} = position) do
+    board = Bitboard.from_position(position)
+
+    %{
+      white: attacked_squares(board, :white),
+      black: attacked_squares(board, :black)
+    }
+  end
+
+  @doc """
+  Squares of `color`'s pieces that the opponent attacks.
+  """
+  @spec attacked_pieces(Position.t()) :: %{white: [0..63], black: [0..63]}
+  def attacked_pieces(%Position{} = position) do
+    board = Bitboard.from_position(position)
+
+    %{
+      white: attacked_piece_squares(board, :white),
+      black: attacked_piece_squares(board, :black)
+    }
+  end
+
+  @doc """
+  The king's square plus its adjacent ring, and which of those squares
+  the opponent attacks (measurable king pressure; no vague label).
+  """
+  @spec king_zone(Position.t(), :white | :black) :: %{
+          squares: [0..63],
+          attacked: [0..63]
+        }
+  def king_zone(%Position{} = position, color) when color in [:white, :black] do
+    board = Bitboard.from_position(position)
+    opponent = opposite(color)
+
+    case king_square(board, color) do
+      nil ->
+        %{squares: [], attacked: []}
+
+      square ->
+        zone = squares_in(Bitwise.bor(Bitwise.bsl(1, square), Bitboard.king_attacks(square)))
+
+        attacked =
+          Enum.filter(zone, &Bitboard.attacked?(board, opponent, &1))
+
+        %{squares: zone, attacked: attacked}
+    end
+  end
+
+  @doc """
+  Which kings are attacked. In a legal position only the side to move
+  can be in check, but PositionDB also stores hypothetically edited
+  positions, so both flags are reported.
+
+  The rule itself lives in `Chess.Position.in_check?/2`; this is the
+  position-property view of it for the insights endpoint.
+  """
+  @spec in_check(Position.t()) :: %{white: boolean(), black: boolean()}
+  def in_check(%Position{} = position) do
+    %{
+      white: Position.in_check?(position, :white),
+      black: Position.in_check?(position, :black)
+    }
+  end
+
+  @doc """
+  Outposts for `color`: squares in the opponent's half occupied by a
+  knight, not attackable by an enemy pawn, and defended by a friendly
+  pawn.
+  """
+  @spec outposts(Position.t()) :: %{white: [0..63], black: [0..63]}
+  def outposts(%Position{} = position) do
+    board = Bitboard.from_position(position)
+
+    %{
+      white: outposts_for(board, :white),
+      black: outposts_for(board, :black)
+    }
+  end
+
+  @doc """
+  Space: squares in the opponent's half attacked by `color`, split into
+  all controlled squares and the pawn-controlled subset. The definition
+  is intentionally simple and measurable.
+  """
+  @spec space(Position.t()) :: %{
+          white: %{controlled: non_neg_integer(), pawn_space: non_neg_integer()},
+          black: %{controlled: non_neg_integer(), pawn_space: non_neg_integer()}
+        }
+  def space(%Position{} = position) do
+    board = Bitboard.from_position(position)
+
+    %{
+      white: space_for(board, :white),
+      black: space_for(board, :black)
+    }
+  end
+
+  # --- Implementation ---------------------------------------------------
+
+  defp semi_open_files_for(board, color) do
+    own_pawns = pawns(board, color)
+    enemy_pawns = pawns(board, opposite(color))
+
+    Enum.filter(@files, fn file ->
+      Bitwise.band(own_pawns, @file_masks[file]) == 0 and
+        Bitwise.band(enemy_pawns, @file_masks[file]) != 0
+    end)
+  end
+
+  defp pawns(board, :white), do: board.white_pawns
+  defp pawns(board, :black), do: board.black_pawns
+
+  defp attacked_squares(board, color) do
+    board
+    |> Bitboard.pieces()
+    |> Enum.filter(fn {_square, {piece_color, _kind}} -> piece_color == color end)
+    |> Enum.reduce(0, fn {square, {_color, kind}}, acc ->
+      Bitwise.bor(acc, attack_bitboard(board, kind, color, square))
+    end)
+    |> squares_in()
+  end
+
+  defp attack_bitboard(_board, :pawn, color, square),
+    do: Bitboard.pawn_attacks(color, square)
+
+  defp attack_bitboard(_board, :knight, _color, square), do: Bitboard.knight_attacks(square)
+
+  defp attack_bitboard(_board, :king, _color, square), do: Bitboard.king_attacks(square)
+
+  defp attack_bitboard(board, :rook, _color, square), do: Bitboard.rook_attacks(board, square)
+
+  defp attack_bitboard(board, :bishop, _color, square), do: Bitboard.bishop_attacks(board, square)
+
+  defp attack_bitboard(board, :queen, _color, square), do: Bitboard.queen_attacks(board, square)
+
+  defp attacked_piece_squares(board, color) do
+    opponent = opposite(color)
+
+    board
+    |> Bitboard.pieces()
+    |> Enum.filter(fn {_square, {piece_color, _kind}} -> piece_color == color end)
+    |> Enum.filter(fn {square, _piece} -> Bitboard.attacked?(board, opponent, square) end)
+    |> Enum.map(fn {square, _piece} -> square end)
+    |> Enum.sort()
+  end
+
+  defp king_square(board, color) do
+    board
+    |> Bitboard.pieces()
+    |> Enum.find_value(fn
+      {square, {^color, :king}} -> square
+      _ -> nil
+    end)
+  end
+
+  defp outposts_for(board, color) do
+    enemy_pawn_attacks = pawn_attack_mask(board, opposite(color))
+    own_pawn_attacks = pawn_attack_mask(board, color)
+
+    board
+    |> Bitboard.pieces()
+    |> Enum.filter(fn {_square, piece} -> piece == {color, :knight} end)
+    |> Enum.map(fn {square, _piece} -> square end)
+    |> Enum.filter(&opponent_half?(color, &1))
+    |> Enum.filter(fn square ->
+      not attacked_by?(enemy_pawn_attacks, square) and
+        attacked_by?(own_pawn_attacks, square)
+    end)
+    |> Enum.sort()
+  end
+
+  defp space_for(board, color) do
+    controlled =
+      board
+      |> attacked_squares(color)
+      |> Enum.filter(&opponent_half?(color, &1))
+
+    pawn_space =
+      board
+      |> pawn_attack_mask(color)
+      |> squares_in()
+      |> Enum.filter(&opponent_half?(color, &1))
+
+    %{controlled: length(controlled), pawn_space: length(pawn_space)}
+  end
+
+  defp pawn_attack_mask(board, color) do
+    board
+    |> Bitboard.pieces()
+    |> Enum.filter(fn {_square, piece} -> piece == {color, :pawn} end)
+    |> Enum.reduce(0, fn {square, _piece}, acc ->
+      Bitwise.bor(acc, Bitboard.pawn_attacks(color, square))
+    end)
+  end
+
+  defp opponent_half?(:white, square), do: square >= 32
+  defp opponent_half?(:black, square), do: square <= 31
+
+  defp attacked_by?(mask, square) do
+    Bitwise.band(mask, Bitwise.bsl(1, square)) != 0
+  end
+
+  defp opposite(:white), do: :black
+  defp opposite(:black), do: :white
+
+  defp squares_in(mask) do
+    for square <- 0..63, attacked_by?(mask, square), do: square
+  end
 end

@@ -1316,6 +1316,55 @@ defmodule Chess.PositionTest do
     end
   end
 
+  describe "structurally_valid_castling_rights/1" do
+    test "keeps rights whose king and rook are on their home squares" do
+      position = Position.starting_position()
+
+      assert Position.structurally_valid_castling_rights(position) ==
+               MapSet.new([
+                 :white_kingside,
+                 :white_queenside,
+                 :black_kingside,
+                 :black_queenside
+               ])
+    end
+
+    test "drops a right whose rook is gone" do
+      position =
+        Position.starting_position()
+        |> Position.remove_piece(square("h1"))
+
+      rights = Position.structurally_valid_castling_rights(position)
+
+      refute MapSet.member?(rights, :white_kingside)
+      assert MapSet.member?(rights, :white_queenside)
+    end
+
+    test "drops a right whose king is gone" do
+      position =
+        Position.starting_position()
+        |> Position.remove_piece(square("e8"))
+
+      rights = Position.structurally_valid_castling_rights(position)
+
+      refute MapSet.member?(rights, :black_kingside)
+      refute MapSet.member?(rights, :black_queenside)
+    end
+  end
+
+  describe "decode_piece/1" do
+    test "decodes wire piece strings" do
+      assert Position.decode_piece("white_pawn") == {:ok, {:white, :pawn}}
+      assert Position.decode_piece("black_king") == {:ok, {:black, :king}}
+    end
+
+    test "rejects malformed strings" do
+      assert Position.decode_piece("white_dragon") == {:error, :bad_piece}
+      assert Position.decode_piece("purple_pawn") == {:error, :bad_piece}
+      assert Position.decode_piece("pawn") == {:error, :bad_piece}
+    end
+  end
+
   defp square(algebraic), do: Chess.Square.from_algebraic(algebraic)
 
   defp put_white_pawns(position) do

@@ -176,6 +176,60 @@ defmodule Analysis.AnalysesTest do
     end
   end
 
+  describe "create/2 with a setup position" do
+    test "roots the analysis at the supplied position", %{
+      analysis_id: analysis_id
+    } do
+      position =
+        Position.new()
+        |> Position.put_piece(
+          Square.from_algebraic("e1"),
+          {:white, :king}
+        )
+        |> Position.put_piece(
+          Square.from_algebraic("h8"),
+          {:black, :king}
+        )
+
+      assert {:ok, analysis, 1} =
+               Analyses.create(
+                 analysis_id,
+                 position: position
+               )
+
+      root =
+        AnalysisModel.root(analysis)
+
+      assert {:ok, ^position} =
+               PositionStore.get(Node.position_id(root))
+
+      assert {:ok, ^analysis, 1} =
+               Analyses.get(analysis_id)
+    end
+
+    test "rejects an invalid setup position", %{
+      analysis_id: analysis_id
+    } do
+      position =
+        Position.new()
+        |> Position.put_piece(
+          Square.from_algebraic("e1"),
+          {:white, :king}
+        )
+
+      assert {:error, {:invalid_position, reasons}} =
+               Analyses.create(
+                 analysis_id,
+                 position: position
+               )
+
+      assert :invalid_black_king_count in reasons
+
+      assert :not_found =
+               Analyses.get(analysis_id)
+    end
+  end
+
   describe "create_from_game_record/2" do
     test "creates an analysis containing the canonical main line", %{
       analysis_id: analysis_id
@@ -569,6 +623,72 @@ defmodule Analysis.AnalysesTest do
 
     assert Node.comment(AnalysisModel.root(updated_analysis)) == nil
     assert {:ok, ^updated_analysis, 3} = Analyses.get(analysis_id)
+  end
+
+  test "sets NAGs and persists the updated analysis", %{
+    analysis_id: analysis_id
+  } do
+    analysis =
+      AnalysisModel.new(
+        analysis_id,
+        42
+      )
+
+    assert {:ok, 1} =
+             Analyses.insert(analysis)
+
+    assert {:ok, updated_analysis, 2} =
+             Analyses.set_nags(
+               analysis_id,
+               [],
+               [1, 5]
+             )
+
+    assert Node.nags(AnalysisModel.root(updated_analysis)) == [1, 5]
+
+    assert {:ok, ^updated_analysis, 2} =
+             Analyses.get(analysis_id)
+  end
+
+  test "rejects invalid NAGs", %{
+    analysis_id: analysis_id
+  } do
+    analysis =
+      AnalysisModel.new(
+        analysis_id,
+        42
+      )
+
+    assert {:ok, 1} =
+             Analyses.insert(analysis)
+
+    assert Analyses.set_nags(
+             analysis_id,
+             [],
+             [256]
+           ) ==
+             {:error, :invalid_nags}
+
+    assert Analyses.set_nags(
+             analysis_id,
+             [3],
+             [1]
+           ) ==
+             {:error, :node_not_found}
+
+    assert {:ok, ^analysis, 1} =
+             Analyses.get(analysis_id)
+  end
+
+  test "returns analysis_not_found when setting NAGs on an unknown analysis", %{
+    analysis_id: analysis_id
+  } do
+    assert Analyses.set_nags(
+             analysis_id,
+             [],
+             [1]
+           ) ==
+             {:error, :analysis_not_found}
   end
 
   test "returns analysis_not_found when setting a comment on an unknown analysis", %{

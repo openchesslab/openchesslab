@@ -314,6 +314,111 @@ defmodule Analysis.RoomsTest do
              )
   end
 
+  test "sends and lists chat messages", %{
+    room_id: room_id,
+    rooms_options: rooms_options
+  } do
+    start_room_and_wait(
+      room_id,
+      rooms_options
+    )
+
+    assert {:ok, message} =
+             Rooms.send_message(
+               room_id,
+               %{
+                 text: "hello",
+                 author: "Alice"
+               },
+               rooms_options
+             )
+
+    assert message.text == "hello"
+
+    assert {:ok,
+            [
+              %{
+                text: "hello",
+                author: "Alice"
+              }
+            ]} =
+             Rooms.chat(
+               room_id,
+               rooms_options
+             )
+  end
+
+  test "reports the region of the room's owner node", %{
+    room_id: room_id,
+    rooms_options: rooms_options
+  } do
+    start_room_and_wait(
+      room_id,
+      rooms_options
+    )
+
+    assert {:ok, region} =
+             Rooms.region(
+               room_id,
+               rooms_options
+             )
+
+    assert is_binary(region)
+  end
+
+  test "chat and region of an unknown room return not_found", %{
+    room_id: room_id,
+    rooms_options: rooms_options
+  } do
+    assert {:error, :not_found} =
+             Rooms.region(
+               room_id,
+               rooms_options
+             )
+
+    assert {:error, :not_found} =
+             Rooms.chat(
+               room_id,
+               rooms_options
+             )
+
+    assert {:error, :not_found} =
+             Rooms.send_message(
+               room_id,
+               %{
+                 text: "hi",
+                 author: "A"
+               },
+               rooms_options
+             )
+  end
+
+  test "rejects an empty chat message", %{
+    room_id: room_id,
+    rooms_options: rooms_options
+  } do
+    start_room_and_wait(
+      room_id,
+      rooms_options
+    )
+
+    assert {:error, :empty} =
+             Rooms.send_message(
+               room_id,
+               %{
+                 text: "   ",
+                 author: "A"
+               },
+               rooms_options
+             )
+
+    assert {:ok, []} =
+             Rooms.chat(
+               room_id,
+               rooms_options
+             )
+  end
+
   defp start_room_and_wait(
          room_id,
          rooms_options

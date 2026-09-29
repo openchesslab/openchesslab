@@ -1,14 +1,37 @@
 <!DOCTYPE html>
-<html lang={Gettext.get_locale(Web.Gettext)}>
+<html lang={Localize.get_locale()}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content={get_csrf_token()} />
-    <.live_title default="OpenChessLab" suffix=" · Phoenix Framework">
+
+    <!-- Brand marks (official assets, see /brand). Browsers that
+         support media-aware icons pick the one matching the OS theme;
+         the rest use the light-background mark. -->
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/brand/openchesslab-mark-light.svg"
+      media="(prefers-color-scheme: light)"
+    />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/brand/openchesslab-mark-dark.svg"
+      media="(prefers-color-scheme: dark)"
+    />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/brand/openchesslab-mark-light.svg"
+      media="(prefers-color-scheme: no-preference)"
+    />
+    <.live_title default="OpenChessLab">
       {assigns[:page_title]}
     </.live_title>
-    <link phx-track-static rel="stylesheet" href={~p"/assets/js/app.css"} />
-    <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
+
+    <link phx-track-static rel="stylesheet" href={~p"/assets/app.css"} />
+    <script defer phx-track-static type="text/javascript" src={~p"/assets/app.js"}>
     </script>
   </head>
   <body>

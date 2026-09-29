@@ -370,30 +370,33 @@ defmodule Chess.Position do
     file_distance > 1 or rank_distance > 1
   end
 
+  @castling_right_squares %{
+    white_kingside: {4, 7, :white},
+    white_queenside: {4, 0, :white},
+    black_kingside: {60, 63, :black},
+    black_queenside: {60, 56, :black}
+  }
+
+  @doc """
+  The subset of `castling_rights` that is consistent with the current
+  king/rook placement. Validation requires the claimed rights to be a
+  subset of this; board-edit normalization prunes a position's rights
+  to it (moving a rook away drops the corresponding right).
+  """
+  @spec structurally_valid_castling_rights(t()) :: MapSet.t()
+  def structurally_valid_castling_rights(%__MODULE__{} = position) do
+    for {right, {king_square, rook_square, color}} <- @castling_right_squares,
+        piece_at(position, king_square) == {color, :king},
+        piece_at(position, rook_square) == {color, :rook},
+        into: MapSet.new(),
+        do: right
+  end
+
   defp validate_castling_rights(errors, position) do
-    valid? =
-      Enum.all?(position.castling_rights, fn
-        :white_kingside ->
-          piece_at(position, 4) == {:white, :king} and
-            piece_at(position, 7) == {:white, :rook}
-
-        :white_queenside ->
-          piece_at(position, 4) == {:white, :king} and
-            piece_at(position, 0) == {:white, :rook}
-
-        :black_kingside ->
-          piece_at(position, 60) == {:black, :king} and
-            piece_at(position, 63) == {:black, :rook}
-
-        :black_queenside ->
-          piece_at(position, 60) == {:black, :king} and
-            piece_at(position, 56) == {:black, :rook}
-
-        _ ->
-          false
-      end)
-
-    if valid? do
+    if MapSet.subset?(
+         position.castling_rights,
+         structurally_valid_castling_rights(position)
+       ) do
       errors
     else
       [:invalid_castling_rights | errors]
@@ -1190,5 +1193,166 @@ defmodule Chess.Position do
     Enum.reduce(0..7, board, fn offset, board ->
       Chess.Board.put(board, rank_start + offset, {color, :pawn})
     end)
+  end
+
+  @doc """
+  Decode a position from the SPA's wire format.
+
+      %{
+        "pieces": [[0, "white_rook"], [12, "white_pawn"], ...],
+        "side_to_move": "white" | "black",
+        "castling_rights": ["white_kingside", ...],
+        "en_passant": 28 | nil
+      }
+
+  Used by the SolidJS SPA's position editor and other JSON-write
+  endpoints. Validates via `Chess.Position.validate/1` and returns the
+  underlying error structure so the controller can surface the
+  failure reasons as 422.
+  """
+  @spec from_wire(map()) :: {:ok, t()} | {:error, [atom()]}
+  def from_wire(wire) do
+    with {:ok, board} <- decode_board(wire),
+         {:ok, side} <- decode_side(wire["side_to_move"]),
+         {:ok, rights} <- decode_castling(wire["castling_rights"] || []),
+         {:ok, en_passant} <- decode_en_passant(wire["en_passant"]) do
+      position = %__MODULE__{
+        board: board,
+        side_to_move: side,
+        castling_rights: rights,
+        en_passant: en_passant
+      }
+
+      case Chess.Position.validate(position) do
+        :ok -> {:ok, position}
+        {:error, reasons} -> {:error, reasons}
+      end
+    else
+      {:error, reason} -> {:error, [reason]}
+    end
+  end
+
+  defp decode_board(%{"pieces" => pieces}) when is_list(pieces) do
+    Enum.reduce_while(pieces, {:ok, Chess.Board.empty()}, fn [sq, str], acc ->
+      with {:ok, board} <- acc,
+           {:ok, piece} <- decode_piece(str),
+           true <- is_integer(sq) and sq >= 0 and sq <= 63 do
+        {:cont, {:ok, Chess.Board.put(board, sq, piece)}}
+      else
+        _ -> {:halt, {:error, :bad_pieces}}
+      end
+    end)
+  end
+
+  defp decode_board(_), do: {:error, :bad_pieces}
+
+  @doc """
+  Decodes a wire piece string (`"white_pawn"`) into `{:color, kind}`.
+
+  Public because the SPA sends single pieces for placement edits (e.g.
+  putting a knight on a square); `from_wire/1` uses the same decoder
+  for whole boards.
+  """
+  @spec decode_piece(String.t()) ::
+          {:ok, Chess.Board.piece()} | {:error, :bad_piece}
+  def decode_piece(str) when is_binary(str) do
+    case String.split(str, "_", parts: 2) do
+      [color_str, kind_str] ->
+        color =
+          case color_str do
+            "white" -> :white
+            "black" -> :black
+            _ -> nil
+          end
+
+        kind =
+          case kind_str do
+            "pawn" -> :pawn
+            "knight" -> :knight
+            "bishop" -> :bishop
+            "rook" -> :rook
+            "queen" -> :queen
+            "king" -> :king
+            _ -> nil
+          end
+
+        if color && kind, do: {:ok, {color, kind}}, else: {:error, :bad_piece}
+
+      _ ->
+        {:error, :bad_piece}
+    end
+  end
+
+  def decode_piece(_str), do: {:error, :bad_piece}
+
+  defp decode_side("white"), do: {:ok, :white}
+  defp decode_side("black"), do: {:ok, :black}
+  defp decode_side(_), do: {:error, :bad_side}
+
+  defp decode_castling(list) when is_list(list) do
+    rights =
+      Enum.reduce_while(list, MapSet.new(), fn str, acc ->
+        case str do
+          "white_kingside" -> {:cont, MapSet.put(acc, :white_kingside)}
+          "white_queenside" -> {:cont, MapSet.put(acc, :white_queenside)}
+          "black_kingside" -> {:cont, MapSet.put(acc, :black_kingside)}
+          "black_queenside" -> {:cont, MapSet.put(acc, :black_queenside)}
+          _ -> {:halt, :bad_castling_rights}
+        end
+      end)
+
+    case rights do
+      {:error, reason} -> {:error, reason}
+      set -> {:ok, set}
+    end
+  end
+
+  defp decode_castling(_), do: {:error, :bad_castling_rights}
+
+  defp decode_en_passant(nil), do: {:ok, nil}
+
+  defp decode_en_passant(n) when is_integer(n) and n >= 0 and n <= 63,
+    do: {:ok, n}
+
+  defp decode_en_passant(_), do: {:error, :bad_en_passant}
+
+  @doc """
+  Encode a position as the SPA's wire format. Mirrors `from_wire/1`:
+
+      %{
+        "pieces" => [[0, "white_rook"], [12, "white_pawn"], ...],
+        "side_to_move" => "white" | "black",
+        "castling_rights" => ["white_kingside", ...],
+        "en_passant" => 28 | nil
+      }
+
+  Top-level keys AND values are strings — the shape matches the JSON
+  the SPA sends and the shape `from_wire/1` parses, so
+
+      from_wire(to_wire(p)) == {:ok, p}
+
+  for any valid position. Jason encodes this map directly (atoms in
+  piece strings like `"white_pawn"` are already strings). Pieces are
+  sorted by square for stable output across runs.
+
+  Used by the SolidJS SPA's read-only render path (Phase 2c) and
+  available to anything else that needs the same shape `from_wire/1`
+  accepts.
+  """
+  @spec to_wire(t()) :: map()
+  def to_wire(%__MODULE__{} = position) do
+    %{
+      "pieces" => pieces_for_wire(position),
+      "side_to_move" => Atom.to_string(position.side_to_move),
+      "castling_rights" => Enum.map(position.castling_rights, &Atom.to_string/1),
+      "en_passant" => position.en_passant
+    }
+  end
+
+  defp pieces_for_wire(%__MODULE__{board: board}) do
+    board
+    |> Chess.Board.pieces()
+    |> Enum.map(fn {square, {color, kind}} -> [square, "#{color}_#{kind}"] end)
+    |> Enum.sort_by(fn [square, _piece] -> square end)
   end
 end

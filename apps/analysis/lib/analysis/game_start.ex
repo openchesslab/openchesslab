@@ -34,3 +34,10 @@ defmodule Analysis.GameStart do
     fullmove_number
   end
 end
+
+# JSON encoding for the SPA.
+defimpl Jason.Encoder, for: Analysis.GameStart do
+  def encode(%Analysis.GameStart{} = g, opts) do
+    Jason.Encode.map(%{fullmove_number: g.fullmove_number}, opts)
+  end
+end

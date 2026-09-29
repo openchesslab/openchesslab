@@ -192,6 +192,52 @@ defmodule Analysis.Analysis do
     end
   end
 
+  @spec set_nags(
+          t(),
+          path(),
+          [Node.nag()]
+        ) ::
+          {:ok, t()}
+          | {:error, :node_not_found | :invalid_nags}
+  def set_nags(
+        %__MODULE__{} = analysis,
+        path,
+        nags
+      )
+      when is_list(path) and is_list(nags) do
+    if Node.valid_nags?(nags) do
+      case update_node_at(
+             analysis.root,
+             path,
+             fn node ->
+               {:ok, updated_node} =
+                 Node.set_nags(
+                   node,
+                   nags
+                 )
+
+               updated_node
+             end
+           ) do
+        {:ok, root} ->
+          {:ok, %{analysis | root: root}}
+
+        :not_found ->
+          {:error, :node_not_found}
+      end
+    else
+      {:error, :invalid_nags}
+    end
+  end
+
+  def set_nags(
+        %__MODULE__{},
+        _path,
+        _nags
+      ) do
+    {:error, :invalid_nags}
+  end
+
   @spec source_game_record_id(t()) ::
           source_game_record_id()
   def source_game_record_id(%__MODULE__{

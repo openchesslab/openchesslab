@@ -19,8 +19,10 @@ RUN mix local.hex --force \
 ENV MIX_ENV=prod
 
 COPY mix.exs mix.lock ./
+
 COPY apps/analysis/mix.exs apps/analysis/mix.exs
 COPY apps/chess/mix.exs apps/chess/mix.exs
+COPY apps/game_db/mix.exs apps/game_db/mix.exs
 COPY apps/position_db/mix.exs apps/position_db/mix.exs
 COPY apps/web/mix.exs apps/web/mix.exs
 
@@ -34,9 +36,7 @@ COPY rel rel
 
 RUN mix compile
 
-RUN mix esbuild web --minify
-
-RUN cd apps/web && mix phx.digest priv/static
+RUN cd apps/web && mix assets.deploy
 
 RUN mix release openchesslab
 

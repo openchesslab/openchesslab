@@ -1,11 +1,10 @@
 defmodule Web do
   @moduledoc """
-  The entrypoint for defining your web interface, such
-  as controllers, components, channels, and so on.
+  The entrypoint for defining the Phoenix web interface.
 
   This can be used in your application as:
 
-      use Web, :controller
+      use Web, :live_view
       use Web, :html
 
   The definitions below will be executed for every controller,
@@ -17,7 +16,9 @@ defmodule Web do
   those modules here.
   """
 
-  def static_paths, do: ~w(assets favicon.ico robots.txt)
+  # Static paths served by Phoenix. The LiveView hook bundle and
+  # Tailwind output are built into `priv/static/assets`.
+  def static_paths, do: ~w(assets brand fonts images favicon.ico robots.txt)
 
   def router do
     quote do
@@ -27,12 +28,6 @@ defmodule Web do
       import Plug.Conn
       import Phoenix.Controller
       import Phoenix.LiveView.Router
-    end
-  end
-
-  def channel do
-    quote do
-      use Phoenix.Channel
     end
   end
 
@@ -77,14 +72,14 @@ defmodule Web do
 
   defp html_helpers do
     quote do
-      use Gettext, backend: Web.Gettext
-
       # HTML escaping functionality
       import Phoenix.HTML
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS
       alias Web.Layouts
+      import Web.IconComponents, only: [icon: 1]
+      import Web.MoveListComponents, only: [move_list: 1]
 
       # Routes generation with the ~p sigil
       unquote(verified_routes())

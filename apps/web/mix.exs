@@ -14,6 +14,7 @@ defmodule Web.MixProject do
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
       listeners: [Phoenix.CodeReloader],
       start_permanent: Mix.env() == :prod,
+      aliases: aliases(),
       deps: deps()
     ]
   end
@@ -31,10 +32,9 @@ defmodule Web.MixProject do
       {:phoenix_html, "~> 4.3"},
       {:phoenix_live_reload, "~> 1.7", only: :dev},
       {:phoenix_live_view, "~> 1.2"},
-      {:esbuild, "~> 0.10.0", runtime: Mix.env() == :dev},
+      {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
+      {:tailwind, "~> 0.5", runtime: Mix.env() == :dev},
       {:plug_cowboy, "~> 2.9"},
-      {:floki, "~> 0.38.4", only: :test},
-      {:gettext, "~> 1.0"},
       {:localize, "~> 1.0"},
       {:localize_web, "~> 1.0"},
       # For LiveView tests
@@ -47,4 +47,12 @@ defmodule Web.MixProject do
 
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
+
+  defp aliases do
+    [
+      "assets.setup": ["esbuild.install --if-missing", "tailwind.install --if-missing"],
+      "assets.build": ["tailwind web --minify", "esbuild web --minify", "phx.digest"],
+      "assets.deploy": ["assets.setup", "assets.build"]
+    ]
+  end
 end

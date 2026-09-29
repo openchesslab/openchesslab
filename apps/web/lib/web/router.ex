@@ -7,8 +7,7 @@ defmodule Web.Router do
 
     plug(Localize.Plug.PutLocale,
       from: [:query, :session, :accept_language],
-      default: :en,
-      gettext: Web.Gettext
+      default: :en
     )
 
     plug(Localize.Plug.PutSession)
@@ -21,6 +20,7 @@ defmodule Web.Router do
 
   pipeline :api do
     plug(:accepts, ["json"])
+    plug(:put_secure_browser_headers)
   end
 
   scope "/", Web do
@@ -30,15 +30,13 @@ defmodule Web.Router do
     get("/ready", ReadinessController, :show)
   end
 
+  # The home and room workspace are server-rendered LiveViews. Analysis
+  # operations call their domain APIs directly from the web boundary.
   scope "/", Web do
     pipe_through(:browser)
 
-    live_session :default,
-      on_mount: [{Web.LocaleLive, :default}] do
-      live("/", PageLive, :index)
-      live("/analyses", AnalysesLive, :index)
-      live("/rooms/:room_id", RoomLive, :show)
-    end
+    live("/", HomeLive, :index)
+    live("/rooms/:code", RoomLive, :show)
   end
 
   # Other scopes may use custom stacks.

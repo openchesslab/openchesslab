@@ -188,4 +188,125 @@ defmodule Analysis.NodeTest do
       assert Node.comment(node) == "An interesting position"
     end
   end
+
+  describe "Jason.Encoder" do
+    test "encodes a root node with transition: null" do
+      node = Node.new(42, nil)
+
+      decoded = Jason.decode!(Jason.encode!(node))
+
+      assert decoded["position_id"] == 42
+      assert decoded["transition"] == nil
+      assert decoded["comment"] == nil
+      assert decoded["children"] == []
+    end
+
+    test "encodes a {:move, _} transition as a flat move object" do
+      move = Move.new(Square.from_algebraic("e2"), Square.from_algebraic("e4"))
+      node = Node.new(43, Transition.move(move))
+
+      decoded = Jason.decode!(Jason.encode!(node))
+
+      assert decoded["transition"] == %{
+               "type" => "move",
+               "from" => 12,
+               "to" => 28,
+               "promotion" => nil
+             }
+    end
+
+    test "encodes a promotion move with the promotion as a string" do
+      move = Move.new(Square.from_algebraic("e7"), Square.from_algebraic("e8"), :queen)
+      node = Node.new(99, Transition.move(move))
+
+      decoded = Jason.decode!(Jason.encode!(node))
+
+      assert decoded["transition"] == %{
+               "type" => "move",
+               "from" => 52,
+               "to" => 60,
+               "promotion" => "queen"
+             }
+    end
+
+    test "encodes an :edit transition as {type: 'edit'}" do
+      node = Node.new(7, :edit)
+
+      decoded = Jason.decode!(Jason.encode!(node))
+
+      assert decoded["transition"] == %{"type" => "edit"}
+    end
+
+    test "encodes children recursively" do
+      e4_transition =
+        Transition.move(Move.new(Square.from_algebraic("e2"), Square.from_algebraic("e4")))
+
+      d4_transition =
+        Transition.move(Move.new(Square.from_algebraic("d2"), Square.from_algebraic("d4")))
+
+      node = %Node{
+        position_id: 1,
+        children: [
+          %Node{position_id: 2, transition: e4_transition},
+          %Node{position_id: 3, transition: d4_transition}
+        ]
+      }
+
+      decoded = Jason.decode!(Jason.encode!(node))
+
+      assert decoded["children"] == [
+               %{
+                 "position_id" => 2,
+                 "transition" => %{
+                   "type" => "move",
+                   "from" => 12,
+                   "to" => 28,
+                   "promotion" => nil
+                 },
+                 "comment" => nil,
+                 "children" => []
+               },
+               %{
+                 "position_id" => 3,
+                 "transition" => %{
+                   "type" => "move",
+                   "from" => 11,
+                   "to" => 27,
+                   "promotion" => nil
+                 },
+                 "comment" => nil,
+                 "children" => []
+               }
+             ]
+    end
+  end
+
+  describe "nags" do
+    test "defaults to none" do
+      assert Node.nags(Node.new(1)) == []
+    end
+
+    test "accepts PGN NAGs, deduplicated" do
+      assert {:ok, node} = Node.set_nags(Node.new(1), [1, 5, 1])
+      assert Node.nags(node) == [1, 5]
+    end
+
+    test "rejects values outside 0..255 and non-integers" do
+      assert Node.set_nags(Node.new(1), [256]) == {:error, :invalid_nags}
+      assert Node.set_nags(Node.new(1), [-1]) == {:error, :invalid_nags}
+      assert Node.set_nags(Node.new(1), ["1"]) == {:error, :invalid_nags}
+    end
+
+    test "caps how many NAGs a node keeps" do
+      assert Node.set_nags(Node.new(1), Enum.to_list(1..8)) |> elem(0) == :ok
+      assert Node.set_nags(Node.new(1), Enum.to_list(1..9)) == {:error, :invalid_nags}
+    end
+
+    test "valid_nags?/1 is the shared check" do
+      assert Node.valid_nags?([])
+      assert Node.valid_nags?([0, 255])
+      refute Node.valid_nags?([256])
+      refute Node.valid_nags?("1")
+    end
+  end
 end

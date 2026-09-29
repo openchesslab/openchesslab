@@ -15,8 +15,20 @@ config :web, Web.Endpoint,
   debug_errors: true,
   secret_key_base:
     "c2b79f93272f86409bd47252aacb42192a1d1bd8c56e39e0845fdce975de7169702ca7bd7d14387795fb14cb3f3f85bdcacbcfed6179a89e09d1de7f4a267513",
+
+  # Compile the LiveView hooks and Tailwind stylesheet while developing.
   watchers: [
-    esbuild: {Esbuild, :install_and_run, [:web, ~w(--sourcemap=inline --watch)]}
+    esbuild: {Esbuild, :install_and_run, [:web, ~w(--sourcemap=inline --watch)]},
+    tailwind: {Tailwind, :install_and_run, [:web, ~w(--watch)]}
+  ],
+
+  # Reload on changes to the web hooks, Tailwind stylesheet, or static
+  # assets. Elixir source recompilation remains owned by CodeReloader.
+  live_reload: [
+    patterns: [
+      ~r"apps/web/assets/(css|js)/.*",
+      ~r"priv/static/.*"
+    ]
   ]
 
 # Do not include metadata nor timestamps in development logs

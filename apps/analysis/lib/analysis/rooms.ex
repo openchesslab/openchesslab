@@ -2,6 +2,7 @@ defmodule Analysis.Rooms do
   @moduledoc false
 
   alias Analysis.Room
+  alias Analysis.RoomChat
   alias Analysis.RoomServer
 
   @default_registry Analysis.RoomRegistry
@@ -21,14 +22,9 @@ defmodule Analysis.Rooms do
         room_id,
         opts \\ []
       ) do
-    registry =
-      registry(opts)
-
-    supervisor =
-      supervisor(opts)
-
-    room =
-      Room.new(room_id)
+    registry = registry(opts)
+    supervisor = supervisor(opts)
+    room = Room.new(room_id)
 
     case Horde.DynamicSupervisor.start_child(
            supervisor,
@@ -124,6 +120,77 @@ defmodule Analysis.Rooms do
     end
   end
 
+  @spec chat(
+          Room.id(),
+          options()
+        ) ::
+          {:ok, [RoomChat.Message.t()]}
+          | {:error, :not_found}
+  def chat(
+        room_id,
+        opts \\ []
+      ) do
+    case lookup(
+           registry(opts),
+           room_id
+         ) do
+      {:ok, pid} ->
+        {:ok, RoomServer.chat(pid)}
+
+      :not_found ->
+        {:error, :not_found}
+    end
+  end
+
+  @spec send_message(
+          Room.id(),
+          map(),
+          options()
+        ) ::
+          {:ok, RoomChat.Message.t()}
+          | {:error, :not_found | :empty}
+  def send_message(
+        room_id,
+        attrs,
+        opts \\ []
+      ) do
+    case lookup(
+           registry(opts),
+           room_id
+         ) do
+      {:ok, pid} ->
+        RoomServer.send_message(
+          pid,
+          attrs
+        )
+
+      :not_found ->
+        {:error, :not_found}
+    end
+  end
+
+  @spec region(
+          Room.id(),
+          options()
+        ) ::
+          {:ok, String.t()}
+          | {:error, :not_found}
+  def region(
+        room_id,
+        opts \\ []
+      ) do
+    case lookup(
+           registry(opts),
+           room_id
+         ) do
+      {:ok, pid} ->
+        {:ok, node_region(node(pid))}
+
+      :not_found ->
+        {:error, :not_found}
+    end
+  end
+
   @spec stop_room(
           Room.id(),
           options()
@@ -166,6 +233,22 @@ defmodule Analysis.Rooms do
 
       [] ->
         :not_found
+    end
+  end
+
+  defp node_region(node_name) do
+    case :erpc.call(
+           node_name,
+           System,
+           :get_env,
+           ["FLY_REGION"],
+           2000
+         ) do
+      region when is_binary(region) ->
+        region
+
+      _ ->
+        "local"
     end
   end
 
