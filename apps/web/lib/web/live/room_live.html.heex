@@ -3,7 +3,7 @@
     <h1 class="text-2xl font-semibold">
       {Web.I18n.t("room.loadFailed", @locale, %{message: @error || "not found"})}
     </h1>
-    
+
     <.link
       navigate={~p"/"}
       class="mt-5 inline-flex items-center rounded-md border border-border px-4 py-2 text-foreground hover:bg-panel-hover"
@@ -11,7 +11,7 @@
       OpenChessLab
     </.link>
   </section>
-  
+
   <div
     :if={@room}
     id="room-shell"
@@ -25,7 +25,7 @@
             <span class="max-[860px]:hidden">{Web.I18n.t("room.label", @locale)}</span>
             <code class="font-mono text-base text-muted max-[860px]:text-sm">{@room_code}</code>
           </h1>
-          
+
           <div class="flex items-center gap-1">
             <button
               type="button"
@@ -38,7 +38,7 @@
             </button>
           </div>
         </header>
-        
+
         <div
           class="mt-3 flex flex-nowrap items-center gap-x-2 gap-y-1 max-[860px]:mt-0"
           role="status"
@@ -78,7 +78,7 @@
             <% end %>
           </ul>
         </div>
-        
+
         <div
           class="mt-2 flex items-center gap-1 text-xs text-muted max-[860px]:mt-0 max-[860px]:whitespace-nowrap"
           title={region_tooltip(@local_region, @room_region, @locale)}
@@ -93,10 +93,10 @@
           <span data-latency class="tabular-nums">— ms</span>
           <span class="sr-only">{region_tooltip(@local_region, @room_region, @locale)}</span>
         </div>
-        
+
         <p :if={@error} role="alert" class="mt-2 text-sm text-error">{@error}</p>
       </div>
-      
+
       <section
         data-mobile-panel="games"
         class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto max-[860px]:order-4 max-[860px]:px-3 max-[860px]:py-3"
@@ -109,7 +109,7 @@
               @analyses
             )}</span>
           </h2>
-          
+
           <div class="flex items-center gap-1">
             <button
               type="button"
@@ -127,7 +127,7 @@
             ><.icon name="add" class="h-4 w-4" /></button>
           </div>
         </header>
-        
+
         <button
           type="button"
           class="self-start rounded-md px-2 py-1 text-xs text-muted hover:bg-panel-hover hover:text-foreground"
@@ -139,7 +139,7 @@
         >
           {Web.I18n.t("room.noAnalyses", @locale)}
         </p>
-        
+
         <ul :if={@analyses != []} class="m-0 flex list-none flex-col gap-1 p-0">
           <%= for analysis <- @analyses do %>
             <% active = analysis.id == @selected_analysis_id %> <% viewers =
@@ -165,13 +165,13 @@
                     class="shrink-0 rounded-full bg-panel-hover px-1.5 py-0.5 text-[.65rem] text-muted"
                   >{viewers}</span>
                 </span>
-                 <span class="text-xs text-muted">{analysis.detail}</span>
+                <span class="text-xs text-muted">{analysis.detail}</span>
               </button>
             </li>
           <% end %>
         </ul>
       </section>
-      
+
       <section
         data-mobile-panel="chat"
         class="flex shrink-0 flex-col gap-2 border-t border-border pt-3 max-[860px]:order-5 max-[860px]:px-3 max-[860px]:py-3"
@@ -183,7 +183,7 @@
             @locale
           )}
         </h2>
-        
+
         <div
           id="chat-log"
           phx-hook="ScrollLog"
@@ -206,11 +206,11 @@
                 else: message.author}</strong>
               <time class="shrink-0 tabular-nums">{Web.I18n.format_time(message.at)}</time>
             </header>
-            
+
             <p class="mb-0 mt-1 whitespace-pre-wrap break-words text-xs text-foreground">
               {message.text}
             </p>
-            
+
             <p
               :if={chat_context(message, @analyses)}
               class="mb-0 mt-1 truncate text-[.65rem] text-muted"
@@ -219,11 +219,11 @@
             </p>
           </article>
         </div>
-        
+
         <p :if={@chat_messages == []} class="m-0 text-xs text-muted">
           {Web.I18n.t("room.chatEmpty", @locale)}
         </p>
-        
+
         <form phx-submit="send-chat" class="flex gap-1.5">
           <label class="sr-only" for="chat-message">{Web.I18n.t("room.chatPlaceholder", @locale)}</label>
           <input
@@ -239,11 +239,11 @@
             class="rounded-md border border-border bg-transparent px-2.5 text-xs font-medium text-foreground hover:bg-panel-hover"
           >{Web.I18n.t("room.chatSend", @locale)}</button>
         </form>
-        
+
         <p :if={@chat_error} role="alert" class="m-0 text-xs text-error">{@chat_error}</p>
       </section>
     </aside>
-    
+
     <section class="grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)_360px] overflow-hidden max-[1100px]:grid-cols-[minmax(0,1fr)_320px] max-[860px]:contents">
       <%= if @analysis do %>
         <section
@@ -280,10 +280,10 @@
                       style={eval_fill_style(@engine_preview, @orientation)}
                     >
                     </div>
-                    
+
                     <div class="absolute inset-x-0 top-1/2 h-px bg-white/75"></div>
                   </div>
-                  
+
                   <span
                     class="absolute left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded border border-border bg-panel px-0.5 py-0.5 text-[.55rem] font-mono font-semibold text-foreground"
                     style={
@@ -291,7 +291,7 @@
                     }
                   >{eval_label(@engine_preview)}</span>
                 </div>
-                
+
                 <%= if @position do %>
                   <.chess_board
                     position={@draft_position || @position}
@@ -320,7 +320,7 @@
                   </p>
                 <% end %>
               </div>
-              
+
               <p
                 data-arrow-hint
                 class="pointer-events-none absolute left-1/2 top-2 z-30 hidden -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full border border-highlight bg-panel px-3 py-1 text-xs text-highlight shadow-xl"
@@ -330,7 +330,7 @@
                 {Web.I18n.t("room.arrowFrom", @locale)} <strong data-arrow-from></strong>
                 <span class="max-[860px]:hidden">{Web.I18n.t("room.arrowHint", @locale)}</span>
               </p>
-              
+
               <aside
                 :if={@position_editor_open and not is_nil(@position)}
                 class="max-h-full w-60 shrink-0 overflow-y-auto rounded-lg border border-border bg-panel p-3 max-[860px]:fixed max-[860px]:inset-x-0 max-[860px]:bottom-0 max-[860px]:top-[42dvh] max-[860px]:z-40 max-[860px]:max-h-none max-[860px]:w-auto max-[860px]:rounded-b-none max-[860px]:border-x-0 max-[860px]:border-b-0 max-[860px]:shadow-2xl"
@@ -340,7 +340,7 @@
                   <h3 class="m-0 text-xs font-semibold uppercase tracking-wider text-muted">
                     {Web.I18n.t("room.positionEditor", @locale)}
                   </h3>
-                  
+
                   <button
                     type="button"
                     class="rounded border border-border px-2 py-1 text-xs hover:bg-panel-hover"
@@ -348,15 +348,15 @@
                     phx-click="toggle-position-editor"
                   ><.icon name="close" class="h-4 w-4" /></button>
                 </header>
-                
+
                 <p class="mb-3 mt-0 text-[.68rem] text-muted">
                   {Web.I18n.t("room.editorHint", @locale)}
                 </p>
-                
+
                 <p class="mb-1 mt-0 text-[.68rem] font-semibold uppercase tracking-wider text-muted">
                   {Web.I18n.t("room.toolsHeading", @locale)}
                 </p>
-                
+
                 <div
                   id="editor-palette"
                   phx-hook="PaletteDrag"
@@ -383,7 +383,7 @@
                     /></button>
                   <% end %>
                 </div>
-                
+
                 <div class="mb-3 flex gap-1">
                   <button
                     type="button"
@@ -401,11 +401,11 @@
                     phx-click="flip-side-to-move"
                   >{side_name((@draft_position || @position).side_to_move, @locale)}</button>
                 </div>
-                
+
                 <p class="mb-1 mt-2 text-[.68rem] font-semibold uppercase tracking-wider text-muted">
                   {Web.I18n.t("room.castlingRights", @locale)}
                 </p>
-                
+
                 <div class="grid gap-1 text-xs">
                   <%= for right <- @castling_rights do %>
                     <% atom = String.to_existing_atom(right) %>
@@ -428,7 +428,7 @@
                     </button>
                   <% end %>
                 </div>
-                
+
                 <form phx-submit="set-en-passant" class="mt-3 flex items-center gap-2">
                   <label for="en-passant" class="text-xs text-muted">{Web.I18n.t(
                     "room.enPassantLabel",
@@ -448,7 +448,7 @@
                 </form>
               </aside>
             </div>
-            
+
             <div
               :if={@position}
               class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 max-[860px]:flex max-[860px]:flex-wrap max-[860px]:justify-center"
@@ -471,7 +471,7 @@
                   class="rounded-full border border-error bg-error/10 px-2 py-0.5 font-semibold text-error"
                 >{Web.I18n.t("room.check", @locale)}</span>
               </div>
-              
+
               <div
                 class="flex items-center justify-center gap-1"
                 role="group"
@@ -521,7 +521,7 @@
                   phx-click="toggle-orientation"
                 ><.icon name="flip" class="h-4 w-4" /></button>
               </div>
-              
+
               <div class="flex min-w-0 flex-wrap items-center justify-end gap-1 max-[860px]:justify-center">
                 <span class="mr-1 text-xs text-muted">{Web.I18n.t(
                   "room.annotationsHeading",
@@ -542,7 +542,7 @@
                     phx-value-color={color}
                   ></button>
                 <% end %>
-                
+
                 <button
                   type="button"
                   class="rounded border border-border px-2 py-1 text-xs text-muted hover:bg-panel-hover"
@@ -565,7 +565,7 @@
               </div>
             </div>
           </div>
-          
+
           <section
             :if={@position}
             data-room-strip
@@ -620,7 +620,7 @@
                 phx-click="toggle-strip"
               ><.icon name="chevron" up={@strip_open} class="h-4 w-4" /></button>
             </div>
-            
+
             <div
               :if={@strip_open and @insights}
               data-strip-content
@@ -652,7 +652,7 @@
                           color
                         ].controlled}</span>
                       </div>
-                      
+
                       <div class="h-1.5 overflow-hidden rounded bg-panel-hover">
                         <div
                           class="h-full bg-accent-strong"
@@ -679,7 +679,7 @@
                 <% end %>
               <% end %>
             </div>
-            
+
             <p
               :if={@strip_open and is_nil(@insights)}
               data-strip-content
@@ -689,7 +689,7 @@
             </p>
           </section>
         </section>
-        
+
         <aside
           data-mobile-panel="moves"
           class="flex min-h-0 min-w-0 flex-col overflow-hidden border-l border-border max-[860px]:order-6 max-[860px]:border-l-0"
@@ -700,12 +700,12 @@
             <h2 class="m-0 text-xs font-semibold uppercase tracking-widest text-muted">
               {Web.I18n.t("room.movesTab", @locale)}
             </h2>
-            
+
             <details class="relative">
               <summary class="cursor-pointer list-none rounded border border-border px-2 py-1 text-xs hover:bg-panel-hover">
                 {Web.I18n.t("room.share", @locale)}
               </summary>
-              
+
               <div class="absolute right-0 top-full z-20 mt-1 flex min-w-44 flex-col rounded-lg border border-border bg-panel p-1 shadow-xl">
                 <button
                   type="button"
@@ -730,7 +730,7 @@
               </div>
             </details>
           </header>
-          
+
           <div class="flex-1 space-y-3 overflow-y-auto p-3 max-[860px]:overflow-visible">
             <section
               class="relative rounded-lg border border-border bg-panel p-3"
@@ -744,13 +744,13 @@
                       @locale
                     )}
                   </h3>
-                  
+
                   <span class="rounded-full border border-border bg-panel-hover px-2 py-0.5 text-[.65rem] font-semibold text-muted">{Web.I18n.t(
                     "demo.label",
                     @locale
                   )}</span>
                 </div>
-                
+
                 <div class="flex shrink-0 items-center gap-1">
                   <button
                     type="button"
@@ -790,7 +790,7 @@
                   </button>
                 </div>
               </header>
-              
+
               <div
                 :if={@engine_settings_open}
                 class="absolute right-2 top-11 z-40 flex max-h-[80dvh] w-[17rem] max-w-[calc(100%-1rem)] flex-col gap-2 overflow-auto rounded-lg border border-border bg-panel p-3 shadow-xl"
@@ -817,19 +817,19 @@
                     <option value="demo" selected>
                       {Web.I18n.t("demo.engineProvider", @locale)}
                     </option>
-                    
+
                     <option value="stockfish-wasm" disabled>
                       {Web.I18n.t(
                         "room.providerStockfish",
                         @locale
                       )}
                     </option>
-                    
+
                     <option value="server" disabled>
                       {Web.I18n.t("room.providerServer", @locale)}
                     </option>
                   </select>
-                  
+
                   <label for="engine-depth" class="text-muted">{Web.I18n.t(
                     "room.depth",
                     @locale
@@ -873,11 +873,11 @@
                     class="min-w-0 rounded border border-border px-1.5 py-1 text-xs"
                   />
                 </form>
-                
+
                 <p id="engine-settings-note" class="m-0 text-[.68rem] text-muted">
                   {Web.I18n.t("demo.engineSettingsNote", @locale)}
                 </p>
-                
+
                 <p class="m-0 break-all rounded bg-canvas p-2 text-[.68rem] text-muted">
                   <span class="font-semibold">{Web.I18n.t("room.fen", @locale)}</span>
                   <code class="text-foreground">
@@ -887,11 +887,11 @@
                   </code>
                 </p>
               </div>
-              
+
               <p class="mb-2 mt-2 text-[.68rem] text-muted">
                 {Web.I18n.t("demo.engineNote", @locale)}
               </p>
-              
+
               <%= if @engine_on and @engine_preview do %>
                 <div class="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 rounded bg-canvas p-2 text-xs">
                   <span class="text-muted">{Web.I18n.t("room.eval", @locale)}</span>
@@ -903,11 +903,11 @@
                   <span class="text-muted">{Web.I18n.t("room.nps", @locale)}</span>
                   <strong>{@engine_preview.nps}</strong>
                 </div>
-                
+
                 <h4 class="mb-1 mt-3 text-[.68rem] font-semibold uppercase tracking-wide text-muted">
                   {Web.I18n.t("room.enginePvHeading", @locale)}
                 </h4>
-                
+
                 <ol class="m-0 list-decimal space-y-1 pl-5 text-xs text-muted">
                   <li :for={line <- @engine_preview.pv}>{line}</li>
                 </ol>
@@ -917,7 +917,7 @@
                 </p>
               <% end %>
             </section>
-            
+
             <.move_list
               rows={@move_rows}
               entries={@move_entries}
@@ -940,12 +940,12 @@
                 phx-click="remove-subtree"
               >{Web.I18n.t("room.removeSubtree", @locale)}</button>
             </div>
-            
+
             <section class="border-t border-border pt-3">
               <h3 class="mb-2 mt-0 text-xs font-semibold uppercase tracking-wider text-muted">
                 {Web.I18n.t("room.comment", @locale)}
               </h3>
-              
+
               <div
                 class="mb-2 flex flex-wrap items-center gap-1"
                 aria-label={Web.I18n.t("room.nags", @locale)}
@@ -966,11 +966,11 @@
                   >{nag_glyph(nag)}</button>
                 <% end %>
               </div>
-              
+
               <p :if={@current_path == []} class="text-xs text-muted">
                 {Web.I18n.t("room.nagsNeedMove", @locale)}
               </p>
-              
+
               <form phx-submit="save-comment" class="space-y-2">
                 <label class="sr-only" for="analysis-comment">{Web.I18n.t("room.comment", @locale)}</label> <textarea
                   id="analysis-comment"
@@ -992,9 +992,9 @@
         <section class="col-span-full flex min-h-96 items-center justify-center p-6 max-[860px]:order-3 max-[860px]:min-h-64">
           <div class="max-w-lg rounded-xl border border-dashed border-border p-8 text-center">
             <h2 class="mt-0 text-lg font-semibold">{Web.I18n.t("room.startFirst", @locale)}</h2>
-            
+
             <p class="text-sm text-muted">{Web.I18n.t("room.noAnalyses", @locale)}</p>
-            
+
             <div class="mt-5 flex flex-wrap justify-center gap-2">
               <button
                 type="button"
@@ -1011,7 +1011,7 @@
         </section>
       <% end %>
     </section>
-    
+
     <nav
       id="room-tabs"
       class="hidden shrink-0 items-stretch border-t border-border bg-panel max-[860px]:order-3 max-[860px]:flex"
@@ -1038,7 +1038,7 @@
       >&#8645;</button>
     </nav>
   </div>
-  
+
   <div
     :if={@draft_position}
     data-pending-edit
@@ -1054,7 +1054,7 @@
           else: format_reasons(@draft_reasons, @locale)}
       </p>
     </div>
-    
+
     <div class="flex flex-wrap gap-2">
       <button
         type="button"
@@ -1068,7 +1068,7 @@
       >{Web.I18n.t("room.pendingDiscard", @locale)}</button>
     </div>
   </div>
-  
+
   <div
     :if={@notice}
     class={[
@@ -1088,7 +1088,7 @@
       ><.icon name="close" class="h-4 w-4" /></button>
     </div>
   </div>
-  
+
   <div
     :if={@pending_promotion}
     class="modal-backdrop fixed inset-0 z-[70] grid place-items-center p-4"
@@ -1102,7 +1102,7 @@
       <h2 id="promotion-title" class="mt-0 text-lg font-semibold">
         {Web.I18n.t("room.choosePromotion", @locale)}
       </h2>
-      
+
       <div class="grid grid-cols-4 gap-2">
         <button
           :for={piece <- ["queen", "rook", "bishop", "knight"]}
@@ -1119,14 +1119,14 @@
           /> {piece_name(String.to_existing_atom(piece), @pending_promotion.side, @locale)}
         </button>
       </div>
-      
+
       <button type="button" class="mt-4 text-sm text-muted underline" phx-click="close-promotion">{Web.I18n.t(
         "common.cancel",
         @locale
       )}</button>
     </section>
   </div>
-  
+
   <div
     :if={@ui_modal == "import"}
     class="modal-backdrop fixed inset-0 z-[60] grid place-items-center p-4"
@@ -1142,7 +1142,7 @@
         <h2 id="import-title" class="m-0 text-xl font-semibold">
           {Web.I18n.t("room.importTitle", @locale)}
         </h2>
-        
+
         <button
           type="button"
           class="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md border border-border hover:bg-panel-hover"
@@ -1150,7 +1150,7 @@
           phx-click="close-modal"
         ><.icon name="close" class="h-4 w-4" /></button>
       </header>
-      
+
       <div
         class="mb-4 flex flex-wrap gap-1 border-b border-border pb-2"
         role="tablist"
@@ -1176,11 +1176,11 @@
           phx-value-source={source}
         >{Web.I18n.t(key, @locale)}</button>
       </div>
-      
+
       <p class="rounded-md border border-border bg-panel-hover p-2 text-xs text-muted">
         {Web.I18n.t("demo.importNote", @locale)}
       </p>
-      
+
       <%= if @import_source == "paste" do %>
         <form
           id="pgn-import-form"
@@ -1211,7 +1211,7 @@
                 <div class="h-1.5 w-24 overflow-hidden rounded bg-panel-hover">
                   <div class="h-full bg-accent-strong" style={"width:#{entry.progress}%"}></div>
                 </div>
-                
+
                 <button
                   type="button"
                   class="text-xs text-muted hover:text-error"
@@ -1221,7 +1221,7 @@
                 ><.icon name="close" class="h-4 w-4" /></button>
               </li>
             </ul>
-            
+
             <p
               :for={error <- upload_errors(@uploads.pgn)}
               role="alert"
@@ -1230,7 +1230,7 @@
               {upload_error_message(error, @locale)}
             </p>
           </div>
-          
+
           <div class="flex flex-wrap justify-between gap-2">
             <button
               type="button"
@@ -1251,11 +1251,11 @@
       <% else %>
         <%= if @import_source == "library" do %>
           <p class="text-sm text-muted">{Web.I18n.t("demo.libraryNote", @locale)}</p>
-          
+
           <p :if={@library_games == []} class="text-sm text-muted">
             {Web.I18n.t("room.libraryEmpty", @locale)}
           </p>
-          
+
           <ul class="divide-y divide-border rounded-lg border border-border p-0">
             <li
               :for={game <- @library_games}
@@ -1266,7 +1266,7 @@
                   {game.opening} · {game.date} · {game.ply_count} plies
                 </p>
               </div>
-              
+
               <div class="flex gap-2">
                 <button
                   type="button"
@@ -1292,7 +1292,7 @@
                 do: Web.I18n.t("room.importLichessNote", @locale),
                 else: Web.I18n.t("room.importChessComNote", @locale)}
             </p>
-            
+
             <label class="text-sm" for="provider-query">{Web.I18n.t(
               "room.importUserLabel",
               @locale
@@ -1325,11 +1325,11 @@
           </form>
         <% end %>
       <% end %>
-      
+
       <p :if={@import_error} role="alert" class="mt-3 text-sm text-error">{@import_error}</p>
     </section>
   </div>
-  
+
   <div
     :if={@ui_modal == "search"}
     class="modal-backdrop fixed inset-0 z-[60] grid place-items-center p-4"
@@ -1345,7 +1345,7 @@
         <h2 id="search-title" class="m-0 text-xl font-semibold">
           {Web.I18n.t("room.importSearchTitle", @locale)}
         </h2>
-        
+
         <button
           type="button"
           class="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md border border-border hover:bg-panel-hover"
@@ -1353,11 +1353,11 @@
           phx-click="close-modal"
         ><.icon name="close" class="h-4 w-4" /></button>
       </header>
-      
+
       <p class="rounded-md border border-border bg-panel-hover p-2 text-xs text-muted">
         {Web.I18n.t("demo.searchNote", @locale)}
       </p>
-      
+
       <form
         id="search-games-form"
         phx-submit="search-games"
@@ -1432,7 +1432,7 @@
           <legend class="px-1 text-xs font-semibold text-muted">
             {Web.I18n.t("room.importSearchPositionLabel", @locale)}
           </legend>
-          
+
           <label class="flex flex-col gap-1 text-xs text-muted">{Web.I18n.t(
             "room.searchPositionMode",
             @locale
@@ -1476,20 +1476,20 @@
             {Web.I18n.t("demo.positionSearchNote", @locale)}
           </p>
         </fieldset>
-        
+
         <button
           type="submit"
           class="rounded-md border border-accent-strong bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-strong sm:col-span-2 lg:col-span-1"
         >{Web.I18n.t("room.importSearchAction", @locale)}</button>
       </form>
-      
+
       <p class="mt-3 text-xs text-muted">{Web.I18n.t("room.searchIndexNote", @locale)}</p>
-      
+
       <div class="mt-4">
         <p :if={@search_results == []} class="text-sm text-muted">
           {Web.I18n.t("room.searchNothingFound", @locale)}
         </p>
-        
+
         <ul
           :if={@search_results != []}
           class="divide-y divide-border rounded-lg border border-border p-0"
@@ -1503,7 +1503,7 @@
                 {game.event} · {game.date} · {game.result} · {game.opening} · {game.ply_count} plies
               </p>
             </div>
-            
+
             <button
               type="button"
               class="rounded-md border border-border px-3 py-2 text-xs hover:bg-panel-hover"
@@ -1515,7 +1515,7 @@
       </div>
     </section>
   </div>
-  
+
   <div
     :if={@ui_modal == "setup"}
     class="modal-backdrop fixed inset-0 z-[60] grid place-items-center p-4"
@@ -1535,7 +1535,7 @@
             {Web.I18n.t("room.setupDescription", @locale)}
           </p>
         </div>
-        
+
         <button
           type="button"
           class="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md border border-border hover:bg-panel-hover"
@@ -1543,7 +1543,7 @@
           phx-click="close-modal"
         ><.icon name="close" class="h-4 w-4" /></button>
       </header>
-      
+
       <div class="grid items-start gap-4 md:grid-cols-[minmax(0,1fr)_240px]">
         <.chess_board
           board_id="setup-board"
@@ -1554,7 +1554,7 @@
         />
         <div>
           <p class="mt-0 text-xs text-muted">{Web.I18n.t("room.armHint", @locale)}</p>
-          
+
           <div
             id="setup-palette"
             phx-hook="PaletteDrag"
@@ -1580,7 +1580,7 @@
               /></button>
             <% end %>
           </div>
-          
+
           <div class="mt-2 flex gap-2">
             <button
               type="button"
@@ -1596,14 +1596,14 @@
               side: side_name(@setup_position.side_to_move, @locale)
             })}</button>
           </div>
-          
+
           <button
             type="button"
             class="mt-2 w-full rounded border border-border px-2 py-1.5 text-xs"
             phx-click="setup-clear-board"
           >{Web.I18n.t("room.clearBoard", @locale)}</button>
           <p :if={@setup_error} role="alert" class="mt-3 text-xs text-error">{@setup_error}</p>
-          
+
           <button
             type="button"
             class="mt-4 w-full rounded-lg border border-accent-strong bg-accent px-4 py-2 font-semibold text-white hover:bg-accent-strong"

@@ -25,7 +25,7 @@ defmodule Web.MoveListComponents do
         phx-hook="MoveList"
       >
         <p :if={@rows == []} class="m-1 text-sm text-muted">{@empty_message}</p>
-        
+
         <%= for row <- @rows do %>
           <%= if row.type == :mainline do %>
             <div
@@ -60,7 +60,7 @@ defmodule Web.MoveListComponents do
           <% end %>
         <% end %>
       </div>
-      
+
       <p class="mb-0 mt-2 text-[.68rem] text-faint">{@help_text}</p>
     </section>
     """
@@ -91,7 +91,7 @@ defmodule Web.MoveListComponents do
         <span :if={item.entry.comment} class="text-xs italic text-muted">
           {item.entry.comment}
         </span>
-        
+
         <.variation_line
           :for={nested <- item.variations}
           root={nested}
