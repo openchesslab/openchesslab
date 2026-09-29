@@ -88,7 +88,8 @@ defmodule PositionDB.Storage.ExactIndex.Disk do
   end
 
   @impl ExactIndex
-  def add(%__MODULE__{} = index, key, position_id) when is_binary(key) and is_integer(position_id) and position_id > 0 do
+  def add(%__MODULE__{} = index, key, position_id)
+      when is_binary(key) and is_integer(position_id) and position_id > 0 do
     with {:ok, hash} <-
            key_hash(
              index,
@@ -128,7 +129,8 @@ defmodule PositionDB.Storage.ExactIndex.Disk do
   @spec key_hash(t(), binary()) ::
           {:ok, binary()}
           | {:error, term()}
-  def key_hash(%__MODULE__{hash_module: hash_module, hash_size: hash_size}, key) when is_binary(key) do
+  def key_hash(%__MODULE__{hash_module: hash_module, hash_size: hash_size}, key)
+      when is_binary(key) do
     case hash_module.hash(key) do
       {:ok, hash}
       when is_binary(hash) ->

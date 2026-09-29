@@ -68,7 +68,8 @@ defmodule Analysis.GameRecords do
           {:ok, GameRecord.t()}
           | {:error, create_error()}
 
-  def create(record_id, %GameContent{} = content, %GameStart{} = start, metadata) when is_map(metadata) do
+  def create(record_id, %GameContent{} = content, %GameStart{} = start, metadata)
+      when is_map(metadata) do
     case GameRecordStore.get(record_id) do
       {:ok, _record} ->
         {:error, :already_exists}
@@ -142,7 +143,8 @@ defmodule Analysis.GameRecords do
           pos_integer()
         ) ::
           occurrence_page()
-  def occurrences_page_by_position_id(position_id, page_size) when is_integer(page_size) and page_size > 0 do
+  def occurrences_page_by_position_id(position_id, page_size)
+      when is_integer(page_size) and page_size > 0 do
     case GameStore.occurrences_page(
            position_id,
            1
@@ -186,7 +188,8 @@ defmodule Analysis.GameRecords do
           pos_integer()
         ) ::
           occurrence_page()
-  def next_occurrences_page(%OccurrenceCursor{} = cursor, page_size) when is_integer(page_size) and page_size > 0 do
+  def next_occurrences_page(%OccurrenceCursor{} = cursor, page_size)
+      when is_integer(page_size) and page_size > 0 do
     take_occurrence_matches_page(
       cursor,
       page_size
@@ -259,7 +262,9 @@ defmodule Analysis.GameRecords do
     :done
   end
 
-  defp next_occurrence_match(%OccurrenceCursor{current_occurrence: nil, occurrence_cursor: occurrence_cursor} = cursor) do
+  defp next_occurrence_match(
+         %OccurrenceCursor{current_occurrence: nil, occurrence_cursor: occurrence_cursor} = cursor
+       ) do
     case GameStore.next_occurrences_page(
            occurrence_cursor,
            1
@@ -298,7 +303,8 @@ defmodule Analysis.GameRecords do
   end
 
   defp next_occurrence_match(
-         %OccurrenceCursor{current_occurrence: %Occurrence{} = occurrence, record_cursor: nil} = cursor
+         %OccurrenceCursor{current_occurrence: %Occurrence{} = occurrence, record_cursor: nil} =
+           cursor
        ) do
     case GameRecordStore.records_page_by_game_id(
            occurrence.game_id,
@@ -367,7 +373,10 @@ defmodule Analysis.GameRecords do
   end
 
   defp next_occurrence_match(
-         %OccurrenceCursor{current_occurrence: %Occurrence{} = occurrence, record_cursor: record_cursor} = cursor
+         %OccurrenceCursor{
+           current_occurrence: %Occurrence{} = occurrence,
+           record_cursor: record_cursor
+         } = cursor
        ) do
     case GameRecordStore.next_records_page(
            record_cursor,

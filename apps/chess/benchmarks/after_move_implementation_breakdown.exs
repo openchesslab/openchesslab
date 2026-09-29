@@ -94,7 +94,13 @@ defmodule BenchmarkHelpers do
   #
   # Same sequence using a known captured piece.
   #
-  def after_move_known_capture(%{board: board, from: from, to: to, piece: {color, type}, captured: captured}) do
+  def after_move_known_capture(%{
+        board: board,
+        from: from,
+        to: to,
+        piece: {color, type},
+        captured: captured
+      }) do
     board
     |> remove_piece(from, {color, type})
     |> remove_piece(to, captured)

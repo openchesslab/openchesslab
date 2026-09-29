@@ -35,7 +35,8 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
           :ok
           | {:error, term()}
   def append_durable(%__MODULE__{} = store, bucket, key, position_id)
-      when is_integer(bucket) and bucket >= 0 and is_binary(key) and is_integer(position_id) and position_id > 0 do
+      when is_integer(bucket) and bucket >= 0 and is_binary(key) and is_integer(position_id) and
+             position_id > 0 do
     path =
       Layout.bucket_path(
         store.directory,
@@ -69,7 +70,8 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
   entry boundaries.
   """
   def recover_pending_append(%__MODULE__{} = store, bucket, key, position_id)
-      when is_integer(bucket) and bucket >= 0 and is_binary(key) and is_integer(position_id) and position_id > 0 do
+      when is_integer(bucket) and bucket >= 0 and is_binary(key) and is_integer(position_id) and
+             position_id > 0 do
     recover_pending_appends(
       store,
       bucket,
@@ -166,7 +168,8 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
           | {:error, :partial_entry}
           | {:error, :invalid_position_id}
           | {:error, term()}
-  def lookup(%__MODULE__{} = store, bucket, key) when is_integer(bucket) and bucket >= 0 and is_binary(key) do
+  def lookup(%__MODULE__{} = store, bucket, key)
+      when is_integer(bucket) and bucket >= 0 and is_binary(key) do
     path =
       Layout.bucket_path(
         store.directory,
@@ -519,7 +522,16 @@ defmodule PositionDB.Storage.PostingIndex.Disk.BucketStore do
     end
   end
 
-  defp inspect_complete_expected_entry(file, offset, size, expected, found, key_size, position_id, entry_size) do
+  defp inspect_complete_expected_entry(
+         file,
+         offset,
+         size,
+         expected,
+         found,
+         key_size,
+         position_id,
+         entry_size
+       ) do
     key_offset =
       offset +
         Entry.header_size()

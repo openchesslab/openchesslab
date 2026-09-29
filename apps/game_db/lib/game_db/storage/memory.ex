@@ -149,7 +149,9 @@ defmodule GameDB.Storage.Memory do
   end
 
   @impl Storage
-  def scan_occurrences_next(%{storage: storage, occurrence_ids: [occurrence_id | remaining]} = scan) do
+  def scan_occurrences_next(
+        %{storage: storage, occurrence_ids: [occurrence_id | remaining]} = scan
+      ) do
     case Map.fetch(
            storage.occurrences,
            occurrence_id

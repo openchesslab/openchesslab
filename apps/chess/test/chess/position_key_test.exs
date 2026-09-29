@@ -25,7 +25,8 @@ defmodule Chess.PositionKeyTest do
     test "different positions have different keys" do
       position = Position.starting_position()
 
-      changed_position = Position.put_piece(position, Chess.Square.from_algebraic("e4"), {:white, :pawn})
+      changed_position =
+        Position.put_piece(position, Chess.Square.from_algebraic("e4"), {:white, :pawn})
 
       refute PositionKey.exact(position) ==
                PositionKey.exact(changed_position)

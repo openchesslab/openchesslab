@@ -97,7 +97,8 @@ defmodule PositionDB.Storage.Disk.Durability do
         ) ::
           :ok
           | {:error, term()}
-  def replace_sibling_file(source, destination) when is_binary(source) and is_binary(destination) do
+  def replace_sibling_file(source, destination)
+      when is_binary(source) and is_binary(destination) do
     parent =
       Path.dirname(source)
 

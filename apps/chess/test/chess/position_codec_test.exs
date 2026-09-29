@@ -115,7 +115,8 @@ defmodule Chess.PositionCodecTest do
     end
 
     test "rejects an invalid side to move" do
-      <<board::binary-size(64), _side, castling, en_passant>> = PositionCodec.encode(Position.new())
+      <<board::binary-size(64), _side, castling, en_passant>> =
+        PositionCodec.encode(Position.new())
 
       assert PositionCodec.decode(<<
                board::binary,
@@ -127,7 +128,8 @@ defmodule Chess.PositionCodecTest do
     end
 
     test "rejects invalid castling bits" do
-      <<board::binary-size(64), side, _castling, en_passant>> = PositionCodec.encode(Position.new())
+      <<board::binary-size(64), side, _castling, en_passant>> =
+        PositionCodec.encode(Position.new())
 
       assert PositionCodec.decode(<<
                board::binary,
@@ -139,7 +141,8 @@ defmodule Chess.PositionCodecTest do
     end
 
     test "rejects an invalid en passant square" do
-      <<board::binary-size(64), side, castling, _en_passant>> = PositionCodec.encode(Position.new())
+      <<board::binary-size(64), side, castling, _en_passant>> =
+        PositionCodec.encode(Position.new())
 
       assert PositionCodec.decode(<<
                board::binary,

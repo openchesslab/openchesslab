@@ -198,7 +198,12 @@ defmodule GameDB.Storage.Disk.GameOccurrenceIndex do
         ) ::
           :ok
           | {:error, term()}
-  def recover_pending_append(%__MODULE__{} = index, game_id, first_occurrence_id, occurrence_count) do
+  def recover_pending_append(
+        %__MODULE__{} = index,
+        game_id,
+        first_occurrence_id,
+        occurrence_count
+      ) do
     with :ok <-
            validate_game_id(game_id),
          :ok <-
@@ -372,7 +377,8 @@ defmodule GameDB.Storage.Disk.GameOccurrenceIndex do
     end
   end
 
-  defp validate_game_id(game_id) when is_integer(game_id) and game_id > 0 and game_id <= @max_id do
+  defp validate_game_id(game_id)
+       when is_integer(game_id) and game_id > 0 and game_id <= @max_id do
     :ok
   end
 
@@ -389,7 +395,8 @@ defmodule GameDB.Storage.Disk.GameOccurrenceIndex do
     {:error, :invalid_occurrence_id}
   end
 
-  defp validate_occurrence_count(count) when is_integer(count) and count > 0 and count <= @max_count do
+  defp validate_occurrence_count(count)
+       when is_integer(count) and count > 0 and count <= @max_count do
     :ok
   end
 

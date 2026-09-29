@@ -116,7 +116,8 @@ defmodule Analysis.PositionStore do
           pos_integer()
         ) ::
           query_page()
-  def next_query_page(cursor, page_size) when is_reference(cursor) and is_integer(page_size) and page_size > 0 do
+  def next_query_page(cursor, page_size)
+      when is_reference(cursor) and is_integer(page_size) and page_size > 0 do
     GenServer.call(
       server(),
       {
@@ -465,7 +466,8 @@ defmodule Analysis.PositionStore do
     end
   end
 
-  defp next_position(%CursorState{pending_position_id: position_id} = cursor_state) when not is_nil(position_id) do
+  defp next_position(%CursorState{pending_position_id: position_id} = cursor_state)
+       when not is_nil(position_id) do
     {
       :ok,
       position_id,

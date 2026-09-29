@@ -42,7 +42,8 @@ defmodule PositionDB.Storage.Disk.Layout do
   end
 
   @spec segment_path(Path.t(), segment()) :: Path.t()
-  def segment_path(directory, segment) when is_binary(directory) and is_integer(segment) and segment >= 0 do
+  def segment_path(directory, segment)
+      when is_binary(directory) and is_integer(segment) and segment >= 0 do
     Path.join(
       directory,
       segment_filename(segment)

@@ -119,7 +119,8 @@ defmodule PositionDB.PropertyIndex.Disk do
         ) ::
           {:ok, t()}
           | {:error, term()}
-  def add(%__MODULE__{} = index, property, position_id) when is_integer(position_id) and position_id > 0 do
+  def add(%__MODULE__{} = index, property, position_id)
+      when is_integer(position_id) and position_id > 0 do
     with {:ok, key} <-
            encode_property(
              index,
@@ -153,7 +154,8 @@ defmodule PositionDB.PropertyIndex.Disk do
         ) ::
           {:ok, t()}
           | {:error, term()}
-  def recover_add(%__MODULE__{} = index, property, position_id) when is_integer(position_id) and position_id > 0 do
+  def recover_add(%__MODULE__{} = index, property, position_id)
+      when is_integer(position_id) and position_id > 0 do
     recover_adds(
       index,
       [property],
@@ -266,7 +268,8 @@ defmodule PositionDB.PropertyIndex.Disk do
     }
   end
 
-  defp encode_property(%__MODULE__{codec_module: codec_module}, {name, value}) when is_atom(name) do
+  defp encode_property(%__MODULE__{codec_module: codec_module}, {name, value})
+       when is_atom(name) do
     case codec_module.encode(
            name,
            value
@@ -298,7 +301,8 @@ defmodule PositionDB.PropertyIndex.Disk do
          configured do
       :ok
     else
-      {:error, {:property_index_format_mismatch, :key_format_id, manifest.key_format_id, configured}}
+      {:error,
+       {:property_index_format_mismatch, :key_format_id, manifest.key_format_id, configured}}
     end
   end
 

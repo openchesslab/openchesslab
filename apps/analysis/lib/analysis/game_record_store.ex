@@ -148,7 +148,8 @@ defmodule Analysis.GameRecordStore do
           pos_integer()
         ) ::
           record_page()
-  def next_records_page(cursor, page_size) when is_reference(cursor) and is_integer(page_size) and page_size > 0 do
+  def next_records_page(cursor, page_size)
+      when is_reference(cursor) and is_integer(page_size) and page_size > 0 do
     adapter().next_records_page(
       store(),
       cursor,

@@ -183,7 +183,8 @@ defmodule PositionDB.Storage.Disk do
           {:ok, term()}
           | :not_found
           | {:error, term()}
-  def get(%__MODULE__{} = storage, position_id) when is_integer(position_id) and position_id > 0 do
+  def get(%__MODULE__{} = storage, position_id)
+      when is_integer(position_id) and position_id > 0 do
     case RecordStore.get(
            storage.record_store,
            position_id

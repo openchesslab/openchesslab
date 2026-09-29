@@ -121,15 +121,18 @@ defmodule PositionDB.Or do
     {:ok, left_id, %{state | left_id: nil}}
   end
 
-  defp find_next(%__MODULE__{left_id: left_id, right_id: right_id} = state) when left_id == right_id do
+  defp find_next(%__MODULE__{left_id: left_id, right_id: right_id} = state)
+       when left_id == right_id do
     {:ok, left_id, %{state | left_id: nil, right_id: nil}}
   end
 
-  defp find_next(%__MODULE__{left_id: left_id, right_id: right_id} = state) when left_id < right_id do
+  defp find_next(%__MODULE__{left_id: left_id, right_id: right_id} = state)
+       when left_id < right_id do
     {:ok, left_id, %{state | left_id: nil}}
   end
 
-  defp find_next(%__MODULE__{left_id: left_id, right_id: right_id} = state) when left_id > right_id do
+  defp find_next(%__MODULE__{left_id: left_id, right_id: right_id} = state)
+       when left_id > right_id do
     {:ok, right_id, %{state | right_id: nil}}
   end
 end

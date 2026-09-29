@@ -20,7 +20,8 @@ defmodule PositionDB.Storage.Disk.AppendMarker do
           | {:error, :append_marker_exists}
           | {:error, term()}
   def create(directory, position_id)
-      when is_binary(directory) and is_integer(position_id) and position_id > 0 and position_id <= @max_position_id do
+      when is_binary(directory) and is_integer(position_id) and position_id > 0 and
+             position_id <= @max_position_id do
     with :ok <-
            create_file(
              marker_path(directory),

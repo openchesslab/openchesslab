@@ -87,7 +87,9 @@ defmodule Analysis.AnalysisJSONTest do
       after_e2_id = Analysis.PositionStore.append(after_e2)
 
       e2e4 =
-        Analysis.Transition.move(Move.new(Square.from_algebraic("e2"), Square.from_algebraic("e4")))
+        Analysis.Transition.move(
+          Move.new(Square.from_algebraic("e2"), Square.from_algebraic("e4"))
+        )
 
       analysis = %Analysis.Analysis{
         id: "a3",

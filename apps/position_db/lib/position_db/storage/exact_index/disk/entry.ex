@@ -28,7 +28,8 @@ defmodule PositionDB.Storage.ExactIndex.Disk.Entry do
   @spec decode(binary(), pos_integer()) ::
           {:ok, binary(), position_id()}
           | {:error, :invalid_entry_size}
-  def decode(entry, hash_size) when is_binary(entry) and is_integer(hash_size) and hash_size > 0 do
+  def decode(entry, hash_size)
+      when is_binary(entry) and is_integer(hash_size) and hash_size > 0 do
     expected_size = size(hash_size)
 
     if byte_size(entry) == expected_size do

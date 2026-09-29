@@ -29,8 +29,8 @@ defmodule PositionDB.Storage.PostingIndex.Disk.Entry do
           position_id()
         ) :: binary()
   def encode(key, position_id)
-      when is_binary(key) and byte_size(key) <= @max_key_size and is_integer(position_id) and position_id > 0 and
-             position_id <= @max_position_id do
+      when is_binary(key) and byte_size(key) <= @max_key_size and is_integer(position_id) and
+             position_id > 0 and position_id <= @max_position_id do
     key_size =
       byte_size(key)
 

@@ -202,7 +202,8 @@ defmodule Analysis.GameStore do
           pos_integer()
         ) ::
           occurrence_page()
-  def next_occurrences_page(cursor, page_size) when is_reference(cursor) and is_integer(page_size) and page_size > 0 do
+  def next_occurrences_page(cursor, page_size)
+      when is_reference(cursor) and is_integer(page_size) and page_size > 0 do
     GenServer.call(
       server(),
       {
@@ -597,7 +598,9 @@ defmodule Analysis.GameStore do
     end
   end
 
-  defp next_occurrence(%CursorState{pending_occurrence: %Occurrence{} = occurrence} = cursor_state) do
+  defp next_occurrence(
+         %CursorState{pending_occurrence: %Occurrence{} = occurrence} = cursor_state
+       ) do
     {
       :ok,
       occurrence,
@@ -754,7 +757,10 @@ defmodule Analysis.GameStore do
     end)
   end
 
-  defp initial_occurrence_matches?([%Occurrence{position_id: position_id} | _rest], expected_position_id) do
+  defp initial_occurrence_matches?(
+         [%Occurrence{position_id: position_id} | _rest],
+         expected_position_id
+       ) do
     position_id ==
       expected_position_id
   end

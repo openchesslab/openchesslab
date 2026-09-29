@@ -228,7 +228,9 @@ defmodule Analysis.Analyses do
     end
   end
 
-  defp build_analysis(analysis_id, record, content, [%Occurrence{} = initial_occurrence | move_occurrences]) do
+  defp build_analysis(analysis_id, record, content, [
+         %Occurrence{} = initial_occurrence | move_occurrences
+       ]) do
     analysis =
       Analysis.Analysis.new(
         analysis_id,

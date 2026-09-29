@@ -355,7 +355,8 @@ defmodule PositionDB.PositionDbChessTest do
   test "query results remain in ascending position ID order with overlapping matches" do
     position_1 = Position.put_piece(Position.new(), Square.from_algebraic("e4"), {:black, :pawn})
 
-    position_2 = Position.put_piece(Position.new(), Square.from_algebraic("b4"), {:white, :knight})
+    position_2 =
+      Position.put_piece(Position.new(), Square.from_algebraic("b4"), {:white, :knight})
 
     position_3 = Position.put_piece(Position.new(), Square.from_algebraic("a4"), {:black, :pawn})
 

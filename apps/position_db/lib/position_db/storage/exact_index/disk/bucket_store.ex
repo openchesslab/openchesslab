@@ -91,7 +91,8 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStore do
           | {:error, :partial_entry}
           | {:error, term()}
   def append(%__MODULE__{} = store, bucket, hash, position_id)
-      when is_integer(bucket) and bucket >= 0 and is_binary(hash) and is_integer(position_id) and position_id > 0 do
+      when is_integer(bucket) and bucket >= 0 and is_binary(hash) and is_integer(position_id) and
+             position_id > 0 do
     if byte_size(hash) == store.hash_size do
       path =
         Layout.bucket_path(
@@ -131,7 +132,8 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStore do
           | {:error, :partial_entry}
           | {:error, term()}
   def append_durable(%__MODULE__{} = store, bucket, hash, position_id)
-      when is_integer(bucket) and bucket >= 0 and is_binary(hash) and is_integer(position_id) and position_id > 0 do
+      when is_integer(bucket) and bucket >= 0 and is_binary(hash) and is_integer(position_id) and
+             position_id > 0 do
     if byte_size(hash) == store.hash_size do
       path =
         Layout.bucket_path(
@@ -179,7 +181,8 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStore do
           | {:error, :unexpected_partial_entry}
           | {:error, term()}
   def recover_pending_append(%__MODULE__{} = store, bucket, hash, position_id)
-      when is_integer(bucket) and bucket >= 0 and is_binary(hash) and is_integer(position_id) and position_id > 0 do
+      when is_integer(bucket) and bucket >= 0 and is_binary(hash) and is_integer(position_id) and
+             position_id > 0 do
     if byte_size(hash) == store.hash_size do
       path =
         Layout.bucket_path(
@@ -237,7 +240,8 @@ defmodule PositionDB.Storage.ExactIndex.Disk.BucketStore do
           | {:error, :invalid_hash_size}
           | {:error, :partial_entry}
           | {:error, term()}
-  def lookup(%__MODULE__{} = store, bucket, hash) when is_integer(bucket) and bucket >= 0 and is_binary(hash) do
+  def lookup(%__MODULE__{} = store, bucket, hash)
+      when is_integer(bucket) and bucket >= 0 and is_binary(hash) do
     if byte_size(hash) == store.hash_size do
       path =
         Layout.bucket_path(

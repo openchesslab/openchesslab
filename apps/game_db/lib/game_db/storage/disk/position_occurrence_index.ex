@@ -384,7 +384,8 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
     end
   end
 
-  defp inspect_complete_entries(_file, offset, complete_size, _expected, found) when offset == complete_size do
+  defp inspect_complete_entries(_file, offset, complete_size, _expected, found)
+       when offset == complete_size do
     {:ok, found}
   end
 
@@ -600,7 +601,8 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
     )
   end
 
-  defp bucket_file_path(%__MODULE__{directory: directory}, bucket) when is_integer(bucket) and bucket >= 0 do
+  defp bucket_file_path(%__MODULE__{directory: directory}, bucket)
+       when is_integer(bucket) and bucket >= 0 do
     filename =
       bucket
       |> Integer.to_string()

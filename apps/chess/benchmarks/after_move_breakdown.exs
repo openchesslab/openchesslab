@@ -92,7 +92,9 @@ defmodule BenchmarkHelpers do
   end
 
   def print_case(name, %{from: from, to: to, piece: piece}) do
-    IO.puts("#{name}: #{Chess.Square.to_algebraic(from)}-#{Chess.Square.to_algebraic(to)} #{inspect(piece)}")
+    IO.puts(
+      "#{name}: #{Chess.Square.to_algebraic(from)}-#{Chess.Square.to_algebraic(to)} #{inspect(piece)}"
+    )
   end
 end
 

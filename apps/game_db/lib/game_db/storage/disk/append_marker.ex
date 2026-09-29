@@ -18,7 +18,8 @@ defmodule GameDB.Storage.Disk.AppendMarker do
           | {:error, :append_marker_exists}
           | {:error, term()}
   def create(directory, game_id)
-      when is_binary(directory) and is_integer(game_id) and game_id > 0 and game_id <= @max_game_id do
+      when is_binary(directory) and is_integer(game_id) and game_id > 0 and
+             game_id <= @max_game_id do
     with :ok <-
            create_file(
              marker_path(directory),

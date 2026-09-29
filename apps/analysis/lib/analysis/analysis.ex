@@ -64,7 +64,8 @@ defmodule Analysis.Analysis do
           GameStart.t(),
           map()
         ) :: t()
-  def new(id, initial_position_id, source_game_record_id, %GameStart{} = start, metadata) when is_map(metadata) do
+  def new(id, initial_position_id, source_game_record_id, %GameStart{} = start, metadata)
+      when is_map(metadata) do
     %__MODULE__{
       id: id,
       root: Node.new(initial_position_id),
@@ -81,7 +82,8 @@ defmodule Analysis.Analysis do
   def start(%__MODULE__{start: start}), do: start
 
   @spec move_context(t(), :white | :black, path()) :: MoveContext.t()
-  def move_context(%__MODULE__{start: start}, root_side, path) when root_side in [:white, :black] and is_list(path) do
+  def move_context(%__MODULE__{start: start}, root_side, path)
+      when root_side in [:white, :black] and is_list(path) do
     MoveContext.at(
       GameStart.fullmove_number(start),
       root_side,
@@ -95,7 +97,8 @@ defmodule Analysis.Analysis do
   end
 
   @spec reconcile_path(t(), t(), path()) :: path()
-  def reconcile_path(%__MODULE__{} = old_analysis, %__MODULE__{} = new_analysis, path) when is_list(path) do
+  def reconcile_path(%__MODULE__{} = old_analysis, %__MODULE__{} = new_analysis, path)
+      when is_list(path) do
     old_nodes =
       path
       |> prefixes()
@@ -228,7 +231,8 @@ defmodule Analysis.Analysis do
     end
   end
 
-  defp add_child_at(node, [index | rest], transition, position_id) when is_integer(index) and index >= 0 do
+  defp add_child_at(node, [index | rest], transition, position_id)
+       when is_integer(index) and index >= 0 do
     case Enum.fetch(Node.children(node), index) do
       {:ok, child} ->
         case add_child_at(child, rest, transition, position_id) do
@@ -264,7 +268,8 @@ defmodule Analysis.Analysis do
 
   defp find_node(_node, _path), do: nil
 
-  defp promote_child_at(node, [], child_index) when is_integer(child_index) and child_index >= 0 do
+  defp promote_child_at(node, [], child_index)
+       when is_integer(child_index) and child_index >= 0 do
     case Enum.fetch(Node.children(node), child_index) do
       {:ok, child} ->
         children =
@@ -280,7 +285,8 @@ defmodule Analysis.Analysis do
     end
   end
 
-  defp promote_child_at(node, [index | rest], child_index) when is_integer(index) and index >= 0 do
+  defp promote_child_at(node, [index | rest], child_index)
+       when is_integer(index) and index >= 0 do
     case Enum.fetch(Node.children(node), index) do
       {:ok, child} ->
         case promote_child_at(child, rest, child_index) do

@@ -49,7 +49,8 @@ defmodule GameDB.Storage.Disk.GameRecordStore do
         ) ::
           {:ok, pos_integer()}
           | {:error, term()}
-  def append(%__MODULE__{record_store: record_store, codec: codec}, fingerprint, record) when is_binary(fingerprint) do
+  def append(%__MODULE__{record_store: record_store, codec: codec}, fingerprint, record)
+      when is_binary(fingerprint) do
     with :ok <-
            validate_fingerprint(fingerprint),
          {:ok, encoded} <-

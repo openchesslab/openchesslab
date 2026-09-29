@@ -288,9 +288,12 @@ Benchee.run(
     "starting: destinations + Move.new" => starting_breakdown.destinations_and_move_new,
     "middlegame: destinations + Move.new" => middlegame_breakdown.destinations_and_move_new,
     "in check: destinations + Move.new" => check_breakdown.destinations_and_move_new,
-    "starting: destinations + piece_at + Move.new" => starting_breakdown.destinations_piece_at_move_new,
-    "middlegame: destinations + piece_at + Move.new" => middlegame_breakdown.destinations_piece_at_move_new,
-    "in check: destinations + piece_at + Move.new" => check_breakdown.destinations_piece_at_move_new,
+    "starting: destinations + piece_at + Move.new" =>
+      starting_breakdown.destinations_piece_at_move_new,
+    "middlegame: destinations + piece_at + Move.new" =>
+      middlegame_breakdown.destinations_piece_at_move_new,
+    "in check: destinations + piece_at + Move.new" =>
+      check_breakdown.destinations_piece_at_move_new,
     "starting: candidate generation" => starting_breakdown.candidate_generation,
     "middlegame: candidate generation" => middlegame_breakdown.candidate_generation,
     "in check: candidate generation" => check_breakdown.candidate_generation,

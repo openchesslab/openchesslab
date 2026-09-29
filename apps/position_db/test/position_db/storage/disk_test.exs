@@ -675,7 +675,9 @@ defmodule PositionDB.Storage.DiskTest do
                codec: OtherFormatCodec,
                hash: TestHash
              ) ==
-               {:error, {:storage_format_mismatch, :record_format_id, <<"test-position-v1">>, <<"other-position-v1">>}}
+               {:error,
+                {:storage_format_mismatch, :record_format_id, <<"test-position-v1">>,
+                 <<"other-position-v1">>}}
     end
 
     test "rejects a different record size", %{
@@ -704,7 +706,8 @@ defmodule PositionDB.Storage.DiskTest do
                hash: OtherFormatHash
              ) ==
                {:error,
-                {:storage_format_mismatch, :exact_hash_format_id, <<"test-exact-hash-v1">>, <<"other-exact-hash-v1">>}}
+                {:storage_format_mismatch, :exact_hash_format_id, <<"test-exact-hash-v1">>,
+                 <<"other-exact-hash-v1">>}}
     end
 
     test "rejects a different exact hash size", %{

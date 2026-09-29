@@ -91,7 +91,12 @@ defmodule BenchmarkHelpers do
     remove_at(board, to)
   end
 
-  def remove_from_remove_captured_set_to(%{board: board, from: from, to: to, piece: {color, type}}) do
+  def remove_from_remove_captured_set_to(%{
+        board: board,
+        from: from,
+        to: to,
+        piece: {color, type}
+      }) do
     {:ok, captured} = captured_piece(board, to, @piece_fields)
 
     board
@@ -114,7 +119,9 @@ defmodule BenchmarkHelpers do
   end
 
   def print_case(name, %{from: from, to: to, piece: piece}) do
-    IO.puts("#{name}: #{Chess.Square.to_algebraic(from)}-#{Chess.Square.to_algebraic(to)} #{inspect(piece)}")
+    IO.puts(
+      "#{name}: #{Chess.Square.to_algebraic(from)}-#{Chess.Square.to_algebraic(to)} #{inspect(piece)}"
+    )
   end
 
   defp captured_piece(board, square, fields) do

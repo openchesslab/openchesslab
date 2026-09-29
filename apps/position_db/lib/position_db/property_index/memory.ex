@@ -24,7 +24,8 @@ defmodule PositionDB.PropertyIndex.Memory do
   end
 
   @impl Backend
-  def add(%__MODULE__{} = index, property, position_id) when is_integer(position_id) and position_id > 0 do
+  def add(%__MODULE__{} = index, property, position_id)
+      when is_integer(position_id) and position_id > 0 do
     entries =
       Map.update(
         index.entries,
@@ -44,7 +45,8 @@ defmodule PositionDB.PropertyIndex.Memory do
   end
 
   @impl Backend
-  def advance(%__MODULE__{} = index, position_id) when is_integer(position_id) and position_id > 0 do
+  def advance(%__MODULE__{} = index, position_id)
+      when is_integer(position_id) and position_id > 0 do
     {:ok, index}
   end
 

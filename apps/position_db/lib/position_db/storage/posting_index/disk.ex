@@ -45,7 +45,8 @@ defmodule PositionDB.Storage.PostingIndex.Disk do
   end
 
   @impl PostingIndex
-  def add(%__MODULE__{} = index, key, position_id) when is_binary(key) and is_integer(position_id) and position_id > 0 do
+  def add(%__MODULE__{} = index, key, position_id)
+      when is_binary(key) and is_integer(position_id) and position_id > 0 do
     bucket =
       bucket_for_key(
         index,

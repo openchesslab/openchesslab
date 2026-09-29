@@ -122,18 +122,21 @@ defmodule PositionDB.Not do
     {:ok, universe_id, %{state | universe_id: nil}}
   end
 
-  defp find_next(%__MODULE__{universe_id: universe_id, child_id: child_id} = state) when universe_id == child_id do
+  defp find_next(%__MODULE__{universe_id: universe_id, child_id: child_id} = state)
+       when universe_id == child_id do
     state
     |> Map.put(:universe_id, nil)
     |> Map.put(:child_id, nil)
     |> next()
   end
 
-  defp find_next(%__MODULE__{universe_id: universe_id, child_id: child_id} = state) when universe_id < child_id do
+  defp find_next(%__MODULE__{universe_id: universe_id, child_id: child_id} = state)
+       when universe_id < child_id do
     {:ok, universe_id, %{state | universe_id: nil}}
   end
 
-  defp find_next(%__MODULE__{universe_id: universe_id, child_id: child_id} = state) when universe_id > child_id do
+  defp find_next(%__MODULE__{universe_id: universe_id, child_id: child_id} = state)
+       when universe_id > child_id do
     state
     |> Map.put(:child_id, nil)
     |> next()

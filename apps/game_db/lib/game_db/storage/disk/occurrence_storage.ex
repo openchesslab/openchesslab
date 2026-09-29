@@ -145,7 +145,8 @@ defmodule GameDB.Storage.Disk.OccurrenceStorage do
     end
   end
 
-  def append(%__MODULE__{}, game_id, _position_ids) when not is_integer(game_id) or game_id <= 0 do
+  def append(%__MODULE__{}, game_id, _position_ids)
+      when not is_integer(game_id) or game_id <= 0 do
     {:error, :invalid_game_id}
   end
 
@@ -204,7 +205,8 @@ defmodule GameDB.Storage.Disk.OccurrenceStorage do
           pos_integer()
         ) ::
           scan_state()
-  def scan(%__MODULE__{} = storage, position_id) when is_integer(position_id) and position_id > 0 do
+  def scan(%__MODULE__{} = storage, position_id)
+      when is_integer(position_id) and position_id > 0 do
     %{
       occurrence_store: storage.occurrence_store,
       position_id: position_id,
@@ -220,7 +222,13 @@ defmodule GameDB.Storage.Disk.OccurrenceStorage do
           {:ok, Occurrence.t(), scan_state()}
           | :done
           | {:error, term()}
-  def scan_next(%{occurrence_store: occurrence_store, position_id: position_id, position_scan: position_scan} = state) do
+  def scan_next(
+        %{
+          occurrence_store: occurrence_store,
+          position_id: position_id,
+          position_scan: position_scan
+        } = state
+      ) do
     case PositionOccurrenceIndex.scan_next(position_scan) do
       {
         :ok,
@@ -305,7 +313,13 @@ defmodule GameDB.Storage.Disk.OccurrenceStorage do
     end
   end
 
-  defp append_expected_occurrences(storage, game_id, expected_first_occurrence_id, expected_count, position_ids) do
+  defp append_expected_occurrences(
+         storage,
+         game_id,
+         expected_first_occurrence_id,
+         expected_count,
+         position_ids
+       ) do
     case OccurrenceStore.append(
            storage.occurrence_store,
            game_id,

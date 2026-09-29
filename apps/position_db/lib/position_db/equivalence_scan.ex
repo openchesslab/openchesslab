@@ -47,7 +47,10 @@ defmodule PositionDB.EquivalenceScan do
     :done
   end
 
-  def next(%{candidate_ids: [position_id | rest], store: store, matcher: matcher, position: position} = state) do
+  def next(
+        %{candidate_ids: [position_id | rest], store: store, matcher: matcher, position: position} =
+          state
+      ) do
     case PositionStore.get(store, position_id) do
       {:ok, candidate} ->
         if matcher.(position, candidate) do

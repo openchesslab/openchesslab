@@ -24,7 +24,11 @@ defmodule GameDB.Storage.Disk.GameInsertRecovery do
         ) ::
           :ok
           | {:error, term()}
-  def recover(directory, %CanonicalStore{} = canonical_store, %OccurrenceStorage{} = occurrence_storage)
+  def recover(
+        directory,
+        %CanonicalStore{} = canonical_store,
+        %OccurrenceStorage{} = occurrence_storage
+      )
       when is_binary(directory) do
     case GameInsertMarker.read(directory) do
       :none ->
@@ -48,7 +52,13 @@ defmodule GameDB.Storage.Disk.GameInsertRecovery do
     end
   end
 
-  defp recover_pending_insert(directory, canonical_store, occurrence_storage, game_id, position_ids) do
+  defp recover_pending_insert(
+         directory,
+         canonical_store,
+         occurrence_storage,
+         game_id,
+         position_ids
+       ) do
     case CanonicalStore.get(
            canonical_store,
            game_id

@@ -67,7 +67,11 @@ defmodule PositionDB.PropertyIndex do
         ) ::
           {:ok, t()}
           | {:error, term()}
-  def add_result(%__MODULE__{backend_module: backend_module, backend: backend} = index, property, position_id) do
+  def add_result(
+        %__MODULE__{backend_module: backend_module, backend: backend} = index,
+        property,
+        position_id
+      ) do
     case backend_module.add(
            backend,
            property,
@@ -91,7 +95,10 @@ defmodule PositionDB.PropertyIndex do
         ) ::
           {:ok, t()}
           | {:error, term()}
-  def advance_result(%__MODULE__{backend_module: backend_module, backend: backend} = index, position_id) do
+  def advance_result(
+        %__MODULE__{backend_module: backend_module, backend: backend} = index,
+        position_id
+      ) do
     case backend_module.advance(
            backend,
            position_id

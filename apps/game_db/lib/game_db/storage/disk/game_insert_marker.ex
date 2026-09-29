@@ -91,7 +91,8 @@ defmodule GameDB.Storage.Disk.GameInsertMarker do
     end
   end
 
-  defp validate_game_id(game_id) when is_integer(game_id) and game_id > 0 and game_id <= @max_id do
+  defp validate_game_id(game_id)
+       when is_integer(game_id) and game_id > 0 and game_id <= @max_id do
     :ok
   end
 
@@ -147,7 +148,10 @@ defmodule GameDB.Storage.Disk.GameInsertMarker do
     >>
   end
 
-  defp decode(<<@magic::binary, game_id::unsigned-big-64, count::unsigned-big-32, encoded_position_ids::binary>>)
+  defp decode(
+         <<@magic::binary, game_id::unsigned-big-64, count::unsigned-big-32,
+           encoded_position_ids::binary>>
+       )
        when game_id > 0 and count > 0 do
     expected_size =
       count * 8
@@ -181,7 +185,8 @@ defmodule GameDB.Storage.Disk.GameInsertMarker do
     {:ok, Enum.reverse(reversed)}
   end
 
-  defp decode_position_ids(<<position_id::unsigned-big-64, rest::binary>>, reversed) when position_id > 0 do
+  defp decode_position_ids(<<position_id::unsigned-big-64, rest::binary>>, reversed)
+       when position_id > 0 do
     decode_position_ids(
       rest,
       [

@@ -123,7 +123,8 @@ defmodule GameDB.Storage.Disk.OccurrenceStore do
     end
   end
 
-  def append(%__MODULE__{}, game_id, _position_ids) when not is_integer(game_id) or game_id <= 0 do
+  def append(%__MODULE__{}, game_id, _position_ids)
+      when not is_integer(game_id) or game_id <= 0 do
     {:error, :invalid_game_id}
   end
 
@@ -150,8 +151,8 @@ defmodule GameDB.Storage.Disk.OccurrenceStore do
           :ok
           | {:error, term()}
   def recover_pending_append(%__MODULE__{} = store, game_id, first_occurrence_id, position_ids)
-      when is_integer(game_id) and game_id > 0 and is_integer(first_occurrence_id) and first_occurrence_id > 0 and
-             is_list(position_ids) do
+      when is_integer(game_id) and game_id > 0 and is_integer(first_occurrence_id) and
+             first_occurrence_id > 0 and is_list(position_ids) do
     with :ok <-
            validate_game_id(game_id),
          :ok <-
@@ -194,7 +195,8 @@ defmodule GameDB.Storage.Disk.OccurrenceStore do
           {:ok, Occurrence.t()}
           | :not_found
           | {:error, term()}
-  def get(%__MODULE__{} = store, occurrence_id) when is_integer(occurrence_id) and occurrence_id > 0 do
+  def get(%__MODULE__{} = store, occurrence_id)
+      when is_integer(occurrence_id) and occurrence_id > 0 do
     case cardinality(store) do
       {:ok, count}
       when occurrence_id > count ->
@@ -281,7 +283,10 @@ defmodule GameDB.Storage.Disk.OccurrenceStore do
     end)
   end
 
-  defp decode_record(occurrence_id, <<game_id::unsigned-big-64, ply::unsigned-big-32, position_id::unsigned-big-64>>)
+  defp decode_record(
+         occurrence_id,
+         <<game_id::unsigned-big-64, ply::unsigned-big-32, position_id::unsigned-big-64>>
+       )
        when game_id > 0 and position_id > 0 do
     {:ok,
      Occurrence.new(

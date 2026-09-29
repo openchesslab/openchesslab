@@ -155,7 +155,8 @@ defmodule Chess.Notation.SAN do
     Position.piece_at(position, move.to) != nil
   end
 
-  defp en_passant_capture?(%Position{en_passant: target}, %Move{to: target}) when not is_nil(target) do
+  defp en_passant_capture?(%Position{en_passant: target}, %Move{to: target})
+       when not is_nil(target) do
     true
   end
 

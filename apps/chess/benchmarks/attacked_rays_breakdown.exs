@@ -70,7 +70,10 @@ play! = fn position, moves ->
     from = square.(from)
     to = square.(to)
 
-    case from |> Chess.Move.new(to) |> then(&Position.apply_move(position, &1)) do
+    from
+    |> Chess.Move.new(to)
+    |> then(&Position.apply_move(position, &1))
+    |> case do
       {:ok, position} ->
         position
 

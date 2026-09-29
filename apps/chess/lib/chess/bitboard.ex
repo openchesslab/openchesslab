@@ -160,7 +160,11 @@ defmodule Chess.Bitboard do
   end
 
   @spec after_move(t(), Chess.Move.t(), piece()) :: t()
-  def after_move(board, %Chess.Move{from: from, to: to, promotion: promotion}, {color, :pawn} = piece) do
+  def after_move(
+        board,
+        %Chess.Move{from: from, to: to, promotion: promotion},
+        {color, :pawn} = piece
+      ) do
     piece_type = promotion || :pawn
 
     board

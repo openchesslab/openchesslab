@@ -109,17 +109,20 @@ defmodule PositionDB.And do
   defp find_match(%__MODULE__{left: :done}), do: :done
   defp find_match(%__MODULE__{right: :done}), do: :done
 
-  defp find_match(%__MODULE__{left_id: left_id, right_id: right_id} = state) when left_id == right_id do
+  defp find_match(%__MODULE__{left_id: left_id, right_id: right_id} = state)
+       when left_id == right_id do
     {:ok, left_id, %{state | left_id: nil, right_id: nil}}
   end
 
-  defp find_match(%__MODULE__{left_id: left_id, right_id: right_id} = state) when left_id < right_id do
+  defp find_match(%__MODULE__{left_id: left_id, right_id: right_id} = state)
+       when left_id < right_id do
     state
     |> Map.put(:left_id, nil)
     |> next()
   end
 
-  defp find_match(%__MODULE__{left_id: left_id, right_id: right_id} = state) when left_id > right_id do
+  defp find_match(%__MODULE__{left_id: left_id, right_id: right_id} = state)
+       when left_id > right_id do
     state
     |> Map.put(:right_id, nil)
     |> next()

@@ -152,7 +152,8 @@ defmodule PositionDB.Storage.Disk.RecordStore do
           {:ok, binary()}
           | :not_found
           | {:error, term()}
-  def recover_pending_append(%__MODULE__{} = store, position_id) when is_integer(position_id) and position_id > 0 do
+  def recover_pending_append(%__MODULE__{} = store, position_id)
+      when is_integer(position_id) and position_id > 0 do
     {segment, offset} =
       Layout.location(
         position_id,

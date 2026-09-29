@@ -58,7 +58,12 @@ defmodule GameDB do
         ) ::
           {t(), game_id()}
           | {:error, term()}
-  def put(%__MODULE__{storage_module: storage_module, storage: storage} = db, fingerprint, game_record, position_ids) do
+  def put(
+        %__MODULE__{storage_module: storage_module, storage: storage} = db,
+        fingerprint,
+        game_record,
+        position_ids
+      ) do
     case storage_module.put(
            storage,
            fingerprint,
@@ -87,7 +92,11 @@ defmodule GameDB do
           {:ok, game_id()}
           | :not_found
           | {:error, term()}
-  def find(%__MODULE__{storage_module: storage_module, storage: storage}, fingerprint, game_record) do
+  def find(
+        %__MODULE__{storage_module: storage_module, storage: storage},
+        fingerprint,
+        game_record
+      ) do
     storage_module.find(
       storage,
       fingerprint,
@@ -129,7 +138,10 @@ defmodule GameDB do
         ) ::
           {:ok, [Occurrence.t()]}
           | {:error, term()}
-  def occurrences_by_position_id(%__MODULE__{storage_module: storage_module, storage: storage}, position_id) do
+  def occurrences_by_position_id(
+        %__MODULE__{storage_module: storage_module, storage: storage},
+        position_id
+      ) do
     storage_module.occurrences_by_position_id(
       storage,
       position_id

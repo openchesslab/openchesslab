@@ -69,7 +69,10 @@ defmodule Analysis.GameSearch do
         position_ids,
         position_cursor
       } ->
-        take_query_page(%Cursor{position_cursor: position_cursor, position_ids: position_ids}, page_size)
+        take_query_page(
+          %Cursor{position_cursor: position_cursor, position_ids: position_ids},
+          page_size
+        )
 
       {:error, reason} ->
         {
@@ -87,7 +90,8 @@ defmodule Analysis.GameSearch do
           pos_integer()
         ) ::
           query_page()
-  def next_query_page(%Cursor{} = cursor, page_size) when is_integer(page_size) and page_size > 0 do
+  def next_query_page(%Cursor{} = cursor, page_size)
+      when is_integer(page_size) and page_size > 0 do
     case prepare_next_position_page(
            cursor,
            page_size
@@ -121,15 +125,24 @@ defmodule Analysis.GameSearch do
   end
 
   defp prepare_next_position_page(
-         %Cursor{position_cursor: :done, position_ids: [], current_position_id: nil, occurrence_cursor: nil},
+         %Cursor{
+           position_cursor: :done,
+           position_ids: [],
+           current_position_id: nil,
+           occurrence_cursor: nil
+         },
          _page_size
        ) do
     :done
   end
 
   defp prepare_next_position_page(
-         %Cursor{position_ids: [], current_position_id: nil, occurrence_cursor: nil, position_cursor: position_cursor} =
-           cursor,
+         %Cursor{
+           position_ids: [],
+           current_position_id: nil,
+           occurrence_cursor: nil,
+           position_cursor: position_cursor
+         } = cursor,
          page_size
        ) do
     case PositionStore.next_query_page(
@@ -232,7 +245,10 @@ defmodule Analysis.GameSearch do
     end
   end
 
-  defp next_match(%Cursor{current_position_id: nil, position_ids: [position_id | remaining_position_ids]} = cursor) do
+  defp next_match(
+         %Cursor{current_position_id: nil, position_ids: [position_id | remaining_position_ids]} =
+           cursor
+       ) do
     next_match(%{
       cursor
       | current_position_id: position_id,
@@ -240,11 +256,18 @@ defmodule Analysis.GameSearch do
     })
   end
 
-  defp next_match(%Cursor{current_position_id: nil, occurrence_cursor: nil, position_ids: [], position_cursor: :done}) do
+  defp next_match(%Cursor{
+         current_position_id: nil,
+         occurrence_cursor: nil,
+         position_ids: [],
+         position_cursor: :done
+       }) do
     :done
   end
 
-  defp next_match(%Cursor{current_position_id: nil, occurrence_cursor: nil, position_ids: []} = cursor) do
+  defp next_match(
+         %Cursor{current_position_id: nil, occurrence_cursor: nil, position_ids: []} = cursor
+       ) do
     {
       :position_page_done,
       cursor

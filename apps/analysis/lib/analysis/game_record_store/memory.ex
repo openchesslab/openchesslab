@@ -131,7 +131,8 @@ defmodule Analysis.GameRecordStore.Memory do
           pos_integer()
         ) ::
           GameRecordStore.record_page()
-  def records_page_by_game_id(store, game_id, page_size) when is_integer(page_size) and page_size > 0 do
+  def records_page_by_game_id(store, game_id, page_size)
+      when is_integer(page_size) and page_size > 0 do
     GenServer.call(
       store,
       {
@@ -149,7 +150,8 @@ defmodule Analysis.GameRecordStore.Memory do
           pos_integer()
         ) ::
           GameRecordStore.record_page()
-  def next_records_page(store, cursor, page_size) when is_reference(cursor) and is_integer(page_size) and page_size > 0 do
+  def next_records_page(store, cursor, page_size)
+      when is_reference(cursor) and is_integer(page_size) and page_size > 0 do
     GenServer.call(
       store,
       {

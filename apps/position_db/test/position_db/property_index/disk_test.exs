@@ -191,7 +191,8 @@ defmodule PositionDB.PropertyIndex.DiskTest do
                codec: OtherFormatCodec
              ) ==
                {:error,
-                {:property_index_format_mismatch, :key_format_id, <<"test-property-v1">>, <<"other-property-v1">>}}
+                {:property_index_format_mismatch, :key_format_id, <<"test-property-v1">>,
+                 <<"other-property-v1">>}}
     end
 
     test "requires durable progress metadata", %{

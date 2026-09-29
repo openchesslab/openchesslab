@@ -40,8 +40,8 @@ defmodule GameDB.Occurrence do
           position_id()
         ) :: t()
   def new(id, game_id, ply, position_id)
-      when is_integer(id) and id > 0 and is_integer(game_id) and game_id > 0 and is_integer(ply) and ply >= 0 and
-             is_integer(position_id) and position_id > 0 do
+      when is_integer(id) and id > 0 and is_integer(game_id) and game_id > 0 and is_integer(ply) and
+             ply >= 0 and is_integer(position_id) and position_id > 0 do
     %__MODULE__{
       id: id,
       game_id: game_id,

@@ -38,7 +38,8 @@ defmodule Analysis.GameContentCodec do
   @spec encode(term()) ::
           {:ok, encoded()}
           | {:error, term()}
-  def encode(%GameContent{initial_position_id: initial_position_id, moves: moves}) when is_list(moves) do
+  def encode(%GameContent{initial_position_id: initial_position_id, moves: moves})
+      when is_list(moves) do
     move_count =
       length(moves)
 
@@ -114,7 +115,8 @@ defmodule Analysis.GameContentCodec do
   end
 
   defp validate_initial_position_id(initial_position_id)
-       when is_integer(initial_position_id) and initial_position_id > 0 and initial_position_id <= @max_position_id do
+       when is_integer(initial_position_id) and initial_position_id > 0 and
+              initial_position_id <= @max_position_id do
     :ok
   end
 
@@ -166,7 +168,8 @@ defmodule Analysis.GameContentCodec do
     end
   end
 
-  defp encode_move(%Move{from: from, to: to, promotion: promotion}) when from in 0..63 and to in 0..63 do
+  defp encode_move(%Move{from: from, to: to, promotion: promotion})
+       when from in 0..63 and to in 0..63 do
     case promotion_code(promotion) do
       {:ok, promotion_code} ->
         {:ok,

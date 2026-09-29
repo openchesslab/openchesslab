@@ -19,8 +19,8 @@ defmodule Chess.PositionCodec do
       |> Enum.map(&encode_piece/1)
       |> IO.iodata_to_binary()
 
-    <<board::binary, encode_side_to_move(position.side_to_move), encode_castling_rights(position.castling_rights),
-      encode_en_passant(position.en_passant)>>
+    <<board::binary, encode_side_to_move(position.side_to_move),
+      encode_castling_rights(position.castling_rights), encode_en_passant(position.en_passant)>>
   end
 
   @spec decode(binary()) ::

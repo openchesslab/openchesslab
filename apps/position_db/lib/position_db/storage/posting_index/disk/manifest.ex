@@ -80,11 +80,13 @@ defmodule PositionDB.Storage.PostingIndex.Disk.Manifest do
     {:error, :invalid_posting_manifest}
   end
 
-  defp decode_manifest(magic, _version, _bucket_count, _key_format_id_size, _key_format_id) when magic != @magic do
+  defp decode_manifest(magic, _version, _bucket_count, _key_format_id_size, _key_format_id)
+       when magic != @magic do
     {:error, :invalid_posting_manifest_magic}
   end
 
-  defp decode_manifest(@magic, version, _bucket_count, _key_format_id_size, _key_format_id) when version != @version do
+  defp decode_manifest(@magic, version, _bucket_count, _key_format_id_size, _key_format_id)
+       when version != @version do
     {:error, {:unsupported_posting_manifest_version, version}}
   end
 
@@ -110,8 +112,9 @@ defmodule PositionDB.Storage.PostingIndex.Disk.Manifest do
   end
 
   defp validate(%__MODULE__{key_format_id: key_format_id, bucket_count: bucket_count})
-       when is_binary(key_format_id) and byte_size(key_format_id) > 0 and byte_size(key_format_id) <= @max_u32 and
-              is_integer(bucket_count) and bucket_count > 0 and bucket_count <= @max_u64 do
+       when is_binary(key_format_id) and byte_size(key_format_id) > 0 and
+              byte_size(key_format_id) <= @max_u32 and is_integer(bucket_count) and
+              bucket_count > 0 and bucket_count <= @max_u64 do
     :ok
   end
 

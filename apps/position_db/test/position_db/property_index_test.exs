@@ -44,11 +44,14 @@ defmodule PositionDB.PropertyIndexTest do
         {:open_files, &PositionProperties.open_files/1}
       ])
 
-    position_1 = Position.put_piece(Position.new(), Chess.Square.from_algebraic("a4"), {:white, :pawn})
+    position_1 =
+      Position.put_piece(Position.new(), Chess.Square.from_algebraic("a4"), {:white, :pawn})
 
-    position_2 = Position.put_piece(Position.new(), Chess.Square.from_algebraic("b4"), {:white, :pawn})
+    position_2 =
+      Position.put_piece(Position.new(), Chess.Square.from_algebraic("b4"), {:white, :pawn})
 
-    position_3 = Position.put_piece(Position.new(), Chess.Square.from_algebraic("a5"), {:black, :pawn})
+    position_3 =
+      Position.put_piece(Position.new(), Chess.Square.from_algebraic("a5"), {:black, :pawn})
 
     indexer =
       indexer

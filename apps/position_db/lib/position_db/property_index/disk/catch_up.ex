@@ -22,7 +22,10 @@ defmodule PositionDB.PropertyIndex.Disk.CatchUp do
         ) ::
           {:ok, PositionIndexer.t()}
           | {:error, term()}
-  def run(%PositionStore{} = store, %PositionIndexer{index: %PropertyIndex{backend_module: Disk}} = indexer) do
+  def run(
+        %PositionStore{} = store,
+        %PositionIndexer{index: %PropertyIndex{backend_module: Disk}} = indexer
+      ) do
     first_pending_id =
       Disk.indexed_through(indexer.index.backend) + 1
 
@@ -37,7 +40,8 @@ defmodule PositionDB.PropertyIndex.Disk.CatchUp do
     )
   end
 
-  defp catch_up_first(_store, indexer, position_id, last_committed_id) when position_id > last_committed_id do
+  defp catch_up_first(_store, indexer, position_id, last_committed_id)
+       when position_id > last_committed_id do
     {:ok, indexer}
   end
 
@@ -62,7 +66,8 @@ defmodule PositionDB.PropertyIndex.Disk.CatchUp do
     end
   end
 
-  defp catch_up_remaining(_store, indexer, position_id, last_committed_id) when position_id > last_committed_id do
+  defp catch_up_remaining(_store, indexer, position_id, last_committed_id)
+       when position_id > last_committed_id do
     {:ok, indexer}
   end
 

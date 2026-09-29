@@ -94,7 +94,11 @@ defmodule Chess.Position do
     Board.pieces(board)
   end
 
-  def apply_move(%__MODULE__{side_to_move: side} = position, %Move{from: from, to: to, promotion: promotion}) do
+  def apply_move(%__MODULE__{side_to_move: side} = position, %Move{
+        from: from,
+        to: to,
+        promotion: promotion
+      }) do
     if opposing_king_at?(position, to, side) do
       {:error, :illegal_move}
     else
@@ -280,7 +284,8 @@ defmodule Chess.Position do
     end
   end
 
-  defp valid_en_passant?(%{side_to_move: :white, en_passant: target} = position) when target in 40..47 do
+  defp valid_en_passant?(%{side_to_move: :white, en_passant: target} = position)
+       when target in 40..47 do
     moved_pawn_square = target - 8
     file = rem(moved_pawn_square, 8)
 
@@ -289,7 +294,8 @@ defmodule Chess.Position do
       adjacent_pawn?(position, moved_pawn_square, file, {:white, :pawn})
   end
 
-  defp valid_en_passant?(%{side_to_move: :black, en_passant: target} = position) when target in 16..23 do
+  defp valid_en_passant?(%{side_to_move: :black, en_passant: target} = position)
+       when target in 16..23 do
     moved_pawn_square = target + 8
     file = rem(moved_pawn_square, 8)
 
@@ -389,7 +395,8 @@ defmodule Chess.Position do
     end
   end
 
-  defp validate_side_to_move(errors, %{side_to_move: side_to_move}) when side_to_move in [:white, :black] do
+  defp validate_side_to_move(errors, %{side_to_move: side_to_move})
+       when side_to_move in [:white, :black] do
     errors
   end
 
