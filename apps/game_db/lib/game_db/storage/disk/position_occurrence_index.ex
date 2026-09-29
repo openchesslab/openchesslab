@@ -336,7 +336,7 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
           path,
           :new,
           expected,
-          MapSet.new()
+          %{}
         )
 
       {:error, reason} ->
@@ -362,10 +362,13 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
         complete_size
 
     expected_postings =
-      MapSet.new(
+      Map.new(
         expected,
         fn {posting, _entry} ->
-          posting
+          {
+            posting,
+            true
+          }
         end
       )
 
@@ -414,7 +417,7 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
             0,
             complete_size,
             expected,
-            MapSet.new()
+            %{}
           )
         after
           :file.close(file)
@@ -460,13 +463,14 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
             }
 
           found =
-            if MapSet.member?(
+            if Map.has_key?(
                  expected,
                  posting
                ) do
-              MapSet.put(
+              Map.put(
                 found,
-                posting
+                posting,
+                true
               )
             else
               found
@@ -562,7 +566,7 @@ defmodule GameDB.Storage.Disk.PositionOccurrenceIndex do
       Enum.reject(
         expected,
         fn {posting, _entry} ->
-          MapSet.member?(
+          Map.has_key?(
             found,
             posting
           )
