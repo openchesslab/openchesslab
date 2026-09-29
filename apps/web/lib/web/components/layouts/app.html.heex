@@ -17,12 +17,12 @@
       <img
         src="/brand/openchesslab-mark-dark.svg"
         alt=""
-        class="brand-mark brand-mark-dark h-8 w-8"
+        class="theme-light:hidden h-8 w-8"
       />
       <img
         src="/brand/openchesslab-mark-light.svg"
         alt=""
-        class="brand-mark brand-mark-light h-8 w-8"
+        class="hidden theme-light:block h-8 w-8"
       /> <span class="hidden sm:inline">OpenChessLab</span>
     </.link>
 
@@ -186,7 +186,7 @@
   {@inner_content}
   <div
     :if={@ui_modal == "shortcuts"}
-    class="modal-backdrop fixed inset-0 z-[60] grid place-items-center p-4"
+    class="fixed inset-0 z-[60] grid place-items-center bg-transparent p-4 backdrop-blur-xs backdrop-saturate-[.9]"
   >
     <section
       class="max-h-[90dvh] w-full max-w-xl overflow-auto rounded-xl border border-border-strong bg-panel p-5 shadow-2xl"
@@ -314,7 +314,7 @@
 
   <div
     :if={@ui_modal == "tour"}
-    class="modal-backdrop fixed inset-0 z-[60] grid place-items-center p-4"
+    class="fixed inset-0 z-[60] grid place-items-center bg-transparent p-4 backdrop-blur-xs backdrop-saturate-[.9]"
   >
     <% {title_key, body_key} = Web.Layouts.tour_step(@tour_step) %>
     <section

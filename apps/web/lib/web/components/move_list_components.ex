@@ -123,7 +123,7 @@ defmodule Web.MoveListComponents do
       data-move-path={Enum.join(@entry.path, ",")}
       tabindex={if @tabstop, do: 0, else: -1}
       class={[
-        "rounded-control px-1.5 py-0.5 font-mono transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus",
+        "px-1.5 py-0.5 font-mono transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus",
         @line == "main" && "text-sm font-semibold text-foreground hover:bg-panel-hover",
         @line == "variation" &&
           "text-xs font-normal text-muted hover:bg-panel-hover hover:text-foreground",

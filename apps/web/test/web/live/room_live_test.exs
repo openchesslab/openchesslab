@@ -492,7 +492,8 @@ defmodule Web.RoomLiveTest do
 
     html = render_click(view, "open-shortcuts", %{})
 
-    assert html =~ "modal-backdrop"
+    assert html =~ "backdrop-blur-xs"
+    assert html =~ "backdrop-saturate-[.9]"
     refute html =~ "bg-black/60"
   end
 

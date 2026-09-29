@@ -271,6 +271,15 @@ const Board = {
 
   updated() {
     this.fitBoard?.();
+
+    // LiveView patches re-render the squares, which drops the client-side
+    // arrow-draft marker; restore it (or clean it up) after each patch.
+    if (this.arrowStart !== null) {
+      this.showArrowState(this.arrowStart);
+    } else {
+      this.clearArrowState();
+    }
+
     this.renderKeyboardArrowPreview();
   },
 
@@ -669,7 +678,6 @@ const RoomTabs = {
       document.body.dataset.roomTab = tab;
       for (const button of this.el.querySelectorAll("[data-tab]")) {
         const active = button.dataset.tab === tab;
-        button.classList.toggle("room-tab--active", active);
         button.setAttribute("aria-selected", active ? "true" : "false");
       }
       try {

@@ -38,11 +38,10 @@ config :esbuild,
   ]
 
 config :tailwind,
-  version: "3.4.17",
+  version: "4.3.0",
   web: [
-    args:
-      ~w(--config=tailwind.config.js --input=css/app.css --output=../priv/static/assets/app.css),
-    cd: Path.expand("../apps/web/assets", __DIR__)
+    args: ~w(--input=assets/css/app.css --output=priv/static/assets/app.css),
+    cd: Path.expand("../apps/web", __DIR__)
   ]
 
 # Configure Elixir's Logger

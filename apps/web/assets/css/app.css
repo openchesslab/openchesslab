@@ -1,6 +1,21 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* Utility-class sources: the LiveView templates and the JS hooks. */
+@source "../../lib";
+@source "../js";
+
+/* Light theme: either explicitly selected, or `system` with a light OS. */
+@custom-variant theme-light {
+  &:where([data-theme="light"] *) {
+    @slot;
+  }
+
+  @media (prefers-color-scheme: light) {
+    &:where([data-theme="system"] *) {
+      @slot;
+    }
+  }
+}
 
 @font-face {
   font-family: "Open Sans";
@@ -10,6 +25,8 @@
   font-display: swap;
 }
 
+/* Runtime theme tokens. They stay custom properties because the theme changes
+   at runtime; the Tailwind theme maps onto them via `@theme inline` below. */
 :root {
   color-scheme: dark;
   --canvas: #121212;
@@ -21,17 +38,12 @@
   --muted: #b4b4b4;
   --faint: #929292;
   --accent: #35507e;
-  --accent-rgb: 53 80 126;
   --accent-strong: #46639a;
   --focus: #45c4e9;
   --highlight: #45c4e9;
-  --highlight-rgb: 69 196 233;
   --error: #e57b7b;
-  --error-rgb: 229 123 123;
   --success: #7bc97b;
-  --success-rgb: 123 201 123;
   --warning: #d4a14a;
-  --warning-rgb: 212 161 74;
   --board-selected: rgba(69, 196, 233, .55);
   --board-legal: rgba(20, 30, 20, .35);
 }
@@ -48,7 +60,6 @@
   --faint: #6f6f6f;
   --focus: #24447c;
   --highlight: #0b7285;
-  --highlight-rgb: 11 114 133;
   --board-selected: rgba(69, 196, 233, .45);
   --board-legal: rgba(20, 30, 20, .3);
 }
@@ -66,46 +77,63 @@
     --faint: #6f6f6f;
     --focus: #24447c;
     --highlight: #0b7285;
-    --highlight-rgb: 11 114 133;
     --board-selected: rgba(69, 196, 233, .45);
     --board-legal: rgba(20, 30, 20, .3);
   }
 }
 
+/* Design tokens for utilities. `inline` keeps the runtime var references. */
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-panel: var(--panel);
+  --color-panel-hover: var(--panel-hover);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-highlight: var(--highlight);
+  --color-focus: var(--focus);
+  --color-error: var(--error);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-board-light: #ebecd0;
+  --color-board-dark: #779556;
+  --color-board-move-from: #cdd26a;
+  --color-board-move-to: #aaa23a;
+  --font-sans: "Open Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, monospace;
+}
+
 @layer base {
+  /* Tailwind v4 defaults borders to currentColor; keep the themed default. */
   *,
-  *::before,
-  *::after {
-    box-sizing: border-box;
+  ::before,
+  ::after {
+    border-color: var(--border);
   }
 
-  html,
+  /* The app's typography baseline (the font itself comes from --font-sans). */
   body {
-    min-height: 100%;
-    margin: 0;
-    background: var(--canvas);
-    color: var(--foreground);
-    font-family: "Open Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  }
-
-  body {
-    min-width: 320px;
+    min-width: 20rem;
     font-size: 14px;
     line-height: 1.45;
   }
 
-  button,
-  input,
-  select,
-  textarea {
-    font: inherit;
-  }
-
+  /* Form controls are themed globally so plain fields pick up the tokens. */
   input,
   select,
   textarea {
     background-color: var(--panel);
     color: var(--foreground);
+  }
+
+  /* Tailwind v4 no longer makes buttons pointer-cursors by default. */
+  button:not(:disabled),
+  [role="button"] {
+    cursor: pointer;
   }
 
   :focus-visible {
@@ -119,42 +147,17 @@
   }
 }
 
-.modal-backdrop {
-  background: transparent;
-  backdrop-filter: blur(4px) saturate(0.9);
-  -webkit-backdrop-filter: blur(4px) saturate(0.9);
-}
-
-[data-board] [data-drag-source] [data-piece] {
-  visibility: hidden;
-}
-
-/* The arrow-draft anchor square (keyboard arrows). */
-[data-board] [data-square][data-arrow-start] {
-  box-shadow: inset 0 0 0 3px var(--warning);
-}
-
-/* Keyboard focus must be obvious and must not be clipped by the board. */
+/* Keyboard focus on a board square: an inset ring so the board's
+   overflow-hidden can never clip it. Unlayered on purpose, so it also wins
+   over the arrow-draft marker below. */
 [data-board] [data-square]:focus-visible {
   outline: none;
   box-shadow: inset 0 0 0 3px var(--focus), inset 0 0 0 6px rgba(0, 0, 0, .45);
 }
 
-body[data-board-arrow="armed"] [data-arrow-hint] {
-  display: inline-flex;
-}
-
-/* Horizontal chip rows: scrollable without a heavy visible scrollbar. */
-.scroll-x-hidden {
-  scrollbar-width: none;
-}
-.scroll-x-hidden::-webkit-scrollbar {
-  display: none;
-}
-
-/* Mobile app shell (Option 1): fixed board with a tabbed panel underneath.
-   Tab state lives on <body data-room-tab> and is driven by the RoomTabs hook,
-   so LiveView patches never fight the client state. */
+/* Mobile room shell: panel visibility and height are driven by runtime
+   attributes on <body> (the RoomTabs hook), which would be unreadable as
+   stacked arbitrary variants. Everything else about the shell is utilities. */
 @media (max-width: 859.98px) {
   [data-mobile-panel] {
     display: none;
@@ -180,81 +183,4 @@ body[data-board-arrow="armed"] [data-arrow-hint] {
   body[data-room-panel-size="roomy"] [data-mobile-panel] {
     max-height: 44vh;
   }
-
-  /* Chat gets the remaining panel height for its log. */
-  [data-mobile-panel="chat"] #chat-log {
-    flex: 1 1 auto;
-    max-height: none;
-    min-height: 0;
-  }
-
-  /* Slimmer strip and tabs so the board keeps the space. */
-  [data-room-strip] > [role="tablist"] > button {
-    padding-top: .3rem;
-    padding-bottom: .3rem;
-  }
-
-  /* The position strip expands above itself so the board never resizes. */
-  [data-room-strip] {
-    position: relative;
-    overflow: visible;
-  }
-
-  [data-room-strip] [data-strip-content] {
-    position: absolute;
-    bottom: 100%;
-    left: 0;
-    right: 0;
-    z-index: 30;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-bottom: 0;
-    box-shadow: 0 -14px 30px rgba(0, 0, 0, .3);
-  }
-}
-
-/* Mobile tab strip (hidden on desktop). */
-.room-tab {
-  flex: 1;
-  padding: .5rem .35rem;
-  background: none;
-  border: 0;
-  border-top: 2px solid transparent;
-  color: var(--muted);
-  font-size: .68rem;
-  font-weight: 700;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-
-.room-tab--active {
-  color: var(--foreground);
-  border-top-color: var(--highlight);
-}
-
-.room-tab-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 2.5rem;
-  border: 0;
-  background: none;
-  color: var(--muted);
-  font-size: .95rem;
-  cursor: pointer;
-}
-
-.room-tab-toggle:hover {
-  color: var(--foreground);
-}
-
-/* Theme-specific brand artwork is kept as static SVGs, not CSS components. */
-.brand-mark-light { display: none; }
-#app-shell[data-theme="light"] .brand-mark-dark { display: none; }
-#app-shell[data-theme="light"] .brand-mark-light { display: block; }
-
-@media (prefers-color-scheme: light) {
-  #app-shell[data-theme="system"] .brand-mark-dark { display: none; }
-  #app-shell[data-theme="system"] .brand-mark-light { display: block; }
 }

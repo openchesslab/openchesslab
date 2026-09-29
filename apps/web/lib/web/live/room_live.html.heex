@@ -190,7 +190,7 @@
           phx-update="stream"
           role="log"
           aria-live="polite"
-          class="flex max-h-40 min-h-16 flex-col gap-2 overflow-y-auto pr-1"
+          class="flex max-h-40 min-h-16 flex-col gap-2 overflow-y-auto pr-1 max-[860px]:min-h-0 max-[860px]:max-h-none max-[860px]:flex-1"
         >
           <article
             :for={{dom_id, message} <- @streams.chat_messages}
@@ -323,7 +323,7 @@
 
               <p
                 data-arrow-hint
-                class="pointer-events-none absolute left-1/2 top-2 z-30 hidden -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full border border-highlight bg-panel px-3 py-1 text-xs text-highlight shadow-xl"
+                class="pointer-events-none absolute left-1/2 top-2 z-30 hidden -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full border border-highlight bg-panel px-3 py-1 text-xs text-highlight shadow-xl in-data-[board-arrow=armed]:inline-flex"
                 role="status"
                 aria-live="polite"
               >
@@ -569,7 +569,7 @@
           <section
             :if={@position}
             data-room-strip
-            class="overflow-hidden rounded-lg border border-border max-[860px]:overflow-visible"
+            class="overflow-hidden rounded-lg border border-border max-[860px]:relative max-[860px]:overflow-visible"
             aria-label={Web.I18n.t("room.stripHeading", @locale)}
           >
             <div
@@ -605,7 +605,7 @@
               >{Web.I18n.t("room.layersTab", @locale)}</button>
               <button
                 type="button"
-                class="ml-auto inline-flex min-w-9 items-center justify-center px-2 text-muted hover:bg-panel-hover hover:text-foreground"
+                class="ml-auto inline-flex min-w-9 items-center justify-center px-2 text-muted hover:bg-panel-hover hover:text-foreground max-[860px]:py-[.3rem]"
                 aria-expanded={@strip_open}
                 aria-label={
                   if @strip_open,
@@ -624,7 +624,7 @@
             <div
               :if={@strip_open and @insights}
               data-strip-content
-              class="max-h-40 min-h-16 overflow-y-auto p-3"
+              class="max-h-40 min-h-16 overflow-y-auto p-3 max-[860px]:absolute max-[860px]:bottom-full max-[860px]:left-0 max-[860px]:right-0 max-[860px]:z-30 max-[860px]:border max-[860px]:border-b-0 max-[860px]:bg-panel max-[860px]:shadow-[0_-14px_30px_rgba(0,0,0,.3)]"
             >
               <%= if @selected_tab == "material" do %>
                 <div class="grid gap-2 text-xs sm:grid-cols-2">
@@ -683,7 +683,7 @@
             <p
               :if={@strip_open and is_nil(@insights)}
               data-strip-content
-              class="m-0 p-3 text-xs text-muted"
+              class="m-0 p-3 text-xs text-muted max-[860px]:absolute max-[860px]:bottom-full max-[860px]:left-0 max-[860px]:right-0 max-[860px]:z-30 max-[860px]:border max-[860px]:border-b-0 max-[860px]:bg-panel max-[860px]:shadow-[0_-14px_30px_rgba(0,0,0,.3)]"
             >
               {Web.I18n.t("room.noInsights", @locale)}
             </p>
@@ -1017,22 +1017,37 @@
       class="hidden shrink-0 items-stretch border-t border-border bg-panel max-[860px]:order-3 max-[860px]:flex"
       aria-label={Web.I18n.t("room.tabsLabel", @locale)}
     >
-      <button type="button" class="room-tab" data-tab="moves" aria-selected="true">{Web.I18n.t(
+      <button
+        type="button"
+        class="flex-1 cursor-pointer border-0 border-t-2 border-transparent bg-transparent px-[.35rem] py-2 text-[.68rem] font-bold uppercase tracking-[.08em] text-muted aria-selected:border-highlight aria-selected:text-foreground"
+        data-tab="moves"
+        aria-selected="true"
+      >{Web.I18n.t(
         "room.movesTab",
         @locale
       )}</button>
-      <button type="button" class="room-tab" data-tab="games" aria-selected="false">{Web.I18n.t(
+      <button
+        type="button"
+        class="flex-1 cursor-pointer border-0 border-t-2 border-transparent bg-transparent px-[.35rem] py-2 text-[.68rem] font-bold uppercase tracking-[.08em] text-muted aria-selected:border-highlight aria-selected:text-foreground"
+        data-tab="games"
+        aria-selected="false"
+      >{Web.I18n.t(
         "room.analyses",
         @locale
       )}</button>
-      <button type="button" class="room-tab" data-tab="chat" aria-selected="false">{Web.I18n.t(
+      <button
+        type="button"
+        class="flex-1 cursor-pointer border-0 border-t-2 border-transparent bg-transparent px-[.35rem] py-2 text-[.68rem] font-bold uppercase tracking-[.08em] text-muted aria-selected:border-highlight aria-selected:text-foreground"
+        data-tab="chat"
+        aria-selected="false"
+      >{Web.I18n.t(
         "room.chatTab",
         @locale
       )}</button>
       <button
         type="button"
         id="room-panel-size"
-        class="room-tab-toggle"
+        class="inline-flex min-w-10 cursor-pointer items-center justify-center border-0 bg-transparent text-[.95rem] text-muted hover:text-foreground"
         aria-label={Web.I18n.t("room.panelSize", @locale)}
         title={Web.I18n.t("room.panelSize", @locale)}
       >&#8645;</button>
@@ -1091,7 +1106,7 @@
 
   <div
     :if={@pending_promotion}
-    class="modal-backdrop fixed inset-0 z-[70] grid place-items-center p-4"
+    class="fixed inset-0 z-[70] grid place-items-center bg-transparent p-4 backdrop-blur-xs backdrop-saturate-[.9]"
   >
     <section
       class="w-full max-w-sm rounded-xl border border-border-strong bg-panel p-5 shadow-2xl"
@@ -1129,7 +1144,7 @@
 
   <div
     :if={@ui_modal == "import"}
-    class="modal-backdrop fixed inset-0 z-[60] grid place-items-center p-4"
+    class="fixed inset-0 z-[60] grid place-items-center bg-transparent p-4 backdrop-blur-xs backdrop-saturate-[.9]"
   >
     <section
       class="h-[min(35rem,calc(100dvh-2rem))] max-h-[90dvh] w-full max-w-4xl overflow-y-auto rounded-xl border border-border-strong bg-panel p-5 shadow-2xl"
@@ -1332,7 +1347,7 @@
 
   <div
     :if={@ui_modal == "search"}
-    class="modal-backdrop fixed inset-0 z-[60] grid place-items-center p-4"
+    class="fixed inset-0 z-[60] grid place-items-center bg-transparent p-4 backdrop-blur-xs backdrop-saturate-[.9]"
   >
     <section
       class="max-h-[90dvh] w-full max-w-5xl overflow-auto rounded-xl border border-border-strong bg-panel p-5 shadow-2xl"
@@ -1518,7 +1533,7 @@
 
   <div
     :if={@ui_modal == "setup"}
-    class="modal-backdrop fixed inset-0 z-[60] grid place-items-center p-4"
+    class="fixed inset-0 z-[60] grid place-items-center bg-transparent p-4 backdrop-blur-xs backdrop-saturate-[.9]"
   >
     <section
       class="max-h-[92dvh] w-full max-w-4xl overflow-auto rounded-xl border border-border-strong bg-panel p-5 shadow-2xl"

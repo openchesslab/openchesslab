@@ -84,7 +84,8 @@ defmodule Web.ChessComponents do
             phx-click="board-square"
             phx-value-square={square}
             class={[
-              "relative grid min-h-0 min-w-0 place-items-center border-0 p-0",
+              "group relative grid min-h-0 min-w-0 place-items-center border-0 p-0",
+              "data-[arrow-start]:shadow-[inset_0_0_0_3px_var(--warning)]",
               light_square?(square) && not last_move && "bg-board-light",
               not light_square?(square) && not last_move && "bg-board-dark",
               last_move && light_square?(square) && "bg-board-move-from",
@@ -133,7 +134,7 @@ defmodule Web.ChessComponents do
               :if={piece}
               data-piece
               aria-hidden="true"
-              class="z-10 block h-[88%] w-[88%] select-none"
+              class="z-10 block h-[88%] w-[88%] select-none group-data-[drag-source]:invisible"
             ><.piece_icon kind={elem(piece, 1)} color={elem(piece, 0)} piece_set={@piece_set} /></span>
             <span
               :if={(@orientation == "white" and rank == 0) or (@orientation == "black" and rank == 7)}

@@ -2062,7 +2062,7 @@ defmodule Web.RoomLive do
 
   defp strip_tab_class(selected, tab) do
     base =
-      "flex items-center gap-2 border-b-2 px-3 py-2 text-xs font-medium uppercase tracking-wider"
+      "flex items-center gap-2 border-b-2 px-3 py-2 text-xs font-medium uppercase tracking-wider max-[860px]:py-[.3rem]"
 
     if selected == tab,
       do: base <> " border-highlight text-highlight",
