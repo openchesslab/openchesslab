@@ -24,6 +24,7 @@ defmodule Database.MixProject do
 
   defp deps do
     [
+      {:benchee, "~> 1.5", only: :dev},
       {:ecto_sql, "~> 3.14.0"},
       {:postgrex, "~> 0.22.4"}
     ]
