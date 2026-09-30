@@ -1,5 +1,14 @@
 defmodule Analysis.PositionStore do
-  @moduledoc false
+  @moduledoc """
+  Application-facing access to canonical chess positions.
+
+  PostgreSQL repositories are stateless and are called directly from
+  every application node.
+
+  The legacy PositionDB-backed GenServer remains temporarily available
+  as the reference implementation while the PostgreSQL migration is
+  completed.
+  """
 
   use GenServer
 
@@ -13,7 +22,7 @@ defmodule Analysis.PositionStore do
   @registry Analysis.PositionStoreRegistry
   @registry_key :position_store
 
-  @opaque query_cursor :: reference()
+  @opaque query_cursor :: term()
 
   @type query_page ::
           {:ok, [PositionDB.position_id()], :done | query_cursor()}
@@ -39,10 +48,18 @@ defmodule Analysis.PositionStore do
 
   @spec clustered_server() :: GenServer.server()
   def clustered_server do
-    {:via, Horde.Registry, {@registry, @registry_key}}
+    {
+      :via,
+      Horde.Registry,
+      {
+        @registry,
+        @registry_key
+      }
+    }
   end
 
-  @spec start_link(keyword()) :: GenServer.on_start()
+  @spec start_link(keyword()) ::
+          GenServer.on_start()
   def start_link(opts \\ []) do
     GenServer.start_link(
       __MODULE__,
@@ -56,7 +73,8 @@ defmodule Analysis.PositionStore do
     )
   end
 
-  @spec server() :: GenServer.server()
+  @spec server() ::
+          GenServer.server()
   def server do
     :analysis
     |> Application.get_env(
@@ -69,19 +87,32 @@ defmodule Analysis.PositionStore do
     )
   end
 
+  @spec repository() ::
+          module()
+          | nil
+  def repository do
+    :analysis
+    |> Application.get_env(
+      __MODULE__,
+      []
+    )
+    |> Keyword.get(:repository)
+  end
+
+  @spec repository_configured?() :: boolean()
+  def repository_configured? do
+    not is_nil(repository())
+  end
+
   @spec ready?() :: boolean()
   def ready? do
-    GenServer.call(
-      server(),
-      :ping,
-      1_000
-    ) == :ok
-  rescue
-    ArgumentError ->
-      false
-  catch
-    :exit, _reason ->
-      false
+    case repository() do
+      nil ->
+        legacy_ready?()
+
+      repository ->
+        repository.ready?()
+    end
   end
 
   @spec get(PositionDB.position_id()) ::
@@ -89,10 +120,33 @@ defmodule Analysis.PositionStore do
           | :not_found
           | {:error, term()}
   def get(position_id) do
-    GenServer.call(
-      server(),
-      {:get, position_id}
-    )
+    case repository() do
+      nil ->
+        GenServer.call(
+          server(),
+          {:get, position_id}
+        )
+
+      repository ->
+        repository.get(position_id)
+    end
+  end
+
+  @spec find(Chess.Position.t()) ::
+          {:ok, PositionDB.position_id()}
+          | :not_found
+          | {:error, term()}
+  def find(position) do
+    case repository() do
+      nil ->
+        GenServer.call(
+          server(),
+          {:find, position}
+        )
+
+      repository ->
+        repository.find(position)
+    end
   end
 
   @spec query_page(
@@ -101,14 +155,23 @@ defmodule Analysis.PositionStore do
         ) ::
           query_page()
   def query_page(query, page_size) when is_integer(page_size) and page_size > 0 do
-    GenServer.call(
-      server(),
-      {
-        :query_page,
-        query,
-        page_size
-      }
-    )
+    case repository() do
+      nil ->
+        GenServer.call(
+          server(),
+          {
+            :query_page,
+            query,
+            page_size
+          }
+        )
+
+      repository ->
+        repository.query_page(
+          query,
+          page_size
+        )
+    end
   end
 
   @spec next_query_page(
@@ -116,37 +179,63 @@ defmodule Analysis.PositionStore do
           pos_integer()
         ) ::
           query_page()
-  def next_query_page(cursor, page_size)
-      when is_reference(cursor) and is_integer(page_size) and page_size > 0 do
-    GenServer.call(
-      server(),
-      {
-        :next_query_page,
-        cursor,
-        page_size
-      }
-    )
+  def next_query_page(cursor, page_size) when is_integer(page_size) and page_size > 0 do
+    case repository() do
+      nil ->
+        GenServer.call(
+          server(),
+          {
+            :next_query_page,
+            cursor,
+            page_size
+          }
+        )
+
+      repository ->
+        repository.next_query_page(
+          cursor,
+          page_size
+        )
+    end
   end
 
   @spec close_query(query_cursor()) :: :ok
-  def close_query(cursor) when is_reference(cursor) do
-    GenServer.call(
-      server(),
-      {
-        :close_query,
-        cursor
-      }
-    )
+  def close_query(cursor) do
+    case repository() do
+      nil ->
+        GenServer.call(
+          server(),
+          {
+            :close_query,
+            cursor
+          }
+        )
+
+      repository ->
+        repository.close_query(cursor)
+    end
   end
 
   @spec append(Chess.Position.t()) ::
           PositionDB.position_id()
           | {:error, term()}
   def append(position) do
-    GenServer.call(
-      server(),
-      {:append, position}
-    )
+    case repository() do
+      nil ->
+        GenServer.call(
+          server(),
+          {:append, position}
+        )
+
+      repository ->
+        case repository.put(position) do
+          {:ok, position_id} ->
+            position_id
+
+          {:error, reason} ->
+            {:error, reason}
+        end
+    end
   end
 
   @impl true
@@ -178,6 +267,17 @@ defmodule Analysis.PositionStore do
       PositionDB.get(
         db,
         position_id
+      ),
+      state
+    }
+  end
+
+  def handle_call({:find, position}, _from, %State{db: db} = state) do
+    {
+      :reply,
+      PositionDB.find(
+        db,
+        position
       ),
       state
     }
@@ -298,6 +398,20 @@ defmodule Analysis.PositionStore do
         cursor
       )
     }
+  end
+
+  defp legacy_ready? do
+    GenServer.call(
+      server(),
+      :ping,
+      1_000
+    ) == :ok
+  rescue
+    ArgumentError ->
+      false
+  catch
+    :exit, _reason ->
+      false
   end
 
   defp init_db(opts) do

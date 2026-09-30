@@ -340,6 +340,22 @@ defmodule Analysis.PositionStoreTest do
              {:error, :cursor_not_found}
   end
 
+  test "finds an existing position" do
+    position =
+      Position.starting_position()
+
+    position_id =
+      PositionStore.append(position)
+
+    assert PositionStore.find(position) ==
+             {:ok, position_id}
+  end
+
+  test "returns not_found when finding an unknown position" do
+    assert PositionStore.find(Position.new()) ==
+             :not_found
+  end
+
   defp restore_position_store_config(:not_configured) do
     Application.delete_env(
       :analysis,

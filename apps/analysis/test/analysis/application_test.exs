@@ -588,6 +588,25 @@ defmodule Analysis.ApplicationTest do
            } in AnalysisApplication.children()
   end
 
+  test "does not start a position store process for a repository-backed store" do
+    Application.put_env(
+      :analysis,
+      PositionStore,
+      repository: Analysis.PositionRepository.Postgres
+    )
+
+    refute Enum.any?(
+             AnalysisApplication.children(),
+             fn
+               {PositionStore, _options} ->
+                 true
+
+               _child ->
+                 false
+             end
+           )
+  end
+
   defp restore_config(key, :not_configured) do
     Application.delete_env(
       :analysis,

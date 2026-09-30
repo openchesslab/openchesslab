@@ -89,19 +89,24 @@ defmodule Analysis.Application do
   end
 
   defp position_store_children(options) do
-    if PositionStoreOwner.owner?() do
-      [
-        {
-          PositionStore,
-          Keyword.put_new(
-            options,
-            :server,
-            PositionStore.clustered_server()
-          )
-        }
-      ]
-    else
-      []
+    cond do
+      Keyword.get(options, :repository) ->
+        []
+
+      PositionStoreOwner.owner?() ->
+        [
+          {
+            PositionStore,
+            Keyword.put_new(
+              options,
+              :server,
+              PositionStore.clustered_server()
+            )
+          }
+        ]
+
+      true ->
+        []
     end
   end
 
