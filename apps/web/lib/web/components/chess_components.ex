@@ -156,7 +156,7 @@ defmodule Web.ChessComponents do
             >{coordinate_rank(visual_rank, @orientation)}</span>
           </button>
         <% end %>
-        
+
         <%= for shape <- @shapes do %>
           <%= if shape.type == :arrow do %>
             <% {x1, y1} = square_center(shape.from, @orientation) %> <% {x2, y2} =

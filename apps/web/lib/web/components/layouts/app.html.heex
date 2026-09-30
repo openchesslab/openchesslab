@@ -25,7 +25,7 @@
         class="hidden theme-light:block h-8 w-8"
       /> <span class="hidden sm:inline">OpenChessLab</span>
     </.link>
-    
+
     <nav
       class="flex items-center gap-1"
       aria-label={Web.I18n.t("common.applicationSettings", @locale)}
@@ -40,7 +40,7 @@
       >
         <.icon name="search" class="h-4 w-4" />
       </button>
-      
+
       <form id="piece-set-desktop-form" phx-change="set-piece-set" class="hidden sm:block">
         <label class="sr-only" for="piece-set-desktop">{Web.I18n.t("pieceSet.menu", @locale)}</label>
         <select
@@ -50,11 +50,11 @@
           aria-label={Web.I18n.t("pieceSet.menu", @locale)}
         >
           <option value="merida" selected={@piece_set == "merida"}>Merida</option>
-          
+
           <option value="cburnett" selected={@piece_set == "cburnett"}>Cburnett</option>
         </select>
       </form>
-      
+
       <details class="relative sm:hidden">
         <summary
           class="inline-flex min-h-9 min-w-9 cursor-pointer list-none items-center justify-center rounded-md border border-border bg-transparent px-2 text-foreground hover:bg-panel-hover"
@@ -63,7 +63,7 @@
         >
           <.icon name="settings" class="h-4 w-4" />
         </summary>
-        
+
         <div class="absolute right-0 top-full z-40 mt-2 flex w-60 flex-col gap-3 rounded-lg border border-border bg-panel p-3 shadow-xl">
           <form id="piece-set-mobile-form" phx-change="set-piece-set">
             <label for="piece-set-mobile" class="flex flex-col gap-1 text-xs text-muted">
@@ -74,12 +74,12 @@
                 class="rounded-md border border-border bg-canvas px-2 py-2 text-sm text-foreground"
               >
                 <option value="merida" selected={@piece_set == "merida"}>Merida</option>
-                
+
                 <option value="cburnett" selected={@piece_set == "cburnett"}>Cburnett</option>
               </select>
             </label>
           </form>
-          
+
           <div
             class="flex items-center gap-1"
             role="group"
@@ -107,7 +107,7 @@
               phx-value-theme="dark"
             ><.icon name="moon" class="h-4 w-4" /></button>
           </div>
-          
+
           <button
             type="button"
             class="self-start text-sm text-muted hover:text-foreground"
@@ -115,7 +115,7 @@
           >{Web.I18n.t("tour.start", @locale)}</button>
         </div>
       </details>
-      
+
       <div
         class="hidden items-center gap-0.5 sm:flex"
         role="group"
@@ -146,7 +146,7 @@
           phx-value-theme="dark"
         ><.icon name="moon" class="h-4 w-4" /></button>
       </div>
-      
+
       <button
         type="button"
         class="inline-flex min-h-9 min-w-10 items-center justify-center rounded-md border border-border bg-transparent px-2 text-xs font-semibold text-foreground hover:bg-panel-hover"
@@ -161,7 +161,7 @@
       >
         {String.upcase(@locale)}
       </button>
-      
+
       <button
         type="button"
         class="hidden min-h-9 min-w-9 items-center justify-center rounded-md border border-border bg-transparent px-2 text-foreground hover:bg-panel-hover sm:inline-flex"
@@ -171,7 +171,7 @@
       >
         <.icon name="tour" class="h-4 w-4" />
       </button>
-      
+
       <button
         type="button"
         class="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md border border-border bg-transparent px-2 text-foreground hover:bg-panel-hover max-[640px]:hidden"
@@ -183,7 +183,7 @@
       </button>
     </nav>
   </header>
-   {@inner_content}
+  {@inner_content}
   <div
     :if={@ui_modal == "shortcuts"}
     class="fixed inset-0 z-[60] grid place-items-center bg-transparent p-4 backdrop-blur-xs backdrop-saturate-[.9]"
@@ -199,7 +199,7 @@
         <h2 id="shortcuts-title" class="m-0 text-lg font-semibold">
           {Web.I18n.t("shortcuts.title", @locale)}
         </h2>
-        
+
         <button
           type="button"
           class="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md border border-border bg-transparent text-foreground hover:bg-panel-hover"
@@ -207,50 +207,50 @@
           phx-click="close-modal"
         ><.icon name="close" class="h-4 w-4" /></button>
       </header>
-      
+
       <div class="grid gap-4 sm:grid-cols-2">
         <section>
           <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
             {Web.I18n.t("shortcuts.anywhereHeading", @locale)}
           </h3>
-          
+
           <dl class="space-y-2 text-sm">
             <div class="flex justify-between gap-4">
               <dt>{Web.I18n.t("shortcuts.firstLast", @locale)}</dt><dd class="m-0 font-mono text-muted">
                 Home / End
               </dd>
             </div>
-            
+
             <div class="flex justify-between gap-4">
               <dt>{Web.I18n.t("shortcuts.previousNext", @locale)}</dt><dd class="m-0 font-mono text-muted">
                 ← / →
               </dd>
             </div>
-            
+
             <div class="flex justify-between gap-4">
               <dt>{Web.I18n.t("shortcuts.flip", @locale)}</dt><dd class="m-0 font-mono text-muted">
                 F
               </dd>
             </div>
-            
+
             <div class="flex justify-between gap-4">
               <dt>{Web.I18n.t("shortcuts.focusBoard", @locale)}</dt><dd class="m-0 font-mono text-muted">
                 B
               </dd>
             </div>
-            
+
             <div class="flex justify-between gap-4">
               <dt>{Web.I18n.t("shortcuts.focusMoveTree", @locale)}</dt><dd class="m-0 font-mono text-muted">
                 M
               </dd>
             </div>
-            
+
             <div class="flex justify-between gap-4">
               <dt>{Web.I18n.t("shortcuts.helpRow", @locale)}</dt><dd class="m-0 font-mono text-muted">
                 ?
               </dd>
             </div>
-            
+
             <div class="flex justify-between gap-4">
               <dt>{Web.I18n.t("shortcuts.escRow", @locale)}</dt><dd class="m-0 font-mono text-muted">
                 Esc
@@ -258,49 +258,49 @@
             </div>
           </dl>
         </section>
-        
+
         <section>
           <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
             {Web.I18n.t("shortcuts.boardHeading", @locale)}
           </h3>
-          
+
           <dl class="space-y-2 text-sm">
             <div class="flex justify-between gap-4">
               <dt>{Web.I18n.t("shortcuts.boardCursor", @locale)}</dt><dd class="m-0 font-mono text-muted">
                 ← ↑ → ↓
               </dd>
             </div>
-            
+
             <div class="flex justify-between gap-4">
               <dt>{Web.I18n.t("shortcuts.previousNext", @locale)}</dt><dd class="m-0 font-mono text-muted">
                 Shift + ← / →
               </dd>
             </div>
-            
+
             <div class="flex justify-between gap-4">
               <dt>{Web.I18n.t("shortcuts.boardSelect", @locale)}</dt><dd class="m-0 font-mono text-muted">
                 Enter
               </dd>
             </div>
-            
+
             <div class="flex justify-between gap-4">
               <dt>{Web.I18n.t("shortcuts.boardHighlight", @locale)}</dt><dd class="m-0 font-mono text-muted">
                 H
               </dd>
             </div>
-            
+
             <div class="flex justify-between gap-4">
               <dt>{Web.I18n.t("shortcuts.boardArrow", @locale)}</dt><dd class="m-0 font-mono text-muted">
                 A
               </dd>
             </div>
-            
+
             <div class="flex justify-between gap-4">
               <dt>{Web.I18n.t("shortcuts.boardCancel", @locale)}</dt><dd class="m-0 font-mono text-muted">
                 Esc
               </dd>
             </div>
-            
+
             <div class="flex justify-between gap-4">
               <dt>{Web.I18n.t("shortcuts.boardColor", @locale)}</dt><dd class="m-0 font-mono text-muted">
                 1–5
@@ -311,7 +311,7 @@
       </div>
     </section>
   </div>
-  
+
   <div
     :if={@ui_modal == "tour"}
     class="fixed inset-0 z-[60] grid place-items-center bg-transparent p-4 backdrop-blur-xs backdrop-saturate-[.9]"
@@ -329,7 +329,7 @@
         <p class="m-0 text-xs font-semibold uppercase tracking-widest text-muted">
           {Web.I18n.t("tour.label", @locale)}
         </p>
-        
+
         <button
           type="button"
           class="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md border border-border bg-transparent text-foreground hover:bg-panel-hover"
@@ -337,13 +337,13 @@
           phx-click="close-modal"
         ><.icon name="close" class="h-4 w-4" /></button>
       </header>
-      
+
       <h2 id="tour-title" class="mb-2 mt-0 text-xl font-semibold">
         {Web.I18n.t(title_key, @locale)}
       </h2>
-      
+
       <p class="text-muted">{Web.I18n.t(body_key, @locale)}</p>
-      
+
       <div class="mt-5 flex items-center justify-between gap-2">
         <button
           type="button"
