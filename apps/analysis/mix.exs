@@ -15,7 +15,6 @@ defmodule Analysis.MixProject do
     ]
   end
 
-  # Run "mix help compile.app" to learn about applications.
   def application do
     [
       mod: {Analysis.Application, []},
@@ -23,10 +22,10 @@ defmodule Analysis.MixProject do
     ]
   end
 
-  # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
       {:chess, in_umbrella: true},
+      {:database, in_umbrella: true},
       {:game_db, in_umbrella: true},
       {:position_db, in_umbrella: true},
       {:jason, "~> 1.2"},

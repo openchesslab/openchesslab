@@ -1,23 +1,9 @@
-# This file is responsible for configuring your umbrella
-# and **all applications** and their dependencies with the
-# help of the Config module.
-#
-# Note that all applications in your umbrella share the
-# same configuration and dependencies, which is why they
-# all use the same configuration file. If you want different
-# configurations or dependencies per app, it is best to
-# move said applications out of the umbrella.
 import Config
 
-# Configure LiveView
 config :phoenix_live_view,
-  # the attribute set on all root tags. Used for Phoenix.LiveView.ColocatedCSS.
   root_tag_attribute: "phx-r",
-  # This project does not use colocated JS/CSS; silence the Windows
-  # symlink warning that would otherwise appear on every compile.
   colocated_assets: [disable_symlink_warning: true]
 
-# Configure the endpoint for the :web application
 config :web, Web.Endpoint,
   url: [host: "localhost"],
   adapter: Phoenix.Endpoint.Cowboy2Adapter,
@@ -44,12 +30,10 @@ config :tailwind,
     cd: Path.expand("../apps/web", __DIR__)
   ]
 
-# Configure Elixir's Logger
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
   metadata: [:request_id]
 
-# Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
 config :localize,
@@ -57,7 +41,6 @@ config :localize,
   supported_locales: [:en, :nl],
   otp_app: :web
 
-# Phoenix LiveView needs a registered media type for PGN uploads.
 config :mime, :types, %{"application/x-chess-pgn" => ["pgn"]}
 
 config :database,
@@ -67,12 +50,10 @@ config :database,
 config :database, OpenChessLab.Repo,
   migration_primary_key: [
     name: :id,
-    type: :bigserial
+    type: :identity
   ],
   migration_foreign_key: [
     type: :bigint
   ]
 
-# Import environment specific config. This must remain at the bottom
-# of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"
