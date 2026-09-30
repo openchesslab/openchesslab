@@ -20,6 +20,10 @@ defmodule Web.ChessComponents do
   attr :last_to, :integer, default: nil
   attr :layers, :map, default: %{}
   attr :insights, :map, default: %{}
+  # True only while the server routes square clicks/drops to move playing
+  # (not to the position editor or the setup board). The Board hook uses it
+  # to keep its optimistic move state out of editing flows.
+  attr :play, :boolean, default: false
 
   def chess_board(assigns) do
     squares =
@@ -33,6 +37,7 @@ defmodule Web.ChessComponents do
       |> assign(:squares, squares)
       |> assign(:highlight_sides, highlight_sides(assigns.shapes))
       |> assign(:cursor_square, assigns.cursor_square || cursor_for(assigns.position) || 0)
+      |> assign(:side_to_move, side_to_move(assigns.position))
 
     ~H"""
     <div
@@ -41,6 +46,8 @@ defmodule Web.ChessComponents do
       data-orientation={@orientation}
       data-annotation-color={@annotation_color}
       data-piece-set={@piece_set}
+      data-side-to-move={@side_to_move}
+      data-play={@play}
       role="group"
       aria-label={Web.I18n.t("room.boardHeading")}
       class={[
@@ -133,6 +140,7 @@ defmodule Web.ChessComponents do
             <span
               :if={piece}
               data-piece
+              data-piece-color={Atom.to_string(elem(piece, 0))}
               aria-hidden="true"
               class="z-10 block h-[88%] w-[88%] select-none group-data-[drag-source]:invisible"
             ><.piece_icon kind={elem(piece, 1)} color={elem(piece, 0)} piece_set={@piece_set} /></span>
@@ -211,6 +219,8 @@ defmodule Web.ChessComponents do
   defp ranks(_orientation), do: Enum.to_list(7..0//-1)
   defp files("black"), do: Enum.to_list(7..0//-1)
   defp files(_orientation), do: Enum.to_list(0..7)
+
+  defp side_to_move(%Position{side_to_move: side}), do: Atom.to_string(side)
 
   defp light_square?(square), do: rem(rem(square, 8) + div(square, 8), 2) == 1
 

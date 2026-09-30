@@ -373,7 +373,7 @@ defmodule Analysis.Analyses do
   defp persist(analysis, revision) do
     case AnalysisStore.update(analysis, revision) do
       {:ok, new_revision} ->
-        :ok = AnalysisEvents.publish_changed(analysis.id)
+        :ok = AnalysisEvents.publish_changed(analysis.id, new_revision)
         {:ok, new_revision}
 
       {:error, :conflict} ->

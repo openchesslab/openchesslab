@@ -13,6 +13,16 @@ defmodule Web.AnalysisView do
   alias Chess.Position
   alias Chess.PositionProperties
 
+  @doc """
+  Positions already fetched for this LiveView, keyed by position id.
+
+  Room processes can live in another Fly region than the LiveView, so every
+  `PositionStore.get/1` is a cross-region round trip. Positions are immutable
+  and keyed by exact content, so repeated board renders (moves, selections,
+  patches) reuse this cache instead of re-fetching the whole tree.
+  """
+  @type position_cache :: %{optional(non_neg_integer()) => Position.t()}
+
   @spec room_analyses(Analysis.Room.t(), String.t()) :: [map()]
   def room_analyses(room, locale) do
     room.analysis_ids
@@ -20,9 +30,6 @@ defmodule Web.AnalysisView do
     |> Enum.flat_map(fn {id, index} ->
       case Analyses.get(id) do
         {:ok, analysis, revision} ->
-          start_number =
-            Analysis.GameStart.fullmove_number(analysis.start)
-
           source_game_record_id =
             AnalysisModel.source_game_record_id(analysis)
 
@@ -41,33 +48,12 @@ defmodule Web.AnalysisView do
               )
             end
 
-          start_label =
-            if start_number > 1 do
-              Web.I18n.t(
-                "room.fromMove",
-                locale,
-                %{move: start_number}
-              )
-            else
-              Web.I18n.t(
-                "room.standardStart",
-                locale
-              )
-            end
-
           [
             %{
               id: id,
               revision: revision,
               label: label,
-              detail:
-                start_label <>
-                  " · " <>
-                  Web.I18n.t(
-                    "room.revision",
-                    locale,
-                    %{revision: revision}
-                  ),
+              detail: analysis_detail(analysis, revision, locale),
               source_game_record_id: source_game_record_id,
               start: analysis.start
             }
@@ -79,6 +65,40 @@ defmodule Web.AnalysisView do
     end)
   end
 
+  @doc """
+  The sidebar detail line for an analysis ("standard start · rev N").
+
+  Building it from an analysis already in hand lets `RoomLive` patch a
+  revision bump locally instead of re-fetching the room and every analysis
+  in it after each move.
+  """
+  @spec analysis_detail(AnalysisModel.t(), pos_integer(), String.t()) :: String.t()
+  def analysis_detail(analysis, revision, locale) do
+    start_number = Analysis.GameStart.fullmove_number(analysis.start)
+
+    start_label =
+      if start_number > 1 do
+        Web.I18n.t(
+          "room.fromMove",
+          locale,
+          %{move: start_number}
+        )
+      else
+        Web.I18n.t(
+          "room.standardStart",
+          locale
+        )
+      end
+
+    start_label <>
+      " · " <>
+      Web.I18n.t(
+        "room.revision",
+        locale,
+        %{revision: revision}
+      )
+  end
+
   @spec fetch_analysis(String.t()) ::
           {:ok, AnalysisModel.t(), pos_integer()}
           | :not_found
@@ -86,12 +106,16 @@ defmodule Web.AnalysisView do
     Analyses.get(analysis_id)
   end
 
-  @spec current_position(AnalysisModel.t(), [non_neg_integer()]) ::
-          {:ok, Node.t(), Position.t()} | :not_found
-  def current_position(analysis, path) do
+  @doc """
+  Fetches the position at `path` through `cache`, returning the updated cache.
+  """
+  @spec current_position(AnalysisModel.t(), [non_neg_integer()], position_cache()) ::
+          {:ok, Node.t(), Position.t(), position_cache()} | :not_found
+  def current_position(analysis, path, cache \\ %{}) do
     with %Node{} = node <- AnalysisModel.node_at(analysis, path),
-         {:ok, %Position{} = position} <- PositionStore.get(Node.position_id(node)) do
-      {:ok, node, position}
+         {%Position{} = position, cache} <-
+           fetch_position(Node.position_id(node), cache) do
+      {:ok, node, position, cache}
     else
       _ -> :not_found
     end
@@ -132,24 +156,26 @@ defmodule Web.AnalysisView do
   end
 
   @doc "Builds the paired mainline rows and recursive variation rows used by the move tree."
-  @spec move_list_data(AnalysisModel.t(), String.t()) :: %{
+  @spec move_list_data(AnalysisModel.t(), String.t(), position_cache()) :: %{
           entries: [map()],
           focus_paths: [[non_neg_integer()]],
-          rows: [map()]
+          rows: [map()],
+          cache: position_cache()
         }
-  def move_list_data(%AnalysisModel{} = analysis, locale) do
+  def move_list_data(%AnalysisModel{} = analysis, locale, cache \\ %{}) do
     root = AnalysisModel.root(analysis)
 
-    case position_for(root) do
-      %Position{} = root_position ->
-        tree =
+    case fetch_position(Node.position_id(root), cache) do
+      {%Position{} = root_position, cache} ->
+        {tree, cache} =
           collect_move_tree(
             Node.children(root),
             [],
             root_position,
             analysis,
             root_position.side_to_move,
-            locale
+            locale,
+            cache
           )
 
         rows = mainline_rows(tree, Enum.drop(tree, 1))
@@ -157,11 +183,12 @@ defmodule Web.AnalysisView do
         %{
           entries: flatten_move_tree(tree),
           focus_paths: move_focus_paths(rows),
-          rows: rows
+          rows: rows,
+          cache: prune_cache(cache, root)
         }
 
       _ ->
-        %{entries: [], focus_paths: [], rows: []}
+        %{entries: [], focus_paths: [], rows: [], cache: cache}
     end
   end
 
@@ -211,15 +238,23 @@ defmodule Web.AnalysisView do
   defp mainline_leaf(%Node{children: []}, path), do: path
   defp mainline_leaf(%Node{children: [child | _]}, path), do: mainline_leaf(child, path ++ [0])
 
-  defp collect_move_tree(children, parent_path, parent_position, analysis, root_side, locale) do
+  defp collect_move_tree(
+         children,
+         parent_path,
+         parent_position,
+         analysis,
+         root_side,
+         locale,
+         cache
+       ) do
     children
     |> Enum.with_index()
-    |> Enum.map(fn {node, index} ->
+    |> Enum.map_reduce(cache, fn {node, index}, cache ->
       path = parent_path ++ [index]
       context = AnalysisModel.move_context(analysis, root_side, parent_path)
       transition = Node.transition(node)
       label = transition_label(transition, parent_position, locale)
-      child_position = position_for(node)
+      {child_position, cache} = fetch_position(Node.position_id(node), cache)
 
       entry = %{
         path: path,
@@ -235,21 +270,21 @@ defmodule Web.AnalysisView do
 
       case child_position do
         %Position{} = child_position ->
-          Map.put(
-            entry,
-            :children,
+          {children, cache} =
             collect_move_tree(
               Node.children(node),
               path,
               child_position,
               analysis,
               root_side,
-              locale
+              locale,
+              cache
             )
-          )
+
+          {Map.put(entry, :children, children), cache}
 
         _ ->
-          entry
+          {entry, cache}
       end
     end)
   end
@@ -316,11 +351,32 @@ defmodule Web.AnalysisView do
     [entry.path | nested ++ mainline]
   end
 
-  defp position_for(%Node{} = node) do
-    case PositionStore.get(Node.position_id(node)) do
-      {:ok, %Position{} = position} -> position
-      _ -> nil
+  # Fetches through the cache: a hit avoids the cross-region round trip that
+  # labelling this node would otherwise cost on every board render.
+  defp fetch_position(position_id, cache) do
+    case Map.fetch(cache, position_id) do
+      {:ok, %Position{} = position} ->
+        {position, cache}
+
+      :error ->
+        case PositionStore.get(position_id) do
+          {:ok, %Position{} = position} ->
+            {position, Map.put(cache, position_id, position)}
+
+          _ ->
+            {nil, cache}
+        end
     end
+  end
+
+  # The cache tracks the positions of the analysis currently rendered, so
+  # removed subtrees and other analyses' trees do not linger in the LiveView.
+  defp prune_cache(cache, %Node{} = root) do
+    Map.take(cache, tree_position_ids(root))
+  end
+
+  defp tree_position_ids(%Node{} = node) do
+    [Node.position_id(node) | Enum.flat_map(Node.children(node), &tree_position_ids/1)]
   end
 
   defp transition_label({:move, _move} = transition, parent_position, locale) do

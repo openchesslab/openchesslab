@@ -55,6 +55,8 @@ defmodule Web.RoomLive do
       pending_path: nil,
       current_node: nil,
       position: nil,
+      current_position_id: nil,
+      position_cache: %{},
       last_from: nil,
       last_to: nil,
       insights: nil,
@@ -987,6 +989,8 @@ defmodule Web.RoomLive do
          selected_analysis_id: nil,
          analysis: nil,
          position: nil,
+         current_position_id: nil,
+         position_cache: %{},
          current_node: nil,
          last_from: nil,
          last_to: nil,
@@ -996,38 +1000,27 @@ defmodule Web.RoomLive do
     end
   end
 
+  def handle_info({:analysis_changed, analysis_id, revision}, socket)
+      when is_integer(revision) do
+    cond do
+      analysis_id != socket.assigns.selected_analysis_id ->
+        {:noreply, socket}
+
+      # Our own write (or an older concurrent one): the analysis and positions
+      # are already in hand, so re-fetching would repeat cross-region calls
+      # for nothing and delay every interaction queued behind this LiveView.
+      is_integer(socket.assigns.analysis_revision) and
+          revision <= socket.assigns.analysis_revision ->
+        {:noreply, socket}
+
+      true ->
+        refresh_analysis(socket, analysis_id)
+    end
+  end
+
   def handle_info({:analysis_changed, analysis_id}, socket) do
     if analysis_id == socket.assigns.selected_analysis_id do
-      case AnalysisView.fetch_analysis(analysis_id) do
-        {:ok, analysis, revision} ->
-          path =
-            if socket.assigns.analysis && revision > socket.assigns.analysis_revision do
-              AnalysisView.newly_added_paths(socket.assigns.analysis, analysis)
-              |> case do
-                [] ->
-                  AnalysisModel.reconcile_path(
-                    socket.assigns.analysis,
-                    analysis,
-                    socket.assigns.current_path
-                  )
-
-                paths ->
-                  Enum.max_by(paths, &{length(&1), &1})
-              end
-            else
-              socket.assigns.current_path
-            end
-
-          socket =
-            if path == socket.assigns.current_path,
-              do: socket,
-              else: assign(socket, :annotations, [])
-
-          {:noreply, set_analysis(socket, analysis, revision, path)}
-
-        :not_found ->
-          {:noreply, maybe_load_analysis(socket, analysis_id, socket.assigns.current_path)}
-      end
+      refresh_analysis(socket, analysis_id)
     else
       {:noreply, socket}
     end
@@ -1095,6 +1088,43 @@ defmodule Web.RoomLive do
     )
   end
 
+  # A newer revision (someone else's write) is re-fetched and rendered; the
+  # view jumps to the deepest newly added leaf, or stays on an equivalent
+  # path when the current occurrence still exists. The revision-less clause
+  # covers messages from a mixed-version node during a rolling deploy.
+  defp refresh_analysis(socket, analysis_id) do
+    case AnalysisView.fetch_analysis(analysis_id) do
+      {:ok, analysis, revision} ->
+        path =
+          if socket.assigns.analysis && revision > socket.assigns.analysis_revision do
+            AnalysisView.newly_added_paths(socket.assigns.analysis, analysis)
+            |> case do
+              [] ->
+                AnalysisModel.reconcile_path(
+                  socket.assigns.analysis,
+                  analysis,
+                  socket.assigns.current_path
+                )
+
+              paths ->
+                Enum.max_by(paths, &{length(&1), &1})
+            end
+          else
+            socket.assigns.current_path
+          end
+
+        socket =
+          if path == socket.assigns.current_path,
+            do: socket,
+            else: assign(socket, :annotations, [])
+
+        {:noreply, set_analysis(socket, analysis, revision, path)}
+
+      :not_found ->
+        {:noreply, maybe_load_analysis(socket, analysis_id, socket.assigns.current_path)}
+    end
+  end
+
   defp maybe_load_analysis(socket, nil, _path) do
     assign(socket,
       analysis: nil,
@@ -1102,6 +1132,8 @@ defmodule Web.RoomLive do
       current_path: [],
       current_node: nil,
       position: nil,
+      current_position_id: nil,
+      position_cache: %{},
       last_from: nil,
       last_to: nil,
       insights: nil,
@@ -1135,9 +1167,11 @@ defmodule Web.RoomLive do
   defp last_move_squares(_node), do: {nil, nil}
 
   defp set_analysis(socket, analysis, revision, path) do
-    case AnalysisView.current_position(analysis, path) do
-      {:ok, node, position} ->
-        move_list = AnalysisView.move_list_data(analysis, socket.assigns.locale)
+    cache = socket.assigns.position_cache
+
+    case AnalysisView.current_position(analysis, path, cache) do
+      {:ok, node, position, cache} ->
+        move_list = AnalysisView.move_list_data(analysis, socket.assigns.locale, cache)
         mainline_length = length(AnalysisView.mainline_path(AnalysisModel.root(analysis)))
         {last_from, last_to} = last_move_squares(node)
 
@@ -1149,7 +1183,9 @@ defmodule Web.RoomLive do
           current_path: path,
           mainline_length: mainline_length,
           current_node: node,
+          current_position_id: Node.position_id(node),
           position: position,
+          position_cache: move_list.cache,
           last_from: last_from,
           last_to: last_to,
           insights: AnalysisView.insights(position),
@@ -1173,6 +1209,7 @@ defmodule Web.RoomLive do
           analysis_revision: revision,
           current_path: path,
           current_node: nil,
+          current_position_id: nil,
           position: nil,
           last_from: nil,
           last_to: nil
@@ -1261,9 +1298,31 @@ defmodule Web.RoomLive do
 
   defp update_analysis(socket, analysis, revision, path) do
     socket
-    |> refresh_room()
+    |> patch_analysis_revision(analysis, revision)
     |> assign(:selected_analysis_id, analysis.id)
     |> set_analysis(analysis, revision, path)
+  end
+
+  # A plain mutation (move, comment, NAG, edit, promote, remove) only bumps the
+  # revision of this one analysis: the sidebar entry is rebuilt from the
+  # analysis already in hand instead of re-fetching the room and every
+  # analysis in it, which is a cross-region round trip per analysis when the
+  # room lives in another region.
+  defp patch_analysis_revision(socket, analysis, revision) do
+    analyses =
+      Enum.map(socket.assigns.analyses, fn
+        %{id: id} = entry when id == analysis.id ->
+          %{
+            entry
+            | revision: revision,
+              detail: AnalysisView.analysis_detail(analysis, revision, socket.assigns.locale)
+          }
+
+        entry ->
+          entry
+      end)
+
+    assign(socket, :analyses, analyses)
   end
 
   defp select_path(socket, path) do
@@ -1360,6 +1419,7 @@ defmodule Web.RoomLive do
             {:noreply,
              socket
              |> assign(annotations: [], pending_promotion: nil)
+             |> seed_result_position(analysis, path, move)
              |> update_analysis(analysis, revision, path)
              |> assign(:cursor_square, to)}
 
@@ -1371,6 +1431,35 @@ defmodule Web.RoomLive do
 
             {:noreply, notify(socket, message, :error)}
         end
+    end
+  end
+
+  # The position resulting from a move we just validated against is
+  # deterministic, so it is seeded into the LiveView's position cache instead
+  # of re-fetching it from the (possibly remote) position store on the render
+  # that follows. Guarded by the source node's position id: if a concurrent
+  # promote/remove restructured the tree so our rendered position no longer
+  # backs `current_path`, fall back to fetching.
+  defp seed_result_position(socket, analysis, resulting_path, move) do
+    with {:ok, rendered_id} <- current_position_id(socket),
+         %Node{} = source <- AnalysisModel.node_at(analysis, socket.assigns.current_path),
+         true <- Node.position_id(source) == rendered_id,
+         %Node{} = node <- AnalysisModel.node_at(analysis, resulting_path),
+         {:ok, next_position} <- Position.apply_move(socket.assigns.position, move) do
+      assign(
+        socket,
+        position_cache:
+          Map.put(socket.assigns.position_cache, Node.position_id(node), next_position)
+      )
+    else
+      _ -> socket
+    end
+  end
+
+  defp current_position_id(socket) do
+    case socket.assigns.current_position_id do
+      nil -> :error
+      id -> {:ok, id}
     end
   end
 
@@ -1766,12 +1855,14 @@ defmodule Web.RoomLive do
     socket =
       case socket.assigns.analysis do
         %AnalysisModel{} = analysis ->
-          move_list = AnalysisView.move_list_data(analysis, locale)
+          move_list =
+            AnalysisView.move_list_data(analysis, locale, socket.assigns.position_cache)
 
           assign(socket,
             move_entries: move_list.entries,
             move_rows: move_list.rows,
-            move_focus_paths: move_list.focus_paths
+            move_focus_paths: move_list.focus_paths,
+            position_cache: move_list.cache
           )
 
         _ ->

@@ -706,7 +706,7 @@ defmodule Analysis.AnalysesTest do
     assert {:ok, _analysis, 2} =
              Analyses.set_comment(analysis_id, [], "Comment")
 
-    assert_receive {:analysis_changed, ^analysis_id}
+    assert_receive {:analysis_changed, ^analysis_id, _revision}
   end
 
   test "does not publish an analysis change when setting a comment fails", %{
@@ -816,7 +816,7 @@ defmodule Analysis.AnalysesTest do
     assert {:ok, _analysis, 2, [0]} =
              Analyses.promote(analysis_id, [1])
 
-    assert_receive {:analysis_changed, ^analysis_id}
+    assert_receive {:analysis_changed, ^analysis_id, _revision}
   end
 
   test "removes a variation and persists the updated analysis", %{
@@ -910,7 +910,7 @@ defmodule Analysis.AnalysesTest do
     assert {:ok, _analysis, 2, []} =
              Analyses.remove(analysis_id, [1])
 
-    assert_receive {:analysis_changed, ^analysis_id}
+    assert_receive {:analysis_changed, ^analysis_id, _revision}
   end
 
   test "edits a position and persists the updated analysis", %{
@@ -1071,7 +1071,7 @@ defmodule Analysis.AnalysesTest do
     assert {:ok, _analysis, 2, [0]} =
              Analyses.edit(analysis_id, [], draft)
 
-    assert_receive {:analysis_changed, ^analysis_id}
+    assert_receive {:analysis_changed, ^analysis_id, _revision}
   end
 
   test "lists stored analyses", %{analysis_id: analysis_id} do

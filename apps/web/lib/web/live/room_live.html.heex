@@ -313,6 +313,10 @@
                         do: [],
                         else: AnalysisView.checked_king_squares(@position)
                     }
+                    play={
+                      @ui_modal != "setup" and not @edit_mode and is_nil(@draft_position) and
+                        is_nil(@armed_piece) and not @remove_armed
+                    }
                   />
                 <% else %>
                   <p class="text-sm text-muted">

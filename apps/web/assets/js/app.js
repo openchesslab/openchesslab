@@ -6,12 +6,13 @@ const COLORS = ["yellow", "blue", "red", "orange", "purple"];
 const Board = {
   mounted() {
     this.drag = null;
+    this.dragGhost = null;
     this.drawing = null;
     this.arrowStart = null;
     this.suppressClick = false;
-    this.pendingMove = null;
+    this.pendingMoves = [];
+    this.specSelect = null;
     this.pendingShapes = [];
-    this.pendingTimer = null;
     this.longPress = null;
 
     // Mobile app shell: the board fills the space left by the chrome, so it
@@ -139,12 +140,11 @@ const Board = {
         window.setTimeout(() => {
           this.suppressClick = false;
         }, 0);
-        this.beginPendingMove(from, square);
-        this.pushEvent("board-move", { from, to: square }, () =>
-          this.clearPendingMove(),
-        );
+        this.playMove("board-move", { from, to: square }, from, square, {
+          reuseDragGhost: true,
+        });
       } else {
-        this.clearDragPreview();
+        this.clearDragPreview(from);
       }
     };
 
@@ -157,11 +157,11 @@ const Board = {
 
     this.pointerCancel = () => {
       this.cancelLongPress();
+      this.clearDragPreview(this.drag?.from);
       this.drag = null;
       this.drawing = null;
       this.arrowStart = null;
       this.removeDrawingPreview();
-      this.clearDragPreview();
       delete this.el.dataset.dragging;
     };
 
@@ -171,6 +171,8 @@ const Board = {
           this.cancelArrow();
           return;
         }
+        this.specSelect = null;
+        this.markSpecSelect(null);
         this.clearPendingShapes();
         this.pushEvent("clear-annotations", {});
         return;
@@ -243,25 +245,37 @@ const Board = {
       }
     };
 
-    // Click-to-move: hold the piece on the target as soon as a legal target is
-    // clicked, so a slow (cross-region) round trip doesn't show it jump back.
-    this.clickToMove = (event) => {
-      if (this.pendingMove) return;
+    // Click-to-move: the source click is remembered locally (with the
+    // speculative side to move), so the target click can play optimistically
+    // while the previous move's cross-region round trip is still in flight.
+    // The server still selects and validates in event order; the optimistic
+    // hold rolls back when the server does not play the move.
+    this.squareClick = (event) => {
+      if (this.suppressClick) return;
+      if (!this.playMode()) return;
       const squareEl = event.target.closest("[data-square]");
-      if (!squareEl) return;
-      // `aria-pressed` is rendered as an empty boolean attribute when selected
-      const selected = this.el.querySelector("[data-square][aria-pressed]");
-      if (!selected) return;
-      const from = Number(selected.dataset.square);
-      const to = Number(squareEl.dataset.square);
-      if (to === from) return;
-      const legalTarget =
-        squareEl.querySelector('[class*="board-legal"]') !== null ||
-        squareEl.classList.contains("ring-4");
-      if (!legalTarget) return;
-      this.beginPendingMove(from, to);
+      if (!squareEl || !this.el.contains(squareEl)) return;
+      const square = Number(squareEl.dataset.square);
+
+      if (this.specSelect !== null && this.specSelect !== square) {
+        // Target click: the hook owns the event so the square's own
+        // phx-click does not double-send the same board-square event.
+        event.stopPropagation();
+        const from = this.specSelect;
+        this.specSelect = null;
+        this.markSpecSelect(null);
+        this.playMove("board-square", { square: String(square) }, from, square);
+        return;
+      }
+
+      // Source click (or deselect): remember it locally. The square's
+      // phx-click still fires so the server selects authoritatively and
+      // renders the legal targets.
+      this.specSelect =
+        square === this.specSelect ? null : this.selectableSpecPiece(square);
+      this.markSpecSelect(this.specSelect);
     };
-    this.el.addEventListener("click", this.clickToMove, true);
+    this.el.addEventListener("click", this.squareClick, true);
 
     this.clearPending = () => this.clearPendingShapes();
     document.addEventListener("openchesslab:clear-annotations", this.clearPending);
@@ -283,7 +297,8 @@ const Board = {
     if (this.fitBoard) window.removeEventListener("resize", this.fitBoard);
     document.removeEventListener("openchesslab:clear-annotations", this.clearPending);
     this.clearPendingShapes();
-    this.el.removeEventListener("click", this.clickToMove, true);
+    this.clearPendingMoves();
+    this.el.removeEventListener("click", this.squareClick, true);
     this.el.removeEventListener("pointerdown", this.pointerDown);
     this.el.removeEventListener("pointermove", this.pointerMove);
     this.el.removeEventListener("pointerup", this.pointerUp);
@@ -306,7 +321,8 @@ const Board = {
       this.clearArrowState();
     }
 
-    this.confirmPendingMove();
+    this.confirmPendingMoves();
+    this.reconcileSpecSelection();
     this.reconcilePendingShapes();
     this.renderKeyboardArrowPreview();
   },
@@ -539,8 +555,43 @@ const Board = {
     if (!grid || !source || !piece) return;
 
     source.dataset.dragSource = "true";
-    grid.querySelector("[data-drag-ghost]")?.remove();
+    this.clearDragPreview(from);
 
+    this.dragGhost = this.ghostFor(piece);
+    grid.append(this.dragGhost);
+
+    this.renderDragPreview(clientX, clientY);
+  },
+
+  renderDragPreview(clientX, clientY) {
+    const grid = this.el.querySelector("[data-board-grid]");
+    const ghost = this.dragGhost;
+    if (!grid || !ghost) return;
+    const rect = grid.getBoundingClientRect();
+    ghost.style.left = `${clientX - rect.left}px`;
+    ghost.style.top = `${clientY - rect.top}px`;
+  },
+
+  // Ends the pointer-following preview of an active drag. Never touches a
+  // pending move's hold: those survive until the server confirms (the patch
+  // shows the piece on the target) or rejects (the reply settles) the move.
+  clearDragPreview(from) {
+    if (this.dragGhost) {
+      this.dragGhost.remove();
+      this.dragGhost = null;
+    }
+    if (
+      from !== undefined &&
+      from !== null &&
+      !this.pendingMoves.some((move) => move.from === from)
+    ) {
+      this.el
+        .querySelector(`[data-square="${from}"]`)
+        ?.removeAttribute("data-drag-source");
+    }
+  },
+
+  ghostFor(piece) {
     const ghost = document.createElement("span");
     ghost.dataset.dragGhost = "true";
     Object.assign(ghost.style, {
@@ -553,76 +604,58 @@ const Board = {
       transform: "translate(-50%, -50%)",
       zIndex: "40",
     });
-    const pieceGhost = piece.cloneNode(true);
-    pieceGhost.setAttribute("aria-hidden", "true");
-    ghost.append(pieceGhost);
-    grid.append(ghost);
-
-    this.renderDragPreview(clientX, clientY);
+    const clone = piece.cloneNode(true);
+    clone.setAttribute("aria-hidden", "true");
+    ghost.append(clone);
+    return ghost;
   },
 
-  renderDragPreview(clientX, clientY) {
-    const grid = this.el.querySelector("[data-board-grid]");
-    const ghost = grid?.querySelector("[data-drag-ghost]");
-    if (!grid || !ghost) return;
-    const rect = grid.getBoundingClientRect();
-    ghost.style.left = `${clientX - rect.left}px`;
-    ghost.style.top = `${clientY - rect.top}px`;
+  // Optimistically holds the piece on the target and pushes the move. Moves
+  // can pile up: each holds its own ghost (with the piece it moved), hides
+  // only its own source square, and settles independently. The LiveView
+  // processes the pushed events in order, so every move is validated against
+  // the moves before it; the client never decides legality.
+  playMove(eventName, payload, from, to, opts = {}) {
+    const move = this.beginPendingMove(from, to, opts);
+    if (!move) return;
+    this.specSelect = null;
+    this.markSpecSelect(null);
+    this.pushEvent(eventName, payload, () => this.settlePendingMove(move.key));
   },
 
-  clearDragPreview() {
-    window.clearTimeout(this.pendingTimer);
-    this.pendingTimer = null;
-    this.el.querySelector("[data-drag-ghost]")?.remove();
-    this.el
-      .querySelector("[data-drag-source]")
-      ?.removeAttribute("data-drag-source");
-  },
-
-  // Keep the piece visually on the target square until the server confirms the
-  // move. Cross-region round trips can take seconds, so the hold is only
-  // cleared by the confirmation (or a long safety timeout) — never by a short
-  // timer that made the piece snap back and forth.
-  beginPendingMove(from, to) {
-    if (!this.ensureGhost(from, to)) return;
-
-    this.pendingMove = { from, to };
-    window.clearTimeout(this.pendingTimer);
-    this.pendingTimer = window.setTimeout(() => this.clearPendingMove(), 12000);
-  },
-
-  ensureGhost(from, to) {
+  beginPendingMove(from, to, opts = {}) {
     const grid = this.el.querySelector("[data-board-grid]");
     const source = this.el.querySelector(`[data-square="${from}"]`);
     const target = this.el.querySelector(`[data-square="${to}"]`);
-    if (!grid || !source || !target) return false;
+    if (!grid || !source || !target) return null;
 
-    let ghost = grid.querySelector("[data-drag-ghost]");
-    if (!ghost) {
+    const key = `${from}-${to}`;
+    if (this.pendingMoves.some((move) => move.key === key)) return null;
+
+    let ghost;
+    if (opts.reuseDragGhost && this.dragGhost) {
+      ghost = this.dragGhost;
+    } else {
+      this.dragGhost?.remove();
       const piece = source.querySelector("[data-piece]");
-      if (!piece) return false;
-      ghost = document.createElement("span");
-      ghost.dataset.dragGhost = "true";
-      Object.assign(ghost.style, {
-        position: "absolute",
-        width: "12.5%",
-        height: "12.5%",
-        display: "grid",
-        placeItems: "center",
-        pointerEvents: "none",
-        transform: "translate(-50%, -50%)",
-        zIndex: "40",
-      });
-      const clone = piece.cloneNode(true);
-      clone.setAttribute("aria-hidden", "true");
-      ghost.append(clone);
-      grid.append(ghost);
+      if (!piece) return null;
+      ghost = this.ghostFor(piece);
     }
+    this.dragGhost = null;
+
+    ghost.dataset.pendingMove = key;
+    ghost.dataset.dragPending = "true";
+    grid.append(ghost);
 
     source.dataset.dragSource = "true";
     this.snapGhost(ghost, grid, target);
-    ghost.dataset.dragPending = "true";
-    return true;
+
+    const move = { key, from, to, ghost, timer: null, settled: false };
+    // Safety net: a reply that never arrives (dropped connection) must not
+    // leave a speculative piece on the board forever.
+    move.timer = window.setTimeout(() => this.settlePendingMove(key), 12000);
+    this.pendingMoves.push(move);
+    return move;
   },
 
   snapGhost(ghost, grid, target) {
@@ -632,24 +665,130 @@ const Board = {
     ghost.style.top = `${targetRect.top - gridRect.top + targetRect.height / 2}px`;
   },
 
-  confirmPendingMove() {
-    if (!this.pendingMove) return;
-    const { from, to } = this.pendingMove;
-    const source = this.el.querySelector(`[data-square="${from}"]`);
-    const target = this.el.querySelector(`[data-square="${to}"]`);
+  // The reply to this move's push arrived (or the safety net fired). The
+  // diff was applied first, but a later in-flight push still holds the board
+  // locked (hook pushes lock their element for the event's duration), so the
+  // board may not reflect this move yet. While any later move is still
+  // awaiting its reply, the deferred patches — and this move's fate — resolve
+  // when the last reply unlocks the board. Only once every reply has arrived
+  // does an unreflected move mean it was not played (rejected, conflict, or
+  // a promotion choice is showing), and the speculative visuals roll back to
+  // the server's board.
+  settlePendingMove(key) {
+    const move = this.pendingMoves.find((pending) => pending.key === key);
+    if (move) move.settled = true;
 
-    if (target?.querySelector("[data-piece]") && !source?.querySelector("[data-piece]")) {
-      this.clearPendingMove();
+    this.confirmPendingMoves();
+
+    if (this.pendingMoves.some((pending) => !pending.settled)) return;
+
+    this.clearPendingMoves();
+  },
+
+  removePendingMove(move) {
+    this.pendingMoves = this.pendingMoves.filter((pending) => pending !== move);
+    window.clearTimeout(move.timer);
+    move.ghost.remove();
+    this.unmarkSource(move.from);
+  },
+
+  clearPendingMoves() {
+    for (const move of [...this.pendingMoves]) this.removePendingMove(move);
+  },
+
+  // Only this move's source square: another pending move may still be
+  // holding its piece hidden on the same square.
+  unmarkSource(from) {
+    if (this.pendingMoves.some((move) => move.from === from)) return;
+    this.el
+      .querySelector(`[data-square="${from}"]`)
+      ?.removeAttribute("data-drag-source");
+  },
+
+  // Reconciles the optimistic holds with the server-rendered board after a
+  // patch: a pending move whose target now shows a piece while its source is
+  // empty has become authoritative, so its optimistic marks can go. The
+  // others are re-applied, because patches re-render squares (dropping the
+  // JS-set ghost and source marker) and can resize the board.
+  confirmPendingMoves() {
+    const grid = this.el.querySelector("[data-board-grid]");
+
+    for (const move of [...this.pendingMoves]) {
+      const source = this.el.querySelector(`[data-square="${move.from}"]`);
+      const target = this.el.querySelector(`[data-square="${move.to}"]`);
+
+      if (
+        target?.querySelector("[data-piece]") &&
+        !source?.querySelector("[data-piece]")
+      ) {
+        this.removePendingMove(move);
+        continue;
+      }
+
+      if (source) source.dataset.dragSource = "true";
+      if (grid && target) {
+        if (!move.ghost.isConnected) grid.append(move.ghost);
+        this.snapGhost(move.ghost, grid, target);
+      }
+    }
+  },
+
+  playMode() {
+    // The server renders data-play only while square clicks play moves;
+    // the position editor and the setup board keep their native flows.
+    return this.el.dataset.play !== undefined;
+  },
+
+  // The side to move including unconfirmed moves: every pending move flips
+  // it. Recomputed from the server-rendered attribute so it self-corrects.
+  specSideToMove() {
+    const side = this.el.dataset.sideToMove;
+    if (side !== "white" && side !== "black") return null;
+    if (this.pendingMoves.length % 2 === 0) return side;
+    return side === "white" ? "black" : "white";
+  },
+
+  selectableSpecPiece(square) {
+    const squareEl = this.el.querySelector(`[data-square="${square}"]`);
+    const piece = squareEl?.querySelector("[data-piece]");
+    if (!piece) return null;
+    const side = this.specSideToMove();
+    if (!side || piece.dataset.pieceColor === side) return square;
+    return null;
+  },
+
+  markSpecSelect(square) {
+    this.el
+      .querySelectorAll("[data-spec-selected]")
+      .forEach((el) => delete el.dataset.specSelected);
+    if (square !== null && square !== undefined) {
+      this.el
+        .querySelector(`[data-square="${square}"]`)
+        ?.setAttribute("data-spec-selected", "true");
+    }
+  },
+
+  // The server's own selection patch is authoritative: adopt it (a fast
+  // target click then uses the server-confirmed source). Without one, keep
+  // the local selection only while its piece is still on the board, and
+  // re-apply the marker (patches re-render squares and drop JS-set attrs).
+  reconcileSpecSelection() {
+    const serverSelected = this.el.querySelector("[data-square][aria-pressed]");
+    if (serverSelected) {
+      this.specSelect = Number(serverSelected.dataset.square);
+      // the server renders its own selection highlight
+      this.markSpecSelect(null);
       return;
     }
 
-    // Patches can drop the ghost; put it back so the piece stays on the target.
-    this.ensureGhost(from, to);
-  },
+    if (
+      this.specSelect !== null &&
+      !this.el.querySelector(`[data-square="${this.specSelect}"] [data-piece]`)
+    ) {
+      this.specSelect = null;
+    }
 
-  clearPendingMove() {
-    this.pendingMove = null;
-    this.clearDragPreview();
+    this.markSpecSelect(this.specSelect);
   },
 
   // Annotations: keep the local shape until the server renders it, so arrows

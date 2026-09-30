@@ -21,11 +21,11 @@ defmodule Analysis.AnalysisEvents do
     :ok = :pg.leave(@scope, group(analysis_id), self())
   end
 
-  @spec publish_changed(Analysis.Analysis.id()) :: :ok
-  def publish_changed(analysis_id) do
+  @spec publish_changed(Analysis.Analysis.id(), pos_integer()) :: :ok
+  def publish_changed(analysis_id, revision) do
     @scope
     |> :pg.get_members(group(analysis_id))
-    |> Enum.each(&send(&1, {:analysis_changed, analysis_id}))
+    |> Enum.each(&send(&1, {:analysis_changed, analysis_id, revision}))
 
     :ok
   end

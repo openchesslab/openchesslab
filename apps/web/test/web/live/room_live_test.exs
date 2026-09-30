@@ -34,6 +34,94 @@ defmodule Web.RoomLiveTest do
     assert {:ok, _analysis, _revision} = Analyses.get(analysis_id)
   end
 
+  test "playing moves makes only the required cross-region calls", %{
+    conn: conn,
+    code: code
+  } do
+    # Room and analysis processes can live in another Fly region than the
+    # LiveView, so every store call is a cross-region round trip. Count them
+    # through forwarding proxies and assert a move costs exactly one round
+    # trip per store (the mutation itself) and nothing else: no room/analysis
+    # re-fetch for the sidebar, no position re-fetch for the board (cache), no
+    # self-triggered analysis_changed refresh (the revision is already in
+    # hand).
+    start_supervised!(Web.CrossRegionCounters)
+    start_supervised!(Web.CountingPositionStore)
+
+    Application.put_env(:analysis, Analysis.PositionStore, server: Web.CountingPositionStore)
+
+    Application.put_env(:analysis, Analysis.AnalysisStore, adapter: Web.CountingAnalysisStore)
+
+    on_exit(fn ->
+      Application.put_env(:analysis, Analysis.PositionStore, [])
+      Application.put_env(:analysis, Analysis.AnalysisStore, [])
+    end)
+
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    render_click(view, "create-analysis", %{})
+    analysis_id = room_analysis_id!(code)
+
+    Web.CrossRegionCounters.reset()
+
+    view
+    |> element("#chess-board")
+    |> render_hook("board-move", %{"from" => 12, "to" => 28})
+
+    # render/1 is processed after the self-published analysis_changed message
+    # (mailbox order), so a regression to the old full re-fetch shows up here.
+    assert render(view) =~ "rev 2"
+
+    assert %{
+             "analysis:get" => 1,
+             "analysis:update" => 1,
+             "position:get" => 1,
+             "position:append" => 1
+           } = Web.CrossRegionCounters.counts()
+
+    Web.CrossRegionCounters.reset()
+
+    view
+    |> element("#chess-board")
+    |> render_hook("board-move", %{"from" => 52, "to" => 36})
+
+    assert render(view) =~ "rev 3"
+
+    # Same shape for the second move: the move-list positions and the board
+    # render come from the position cache, the sidebar revision is patched
+    # locally, and the same-revision analysis_changed is skipped.
+    assert %{
+             "analysis:get" => 1,
+             "analysis:update" => 1,
+             "position:get" => 1,
+             "position:append" => 1
+           } = Web.CrossRegionCounters.counts()
+
+    assert {:ok, analysis, 3} = Analyses.get(analysis_id)
+    assert length(AnalysisView.move_entries(analysis, "en")) == 2
+  end
+
+  test "an analysis_changed for a newer revision refreshes the view", %{
+    conn: conn,
+    code: code
+  } do
+    {:ok, analysis, _revision} = Analyses.create("newer-revision")
+    :ok = Rooms.add_analysis(code, analysis.id)
+
+    {:ok, view, _html} = live(conn, "/rooms/#{code}?a=newer-revision")
+
+    # A remote write (another LiveView, another region): the published
+    # revision is newer than ours, so the change must be fetched and rendered.
+    assert {:ok, _analysis, _revision, _path} =
+             Analyses.play(analysis.id, [], Move.new(12, 28))
+
+    send(view.pid, {:analysis_changed, analysis.id, 2})
+    _ = :sys.get_state(view.pid)
+
+    html = render(view)
+    assert html =~ "occupied by white pawn e4"
+    assert html =~ "1/1"
+  end
+
   test "a completed board drag is validated and persisted as a move", %{conn: conn, code: code} do
     {:ok, view, _html} = live(conn, "/rooms/#{code}")
     _html = render_click(view, "create-analysis", %{})
@@ -128,6 +216,38 @@ defmodule Web.RoomLiveTest do
              Analyses.get(analysis_id)
 
     assert Node.children(AnalysisModel.root(analysis)) == []
+  end
+
+  # The Board hook drives optimistic moves from these board attributes: the
+  # play-mode flag (server routes square clicks to move playing only when
+  # this is set), the side to move and the piece colours. Guards the
+  # client/server contract the rapid-move support depends on.
+  test "the play board renders the optimistic-move contract attributes", %{
+    conn: conn,
+    code: code
+  } do
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    html = render_click(view, "create-analysis", %{})
+
+    board =
+      ~r/<div[^>]*id="chess-board"[^>]*/
+      |> Regex.run(html)
+      |> List.first()
+
+    assert board =~ ~s(data-play="")
+    assert board =~ ~s(data-side-to-move="white")
+    assert html =~ ~s(data-piece-color="white")
+
+    # the setup board keeps its native (non-play) flow
+    html = render_click(view, "open-setup", %{})
+    setup_board = ~r/<div[^>]*id="setup-board"[^>]*/ |> Regex.run(html) |> List.first()
+    refute setup_board =~ "data-play"
+
+    # the editor routes square clicks to editing, not to move playing
+    render_click(view, "close-modal", %{})
+    render_click(view, "toggle-position-editor", %{})
+    html = render_click(view, "arm-piece", %{"piece" => "white_knight"})
+    refute html =~ ~s(data-play="")
   end
 
   test "click-selecting a piece and target square plays a legal move", %{conn: conn, code: code} do

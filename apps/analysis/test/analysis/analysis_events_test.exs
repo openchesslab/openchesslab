@@ -40,7 +40,15 @@ defmodule Analysis.AnalysisEventsTest do
     assert {:ok, _analysis, 2, [0]} =
              Analyses.play(analysis_id, [], move("e2", "e4"))
 
-    assert_receive {:analysis_changed, ^analysis_id}
+    assert_receive {:analysis_changed, ^analysis_id, _revision}
+  end
+
+  test "publishes the revision with the change", %{analysis_id: analysis_id} do
+    assert :ok = AnalysisEvents.subscribe(analysis_id)
+
+    assert :ok = AnalysisEvents.publish_changed(analysis_id, 7)
+
+    assert_receive {:analysis_changed, ^analysis_id, 7}
   end
 
   test "does not publish an event when the move is illegal", %{
@@ -53,7 +61,7 @@ defmodule Analysis.AnalysisEventsTest do
     assert {:error, :illegal_move} =
              Analyses.play(analysis_id, [], move("e2", "e5"))
 
-    refute_receive {:analysis_changed, ^analysis_id}
+    refute_receive {:analysis_changed, ^analysis_id, _}
   end
 
   test "does not publish an event when the analysis does not exist", %{
@@ -64,7 +72,7 @@ defmodule Analysis.AnalysisEventsTest do
     assert {:error, :analysis_not_found} =
              Analyses.play(analysis_id, [], move("e2", "e4"))
 
-    refute_receive {:analysis_changed, ^analysis_id}
+    refute_receive {:analysis_changed, ^analysis_id, _}
   end
 
   test "events are scoped to the analysis", %{analysis_id: analysis_id} do
@@ -78,7 +86,7 @@ defmodule Analysis.AnalysisEventsTest do
     assert {:ok, _analysis, 2, [0]} =
              Analyses.play(other_analysis_id, [], move("e2", "e4"))
 
-    refute_receive {:analysis_changed, ^analysis_id}
-    refute_receive {:analysis_changed, ^other_analysis_id}
+    refute_receive {:analysis_changed, ^analysis_id, _}
+    refute_receive {:analysis_changed, ^other_analysis_id, _}
   end
 end
