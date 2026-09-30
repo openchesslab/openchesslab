@@ -22,7 +22,9 @@ defmodule Analysis.PositionStore do
   @registry Analysis.PositionStoreRegistry
   @registry_key :position_store
 
-  @opaque query_cursor :: term()
+  @opaque query_cursor ::
+            reference()
+            | Analysis.PositionRepository.Postgres.Cursor.t()
 
   @type query_page ::
           {:ok, [PositionDB.position_id()], :done | query_cursor()}
