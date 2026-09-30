@@ -25,7 +25,9 @@ defmodule PositionDb.MixProject do
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
-    []
+    [
+      {:benchee, "~> 1.5", only: :dev}
+    ]
   end
 
   defp elixirc_paths(:test), do: ["lib", "test"]
