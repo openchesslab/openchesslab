@@ -60,6 +60,19 @@ config :localize,
 # Phoenix LiveView needs a registered media type for PGN uploads.
 config :mime, :types, %{"application/x-chess-pgn" => ["pgn"]}
 
+config :database,
+  ecto_repos: [OpenChessLab.Repo],
+  start_repo: false
+
+config :database, OpenChessLab.Repo,
+  migration_primary_key: [
+    name: :id,
+    type: :bigserial
+  ],
+  migration_foreign_key: [
+    type: :bigint
+  ]
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"
