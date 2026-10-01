@@ -4,12 +4,9 @@ defmodule Analysis.AnalysesTest do
   alias Analysis.Analyses
   alias Analysis.Analysis, as: AnalysisModel
   alias Analysis.GameContent
-  alias Analysis.GameFingerprint
   alias Analysis.GameRecord
   alias Analysis.GameRecords
-  alias Analysis.GameRecordStore
   alias Analysis.GameStart
-  alias Analysis.GameStore
   alias Analysis.Node
   alias Analysis.PositionStore
   alias Analysis.Transition
@@ -393,115 +390,6 @@ defmodule Analysis.AnalysesTest do
                "missing-record"
              ) ==
                {:error, :game_record_not_found}
-
-      assert Analyses.get(analysis_id) ==
-               :not_found
-    end
-
-    test "rejects inconsistent canonical game occurrences", %{
-      analysis_id: analysis_id
-    } do
-      initial_position_id =
-        unique_position_id()
-
-      content =
-        GameContent.new(
-          initial_position_id,
-          [
-            move(
-              "e2",
-              "e4"
-            ),
-            move(
-              "e7",
-              "e5"
-            )
-          ]
-        )
-
-      {:ok, fingerprint} =
-        GameFingerprint.for_content(content)
-
-      {:ok, game_id} =
-        GameStore.put(
-          fingerprint,
-          content,
-          [
-            initial_position_id
-          ]
-        )
-
-      record_id =
-        "record-#{analysis_id}"
-
-      record =
-        GameRecord.new(
-          record_id,
-          game_id
-        )
-
-      assert :ok =
-               GameRecordStore.insert(record)
-
-      assert Analyses.create_from_game_record(
-               analysis_id,
-               record_id
-             ) ==
-               {:error,
-                {
-                  :game_store,
-                  :invalid_occurrences
-                }}
-
-      assert Analyses.get(analysis_id) ==
-               :not_found
-    end
-
-    test "rejects canonical occurrences with the wrong initial position", %{
-      analysis_id: analysis_id
-    } do
-      initial_position_id =
-        unique_position_id()
-
-      wrong_position_id =
-        unique_position_id()
-
-      content =
-        GameContent.new(initial_position_id)
-
-      {:ok, fingerprint} =
-        GameFingerprint.for_content(content)
-
-      {:ok, game_id} =
-        GameStore.put(
-          fingerprint,
-          content,
-          [
-            wrong_position_id
-          ]
-        )
-
-      record_id =
-        "record-#{analysis_id}"
-
-      record =
-        GameRecord.new(
-          record_id,
-          game_id
-        )
-
-      assert :ok =
-               GameRecordStore.insert(record)
-
-      assert Analyses.create_from_game_record(
-               analysis_id,
-               record_id
-             ) ==
-               {:error,
-                {
-                  :game_store,
-                  :invalid_occurrences
-                }}
 
       assert Analyses.get(analysis_id) ==
                :not_found
@@ -1263,13 +1151,5 @@ defmodule Analysis.AnalysesTest do
       :configured_analysis_store,
       ^analysis
     }
-  end
-
-  defp unique_position_id do
-    10_000_000_000 +
-      System.unique_integer([
-        :positive,
-        :monotonic
-      ])
   end
 end

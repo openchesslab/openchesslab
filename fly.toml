@@ -14,19 +14,14 @@ primary_region = 'ams'
   PHX_SERVER = 'true'
   PHX_HOST = 'openchesslab.com'
   DNS_CLUSTER_QUERY = 'openchesslab.internal'
-  GAME_STORE_OWNER = 'true'
   GAME_RECORD_STORE_OWNER = 'true'
   ANALYSIS_STORE_OWNER = 'true'
 
-  GAME_STORE_DIRECTORY = '/data/game-db'
   ANALYSIS_STORE_PATH = '/data/analysis-store.dets'
 
-  GAME_STORE_CANONICAL_BUCKET_COUNT = '65536'
-  GAME_STORE_POSITION_BUCKET_COUNT = '65536'
-
 [processes]
-  app = "env GAME_STORE_OWNER=true GAME_RECORD_STORE_OWNER=true ANALYSIS_STORE_OWNER=true /app/bin/openchesslab start"
-  replica = "env GAME_STORE_OWNER=false GAME_RECORD_STORE_OWNER=false ANALYSIS_STORE_OWNER=false /app/bin/openchesslab start"
+  app = "env GAME_RECORD_STORE_OWNER=true ANALYSIS_STORE_OWNER=true /app/bin/openchesslab start"
+  replica = "env GAME_RECORD_STORE_OWNER=false ANALYSIS_STORE_OWNER=false /app/bin/openchesslab start"
 
 [http_service]
   internal_port = 8080
@@ -56,7 +51,7 @@ primary_region = 'ams'
   cpus = 1
   memory_mb = 1024
 
-# The existing volume is still required by the legacy GameDB and AnalysisStore.
+# The existing volume is still required by AnalysisStore.
 [[mounts]]
   source = "position_db"
   destination = "/data"

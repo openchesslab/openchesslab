@@ -13,10 +13,8 @@ defmodule Analysis.GameContentCodec do
       * promotion code
 
   The same canonical encoding is used as input for game fingerprints
-  and can later be stored directly by durable GameDB storage.
+  and is stored directly in PostgreSQL by the game repository.
   """
-
-  @behaviour GameDB.RecordCodec
 
   alias Analysis.GameContent
   alias Chess.Move
@@ -29,13 +27,11 @@ defmodule Analysis.GameContentCodec do
 
   @type encoded :: binary()
 
-  @impl GameDB.RecordCodec
   @spec format_id() :: binary()
   def format_id do
     @format_id
   end
 
-  @impl true
   @spec encode(term()) ::
           {:ok, encoded()}
           | {:error, term()}
@@ -64,7 +60,6 @@ defmodule Analysis.GameContentCodec do
     {:error, :invalid_game_content}
   end
 
-  @impl true
   @spec decode(binary()) ::
           {:ok, GameContent.t()}
           | {:error, term()}

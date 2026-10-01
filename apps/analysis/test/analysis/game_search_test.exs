@@ -2,6 +2,7 @@ defmodule Analysis.GameSearchTest do
   use ExUnit.Case, async: false
 
   alias Analysis.GameContent
+  alias Analysis.GameFingerprint
   alias Analysis.GameRecord
   alias Analysis.GameRecordStore
   alias Analysis.GameRecordStore.Memory
@@ -15,13 +16,6 @@ defmodule Analysis.GameSearchTest do
   alias OpenChessLab.Repo
 
   setup do
-    previous_game_store =
-      Application.get_env(
-        :analysis,
-        GameStore,
-        :not_configured
-      )
-
     previous_game_record_store =
       Application.get_env(
         :analysis,
@@ -35,27 +29,13 @@ defmodule Analysis.GameSearchTest do
         :monotonic
       ])
 
-    game_server =
-      :"game-search-game-store-#{unique}"
-
     record_server =
       :"game-search-record-store-#{unique}"
-
-    start_supervised!({
-      GameStore,
-      server: game_server
-    })
 
     start_supervised!({
       Memory,
       name: record_server
     })
-
-    Application.put_env(
-      :analysis,
-      GameStore,
-      server: game_server
-    )
 
     Application.put_env(
       :analysis,
@@ -67,6 +47,8 @@ defmodule Analysis.GameSearchTest do
     Repo.query!(
       """
       TRUNCATE TABLE
+        game_occurrences,
+        games,
         position_features,
         positions
       RESTART IDENTITY
@@ -76,11 +58,6 @@ defmodule Analysis.GameSearchTest do
     )
 
     on_exit(fn ->
-      restore_config(
-        GameStore,
-        previous_game_store
-      )
-
       restore_config(
         GameRecordStore,
         previous_game_record_store
@@ -123,7 +100,7 @@ defmodule Analysis.GameSearchTest do
 
     assert {:ok, first_game_id} =
              GameStore.put(
-               <<"game-1">>,
+               fingerprint(GameContent.new(first_position_id)),
                GameContent.new(first_position_id),
                [
                  first_position_id
@@ -132,7 +109,7 @@ defmodule Analysis.GameSearchTest do
 
     assert {:ok, second_game_id} =
              GameStore.put(
-               <<"game-2">>,
+               fingerprint(GameContent.new(second_position_id)),
                GameContent.new(second_position_id),
                [
                  second_position_id
@@ -237,7 +214,7 @@ defmodule Analysis.GameSearchTest do
 
     assert {:ok, game_id} =
              GameStore.put(
-               <<"game">>,
+               fingerprint(GameContent.new(position_id)),
                GameContent.new(position_id),
                [
                  position_id
@@ -299,7 +276,7 @@ defmodule Analysis.GameSearchTest do
 
     assert {:ok, game_id} =
              GameStore.put(
-               <<"game">>,
+               fingerprint(GameContent.new(second_position_id)),
                GameContent.new(second_position_id),
                [
                  second_position_id
@@ -346,7 +323,7 @@ defmodule Analysis.GameSearchTest do
 
     assert {:ok, game_id} =
              GameStore.put(
-               <<"game">>,
+               fingerprint(GameContent.new(position_id)),
                GameContent.new(position_id),
                [
                  position_id
@@ -413,6 +390,13 @@ defmodule Analysis.GameSearchTest do
       module,
       value
     )
+  end
+
+  defp fingerprint(content) do
+    {:ok, fingerprint} =
+      GameFingerprint.for_content(content)
+
+    fingerprint
   end
 
   defp move(from, to) do

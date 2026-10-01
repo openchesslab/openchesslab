@@ -4,15 +4,16 @@ defmodule Analysis.Analyses do
   alias Analysis.AnalysisEvents
   alias Analysis.AnalysisStore
   alias Analysis.GameContent
+  alias Analysis.GameOccurrence, as: Occurrence
   alias Analysis.GameRecord
   alias Analysis.GameRecords
+  alias Analysis.GameRepository
   alias Analysis.Node
   alias Analysis.PositionStore
   alias Analysis.Transition
   alias Chess.Move
   alias Chess.Position
   alias Chess.PositionDraft
-  alias GameDB.Occurrence
 
   @type position_store_error ::
           {:position_store, term()}
@@ -77,7 +78,7 @@ defmodule Analysis.Analyses do
           | {:error,
              :already_exists
              | :game_record_not_found
-             | {:game_not_found, GameDB.game_id()}
+             | {:game_not_found, GameRepository.game_id()}
              | game_store_error()}
 
   def create_from_game_record(analysis_id, game_record_id) do

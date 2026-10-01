@@ -2,14 +2,15 @@ defmodule Analysis.GameRecordStore do
   @moduledoc """
   Storage facade for concrete played-game records.
 
-  Game records reference canonical chess content in GameDB through
+  Game records reference canonical chess content in PostgreSQL through
   their `game_id`.
 
   The record id identifies the concrete played game. Multiple
-  records may therefore reference the same canonical GameDB game.
+  records may therefore reference the same canonical game.
   """
 
   alias Analysis.GameRecord
+  alias Analysis.GameRepository
 
   @default_adapter Analysis.GameRecordStore.Memory
 
@@ -43,13 +44,13 @@ defmodule Analysis.GameRecordStore do
 
   @callback list_by_game_id(
               store(),
-              GameDB.game_id()
+              GameRepository.game_id()
             ) ::
               [GameRecord.t()]
 
   @callback records_page_by_game_id(
               store(),
-              GameDB.game_id(),
+              GameRepository.game_id(),
               pos_integer()
             ) ::
               record_page()
@@ -121,7 +122,7 @@ defmodule Analysis.GameRecordStore do
     adapter().list(store())
   end
 
-  @spec list_by_game_id(GameDB.game_id()) ::
+  @spec list_by_game_id(GameRepository.game_id()) ::
           [GameRecord.t()]
   def list_by_game_id(game_id) do
     adapter().list_by_game_id(
@@ -131,7 +132,7 @@ defmodule Analysis.GameRecordStore do
   end
 
   @spec records_page_by_game_id(
-          GameDB.game_id(),
+          GameRepository.game_id(),
           pos_integer()
         ) ::
           record_page()

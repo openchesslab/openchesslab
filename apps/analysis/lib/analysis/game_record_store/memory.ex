@@ -9,6 +9,7 @@ defmodule Analysis.GameRecordStore.Memory do
 
   alias Analysis.GameRecord
   alias Analysis.GameRecordStore
+  alias Analysis.GameRepository
 
   @type store :: GenServer.server()
 
@@ -31,7 +32,7 @@ defmodule Analysis.GameRecordStore.Memory do
             GameRecord.id() => GameRecord.t()
           },
           record_ids_by_game: %{
-            GameDB.game_id() => [GameRecord.id()]
+            GameRepository.game_id() => [GameRecord.id()]
           },
           cursors: %{
             record_cursor() => CursorState.t()
@@ -114,7 +115,7 @@ defmodule Analysis.GameRecordStore.Memory do
   @impl GameRecordStore
   @spec list_by_game_id(
           store(),
-          GameDB.game_id()
+          GameRepository.game_id()
         ) ::
           [GameRecord.t()]
   def list_by_game_id(store, game_id) do
@@ -127,7 +128,7 @@ defmodule Analysis.GameRecordStore.Memory do
   @impl GameRecordStore
   @spec records_page_by_game_id(
           store(),
-          GameDB.game_id(),
+          GameRepository.game_id(),
           pos_integer()
         ) ::
           GameRecordStore.record_page()

@@ -2,519 +2,356 @@ defmodule Analysis.GameStoreTest do
   use ExUnit.Case, async: false
 
   alias Analysis.GameContent
+  alias Analysis.GameOccurrence
   alias Analysis.GameStore
-  alias Chess.Move
-  alias Chess.Square
-  alias GameDB.Occurrence
+
+  defmodule RecordingRepository do
+    @moduledoc false
+
+    @behaviour Analysis.GameRepository
+
+    alias Analysis.GameContent
+    alias Analysis.GameOccurrence
+
+    @impl true
+    def ready? do
+      notify(:ready)
+      true
+    end
+
+    @impl true
+    def put(fingerprint, content, position_ids) do
+      notify({:put, fingerprint, content, position_ids})
+      {:ok, 42}
+    end
+
+    @impl true
+    def find(fingerprint, content) do
+      notify({:find, fingerprint, content})
+      {:ok, 42}
+    end
+
+    @impl true
+    def get(game_id) do
+      notify({:get, game_id})
+      {:ok, GameContent.new(10)}
+    end
+
+    @impl true
+    def occurrences(game_id) do
+      notify({:occurrences, game_id})
+
+      {:ok,
+       [
+         GameOccurrence.new(
+           7,
+           game_id,
+           0,
+           10
+         )
+       ]}
+    end
+
+    @impl true
+    def occurrences_page(position_id, page_size) do
+      notify({:occurrences_page, position_id, page_size})
+
+      {:ok,
+       [
+         GameOccurrence.new(
+           7,
+           42,
+           0,
+           position_id
+         )
+       ], :occurrence_cursor}
+    end
+
+    @impl true
+    def next_occurrences_page(cursor, page_size) do
+      notify({:next_occurrences_page, cursor, page_size})
+      {:ok, [], :done}
+    end
+
+    @impl true
+    def close_occurrences(cursor) do
+      notify({:close_occurrences, cursor})
+      :ok
+    end
+
+    @impl true
+    def get_occurrence(occurrence_id) do
+      notify({:get_occurrence, occurrence_id})
+
+      {:ok,
+       GameOccurrence.new(
+         occurrence_id,
+         42,
+         0,
+         10
+       )}
+    end
+
+    defp notify(message) do
+      send(
+        self(),
+        {
+          :game_repository,
+          message
+        }
+      )
+    end
+  end
+
+  defmodule InvalidOccurrencesRepository do
+    @moduledoc false
+
+    @behaviour Analysis.GameRepository
+
+    alias Analysis.GameContent
+
+    @impl true
+    def ready?, do: true
+
+    @impl true
+    def put(_fingerprint, _content, _position_ids), do: {:error, :unsupported}
+
+    @impl true
+    def find(_fingerprint, _content), do: :not_found
+
+    @impl true
+    def get(_game_id), do: {:ok, GameContent.new(10)}
+
+    @impl true
+    def occurrences(_game_id), do: {:ok, []}
+
+    @impl true
+    def occurrences_page(_position_id, _page_size), do: {:ok, [], :done}
+
+    @impl true
+    def next_occurrences_page(_cursor, _page_size), do: {:ok, [], :done}
+
+    @impl true
+    def close_occurrences(_cursor), do: :ok
+
+    @impl true
+    def get_occurrence(_occurrence_id), do: :not_found
+  end
 
   setup do
     previous =
       Application.get_env(
         :analysis,
-        GameStore,
+        :game_repository,
         :not_configured
       )
 
-    server =
-      :"game-store-#{System.unique_integer([:positive])}"
-
-    start_supervised!({
-      GameStore,
-      server: server
-    })
-
     Application.put_env(
       :analysis,
-      GameStore,
-      server: server
+      :game_repository,
+      RecordingRepository
     )
 
     on_exit(fn ->
-      restore_config(previous)
+      restore_repository(previous)
     end)
 
-    %{
-      server: server
-    }
+    :ok
   end
 
-  test "registers under the configured server name", %{
-    server: server
-  } do
-    assert is_pid(Process.whereis(server))
+  test "reports repository readiness" do
+    assert GameStore.ready?()
+    assert_receive {:game_repository, :ready}
   end
 
-  test "provides a cluster-wide server reference" do
-    assert GameStore.clustered_server() ==
-             {
-               :via,
-               Horde.Registry,
-               {
-                 Analysis.GameStoreRegistry,
-                 :game_store
-               }
-             }
-  end
-
-  test "stores and retrieves canonical game content" do
-    content =
-      GameContent.new(10)
-
-    assert {:ok, game_id} =
-             GameStore.put(
-               <<"game-1">>,
-               content,
-               [10]
-             )
-
-    assert game_id == 1
-
-    assert GameStore.get(game_id) ==
-             {:ok, content}
-  end
-
-  test "finds canonical game content" do
+  test "stores through the configured repository" do
     content =
       GameContent.new(10)
 
     fingerprint =
-      <<"game-1">>
+      :binary.copy(<<1>>, 32)
 
-    assert {:ok, game_id} =
-             GameStore.put(
-               fingerprint,
-               content,
-               [10]
-             )
+    assert GameStore.put(
+             fingerprint,
+             content,
+             [10]
+           ) ==
+             {:ok, 42}
+
+    assert_receive {
+      :game_repository,
+      {
+        :put,
+        ^fingerprint,
+        ^content,
+        [10]
+      }
+    }
+  end
+
+  test "finds through the configured repository" do
+    content =
+      GameContent.new(10)
+
+    fingerprint =
+      :binary.copy(<<2>>, 32)
 
     assert GameStore.find(
              fingerprint,
              content
            ) ==
-             {:ok, game_id}
-  end
+             {:ok, 42}
 
-  test "returns the existing id for duplicate canonical content" do
-    content =
-      GameContent.new(10)
-
-    fingerprint =
-      <<"same-game">>
-
-    assert {:ok, first_id} =
-             GameStore.put(
-               fingerprint,
-               content,
-               [10]
-             )
-
-    assert {:ok, second_id} =
-             GameStore.put(
-               fingerprint,
-               content,
-               [10]
-             )
-
-    assert second_id ==
-             first_id
-
-    assert GameStore.cardinality() ==
-             1
-  end
-
-  test "stores position occurrences in ply order" do
-    content =
-      GameContent.new(
-        10,
-        [
-          move("e2", "e4"),
-          move("e7", "e5")
-        ]
-      )
-
-    assert {:ok, game_id} =
-             GameStore.put(
-               <<"game">>,
-               content,
-               [10, 20, 30]
-             )
-
-    assert GameStore.occurrences(game_id) ==
-             {:ok,
-              [
-                Occurrence.new(
-                  1,
-                  game_id,
-                  0,
-                  10
-                ),
-                Occurrence.new(
-                  2,
-                  game_id,
-                  1,
-                  20
-                ),
-                Occurrence.new(
-                  3,
-                  game_id,
-                  2,
-                  30
-                )
-              ]}
-
-    assert GameStore.get_occurrence(2) ==
-             {:ok,
-              Occurrence.new(
-                2,
-                game_id,
-                1,
-                20
-              )}
-  end
-
-  test "returns not_found for an unknown game" do
-    assert GameStore.get(999_999_999) ==
-             :not_found
-
-    assert GameStore.load(999_999_999) ==
-             :not_found
-  end
-
-  test "does not update the database when storing fails" do
-    content =
-      GameContent.new(10)
-
-    assert GameStore.put(
-             <<"game">>,
-             content,
-             []
-           ) ==
-             {:error, :missing_initial_position}
-
-    assert GameStore.cardinality() ==
-             0
-  end
-
-  test "returns the number of canonical games" do
-    assert {:ok, _game_id} =
-             GameStore.put(
-               <<"game-1">>,
-               GameContent.new(10),
-               [10]
-             )
-
-    assert {:ok, _game_id} =
-             GameStore.put(
-               <<"game-2">>,
-               GameContent.new(20),
-               [20]
-             )
-
-    assert GameStore.cardinality() ==
-             2
-  end
-
-  test "uses the configured server", %{
-    server: server
-  } do
-    assert GameStore.server() ==
-             server
-  end
-
-  test "uses the cluster-wide server by default" do
-    Application.delete_env(
-      :analysis,
-      GameStore
-    )
-
-    assert GameStore.server() ==
-             GameStore.clustered_server()
-  end
-
-  test "reports ready when the configured game store is reachable" do
-    assert GameStore.ready?()
-  end
-
-  test "reports not ready when the configured game store is unavailable" do
-    Application.put_env(
-      :analysis,
-      GameStore,
-      server: :unavailable_game_store
-    )
-
-    refute GameStore.ready?()
-  end
-
-  test "reports not ready when the Horde registry is unavailable" do
-    Application.put_env(
-      :analysis,
-      GameStore,
-      server: {
-        :via,
-        Horde.Registry,
-        {
-          :unavailable_game_store_registry,
-          :game_store
-        }
+    assert_receive {
+      :game_repository,
+      {
+        :find,
+        ^fingerprint,
+        ^content
       }
+    }
+  end
+
+  test "gets through the configured repository" do
+    assert GameStore.get(42) ==
+             {:ok, GameContent.new(10)}
+
+    assert_receive {
+      :game_repository,
+      {
+        :get,
+        42
+      }
+    }
+  end
+
+  test "loads canonical content with validated occurrences" do
+    assert {
+             :ok,
+             %GameContent{initial_position_id: 10},
+             [
+               %GameOccurrence{
+                 id: 7,
+                 game_id: 42,
+                 ply: 0,
+                 position_id: 10
+               }
+             ]
+           } =
+             GameStore.load(42)
+
+    assert_receive {:game_repository, {:get, 42}}
+    assert_receive {:game_repository, {:occurrences, 42}}
+  end
+
+  test "rejects inconsistent persisted occurrences" do
+    Application.put_env(
+      :analysis,
+      :game_repository,
+      InvalidOccurrencesRepository
     )
 
-    refute GameStore.ready?()
+    assert GameStore.load(42) ==
+             {:error, :invalid_occurrences}
   end
 
-  test "loads canonical game content with its occurrences" do
-    content =
-      GameContent.new(
-        10,
-        [
-          move("e2", "e4"),
-          move("e7", "e5")
-        ]
-      )
-
-    assert {:ok, game_id} =
-             GameStore.put(
-               <<"game">>,
-               content,
-               [10, 20, 30]
-             )
-
-    assert {:ok, ^content, occurrences} =
-             GameStore.load(game_id)
-
-    assert occurrences ==
+  test "pages occurrences through the configured repository" do
+    assert {
+             :ok,
              [
-               Occurrence.new(
-                 1,
-                 game_id,
-                 0,
-                 10
-               ),
-               Occurrence.new(
-                 2,
-                 game_id,
-                 1,
-                 20
-               ),
-               Occurrence.new(
-                 3,
-                 game_id,
-                 2,
-                 30
-               )
-             ]
-  end
-
-  test "rejects an inconsistent occurrence count when loading" do
-    content =
-      GameContent.new(
-        10,
-        [
-          move("e2", "e4"),
-          move("e7", "e5")
-        ]
-      )
-
-    assert {:ok, game_id} =
-             GameStore.put(
-               <<"game">>,
-               content,
-               [10]
-             )
-
-    assert GameStore.load(game_id) ==
-             {:error, :invalid_occurrences}
-  end
-
-  test "rejects an inconsistent initial occurrence when loading" do
-    content =
-      GameContent.new(10)
-
-    assert {:ok, game_id} =
-             GameStore.put(
-               <<"game">>,
-               content,
-               [20]
-             )
-
-    assert GameStore.load(game_id) ==
-             {:error, :invalid_occurrences}
-  end
-
-  test "finds canonical game occurrences by position" do
-    first =
-      GameContent.new(10)
-
-    second =
-      GameContent.new(20)
-
-    assert {:ok, game_1} =
-             GameStore.put(
-               <<"game-1">>,
-               first,
-               [10, 30]
-             )
-
-    assert {:ok, game_2} =
-             GameStore.put(
-               <<"game-2">>,
-               second,
-               [20, 30]
-             )
-
-    assert {
-             :ok,
-             occurrences
-           } =
-             GameStore.occurrences_by_position_id(30)
-
-    assert Enum.all?(
-             occurrences,
-             &(&1.position_id == 30)
-           )
-
-    assert MapSet.new(
-             Enum.map(
-               occurrences,
-               & &1.game_id
-             )
-           ) ==
-             MapSet.new([
-               game_1,
-               game_2
-             ])
-  end
-
-  test "pages through occurrences of a position without duplicates or omissions" do
-    assert {:ok, game_1} =
-             GameStore.put(
-               <<"game-1">>,
-               GameContent.new(30),
-               [30, 10, 30]
-             )
-
-    assert {:ok, game_2} =
-             GameStore.put(
-               <<"game-2">>,
-               GameContent.new(20),
-               [20, 30]
-             )
-
-    assert {
-             :ok,
-             first_page,
-             cursor
-           } =
-             GameStore.occurrences_page(
-               30,
-               2
-             )
-
-    assert is_reference(cursor)
-    assert length(first_page) == 2
-
-    assert {
-             :ok,
-             second_page,
-             :done
-           } =
-             GameStore.next_occurrences_page(
-               cursor,
-               2
-             )
-
-    occurrences =
-      first_page ++
-        second_page
-
-    assert MapSet.new(occurrences) ==
-             MapSet.new([
-               Occurrence.new(
-                 1,
-                 game_1,
-                 0,
-                 30
-               ),
-               Occurrence.new(
-                 3,
-                 game_1,
-                 2,
-                 30
-               ),
-               Occurrence.new(
-                 5,
-                 game_2,
-                 1,
-                 30
-               )
-             ])
-
-    assert GameStore.next_occurrences_page(
-             cursor,
-             2
-           ) ==
-             {:error, :cursor_not_found}
-  end
-
-  test "returns an empty page for a position without occurrences" do
-    assert GameStore.occurrences_page(
-             999,
-             10
-           ) ==
-             {
-               :ok,
-               [],
-               :done
-             }
-  end
-
-  test "closes an unfinished occurrence cursor" do
-    assert {:ok, _game_id} =
-             GameStore.put(
-               <<"game">>,
-               GameContent.new(10),
-               [10, 10]
-             )
-
-    assert {
-             :ok,
-             [_occurrence],
-             cursor
+               %GameOccurrence{
+                 id: 7,
+                 game_id: 42,
+                 ply: 0,
+                 position_id: 10
+               }
+             ],
+             :occurrence_cursor
            } =
              GameStore.occurrences_page(
                10,
-               1
+               25
              )
 
-    assert :ok =
-             GameStore.close_occurrence_scan(cursor)
+    assert_receive {
+      :game_repository,
+      {
+        :occurrences_page,
+        10,
+        25
+      }
+    }
 
     assert GameStore.next_occurrences_page(
-             cursor,
-             1
+             :occurrence_cursor,
+             25
            ) ==
-             {:error, :cursor_not_found}
+             {:ok, [], :done}
+
+    assert_receive {
+      :game_repository,
+      {
+        :next_occurrences_page,
+        :occurrence_cursor,
+        25
+      }
+    }
   end
 
-  defp move(from, to) do
-    Move.new(
-      Square.from_algebraic(from),
-      Square.from_algebraic(to)
-    )
+  test "closes occurrence scans through the configured repository" do
+    assert :ok =
+             GameStore.close_occurrence_scan(:occurrence_cursor)
+
+    assert_receive {
+      :game_repository,
+      {
+        :close_occurrences,
+        :occurrence_cursor
+      }
+    }
   end
 
-  defp restore_config(:not_configured) do
+  test "gets an occurrence through the configured repository" do
+    assert GameStore.get_occurrence(7) ==
+             {:ok,
+              GameOccurrence.new(
+                7,
+                42,
+                0,
+                10
+              )}
+
+    assert_receive {
+      :game_repository,
+      {
+        :get_occurrence,
+        7
+      }
+    }
+  end
+
+  test "defaults to the PostgreSQL repository" do
     Application.delete_env(
       :analysis,
-      GameStore
+      :game_repository
+    )
+
+    assert GameStore.repository() ==
+             Analysis.GameRepository.Postgres
+  end
+
+  defp restore_repository(:not_configured) do
+    Application.delete_env(
+      :analysis,
+      :game_repository
     )
   end
 
-  defp restore_config(value) do
+  defp restore_repository(repository) do
     Application.put_env(
       :analysis,
-      GameStore,
-      value
+      :game_repository,
+      repository
     )
   end
 end

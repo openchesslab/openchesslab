@@ -8,13 +8,14 @@ defmodule Analysis.GameRecords do
 
   alias Analysis.GameContent
   alias Analysis.GameFingerprint
+  alias Analysis.GameOccurrence, as: Occurrence
   alias Analysis.GameRecord
   alias Analysis.GameRecordStore
   alias Analysis.GameReplay
+  alias Analysis.GameRepository
   alias Analysis.GameStart
   alias Analysis.GameStore
   alias Analysis.PositionStore
-  alias GameDB.Occurrence
 
   defmodule OccurrenceCursor do
     @moduledoc false
@@ -33,7 +34,7 @@ defmodule Analysis.GameRecords do
           | {:game_store, term()}
 
   @type load_error ::
-          {:game_not_found, GameDB.game_id()}
+          {:game_not_found, GameRepository.game_id()}
           | {:game_store, term()}
 
   @type occurrence_match ::
@@ -111,35 +112,14 @@ defmodule Analysis.GameRecords do
     GameRecordStore.list()
   end
 
-  @spec list_by_game_id(GameDB.game_id()) ::
+  @spec list_by_game_id(GameRepository.game_id()) ::
           [GameRecord.t()]
   def list_by_game_id(game_id) do
     GameRecordStore.list_by_game_id(game_id)
   end
 
-  @spec list_occurrences_by_position_id(GameDB.position_id()) ::
-          {:ok, [occurrence_match()]}
-          | {:error, occurrence_query_error()}
-  def list_occurrences_by_position_id(position_id) do
-    case GameStore.occurrences_by_position_id(position_id) do
-      {:ok, occurrences} ->
-        {:ok,
-         Enum.flat_map(
-           occurrences,
-           &records_for_occurrence/1
-         )}
-
-      {:error, reason} ->
-        {:error,
-         {
-           :game_store,
-           reason
-         }}
-    end
-  end
-
   @spec occurrences_page_by_position_id(
-          GameDB.position_id(),
+          GameRepository.position_id(),
           pos_integer()
         ) ::
           occurrence_page()
@@ -695,16 +675,5 @@ defmodule Analysis.GameRecords do
            reason
          }}
     end
-  end
-
-  defp records_for_occurrence(%Occurrence{game_id: game_id} = occurrence) do
-    game_id
-    |> list_by_game_id()
-    |> Enum.map(
-      &{
-        &1,
-        occurrence
-      }
-    )
   end
 end

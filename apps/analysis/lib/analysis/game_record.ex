@@ -1,6 +1,6 @@
 defmodule Analysis.GameRecord do
   @moduledoc """
-  A concrete played game referencing canonical chess content in GameDB.
+  A concrete played game referencing canonical chess content in PostgreSQL.
 
   Multiple game records may reference the same canonical game when the
   exact same chess content was played in different contexts.
@@ -10,10 +10,11 @@ defmodule Analysis.GameRecord do
   identity.
   """
 
+  alias Analysis.GameRepository
   alias Analysis.GameStart
 
   @type id :: term()
-  @type game_id :: GameDB.game_id()
+  @type game_id :: GameRepository.game_id()
 
   @type t :: %__MODULE__{
           id: id(),

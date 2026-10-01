@@ -6,14 +6,64 @@ defmodule Analysis.GameRecordsTest do
   alias Analysis.GameRecord
   alias Analysis.GameRecords
   alias Analysis.GameRecordStore
+  alias Analysis.GameRecordStore.Memory
   alias Analysis.GameStart
   alias Analysis.GameStore
   alias Analysis.PositionStore
   alias Chess.Move
   alias Chess.Position
   alias Chess.Square
+  alias OpenChessLab.Repo
 
   setup do
+    previous_game_record_store =
+      Application.get_env(
+        :analysis,
+        GameRecordStore,
+        :not_configured
+      )
+
+    unique =
+      System.unique_integer([
+        :positive,
+        :monotonic
+      ])
+
+    record_store =
+      :"game-records-store-#{unique}"
+
+    start_supervised!({
+      Memory,
+      name: record_store
+    })
+
+    Application.put_env(
+      :analysis,
+      GameRecordStore,
+      adapter: Memory,
+      store: record_store
+    )
+
+    Repo.query!(
+      """
+      TRUNCATE TABLE
+        game_occurrences,
+        games,
+        position_features,
+        positions
+      RESTART IDENTITY
+      CASCADE
+      """,
+      []
+    )
+
+    on_exit(fn ->
+      restore_config(
+        GameRecordStore,
+        previous_game_record_store
+      )
+    end)
+
     record_id =
       "record-#{System.unique_integer([:positive])}"
 
@@ -164,9 +214,6 @@ defmodule Analysis.GameRecordsTest do
                %{}
              )
 
-    cardinality =
-      GameStore.cardinality()
-
     other_content =
       GameContent.new(
         initial_position_id,
@@ -174,6 +221,9 @@ defmodule Analysis.GameRecordsTest do
           move("d2", "d4")
         ]
       )
+
+    assert {:ok, other_fingerprint} =
+             GameFingerprint.for_content(other_content)
 
     assert GameRecords.create(
              record_id,
@@ -183,8 +233,11 @@ defmodule Analysis.GameRecordsTest do
            ) ==
              {:error, :already_exists}
 
-    assert GameStore.cardinality() ==
-             cardinality
+    assert GameStore.find(
+             other_fingerprint,
+             other_content
+           ) ==
+             :not_found
 
     assert GameRecordStore.get(record_id) ==
              {:ok, record}
@@ -383,220 +436,30 @@ defmodule Analysis.GameRecordsTest do
               }}
   end
 
-  test "propagates invalid canonical occurrences when loading a game record",
-       %{
-         record_id: record_id
-       } do
-    initial_position_id =
-      unique_id()
-
-    content =
-      GameContent.new(
-        initial_position_id,
-        [
-          move("e2", "e4")
-        ]
-      )
-
-    assert {:ok, fingerprint} =
-             GameFingerprint.for_content(content)
-
-    assert {:ok, game_id} =
-             GameStore.put(
-               fingerprint,
-               content,
-               [
-                 initial_position_id
-               ]
-             )
-
-    record =
-      GameRecord.new(
-        record_id,
-        game_id
-      )
-
-    assert :ok =
-             GameRecordStore.insert(record)
-
-    assert GameRecords.load(record_id) ==
-             {:error,
-              {
-                :game_store,
-                :invalid_occurrences
-              }}
-  end
-
-  test "lists concrete game records for a position occurrence" do
-    position_id =
-      unique_id()
-
-    content =
-      GameContent.new(position_id)
-
-    assert {:ok, fingerprint} =
-             GameFingerprint.for_content(content)
-
-    assert {:ok, game_id} =
-             GameStore.put(
-               fingerprint,
-               content,
-               [position_id]
-             )
-
-    first =
-      GameRecord.new(
-        "record-#{unique_id()}",
-        game_id,
-        %{
-          event: "London"
-        }
-      )
-
-    second =
-      GameRecord.new(
-        "record-#{unique_id()}",
-        game_id,
-        %{
-          event: "Amsterdam"
-        }
-      )
-
-    assert :ok =
-             GameRecordStore.insert(first)
-
-    assert :ok =
-             GameRecordStore.insert(second)
-
-    assert {
-             :ok,
-             matches
-           } =
-             GameRecords.list_occurrences_by_position_id(position_id)
-
-    assert MapSet.new(
-             Enum.map(
-               matches,
-               fn {record, occurrence} ->
-                 {
-                   record,
-                   occurrence.game_id,
-                   occurrence.ply,
-                   occurrence.position_id
-                 }
-               end
-             )
-           ) ==
-             MapSet.new([
-               {
-                 first,
-                 game_id,
-                 0,
-                 position_id
-               },
-               {
-                 second,
-                 game_id,
-                 0,
-                 position_id
-               }
-             ])
-  end
-
-  test "preserves repeated occurrences of a position within a game" do
-    position_id =
-      unique_id()
-
-    middle_position_id =
-      unique_id()
-
-    content =
-      GameContent.new(
-        position_id,
-        [
-          move("g1", "f3"),
-          move("g8", "f6")
-        ]
-      )
-
-    assert {:ok, fingerprint} =
-             GameFingerprint.for_content(content)
-
-    assert {:ok, game_id} =
-             GameStore.put(
-               fingerprint,
-               content,
-               [
-                 position_id,
-                 middle_position_id,
-                 position_id
-               ]
-             )
-
-    record =
-      GameRecord.new(
-        "record-#{unique_id()}",
-        game_id
-      )
-
-    assert :ok =
-             GameRecordStore.insert(record)
-
-    assert {
-             :ok,
-             matches
-           } =
-             GameRecords.list_occurrences_by_position_id(position_id)
-
-    record_matches =
-      Enum.filter(
-        matches,
-        fn {matched_record, _occurrence} ->
-          matched_record ==
-            record
-        end
-      )
-
-    assert MapSet.new(
-             Enum.map(
-               record_matches,
-               fn {_record, occurrence} ->
-                 {
-                   occurrence.game_id,
-                   occurrence.ply,
-                   occurrence.position_id
-                 }
-               end
-             )
-           ) ==
-             MapSet.new([
-               {
-                 game_id,
-                 0,
-                 position_id
-               },
-               {
-                 game_id,
-                 2,
-                 position_id
-               }
-             ])
-  end
-
-  test "returns no concrete occurrences for an unknown position" do
-    assert GameRecords.list_occurrences_by_position_id(unique_id()) ==
-             {:ok, []}
-  end
-
   test "pages concrete game records for position occurrences without duplicates or omissions" do
+    starting_position =
+      Position.starting_position()
+
     position_id =
-      unique_id()
+      PositionStore.append(starting_position)
+
+    {:ok, middle_position} =
+      Position.apply_move(
+        starting_position,
+        move("g1", "f3")
+      )
 
     middle_position_id =
-      unique_id()
+      PositionStore.append(middle_position)
+
+    {:ok, other_initial_position} =
+      Position.apply_move(
+        starting_position,
+        move("e2", "e4")
+      )
 
     other_initial_position_id =
-      unique_id()
+      PositionStore.append(other_initial_position)
 
     first_content =
       GameContent.new(
@@ -774,7 +637,7 @@ defmodule Analysis.GameRecordsTest do
 
   test "closes an unfinished concrete occurrence cursor" do
     position_id =
-      unique_id()
+      PositionStore.append(Position.starting_position())
 
     content =
       GameContent.new(position_id)
@@ -831,6 +694,21 @@ defmodule Analysis.GameRecordsTest do
                  :cursor_not_found
                }
              }
+  end
+
+  defp restore_config(module, :not_configured) do
+    Application.delete_env(
+      :analysis,
+      module
+    )
+  end
+
+  defp restore_config(module, value) do
+    Application.put_env(
+      :analysis,
+      module,
+      value
+    )
   end
 
   defp move(from, to) do

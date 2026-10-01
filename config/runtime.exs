@@ -81,27 +81,6 @@ config :analysis,
     System.get_env("DNS_CLUSTER_QUERY") ||
       :ignore
 
-game_store_owner =
-  case System.get_env("GAME_STORE_OWNER") do
-    nil ->
-      true
-
-    "true" ->
-      true
-
-    "false" ->
-      false
-
-    value ->
-      raise """
-      GAME_STORE_OWNER must be true or false, got: #{inspect(value)}
-      """
-  end
-
-config :analysis,
-       Analysis.GameStoreOwner,
-       owner: game_store_owner
-
 game_record_store_owner =
   case System.get_env("GAME_RECORD_STORE_OWNER") do
     nil ->
@@ -143,33 +122,6 @@ analysis_store_owner =
 config :analysis,
        Analysis.AnalysisStoreOwner,
        owner: analysis_store_owner
-
-game_store_options =
-  case System.get_env("GAME_STORE_DIRECTORY") do
-    nil ->
-      []
-
-    directory ->
-      [
-        directory: directory,
-        bucket_count:
-          System.get_env(
-            "GAME_STORE_CANONICAL_BUCKET_COUNT",
-            "65536"
-          )
-          |> String.to_integer(),
-        position_bucket_count:
-          System.get_env(
-            "GAME_STORE_POSITION_BUCKET_COUNT",
-            "65536"
-          )
-          |> String.to_integer()
-      ]
-  end
-
-config :analysis,
-       Analysis.GameStore,
-       game_store_options
 
 analysis_store_options =
   case System.get_env("ANALYSIS_STORE_PATH") do
