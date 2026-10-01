@@ -2,8 +2,9 @@ defmodule Analysis.GameRecords do
   @moduledoc """
   Application service for concrete played games.
 
-  A played game consists of canonical chess content stored in
-  GameStore and a concrete GameRecord stored in GameRecordStore.
+  A played game consists of canonical chess content stored through
+  GameStore and a durable concrete GameRecord stored through
+  GameRecordStore.
   """
 
   alias Analysis.GameContent
@@ -32,10 +33,12 @@ defmodule Analysis.GameRecords do
           | {:invalid_game, term()}
           | {:position_store, term()}
           | {:game_store, term()}
+          | {:game_record_store, term()}
 
   @type load_error ::
           {:game_not_found, GameRepository.game_id()}
           | {:game_store, term()}
+          | {:game_record_store, term()}
 
   @type occurrence_match ::
           {GameRecord.t(), Occurrence.t()}
@@ -68,7 +71,6 @@ defmodule Analysis.GameRecords do
         ) ::
           {:ok, GameRecord.t()}
           | {:error, create_error()}
-
   def create(record_id, %GameContent{} = content, %GameStart{} = start, metadata)
       when is_map(metadata) do
     case GameRecordStore.get(record_id) do
@@ -82,12 +84,20 @@ defmodule Analysis.GameRecords do
           start,
           metadata
         )
+
+      {:error, reason} ->
+        {:error,
+         {
+           :game_record_store,
+           reason
+         }}
     end
   end
 
   @spec get(GameRecord.id()) ::
           {:ok, GameRecord.t()}
           | :not_found
+          | {:error, term()}
   def get(record_id) do
     GameRecordStore.get(record_id)
   end
@@ -103,19 +113,14 @@ defmodule Analysis.GameRecords do
 
       :not_found ->
         :not_found
+
+      {:error, reason} ->
+        {:error,
+         {
+           :game_record_store,
+           reason
+         }}
     end
-  end
-
-  @spec list() ::
-          [GameRecord.t()]
-  def list do
-    GameRecordStore.list()
-  end
-
-  @spec list_by_game_id(GameRepository.game_id()) ::
-          [GameRecord.t()]
-  def list_by_game_id(game_id) do
-    GameRecordStore.list_by_game_id(game_id)
   end
 
   @spec occurrences_page_by_position_id(
@@ -148,7 +153,10 @@ defmodule Analysis.GameRecords do
         occurrence_cursor
       } ->
         take_occurrence_matches_page(
-          %OccurrenceCursor{occurrence_cursor: occurrence_cursor, current_occurrence: occurrence},
+          %OccurrenceCursor{
+            occurrence_cursor: occurrence_cursor,
+            current_occurrence: occurrence
+          },
           page_size
         )
 
@@ -180,7 +188,6 @@ defmodule Analysis.GameRecords do
           :ok
   def close_occurrences(%OccurrenceCursor{} = cursor) do
     close_record_cursor(cursor.record_cursor)
-
     close_occurrence_cursor(cursor.occurrence_cursor)
 
     :ok
@@ -315,8 +322,7 @@ defmodule Analysis.GameRecords do
           %GameRecord{} = record
         ],
         record_cursor
-      }
-      when is_reference(record_cursor) ->
+      } ->
         {
           :ok,
           {
@@ -388,8 +394,7 @@ defmodule Analysis.GameRecords do
           %GameRecord{} = record
         ],
         next_record_cursor
-      }
-      when is_reference(next_record_cursor) ->
+      } ->
         {
           :ok,
           {
@@ -484,6 +489,13 @@ defmodule Analysis.GameRecords do
 
         {:error, :already_exists} ->
           {:error, :already_exists}
+
+        {:error, reason} ->
+          {:error,
+           {
+             :game_record_store,
+             reason
+           }}
       end
     end
   end

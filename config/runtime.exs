@@ -81,27 +81,6 @@ config :analysis,
     System.get_env("DNS_CLUSTER_QUERY") ||
       :ignore
 
-game_record_store_owner =
-  case System.get_env("GAME_RECORD_STORE_OWNER") do
-    nil ->
-      true
-
-    "true" ->
-      true
-
-    "false" ->
-      false
-
-    value ->
-      raise """
-      GAME_RECORD_STORE_OWNER must be true or false, got: #{inspect(value)}
-      """
-  end
-
-config :analysis,
-       Analysis.GameRecordStoreOwner,
-       owner: game_record_store_owner
-
 analysis_store_owner =
   case System.get_env("ANALYSIS_STORE_OWNER") do
     nil ->

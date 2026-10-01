@@ -5,7 +5,6 @@ defmodule Analysis.GameSearchTest do
   alias Analysis.GameFingerprint
   alias Analysis.GameRecord
   alias Analysis.GameRecordStore
-  alias Analysis.GameRecordStore.Memory
   alias Analysis.GameSearch
   alias Analysis.GameStore
   alias Analysis.PositionQuery, as: Query
@@ -16,37 +15,10 @@ defmodule Analysis.GameSearchTest do
   alias OpenChessLab.Repo
 
   setup do
-    previous_game_record_store =
-      Application.get_env(
-        :analysis,
-        GameRecordStore,
-        :not_configured
-      )
-
-    unique =
-      System.unique_integer([
-        :positive,
-        :monotonic
-      ])
-
-    record_server =
-      :"game-search-record-store-#{unique}"
-
-    start_supervised!({
-      Memory,
-      name: record_server
-    })
-
-    Application.put_env(
-      :analysis,
-      GameRecordStore,
-      adapter: Memory,
-      store: record_server
-    )
-
     Repo.query!(
       """
       TRUNCATE TABLE
+        game_records,
         game_occurrences,
         games,
         position_features,
@@ -56,13 +28,6 @@ defmodule Analysis.GameSearchTest do
       """,
       []
     )
-
-    on_exit(fn ->
-      restore_config(
-        GameRecordStore,
-        previous_game_record_store
-      )
-    end)
 
     :ok
   end
@@ -317,7 +282,7 @@ defmodule Analysis.GameSearchTest do
              first_position_id
   end
 
-  test "closes an unfinished search cursor" do
+  test "closing an unfinished search cursor is a no-op for stateless repositories" do
     position_id =
       PositionStore.append(Position.starting_position())
 
@@ -325,9 +290,7 @@ defmodule Analysis.GameSearchTest do
              GameStore.put(
                fingerprint(GameContent.new(position_id)),
                GameContent.new(position_id),
-               [
-                 position_id
-               ]
+               [position_id]
              )
 
     first =
@@ -350,7 +313,12 @@ defmodule Analysis.GameSearchTest do
 
     assert {
              :ok,
-             [_match],
+             [
+               {
+                 ^first,
+                 first_occurrence
+               }
+             ],
              cursor
            } =
              GameSearch.query_page(
@@ -358,38 +326,29 @@ defmodule Analysis.GameSearchTest do
                1
              )
 
+    assert first_occurrence.game_id ==
+             game_id
+
     assert :ok =
              GameSearch.close_query(cursor)
 
-    assert GameSearch.next_query_page(
-             cursor,
-             1
-           ) ==
-             {
-               :error,
+    assert {
+             :ok,
+             [
                {
-                 :game_records,
-                 {
-                   :game_record_store,
-                   :cursor_not_found
-                 }
+                 ^second,
+                 second_occurrence
                }
-             }
-  end
+             ],
+             :done
+           } =
+             GameSearch.next_query_page(
+               cursor,
+               1
+             )
 
-  defp restore_config(module, :not_configured) do
-    Application.delete_env(
-      :analysis,
-      module
-    )
-  end
-
-  defp restore_config(module, value) do
-    Application.put_env(
-      :analysis,
-      module,
-      value
-    )
+    assert second_occurrence.game_id ==
+             game_id
   end
 
   defp fingerprint(content) do

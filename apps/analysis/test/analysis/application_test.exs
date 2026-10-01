@@ -6,8 +6,6 @@ defmodule Analysis.ApplicationTest do
   alias Analysis.AnalysisStore.Memory
   alias Analysis.AnalysisStoreOwner
   alias Analysis.Application, as: AnalysisApplication
-  alias Analysis.GameRecordStore
-  alias Analysis.GameRecordStoreOwner
 
   setup do
     previous_analysis_store_owner =
@@ -24,20 +22,6 @@ defmodule Analysis.ApplicationTest do
         :not_configured
       )
 
-    previous_game_record_store_owner =
-      Application.get_env(
-        :analysis,
-        GameRecordStoreOwner,
-        :not_configured
-      )
-
-    previous_game_record_store =
-      Application.get_env(
-        :analysis,
-        GameRecordStore,
-        :not_configured
-      )
-
     on_exit(fn ->
       restore_config(
         AnalysisStoreOwner,
@@ -47,16 +31,6 @@ defmodule Analysis.ApplicationTest do
       restore_config(
         AnalysisStore,
         previous_analysis_store
-      )
-
-      restore_config(
-        GameRecordStoreOwner,
-        previous_game_record_store_owner
-      )
-
-      restore_config(
-        GameRecordStore,
-        previous_game_record_store
       )
     end)
 
@@ -68,16 +42,6 @@ defmodule Analysis.ApplicationTest do
     Application.delete_env(
       :analysis,
       AnalysisStore
-    )
-
-    Application.delete_env(
-      :analysis,
-      GameRecordStore
-    )
-
-    Application.delete_env(
-      :analysis,
-      GameRecordStoreOwner
     )
 
     :ok
@@ -116,7 +80,8 @@ defmodule Analysis.ApplicationTest do
                end
              )
 
-    assert Keyword.get(options, :path) == "analyses.dets"
+    assert Keyword.get(options, :path) ==
+             "analyses.dets"
 
     assert Keyword.get(options, :name) ==
              AnalysisStore.clustered_store()
@@ -139,8 +104,11 @@ defmodule Analysis.ApplicationTest do
     refute Enum.any?(
              AnalysisApplication.children(),
              fn
-               {Dets, _options} -> true
-               _child -> false
+               {Dets, _options} ->
+                 true
+
+               _child ->
+                 false
              end
            )
   end
@@ -166,8 +134,11 @@ defmodule Analysis.ApplicationTest do
                end
              )
 
-    assert Keyword.get(options, :path) == "analyses.dets"
-    assert Keyword.get(options, :name) == :custom_analysis_store
+    assert Keyword.get(options, :path) ==
+             "analyses.dets"
+
+    assert Keyword.get(options, :name) ==
+             :custom_analysis_store
   end
 
   test "starts DNS clustering disabled by default" do
@@ -257,8 +228,11 @@ defmodule Analysis.ApplicationTest do
     refute Enum.any?(
              AnalysisApplication.children(),
              fn
-               {Memory, _options} -> true
-               _child -> false
+               {Memory, _options} ->
+                 true
+
+               _child ->
+                 false
              end
            )
   end
@@ -284,69 +258,13 @@ defmodule Analysis.ApplicationTest do
     refute Enum.any?(
              AnalysisApplication.children(),
              fn
-               {Analysis.GameStore, _options} -> true
-               _child -> false
-             end
-           )
-  end
-
-  test "starts the game record store registry" do
-    assert {
-             Horde.Registry,
-             [
-               name: Analysis.GameRecordStoreRegistry,
-               keys: :unique,
-               members: :auto
-             ]
-           } in AnalysisApplication.children()
-  end
-
-  test "starts the game record store with the cluster-wide store by default" do
-    assert {
-             Analysis.GameRecordStore.Memory,
-             [
-               name: GameRecordStore.clustered_store()
-             ]
-           } in AnalysisApplication.children()
-  end
-
-  test "does not start the game record store on a non-owner node" do
-    Application.put_env(
-      :analysis,
-      GameRecordStoreOwner,
-      owner: false
-    )
-
-    refute Enum.any?(
-             AnalysisApplication.children(),
-             fn
-               {
-                 Analysis.GameRecordStore.Memory,
-                 _options
-               } ->
+               {Analysis.GameStore, _options} ->
                  true
 
                _child ->
                  false
              end
            )
-  end
-
-  test "starts the game record store registry on a non-owner node" do
-    Application.put_env(
-      :analysis,
-      GameRecordStoreOwner,
-      owner: false
-    )
-
-    assert {
-             Horde.Registry,
-             [
-               name: Analysis.GameRecordStoreRegistry,
-               keys: :unique,
-               members: :auto
-             ]
-           } in AnalysisApplication.children()
   end
 
   defp restore_config(key, :not_configured) do

@@ -6,7 +6,6 @@ defmodule Analysis.GameRecordsTest do
   alias Analysis.GameRecord
   alias Analysis.GameRecords
   alias Analysis.GameRecordStore
-  alias Analysis.GameRecordStore.Memory
   alias Analysis.GameStart
   alias Analysis.GameStore
   alias Analysis.PositionStore
@@ -16,37 +15,10 @@ defmodule Analysis.GameRecordsTest do
   alias OpenChessLab.Repo
 
   setup do
-    previous_game_record_store =
-      Application.get_env(
-        :analysis,
-        GameRecordStore,
-        :not_configured
-      )
-
-    unique =
-      System.unique_integer([
-        :positive,
-        :monotonic
-      ])
-
-    record_store =
-      :"game-records-store-#{unique}"
-
-    start_supervised!({
-      Memory,
-      name: record_store
-    })
-
-    Application.put_env(
-      :analysis,
-      GameRecordStore,
-      adapter: Memory,
-      store: record_store
-    )
-
     Repo.query!(
       """
       TRUNCATE TABLE
+        game_records,
         game_occurrences,
         games,
         position_features,
@@ -56,13 +28,6 @@ defmodule Analysis.GameRecordsTest do
       """,
       []
     )
-
-    on_exit(fn ->
-      restore_config(
-        GameRecordStore,
-        previous_game_record_store
-      )
-    end)
 
     record_id =
       "record-#{System.unique_integer([:positive])}"
@@ -76,7 +41,7 @@ defmodule Analysis.GameRecordsTest do
     }
   end
 
-  test "creates a concrete game record backed by canonical game content",
+  test "creates a durable concrete game record backed by canonical game content",
        %{
          record_id: record_id,
          initial_position_id: initial_position_id
@@ -94,9 +59,9 @@ defmodule Analysis.GameRecordsTest do
       GameStart.new(37)
 
     metadata = %{
-      white: "White",
-      black: "Black",
-      event: "Example"
+      "white" => "White",
+      "black" => "Black",
+      "event" => "Example"
     }
 
     assert {:ok, record} =
@@ -132,9 +97,19 @@ defmodule Analysis.GameRecordsTest do
            |> hd()
            |> Map.fetch!(:position_id) ==
              initial_position_id
+
+    assert [[1]] =
+             Repo.query!(
+               """
+               SELECT count(*)
+               FROM game_records
+               WHERE record_id = $1
+               """,
+               [record_id]
+             ).rows
   end
 
-  test "reuses canonical game content for different concrete records",
+  test "reuses canonical game content for different durable concrete records",
        %{
          record_id: record_id,
          initial_position_id: initial_position_id
@@ -157,7 +132,7 @@ defmodule Analysis.GameRecordsTest do
                content,
                GameStart.standard(),
                %{
-                 event: "London"
+                 "event" => "London"
                }
              )
 
@@ -167,7 +142,7 @@ defmodule Analysis.GameRecordsTest do
                content,
                GameStart.standard(),
                %{
-                 event: "Amsterdam"
+                 "event" => "Amsterdam"
                }
              )
 
@@ -180,11 +155,21 @@ defmodule Analysis.GameRecordsTest do
     game_id =
       GameRecord.game_id(first)
 
-    records =
-      GameRecords.list_by_game_id(game_id)
+    assert {
+             :ok,
+             records,
+             :done
+           } =
+             GameRecordStore.records_page_by_game_id(
+               game_id,
+               10
+             )
 
-    assert first in records
-    assert second in records
+    assert records ==
+             [
+               first,
+               second
+             ]
 
     assert Enum.all?(
              records,
@@ -325,7 +310,7 @@ defmodule Analysis.GameRecordsTest do
              :not_found
   end
 
-  test "gets a stored game record",
+  test "gets a durable game record",
        %{
          record_id: record_id,
          initial_position_id: initial_position_id
@@ -343,25 +328,6 @@ defmodule Analysis.GameRecordsTest do
 
     assert GameRecords.get(record_id) ==
              {:ok, record}
-  end
-
-  test "lists stored game records",
-       %{
-         record_id: record_id,
-         initial_position_id: initial_position_id
-       } do
-    content =
-      GameContent.new(initial_position_id)
-
-    assert {:ok, record} =
-             GameRecords.create(
-               record_id,
-               content,
-               GameStart.standard(),
-               %{}
-             )
-
-    assert record in GameRecords.list()
   end
 
   test "loads a concrete game with canonical content and occurrences",
@@ -384,7 +350,7 @@ defmodule Analysis.GameRecordsTest do
                content,
                GameStart.standard(),
                %{
-                 event: "Example"
+                 "event" => "Example"
                }
              )
 
@@ -399,7 +365,8 @@ defmodule Analysis.GameRecordsTest do
     assert Enum.map(
              occurrences,
              & &1.ply
-           ) == [0, 1, 2]
+           ) ==
+             [0, 1, 2]
 
     assert occurrences
            |> Enum.map(& &1.position_id)
@@ -410,30 +377,6 @@ defmodule Analysis.GameRecordsTest do
   test "returns not_found when loading an unknown game record" do
     assert GameRecords.load("missing-game-record") ==
              :not_found
-  end
-
-  test "reports a missing canonical game when loading a game record",
-       %{
-         record_id: record_id
-       } do
-    missing_game_id =
-      unique_id()
-
-    record =
-      GameRecord.new(
-        record_id,
-        missing_game_id
-      )
-
-    assert :ok =
-             GameRecordStore.insert(record)
-
-    assert GameRecords.load(record_id) ==
-             {:error,
-              {
-                :game_not_found,
-                missing_game_id
-              }}
   end
 
   test "pages concrete game records for position occurrences without duplicates or omissions" do
@@ -635,7 +578,7 @@ defmodule Analysis.GameRecordsTest do
              }
   end
 
-  test "closes an unfinished concrete occurrence cursor" do
+  test "closing an unfinished concrete occurrence cursor is a no-op for stateless repositories" do
     position_id =
       PositionStore.append(Position.starting_position())
 
@@ -672,7 +615,12 @@ defmodule Analysis.GameRecordsTest do
 
     assert {
              :ok,
-             [_match],
+             [
+               {
+                 ^first,
+                 _occurrence
+               }
+             ],
              cursor
            } =
              GameRecords.occurrences_page_by_position_id(
@@ -683,32 +631,20 @@ defmodule Analysis.GameRecordsTest do
     assert :ok =
              GameRecords.close_occurrences(cursor)
 
-    assert GameRecords.next_occurrences_page(
-             cursor,
-             1
-           ) ==
-             {
-               :error,
+    assert {
+             :ok,
+             [
                {
-                 :game_record_store,
-                 :cursor_not_found
+                 ^second,
+                 _occurrence
                }
-             }
-  end
-
-  defp restore_config(module, :not_configured) do
-    Application.delete_env(
-      :analysis,
-      module
-    )
-  end
-
-  defp restore_config(module, value) do
-    Application.put_env(
-      :analysis,
-      module,
-      value
-    )
+             ],
+             :done
+           } =
+             GameRecords.next_occurrences_page(
+               cursor,
+               1
+             )
   end
 
   defp move(from, to) do

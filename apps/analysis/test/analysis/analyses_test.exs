@@ -299,8 +299,8 @@ defmodule Analysis.AnalysesTest do
                  content,
                  GameStart.standard(),
                  %{
-                   white: "White",
-                   black: "Black"
+                   "white" => "White",
+                   "black" => "Black"
                  }
                )
 

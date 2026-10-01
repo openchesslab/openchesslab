@@ -2,7 +2,6 @@ defmodule Web.ReadinessControllerTest do
   use Web.ConnCase, async: false
 
   alias Analysis.AnalysisStore
-  alias Analysis.GameRecordStore
 
   defmodule UnavailablePositionRepository do
     @moduledoc false
@@ -62,6 +61,40 @@ defmodule Web.ReadinessControllerTest do
 
     @impl true
     def get_occurrence(_occurrence_id), do: {:error, :unavailable}
+  end
+
+  defmodule UnavailableGameRecordRepository do
+    @moduledoc false
+
+    @behaviour Analysis.GameRecordRepository
+
+    @impl true
+    def ready?, do: false
+
+    @impl true
+    def insert(_record), do: {:error, :unavailable}
+
+    @impl true
+    def get(_record_id), do: {:error, :unavailable}
+
+    @impl true
+    def records_page_by_game_id(
+          _game_id,
+          _page_size
+        ) do
+      {:error, :unavailable}
+    end
+
+    @impl true
+    def next_records_page(
+          _cursor,
+          _page_size
+        ) do
+      {:error, :unavailable}
+    end
+
+    @impl true
+    def close_records(_cursor), do: :ok
   end
 
   test "GET /ready returns ready when required stores are reachable",
@@ -192,26 +225,26 @@ defmodule Web.ReadinessControllerTest do
              }
   end
 
-  test "GET /ready returns service unavailable when the game record store is unavailable",
+  test "GET /ready returns service unavailable when PostgreSQL game record storage is unavailable",
        %{conn: conn} do
     previous =
       Application.get_env(
         :analysis,
-        GameRecordStore,
+        :game_record_repository,
         :not_configured
       )
 
     on_exit(fn ->
-      restore_module_config(
-        GameRecordStore,
+      restore_repository(
+        :game_record_repository,
         previous
       )
     end)
 
     Application.put_env(
       :analysis,
-      GameRecordStore,
-      store: :unavailable_game_record_store
+      :game_record_repository,
+      UnavailableGameRecordRepository
     )
 
     conn =

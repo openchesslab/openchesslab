@@ -57,6 +57,7 @@ config :database, OpenChessLab.Repo,
 
 config :analysis,
   position_repository: Analysis.PositionRepository.Postgres,
-  game_repository: Analysis.GameRepository.Postgres
+  game_repository: Analysis.GameRepository.Postgres,
+  game_record_repository: Analysis.GameRecordRepository.Postgres
 
 import_config "#{config_env()}.exs"
