@@ -5,7 +5,7 @@ defmodule Analysis.GameContentCodec do
   Format `OCLGAME1`:
 
     * 8 bytes format identifier
-    * 8 bytes initial PositionDB position ID
+    * 8 bytes initial canonical position ID
     * 4 bytes move count
     * 3 bytes per move:
       * source square

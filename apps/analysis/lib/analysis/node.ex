@@ -3,7 +3,7 @@ defmodule Analysis.Node do
   A node in a chess game tree.
 
   Each node represents one occurrence of a position in the game tree.
-  The position itself is stored in PositionDB and is identified by
+  The canonical position itself is stored in PostgreSQL and is identified
   `position_id`.
 
   The root node has no transition. Every other node stores the transition
@@ -12,7 +12,7 @@ defmodule Analysis.Node do
 
   alias Analysis.Transition
 
-  @type position_id :: term()
+  @type position_id :: pos_integer()
 
   @type nag :: 0..255
 

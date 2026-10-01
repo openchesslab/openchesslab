@@ -16,14 +16,6 @@ defmodule OpenChessLab.Database.Application do
 
   @doc false
   def children do
-    if Application.get_env(
-         :database,
-         :start_repo,
-         false
-       ) do
-      [Repo]
-    else
-      []
-    end
+    [Repo]
   end
 end

@@ -8,15 +8,15 @@ defmodule GameDB.Storage do
     * immutable game records
     * stable occurrence ID allocation
     * the ordered position occurrences of each game
-    * lookup and scanning of occurrences for a PositionDB position
+    * lookup and scanning of occurrences for a canonical position
     * sequential game scans
 
   Game records are identity-less payloads. Their durable identity
   is the game ID allocated by storage.
 
-  Position IDs refer to positions owned by PositionDB. The first
-  position ID is the game's initial position and therefore has
-  ply zero.
+  Position IDs refer to canonical positions owned by the application
+  position repository. The first position ID is the game's initial
+  position and therefore has ply zero.
 
   A game fingerprint is an index key, not game identity.
   Multiple distinct games may share the same fingerprint.

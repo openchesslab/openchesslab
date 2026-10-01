@@ -21,3 +21,26 @@ config :phoenix_live_view,
 # Sort query params output of verified routes for robust url comparisons
 config :phoenix,
   sort_verified_routes_query_params: true
+
+database_url =
+  System.get_env(
+    "DATABASE_URL",
+    "ecto://openchesslab:openchesslab@localhost/openchesslab_test"
+  )
+
+database_name =
+  database_url
+  |> URI.parse()
+  |> Map.fetch!(:path)
+
+unless database_name == "/openchesslab_test" do
+  raise """
+  MIX_ENV=test must use the openchesslab_test database.
+  Got database path: #{inspect(database_name)}
+  """
+end
+
+config :database, OpenChessLab.Repo,
+  url: database_url,
+  pool_size: 10,
+  log: false

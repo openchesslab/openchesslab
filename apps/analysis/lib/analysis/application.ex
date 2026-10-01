@@ -9,8 +9,6 @@ defmodule Analysis.Application do
   alias Analysis.GameRecordStoreOwner
   alias Analysis.GameStore
   alias Analysis.GameStoreOwner
-  alias Analysis.PositionStore
-  alias Analysis.PositionStoreOwner
 
   @impl true
   def start(_type, _args) do
@@ -23,13 +21,6 @@ defmodule Analysis.Application do
 
   @doc false
   def children do
-    position_store_options =
-      Application.get_env(
-        :analysis,
-        PositionStore,
-        []
-      )
-
     game_store_options =
       Application.get_env(
         :analysis,
@@ -57,10 +48,6 @@ defmodule Analysis.Application do
       Analysis.AnalysisEvents,
       {
         Horde.Registry,
-        name: Analysis.PositionStoreRegistry, keys: :unique, members: :auto
-      },
-      {
-        Horde.Registry,
         name: Analysis.GameStoreRegistry, keys: :unique, members: :auto
       },
       {
@@ -72,7 +59,6 @@ defmodule Analysis.Application do
         name: Analysis.AnalysisStoreRegistry, keys: :unique, members: :auto
       }
     ] ++
-      position_store_children(position_store_options) ++
       game_store_children(game_store_options) ++
       game_record_store_children(game_record_store_options) ++
       analysis_store_children(analysis_store_options) ++
@@ -86,28 +72,6 @@ defmodule Analysis.Application do
           name: Analysis.RoomSupervisor, strategy: :one_for_one, members: :auto
         }
       ]
-  end
-
-  defp position_store_children(options) do
-    cond do
-      Keyword.get(options, :repository) ->
-        []
-
-      PositionStoreOwner.owner?() ->
-        [
-          {
-            PositionStore,
-            Keyword.put_new(
-              options,
-              :server,
-              PositionStore.clustered_server()
-            )
-          }
-        ]
-
-      true ->
-        []
-    end
   end
 
   defp game_store_children(options) do

@@ -18,34 +18,55 @@ defmodule Analysis.AnalysesTest do
   alias Chess.PositionDraft
   alias Chess.Square
 
-  defmodule FailingPositionStore do
+  defmodule FailingPositionRepository do
     @moduledoc false
-    use GenServer
 
-    def start_link(mode) do
-      GenServer.start_link(
-        __MODULE__,
-        mode,
-        name: PositionStore.clustered_server()
-      )
+    @behaviour Analysis.PositionRepository
+
+    alias Chess.Position
+
+    @impl true
+    def ready? do
+      false
     end
 
     @impl true
-    def init(mode) do
-      {:ok, mode}
+    def put(_position) do
+      {:error, :disk_failure}
     end
 
     @impl true
-    def handle_call({:append, _position}, _from, state) do
-      {:reply, {:error, :disk_failure}, state}
+    def get(_position_id) do
+      case Application.fetch_env!(
+             :analysis,
+             :failing_position_repository_mode
+           ) do
+        :get_failure ->
+          {:error, :disk_failure}
+
+        :put_failure ->
+          {:ok, Position.starting_position()}
+      end
     end
 
-    def handle_call({:get, _position_id}, _from, :get_failure = state) do
-      {:reply, {:error, :disk_failure}, state}
+    @impl true
+    def find(_position) do
+      :not_found
     end
 
-    def handle_call({:get, _position_id}, _from, state) do
-      {:reply, {:ok, Position.starting_position()}, state}
+    @impl true
+    def query_page(_query, _page_size) do
+      {:error, :disk_failure}
+    end
+
+    @impl true
+    def next_query_page(_cursor, _page_size) do
+      {:error, :disk_failure}
+    end
+
+    @impl true
+    def close_query(_cursor) do
+      :ok
     end
   end
 
@@ -68,27 +89,61 @@ defmodule Analysis.AnalysesTest do
     )
   end
 
-  defp with_failing_position_store(mode, fun) do
-    :ok =
-      Supervisor.terminate_child(
-        Analysis.Supervisor,
-        PositionStore
+  defp with_failing_position_repository(mode, fun) do
+    previous_repository =
+      Application.get_env(
+        :analysis,
+        :position_repository,
+        :not_configured
       )
 
-    {:ok, pid} =
-      FailingPositionStore.start_link(mode)
+    previous_mode =
+      Application.get_env(
+        :analysis,
+        :failing_position_repository_mode,
+        :not_configured
+      )
+
+    Application.put_env(
+      :analysis,
+      :position_repository,
+      FailingPositionRepository
+    )
+
+    Application.put_env(
+      :analysis,
+      :failing_position_repository_mode,
+      mode
+    )
 
     try do
       fun.()
     after
-      GenServer.stop(pid)
+      restore_position_repository_config(
+        :position_repository,
+        previous_repository
+      )
 
-      {:ok, _pid} =
-        Supervisor.restart_child(
-          Analysis.Supervisor,
-          PositionStore
-        )
+      restore_position_repository_config(
+        :failing_position_repository_mode,
+        previous_mode
+      )
     end
+  end
+
+  defp restore_position_repository_config(key, :not_configured) do
+    Application.delete_env(
+      :analysis,
+      key
+    )
+  end
+
+  defp restore_position_repository_config(key, value) do
+    Application.put_env(
+      :analysis,
+      key,
+      value
+    )
   end
 
   defmodule RecordingAnalysisStore do
@@ -1086,8 +1141,8 @@ defmodule Analysis.AnalysesTest do
        %{
          analysis_id: analysis_id
        } do
-    with_failing_position_store(
-      :append_failure,
+    with_failing_position_repository(
+      :put_failure,
       fn ->
         assert Analyses.create(analysis_id) ==
                  {:error, {:position_store, :disk_failure}}
@@ -1111,7 +1166,7 @@ defmodule Analysis.AnalysesTest do
     assert {:ok, 1} =
              Analyses.insert(analysis)
 
-    with_failing_position_store(
+    with_failing_position_repository(
       :get_failure,
       fn ->
         assert Analyses.play(
@@ -1148,8 +1203,8 @@ defmodule Analysis.AnalysesTest do
       |> PositionDraft.new()
       |> PositionDraft.remove_piece(Square.from_algebraic("e2"))
 
-    with_failing_position_store(
-      :append_failure,
+    with_failing_position_repository(
+      :put_failure,
       fn ->
         assert Analyses.edit(
                  analysis_id,

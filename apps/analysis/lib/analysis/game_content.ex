@@ -9,7 +9,7 @@ defmodule Analysis.GameContent do
 
   alias Chess.Move
 
-  @type position_id :: PositionDB.position_id()
+  @type position_id :: pos_integer()
 
   @type t :: %__MODULE__{
           initial_position_id: position_id(),

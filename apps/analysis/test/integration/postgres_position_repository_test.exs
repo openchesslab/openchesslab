@@ -12,27 +12,6 @@ defmodule Analysis.PostgresPositionRepositoryTest do
 
   @moduletag postgres: true
 
-  setup_all do
-    database_url =
-      System.fetch_env!("DATABASE_URL")
-
-    start_supervised!({
-      Repo,
-      url: database_url, pool_size: 1, log: false
-    })
-
-    Repo.query!(
-      """
-      SELECT 1
-      FROM positions
-      LIMIT 0
-      """,
-      []
-    )
-
-    :ok
-  end
-
   setup do
     Repo.query!(
       """

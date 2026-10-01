@@ -9,6 +9,7 @@ defmodule Analysis.GameSearch do
 
   alias Analysis.GameRecords
   alias Analysis.PositionQuery
+  alias Analysis.PositionRepository
   alias Analysis.PositionStore
 
   defmodule Cursor do
@@ -30,9 +31,9 @@ defmodule Analysis.GameSearch do
             position_cursor:
               :done
               | PositionStore.query_cursor(),
-            position_ids: [PositionDB.position_id()],
+            position_ids: [PositionRepository.position_id()],
             current_position_id:
-              PositionDB.position_id()
+              PositionRepository.position_id()
               | nil,
             occurrence_cursor:
               GameRecords.occurrence_cursor()

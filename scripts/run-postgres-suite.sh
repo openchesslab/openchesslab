@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Run the OpenChessLab PostgreSQL test suite.
+Run the OpenChessLab PostgreSQL-backed Analysis test suite.
 
 Usage:
   ./run-postgres-suite.sh [--database-url URL] [--skip-migrations]
@@ -51,13 +51,6 @@ while (($# > 0)); do
   esac
 done
 
-if [[ -z "$database_url" ]]; then
-  echo "error: DATABASE_URL is required" >&2
-  echo >&2
-  usage >&2
-  exit 2
-fi
-
 is_repo_root() {
   local path="$1"
 
@@ -103,6 +96,7 @@ else
 fi
 
 export DATABASE_URL="$database_url"
+export MIX_ENV=test
 
 echo "OpenChessLab PostgreSQL suite"
 echo "Repository: $repo_root"
@@ -113,7 +107,7 @@ if [[ "$skip_migrations" == false ]]; then
 
   (
     cd "$repo_root/apps/database"
-    MIX_ENV=dev mix ecto.migrate
+    mix ecto.migrate
   )
 else
   echo
@@ -121,11 +115,11 @@ else
 fi
 
 echo
-echo "==> Running PostgreSQL-tagged Analysis tests"
+echo "==> Running Analysis test suite against PostgreSQL"
 
 (
   cd "$repo_root/apps/analysis"
-  POSTGRES_TESTS=true MIX_ENV=test mix test --only postgres
+  mix test
 )
 
 echo

@@ -14,8 +14,8 @@ function Test-RepoRoot {
 
     return (
         (Test-Path (Join-Path $Path "mix.exs")) -and
-        (Test-Path (Join-Path $Path "apps\\analysis\\mix.exs")) -and
-        (Test-Path (Join-Path $Path "apps\\database\\mix.exs"))
+        (Test-Path (Join-Path $Path "apps\analysis\mix.exs")) -and
+        (Test-Path (Join-Path $Path "apps\database\mix.exs"))
     )
 }
 
@@ -58,10 +58,10 @@ $repoRoot = Find-RepoRoot
 
 $previousDatabaseUrl = $env:DATABASE_URL
 $previousMixEnv = $env:MIX_ENV
-$previousPostgresTests = $env:POSTGRES_TESTS
 
 try {
     $env:DATABASE_URL = $DatabaseUrl
+    $env:MIX_ENV = "test"
 
     Write-Host "OpenChessLab PostgreSQL suite"
     Write-Host "Repository: $repoRoot"
@@ -70,10 +70,8 @@ try {
         Write-Host ""
         Write-Host "==> Running PostgreSQL migrations"
 
-        Push-Location (Join-Path $repoRoot "apps\\database")
+        Push-Location (Join-Path $repoRoot "apps\database")
         try {
-            $env:MIX_ENV = "dev"
-
             & mix ecto.migrate
 
             if ($LASTEXITCODE -ne 0) {
@@ -90,14 +88,11 @@ try {
     }
 
     Write-Host ""
-    Write-Host "==> Running PostgreSQL-tagged Analysis tests"
+    Write-Host "==> Running Analysis test suite against PostgreSQL"
 
-    Push-Location (Join-Path $repoRoot "apps\\analysis")
+    Push-Location (Join-Path $repoRoot "apps\analysis")
     try {
-        $env:MIX_ENV = "test"
-        $env:POSTGRES_TESTS = "true"
-
-        & mix test --only postgres
+        & mix test
 
         if ($LASTEXITCODE -ne 0) {
             exit $LASTEXITCODE
@@ -113,5 +108,4 @@ try {
 finally {
     $env:DATABASE_URL = $previousDatabaseUrl
     $env:MIX_ENV = $previousMixEnv
-    $env:POSTGRES_TESTS = $previousPostgresTests
 }

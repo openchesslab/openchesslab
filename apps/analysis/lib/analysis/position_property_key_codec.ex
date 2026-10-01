@@ -1,12 +1,8 @@
 defmodule Analysis.PositionPropertyKeyCodec do
   @moduledoc """
-  Encodes chess position properties for durable PositionDB
-  secondary indexes.
+  Encodes chess position properties into stable binary keys stored in
+  PostgreSQL `position_features`.
   """
-
-  @behaviour PositionDB.Storage.PropertyKeyCodec
-
-  alias PositionDB.Storage.PropertyKeyCodec
 
   @format_id <<"chess-position-property-v1">>
 
@@ -30,12 +26,14 @@ defmodule Analysis.PositionPropertyKeyCodec do
     :king
   ]
 
-  @impl PropertyKeyCodec
+  @spec format_id() :: binary()
   def format_id do
     @format_id
   end
 
-  @impl PropertyKeyCodec
+  @spec encode(atom(), term()) ::
+          {:ok, binary()}
+          | {:error, term()}
   def encode(:open_files, file) do
     case Map.fetch(
            @file_ids,

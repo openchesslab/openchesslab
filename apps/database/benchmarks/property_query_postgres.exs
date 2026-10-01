@@ -31,14 +31,6 @@ defmodule OpenChessLab.Database.PropertyQueryPostgresBenchmark do
   WHERE properties @> ARRAY[$1::bytea]::bytea[]
   """
 
-  def start_repo(database_url) do
-    Repo.start_link(
-      url: database_url,
-      pool_size: 1,
-      log: false
-    )
-  end
-
   def build(posting_count, selectivity) do
     row_count =
       posting_count *
@@ -226,7 +218,7 @@ defmodule OpenChessLab.Database.PropertyQueryPostgresBenchmark do
   end
 end
 
-database_url =
+_database_url =
   System.get_env("DATABASE_URL") ||
     raise """
     DATABASE_URL is required.
@@ -268,9 +260,6 @@ end
 if page_size <= 0 do
   raise "POSTGRES_BENCH_PAGE_SIZE must be positive"
 end
-
-{:ok, repo_pid} =
-  Benchmark.start_repo(database_url)
 
 try do
   IO.puts("""
@@ -368,5 +357,4 @@ try do
   )
 after
   Benchmark.cleanup()
-  GenServer.stop(repo_pid)
 end

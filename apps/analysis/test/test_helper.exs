@@ -1,12 +1,12 @@
-exclude =
-  case System.get_env("POSTGRES_TESTS") do
-    "true" ->
-      []
+ExUnit.start()
 
-    _other ->
-      [
-        postgres: true
-      ]
-  end
-
-ExUnit.start(exclude: exclude)
+OpenChessLab.Repo.query!(
+  """
+  TRUNCATE TABLE
+    position_features,
+    positions
+  RESTART IDENTITY
+  CASCADE
+  """,
+  []
+)

@@ -2,43 +2,99 @@ defmodule Web.ReadinessControllerTest do
   use Web.ConnCase, async: false
 
   alias Analysis.AnalysisStore
-  alias Analysis.GameStore
   alias Analysis.GameRecordStore
-  alias Analysis.PositionStore
+  alias Analysis.GameStore
+
+  defmodule UnavailablePositionRepository do
+    @moduledoc false
+
+    @behaviour Analysis.PositionRepository
+
+    @impl true
+    def ready? do
+      false
+    end
+
+    @impl true
+    def put(_position) do
+      {:error, :unavailable}
+    end
+
+    @impl true
+    def get(_position_id) do
+      {:error, :unavailable}
+    end
+
+    @impl true
+    def find(_position) do
+      {:error, :unavailable}
+    end
+
+    @impl true
+    def query_page(_query, _page_size) do
+      {:error, :unavailable}
+    end
+
+    @impl true
+    def next_query_page(_cursor, _page_size) do
+      {:error, :unavailable}
+    end
+
+    @impl true
+    def close_query(_cursor) do
+      :ok
+    end
+  end
 
   test "GET /ready returns ready when required stores are reachable",
        %{conn: conn} do
-    conn = get(conn, "/ready")
+    conn =
+      get(
+        conn,
+        "/ready"
+      )
 
-    assert json_response(conn, 200) == %{
-             "status" => "ready"
-           }
+    assert json_response(
+             conn,
+             200
+           ) ==
+             %{
+               "status" => "ready"
+             }
   end
 
-  test "GET /ready returns service unavailable when the position store is unavailable",
+  test "GET /ready returns service unavailable when PostgreSQL position storage is unavailable",
        %{conn: conn} do
     previous =
       Application.get_env(
         :analysis,
-        PositionStore,
+        :position_repository,
         :not_configured
       )
 
     on_exit(fn ->
-      restore_position_store_config(previous)
+      restore_position_repository(previous)
     end)
 
     Application.put_env(
       :analysis,
-      PositionStore,
-      server: :unavailable_position_store
+      :position_repository,
+      UnavailablePositionRepository
     )
 
-    conn = get(conn, "/ready")
+    conn =
+      get(
+        conn,
+        "/ready"
+      )
 
-    assert json_response(conn, 503) == %{
-             "status" => "unavailable"
-           }
+    assert json_response(
+             conn,
+             503
+           ) ==
+             %{
+               "status" => "unavailable"
+             }
   end
 
   test "GET /ready returns service unavailable when the analysis store is unavailable",
@@ -60,11 +116,19 @@ defmodule Web.ReadinessControllerTest do
       store: :unavailable_analysis_store
     )
 
-    conn = get(conn, "/ready")
+    conn =
+      get(
+        conn,
+        "/ready"
+      )
 
-    assert json_response(conn, 503) == %{
-             "status" => "unavailable"
-           }
+    assert json_response(
+             conn,
+             503
+           ) ==
+             %{
+               "status" => "unavailable"
+             }
   end
 
   test "GET /ready returns service unavailable when the canonical game store is unavailable",
@@ -111,20 +175,7 @@ defmodule Web.ReadinessControllerTest do
       )
 
     on_exit(fn ->
-      case previous do
-        :not_configured ->
-          Application.delete_env(
-            :analysis,
-            GameRecordStore
-          )
-
-        value ->
-          Application.put_env(
-            :analysis,
-            GameRecordStore,
-            value
-          )
-      end
+      restore_game_record_store_config(previous)
     end)
 
     Application.put_env(
@@ -189,18 +240,18 @@ defmodule Web.ReadinessControllerTest do
              }
   end
 
-  defp restore_position_store_config(:not_configured) do
+  defp restore_position_repository(:not_configured) do
     Application.delete_env(
       :analysis,
-      PositionStore
+      :position_repository
     )
   end
 
-  defp restore_position_store_config(value) do
+  defp restore_position_repository(repository) do
     Application.put_env(
       :analysis,
-      PositionStore,
-      value
+      :position_repository,
+      repository
     )
   end
 
@@ -230,6 +281,21 @@ defmodule Web.ReadinessControllerTest do
     Application.put_env(
       :analysis,
       GameStore,
+      value
+    )
+  end
+
+  defp restore_game_record_store_config(:not_configured) do
+    Application.delete_env(
+      :analysis,
+      GameRecordStore
+    )
+  end
+
+  defp restore_game_record_store_config(value) do
+    Application.put_env(
+      :analysis,
+      GameRecordStore,
       value
     )
   end

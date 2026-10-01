@@ -49,6 +49,10 @@ config :phoenix_live_view,
 # in production as building large stacktraces may be expensive.
 config :phoenix, :stacktrace_depth, 20
 
-if database_url = System.get_env("DATABASE_URL") do
-  config :database, OpenChessLab.Repo, url: database_url
-end
+database_url =
+  System.get_env(
+    "DATABASE_URL",
+    "ecto://openchesslab:openchesslab@localhost/openchesslab_dev"
+  )
+
+config :database, OpenChessLab.Repo, url: database_url

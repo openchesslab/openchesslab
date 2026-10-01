@@ -7,7 +7,7 @@ defmodule Analysis.Analysis do
 
   @type id :: term()
   @type path :: [non_neg_integer()]
-  @type position_id :: term()
+  @type position_id :: pos_integer()
 
   @type source_game_record_id ::
           GameRecord.id() | nil

@@ -12,15 +12,9 @@ defmodule Analysis.GameSearchTest do
   alias Chess.Move
   alias Chess.Position
   alias Chess.Square
+  alias OpenChessLab.Repo
 
   setup do
-    previous_position_store =
-      Application.get_env(
-        :analysis,
-        PositionStore,
-        :not_configured
-      )
-
     previous_game_store =
       Application.get_env(
         :analysis,
@@ -41,19 +35,11 @@ defmodule Analysis.GameSearchTest do
         :monotonic
       ])
 
-    position_server =
-      :"game-search-position-store-#{unique}"
-
     game_server =
       :"game-search-game-store-#{unique}"
 
     record_server =
       :"game-search-record-store-#{unique}"
-
-    start_supervised!({
-      PositionStore,
-      server: position_server
-    })
 
     start_supervised!({
       GameStore,
@@ -64,12 +50,6 @@ defmodule Analysis.GameSearchTest do
       Memory,
       name: record_server
     })
-
-    Application.put_env(
-      :analysis,
-      PositionStore,
-      server: position_server
-    )
 
     Application.put_env(
       :analysis,
@@ -84,12 +64,18 @@ defmodule Analysis.GameSearchTest do
       store: record_server
     )
 
-    on_exit(fn ->
-      restore_config(
-        PositionStore,
-        previous_position_store
-      )
+    Repo.query!(
+      """
+      TRUNCATE TABLE
+        position_features,
+        positions
+      RESTART IDENTITY
+      CASCADE
+      """,
+      []
+    )
 
+    on_exit(fn ->
       restore_config(
         GameStore,
         previous_game_store

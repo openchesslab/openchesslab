@@ -1,6 +1,6 @@
 defmodule GameDB.Occurrence do
   @moduledoc """
-  One occurrence of a PositionDB position in a canonical game.
+  One occurrence of a canonical chess position in a canonical game.
 
   Occurrences have their own stable identity because the same
   position can occur multiple times in the same game or across

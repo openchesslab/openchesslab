@@ -44,8 +44,7 @@ config :localize,
 config :mime, :types, %{"application/x-chess-pgn" => ["pgn"]}
 
 config :database,
-  ecto_repos: [OpenChessLab.Repo],
-  start_repo: false
+  ecto_repos: [OpenChessLab.Repo]
 
 config :database, OpenChessLab.Repo,
   migration_primary_key: [
@@ -55,5 +54,8 @@ config :database, OpenChessLab.Repo,
   migration_foreign_key: [
     type: :bigint
   ]
+
+config :analysis,
+  position_repository: Analysis.PositionRepository.Postgres
 
 import_config "#{config_env()}.exs"

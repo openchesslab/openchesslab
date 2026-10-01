@@ -3,9 +3,8 @@ defmodule OpenChessLab.Repo do
   Shared PostgreSQL repository for persistent OpenChessLab data.
 
   Domain-specific persistence remains owned by the domain applications.
-  `position_db` and `game_db` can depend on this repository through
-  PostgreSQL-backed storage adapters without owning separate connection
-  pools or migration histories.
+  The shared repository owns the PostgreSQL connection pool and migration
+  history used by those domain repositories.
   """
 
   use Ecto.Repo,
