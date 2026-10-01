@@ -82,6 +82,50 @@ defmodule Analysis.GameRecordsTest do
     end
   end
 
+  defmodule FailingInsertGameRecordRepository do
+    @moduledoc false
+
+    @behaviour Analysis.GameRecordRepository
+
+    alias Analysis.GameRecordRepository.Postgres
+
+    @impl true
+    def ready? do
+      Postgres.ready?()
+    end
+
+    @impl true
+    def insert(_record) do
+      {:error, :disk_failure}
+    end
+
+    @impl true
+    def get(record_id) do
+      Postgres.get(record_id)
+    end
+
+    @impl true
+    def records_page_by_game_id(game_id, page_size) do
+      Postgres.records_page_by_game_id(
+        game_id,
+        page_size
+      )
+    end
+
+    @impl true
+    def next_records_page(cursor, page_size) do
+      Postgres.next_records_page(
+        cursor,
+        page_size
+      )
+    end
+
+    @impl true
+    def close_records(cursor) do
+      Postgres.close_records(cursor)
+    end
+  end
+
   setup do
     Repo.query!(
       """
@@ -741,18 +785,38 @@ defmodule Analysis.GameRecordsTest do
                move
              )
 
+    previous_repository =
+      Application.get_env(
+        :analysis,
+        :game_record_repository,
+        :not_configured
+      )
+
+    on_exit(fn ->
+      restore_env(
+        :game_record_repository,
+        previous_repository
+      )
+    end)
+
+    Application.put_env(
+      :analysis,
+      :game_record_repository,
+      FailingInsertGameRecordRepository
+    )
+
     assert GameRecords.create(
              record_id,
              content,
              GameStart.standard(),
              %{
-               event: "Invalid durable metadata"
+               "event" => "Example"
              }
            ) ==
              {:error,
               {
                 :game_record_store,
-                :invalid_metadata
+                :disk_failure
               }}
 
     assert GameRecordStore.get(record_id) ==
@@ -1065,11 +1129,15 @@ defmodule Analysis.GameRecordsTest do
                move
              )
 
-    assert GameRecords.create(
-             "",
-             content,
-             GameStart.standard(),
-             %{}
+    assert apply(
+             GameRecords,
+             :create,
+             [
+               123,
+               content,
+               GameStart.standard(),
+               %{}
+             ]
            ) ==
              {:error, :invalid_record_id}
 
@@ -1107,6 +1175,74 @@ defmodule Analysis.GameRecordsTest do
              %{}
            ) ==
              {:error, :invalid_record_id}
+  end
+
+  test "rejects invalid metadata before canonical game creation",
+       %{
+         record_id: record_id,
+         initial_position_id: initial_position_id
+       } do
+    move =
+      move(
+        "e2",
+        "e4"
+      )
+
+    content =
+      GameContent.new(
+        initial_position_id,
+        [move]
+      )
+
+    assert {:ok, fingerprint} =
+             GameFingerprint.for_content(content)
+
+    assert {:ok, resulting_position} =
+             Position.apply_move(
+               Position.starting_position(),
+               move
+             )
+
+    assert apply(
+             GameRecords,
+             :create,
+             [
+               record_id,
+               content,
+               GameStart.standard(),
+               %{
+                 event: "Invalid"
+               }
+             ]
+           ) ==
+             {:error, :invalid_metadata}
+
+    assert GameStore.find(
+             fingerprint,
+             content
+           ) ==
+             :not_found
+
+    assert PositionStore.find(resulting_position) ==
+             :not_found
+
+    assert [[0]] =
+             Repo.query!(
+               """
+               SELECT count(*)
+               FROM games
+               """,
+               []
+             ).rows
+
+    assert [[0]] =
+             Repo.query!(
+               """
+               SELECT count(*)
+               FROM game_records
+               """,
+               []
+             ).rows
   end
 
   defp move(from, to) do

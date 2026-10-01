@@ -32,6 +32,7 @@ defmodule Analysis.GameRecords do
   @type create_error ::
           :already_exists
           | :invalid_record_id
+          | :invalid_metadata
           | {:invalid_game, term()}
           | {:position_store, term()}
           | {:game_store, term()}
@@ -69,30 +70,34 @@ defmodule Analysis.GameRecords do
           GameRecord.id(),
           GameContent.t(),
           GameStart.t(),
-          map()
+          GameRecord.metadata()
         ) ::
           {:ok, GameRecord.t()}
           | {:error, create_error()}
   def create(record_id, %GameContent{} = content, %GameStart{} = start, metadata)
       when is_binary(record_id) and byte_size(record_id) > 0 and is_map(metadata) do
-    case GameRecordStore.get(record_id) do
-      {:ok, _record} ->
-        {:error, :already_exists}
+    if GameRecord.valid_metadata?(metadata) do
+      case GameRecordStore.get(record_id) do
+        {:ok, _record} ->
+          {:error, :already_exists}
 
-      :not_found ->
-        do_create(
-          record_id,
-          content,
-          start,
-          metadata
-        )
+        :not_found ->
+          do_create(
+            record_id,
+            content,
+            start,
+            metadata
+          )
 
-      {:error, reason} ->
-        {:error,
-         {
-           :game_record_store,
-           reason
-         }}
+        {:error, reason} ->
+          {:error,
+           {
+             :game_record_store,
+             reason
+           }}
+      end
+    else
+      {:error, :invalid_metadata}
     end
   end
 

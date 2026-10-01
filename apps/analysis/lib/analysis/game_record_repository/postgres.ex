@@ -381,48 +381,11 @@ defmodule Analysis.GameRecordRepository.Postgres do
     {:error, :invalid_fullmove_number}
   end
 
-  defp validate_metadata(metadata) when is_map(metadata) do
-    if json_value?(metadata) do
-      case Jason.encode(metadata) do
-        {:ok, _encoded} ->
-          :ok
-
-        {:error, _reason} ->
-          {:error, :invalid_metadata}
-      end
+  defp validate_metadata(metadata) do
+    if GameRecord.valid_metadata?(metadata) do
+      :ok
     else
       {:error, :invalid_metadata}
     end
-  end
-
-  defp validate_metadata(_metadata) do
-    {:error, :invalid_metadata}
-  end
-
-  defp json_value?(value) when is_map(value) do
-    Enum.all?(
-      value,
-      fn {key, nested_value} ->
-        is_binary(key) and
-          json_value?(nested_value)
-      end
-    )
-  end
-
-  defp json_value?(value) when is_list(value) do
-    Enum.all?(
-      value,
-      &json_value?/1
-    )
-  end
-
-  defp json_value?(value)
-       when is_binary(value) or is_boolean(value) or is_nil(value) or is_integer(value) or
-              is_float(value) do
-    true
-  end
-
-  defp json_value?(_value) do
-    false
   end
 end

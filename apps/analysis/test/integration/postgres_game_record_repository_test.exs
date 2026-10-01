@@ -332,12 +332,20 @@ defmodule Analysis.PostgresGameRecordRepositoryTest do
       stored_game_id()
 
     record =
-      GameRecord.new(
-        "record-1",
-        game_id,
-        %{
-          event: "Example"
-        }
+      apply(
+        Kernel,
+        :struct!,
+        [
+          GameRecord,
+          [
+            id: "record-1",
+            game_id: game_id,
+            start: GameStart.standard(),
+            metadata: %{
+              event: "Example"
+            }
+          ]
+        ]
       )
 
     assert GameRecordRepository.insert(record) ==

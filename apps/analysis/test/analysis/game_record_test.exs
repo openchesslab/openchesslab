@@ -10,11 +10,11 @@ defmodule Analysis.GameRecordTest do
         "record-1",
         42,
         %{
-          white: "Adolf Anderssen",
-          black: "Lionel Kieseritzky",
-          event: "London",
-          date: "1851",
-          result: "1-0"
+          "white" => "Adolf Anderssen",
+          "black" => "Lionel Kieseritzky",
+          "event" => "London",
+          "date" => "1851",
+          "result" => "1-0"
         }
       )
 
@@ -28,11 +28,11 @@ defmodule Analysis.GameRecordTest do
              GameStart.standard()
 
     assert GameRecord.metadata(record) == %{
-             white: "Adolf Anderssen",
-             black: "Lionel Kieseritzky",
-             event: "London",
-             date: "1851",
-             result: "1-0"
+             "white" => "Adolf Anderssen",
+             "black" => "Lionel Kieseritzky",
+             "event" => "London",
+             "date" => "1851",
+             "result" => "1-0"
            }
   end
 
@@ -42,10 +42,10 @@ defmodule Analysis.GameRecordTest do
         "historical-game",
         42,
         %{
-          white: "Adolf Anderssen",
-          black: "Lionel Kieseritzky",
-          event: "London",
-          date: "1851"
+          "white" => "Adolf Anderssen",
+          "black" => "Lionel Kieseritzky",
+          "event" => "London",
+          "date" => "1851"
         }
       )
 
@@ -54,10 +54,10 @@ defmodule Analysis.GameRecordTest do
         "modern-game",
         42,
         %{
-          white: "Player C",
-          black: "Player D",
-          event: "Groningen",
-          date: "2023"
+          "white" => "Player C",
+          "black" => "Player D",
+          "event" => "Groningen",
+          "date" => "2023"
         }
       )
 
@@ -118,7 +118,7 @@ defmodule Analysis.GameRecordTest do
         "played-game-1",
         42,
         %{
-          event: "Example"
+          "event" => "Example"
         }
       )
 
@@ -159,6 +159,78 @@ defmodule Analysis.GameRecordTest do
         [
           nil,
           42
+        ]
+      )
+    end
+  end
+
+  test "supports nested JSON-compatible metadata" do
+    metadata = %{
+      "event" => "Example",
+      "rated" => true,
+      "round" => 3,
+      "score" => 0.5,
+      "source" => nil,
+      "players" => [
+        %{
+          "name" => "White",
+          "rating" => 2500
+        },
+        %{
+          "name" => "Black",
+          "rating" => 2450
+        }
+      ]
+    }
+
+    record =
+      GameRecord.new(
+        "record-1",
+        42,
+        metadata
+      )
+
+    assert GameRecord.metadata(record) ==
+             metadata
+
+    assert GameRecord.valid_metadata?(metadata)
+  end
+
+  test "rejects metadata with non-string keys" do
+    refute GameRecord.valid_metadata?(%{
+             event: "Example"
+           })
+
+    assert_raise ArgumentError, fn ->
+      apply(
+        GameRecord,
+        :new,
+        [
+          "record-1",
+          42,
+          %{
+            event: "Example"
+          }
+        ]
+      )
+    end
+  end
+
+  test "rejects non-JSON metadata values" do
+    metadata = %{
+      "event" => {:not, :json}
+    }
+
+    refute GameRecord.valid_metadata?(metadata)
+
+    assert_raise ArgumentError, fn ->
+      apply(
+        GameRecord,
+        :new,
+        [
+          "record-1",
+          42,
+          metadata
         ]
       )
     end
