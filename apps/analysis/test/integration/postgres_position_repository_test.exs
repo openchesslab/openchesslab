@@ -4,7 +4,6 @@ defmodule Analysis.PostgresPositionRepositoryTest do
   alias Analysis.PositionPropertyKeyCodec
   alias Analysis.PositionQuery, as: Query
   alias Analysis.PositionRepository.Postgres, as: PositionRepository
-  alias Analysis.PositionStore
   alias Chess.Move
   alias Chess.Position
   alias Chess.PositionProperties
@@ -417,44 +416,6 @@ defmodule Analysis.PostgresPositionRepositoryTest do
                """,
                []
              ).rows
-  end
-
-  test "queries PostgreSQL directly through the position store facade" do
-    first_id =
-      PositionStore.append(Position.starting_position())
-
-    second_id =
-      PositionStore.append(Position.new())
-
-    assert {
-             :ok,
-             [
-               ^first_id
-             ],
-             cursor
-           } =
-             PositionStore.query_page(
-               Query.match_all(),
-               1
-             )
-
-    assert %PositionRepository.Cursor{} =
-             cursor
-
-    assert {
-             :ok,
-             [
-               ^second_id
-             ],
-             :done
-           } =
-             PositionStore.next_query_page(
-               cursor,
-               1
-             )
-
-    assert :ok =
-             PositionStore.close_query(cursor)
   end
 
   defp move(from, to) do

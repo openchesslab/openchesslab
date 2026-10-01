@@ -51,7 +51,7 @@ function Find-RepoRoot {
 }
 
 if ([string]::IsNullOrWhiteSpace($DatabaseUrl)) {
-    $DatabaseUrl = "ecto://postgres:postgres@localhost/openchesslab_dev"
+    $DatabaseUrl = "ecto://openchesslab:openchesslab@localhost/openchesslab_test"
 }
 
 $repoRoot = Find-RepoRoot

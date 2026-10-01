@@ -11,17 +11,17 @@ Usage:
 DATABASE_URL may also be supplied through the environment.
 
 Examples:
-  export DATABASE_URL='ecto://postgres:postgres@localhost/openchesslab_dev'
+  export DATABASE_URL='ecto://openchesslab:openchesslab@localhost/openchesslab_test'
   ./run-postgres-suite.sh
 
   ./run-postgres-suite.sh \
-    --database-url 'ecto://postgres:postgres@localhost/openchesslab_dev'
+    --database-url 'ecto://openchesslab:openchesslab@localhost/openchesslab_test'
 
   ./run-postgres-suite.sh --skip-migrations
 EOF
 }
 
-database_url="${DATABASE_URL:-ecto://postgres:postgres@localhost/openchesslab_dev}"
+database_url="${DATABASE_URL:-ecto://openchesslab:openchesslab@localhost/openchesslab_test}"
 skip_migrations=false
 
 while (($# > 0)); do
