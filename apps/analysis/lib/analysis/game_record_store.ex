@@ -8,6 +8,7 @@ defmodule Analysis.GameRecordStore do
   """
 
   alias Analysis.GameRecord
+  alias Analysis.GameRecordQuery
   alias Analysis.GameRecordRepository
   alias Analysis.GameRecordRepository.Postgres
   alias Analysis.GameRepository
@@ -16,6 +17,11 @@ defmodule Analysis.GameRecordStore do
 
   @type record_page ::
           {:ok, [GameRecord.t()], :done | record_cursor()}
+          | {:error, term()}
+  @type query_cursor :: GameRecordRepository.query_cursor()
+
+  @type query_page ::
+          {:ok, [GameRecord.t()], :done | query_cursor()}
           | {:error, term()}
 
   @spec repository() :: module()
@@ -72,5 +78,32 @@ defmodule Analysis.GameRecordStore do
   @spec close_record_scan(record_cursor()) :: :ok
   def close_record_scan(cursor) do
     repository().close_records(cursor)
+  end
+
+  @spec query_page(
+          GameRecordQuery.t(),
+          pos_integer()
+        ) :: query_page()
+  def query_page(query, page_size) when is_integer(page_size) and page_size > 0 do
+    repository().query_page(
+      query,
+      page_size
+    )
+  end
+
+  @spec next_query_page(
+          query_cursor(),
+          pos_integer()
+        ) :: query_page()
+  def next_query_page(cursor, page_size) when is_integer(page_size) and page_size > 0 do
+    repository().next_query_page(
+      cursor,
+      page_size
+    )
+  end
+
+  @spec close_query(query_cursor()) :: :ok
+  def close_query(cursor) do
+    repository().close_query(cursor)
   end
 end

@@ -13,6 +13,7 @@ defmodule Analysis.GameRecordRepository.Postgres do
   @behaviour Analysis.GameRecordRepository
 
   alias Analysis.GameRecord
+  alias Analysis.GameRecordQuery
   alias Analysis.GameStart
   alias OpenChessLab.Repo
 
@@ -38,7 +39,30 @@ defmodule Analysis.GameRecordRepository.Postgres do
           }
   end
 
+  defmodule QueryCursor do
+    @moduledoc false
+
+    @enforce_keys [
+      :query,
+      :maximum_row_id,
+      :last_row_id
+    ]
+
+    defstruct [
+      :query,
+      :maximum_row_id,
+      :last_row_id
+    ]
+
+    @type t :: %__MODULE__{
+            query: GameRecordQuery.t(),
+            maximum_row_id: non_neg_integer(),
+            last_row_id: pos_integer()
+          }
+  end
+
   @type record_cursor :: Cursor.t()
+  @type query_cursor :: QueryCursor.t()
 
   @insert_sql """
   INSERT INTO game_records (
@@ -83,6 +107,40 @@ defmodule Analysis.GameRecordRepository.Postgres do
   WHERE game_id = $1
     AND id > $2
     AND id <= $3
+  ORDER BY id
+  LIMIT $4
+  """
+
+  @maximum_query_row_id_sql """
+  SELECT COALESCE(max(id), 0)
+  FROM game_records
+  """
+
+  @query_all_sql """
+  SELECT
+    id,
+    record_id,
+    game_id,
+    fullmove_number,
+    metadata
+  FROM game_records
+  WHERE id > $1
+    AND id <= $2
+  ORDER BY id
+  LIMIT $3
+  """
+
+  @query_metadata_contains_sql """
+  SELECT
+    id,
+    record_id,
+    game_id,
+    fullmove_number,
+    metadata
+  FROM game_records
+  WHERE id > $1
+    AND id <= $2
+    AND metadata @> $3::jsonb
   ORDER BY id
   LIMIT $4
   """
@@ -200,6 +258,72 @@ defmodule Analysis.GameRecordRepository.Postgres do
   end
 
   def close_records(_cursor) do
+    :ok
+  end
+
+  @impl Analysis.GameRecordRepository
+  @spec query_page(
+          GameRecordQuery.t(),
+          pos_integer()
+        ) ::
+          {:ok, [GameRecord.t()], :done | query_cursor()}
+          | {:error, term()}
+  def query_page(false, page_size) when is_integer(page_size) and page_size > 0 do
+    {
+      :ok,
+      [],
+      :done
+    }
+  end
+
+  def query_page(query, page_size) when is_integer(page_size) and page_size > 0 do
+    with :ok <-
+           validate_query(query),
+         {:ok, maximum_row_id} <-
+           maximum_query_row_id() do
+      query_records_page(
+        query,
+        0,
+        maximum_row_id,
+        page_size
+      )
+    end
+  end
+
+  def query_page(_query, _page_size) do
+    {:error, :invalid_record_query}
+  end
+
+  @impl Analysis.GameRecordRepository
+  @spec next_query_page(
+          query_cursor(),
+          pos_integer()
+        ) ::
+          {:ok, [GameRecord.t()], :done | query_cursor()}
+          | {:error, term()}
+  def next_query_page(
+        %QueryCursor{query: query, maximum_row_id: maximum_row_id, last_row_id: last_row_id},
+        page_size
+      )
+      when is_integer(page_size) and page_size > 0 do
+    query_records_page(
+      query,
+      last_row_id,
+      maximum_row_id,
+      page_size
+    )
+  end
+
+  def next_query_page(_cursor, _page_size) do
+    {:error, :cursor_not_found}
+  end
+
+  @impl Analysis.GameRecordRepository
+  def close_query(%QueryCursor{}) do
+    :ok
+  end
+
+  def close_query(_cursor) do
     :ok
   end
 
@@ -387,5 +511,135 @@ defmodule Analysis.GameRecordRepository.Postgres do
     else
       {:error, :invalid_metadata}
     end
+  end
+
+  defp validate_query(true) do
+    :ok
+  end
+
+  defp validate_query(false) do
+    :ok
+  end
+
+  defp validate_query({:metadata_contains, metadata}) do
+    if GameRecord.valid_metadata?(metadata) do
+      :ok
+    else
+      {:error, :invalid_record_query}
+    end
+  end
+
+  defp validate_query(_query) do
+    {:error, :invalid_record_query}
+  end
+
+  defp maximum_query_row_id do
+    case Repo.query(
+           @maximum_query_row_id_sql,
+           []
+         ) do
+      {:ok, %{rows: [[maximum_row_id]]}} ->
+        {:ok, maximum_row_id}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp query_records_page(true, after_row_id, maximum_row_id, page_size) do
+    requested_rows =
+      page_size + 1
+
+    case Repo.query(
+           @query_all_sql,
+           [
+             after_row_id,
+             maximum_row_id,
+             requested_rows
+           ]
+         ) do
+      {:ok, %{rows: rows}} ->
+        build_query_page(
+          true,
+          maximum_row_id,
+          rows,
+          page_size
+        )
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp query_records_page(
+         {:metadata_contains, metadata} = query,
+         after_row_id,
+         maximum_row_id,
+         page_size
+       ) do
+    requested_rows =
+      page_size + 1
+
+    case Repo.query(
+           @query_metadata_contains_sql,
+           [
+             after_row_id,
+             maximum_row_id,
+             metadata,
+             requested_rows
+           ]
+         ) do
+      {:ok, %{rows: rows}} ->
+        build_query_page(
+          query,
+          maximum_row_id,
+          rows,
+          page_size
+        )
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp build_query_page(_query, _maximum_row_id, rows, page_size)
+       when length(rows) <= page_size do
+    {
+      :ok,
+      Enum.map(
+        rows,
+        &record_from_page_row/1
+      ),
+      :done
+    }
+  end
+
+  defp build_query_page(query, maximum_row_id, rows, page_size) do
+    {
+      page_rows,
+      _remaining_rows
+    } =
+      Enum.split(
+        rows,
+        page_size
+      )
+
+    last_row_id =
+      page_rows
+      |> List.last()
+      |> hd()
+
+    {
+      :ok,
+      Enum.map(
+        page_rows,
+        &record_from_page_row/1
+      ),
+      %QueryCursor{
+        query: query,
+        maximum_row_id: maximum_row_id,
+        last_row_id: last_row_id
+      }
+    }
   end
 end

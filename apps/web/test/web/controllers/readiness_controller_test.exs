@@ -95,6 +95,27 @@ defmodule Web.ReadinessControllerTest do
 
     @impl true
     def close_records(_cursor), do: :ok
+
+    @impl true
+    def query_page(
+          _query,
+          _page_size
+        ) do
+      {:error, :unavailable}
+    end
+
+    @impl true
+    def next_query_page(
+          _cursor,
+          _page_size
+        ) do
+      {:error, :unavailable}
+    end
+
+    @impl true
+    def close_query(_cursor) do
+      :ok
+    end
   end
 
   test "GET /ready returns ready when required stores are reachable",

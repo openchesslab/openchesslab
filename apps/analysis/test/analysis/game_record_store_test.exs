@@ -55,6 +55,38 @@ defmodule Analysis.GameRecordStoreTest do
       :ok
     end
 
+    @impl true
+    def query_page(query, page_size) do
+      notify({
+        :query_page,
+        query,
+        page_size
+      })
+
+      {:ok, [], :query_cursor}
+    end
+
+    @impl true
+    def next_query_page(cursor, page_size) do
+      notify({
+        :next_query_page,
+        cursor,
+        page_size
+      })
+
+      {:ok, [], :done}
+    end
+
+    @impl true
+    def close_query(cursor) do
+      notify({
+        :close_query,
+        cursor
+      })
+
+      :ok
+    end
+
     defp notify(message) do
       send(
         self(),
@@ -181,6 +213,56 @@ defmodule Analysis.GameRecordStoreTest do
 
     assert GameRecordStore.repository() ==
              Analysis.GameRecordRepository.Postgres
+  end
+
+  test "queries records through the configured repository" do
+    query = {
+      :metadata_contains,
+      %{
+        "white" => "Magnus Carlsen"
+      }
+    }
+
+    assert GameRecordStore.query_page(
+             query,
+             25
+           ) ==
+             {:ok, [], :query_cursor}
+
+    assert_receive {
+      :game_record_repository,
+      {
+        :query_page,
+        ^query,
+        25
+      }
+    }
+
+    assert GameRecordStore.next_query_page(
+             :query_cursor,
+             25
+           ) ==
+             {:ok, [], :done}
+
+    assert_receive {
+      :game_record_repository,
+      {
+        :next_query_page,
+        :query_cursor,
+        25
+      }
+    }
+
+    assert :ok =
+             GameRecordStore.close_query(:query_cursor)
+
+    assert_receive {
+      :game_record_repository,
+      {
+        :close_query,
+        :query_cursor
+      }
+    }
   end
 
   defp restore_repository(:not_configured) do

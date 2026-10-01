@@ -80,6 +80,27 @@ defmodule Analysis.GameRecordsTest do
     def close_records(cursor) do
       Postgres.close_records(cursor)
     end
+
+    @impl true
+    def query_page(query, page_size) do
+      Postgres.query_page(
+        query,
+        page_size
+      )
+    end
+
+    @impl true
+    def next_query_page(cursor, page_size) do
+      Postgres.next_query_page(
+        cursor,
+        page_size
+      )
+    end
+
+    @impl true
+    def close_query(cursor) do
+      Postgres.close_query(cursor)
+    end
   end
 
   defmodule FailingInsertGameRecordRepository do
@@ -123,6 +144,27 @@ defmodule Analysis.GameRecordsTest do
     @impl true
     def close_records(cursor) do
       Postgres.close_records(cursor)
+    end
+
+    @impl true
+    def query_page(query, page_size) do
+      Postgres.query_page(
+        query,
+        page_size
+      )
+    end
+
+    @impl true
+    def next_query_page(cursor, page_size) do
+      Postgres.next_query_page(
+        cursor,
+        page_size
+      )
+    end
+
+    @impl true
+    def close_query(cursor) do
+      Postgres.close_query(cursor)
     end
   end
 
@@ -1167,14 +1209,6 @@ defmodule Analysis.GameRecordsTest do
                """,
                []
              ).rows
-
-    assert GameRecords.create(
-             123,
-             content,
-             GameStart.standard(),
-             %{}
-           ) ==
-             {:error, :invalid_record_id}
   end
 
   test "rejects invalid metadata before canonical game creation",

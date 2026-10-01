@@ -4,6 +4,7 @@ defmodule Analysis.PostgresGameRecordRepositoryTest do
   alias Analysis.GameContent
   alias Analysis.GameFingerprint
   alias Analysis.GameRecord
+  alias Analysis.GameRecordQuery
   alias Analysis.GameRecordRepository.Postgres, as: GameRecordRepository
   alias Analysis.GameRepository.Postgres, as: GameRepository
   alias Analysis.GameStart
@@ -409,6 +410,177 @@ defmodule Analysis.PostgresGameRecordRepositoryTest do
              1
            ) ==
              {:error, :cursor_not_found}
+  end
+
+  test "pages records matching metadata containment without duplicates or omissions" do
+    game_id =
+      stored_game_id()
+
+    first =
+      GameRecord.new(
+        "record-1",
+        game_id,
+        %{
+          "white" => "Magnus Carlsen",
+          "event" => "Wijk aan Zee"
+        }
+      )
+
+    second =
+      GameRecord.new(
+        "record-2",
+        game_id,
+        %{
+          "white" => "Other Player",
+          "event" => "Wijk aan Zee"
+        }
+      )
+
+    third =
+      GameRecord.new(
+        "record-3",
+        game_id,
+        %{
+          "white" => "Magnus Carlsen",
+          "event" => "London"
+        }
+      )
+
+    fourth =
+      GameRecord.new(
+        "record-4",
+        game_id,
+        %{
+          "white" => "Magnus Carlsen",
+          "event" => "Oslo"
+        }
+      )
+
+    for record <- [
+          first,
+          second,
+          third,
+          fourth
+        ] do
+      assert :ok =
+               GameRecordRepository.insert(record)
+    end
+
+    query =
+      GameRecordQuery.metadata_contains(%{
+        "white" => "Magnus Carlsen"
+      })
+
+    assert {
+             :ok,
+             first_page,
+             cursor
+           } =
+             GameRecordRepository.query_page(
+               query,
+               2
+             )
+
+    assert %GameRecordRepository.QueryCursor{} =
+             cursor
+
+    assert {
+             :ok,
+             second_page,
+             :done
+           } =
+             GameRecordRepository.next_query_page(
+               cursor,
+               2
+             )
+
+    assert MapSet.new(first_page ++ second_page) ==
+             MapSet.new([
+               first,
+               third,
+               fourth
+             ])
+  end
+
+  test "metadata query scan excludes records inserted after it starts" do
+    game_id =
+      stored_game_id()
+
+    first =
+      GameRecord.new(
+        "record-1",
+        game_id,
+        %{
+          "white" => "Magnus Carlsen"
+        }
+      )
+
+    second =
+      GameRecord.new(
+        "record-2",
+        game_id,
+        %{
+          "white" => "Magnus Carlsen"
+        }
+      )
+
+    assert :ok =
+             GameRecordRepository.insert(first)
+
+    assert :ok =
+             GameRecordRepository.insert(second)
+
+    query =
+      GameRecordQuery.metadata_contains(%{
+        "white" => "Magnus Carlsen"
+      })
+
+    assert {
+             :ok,
+             [_first_page_record],
+             cursor
+           } =
+             GameRecordRepository.query_page(
+               query,
+               1
+             )
+
+    later =
+      GameRecord.new(
+        "record-3",
+        game_id,
+        %{
+          "white" => "Magnus Carlsen"
+        }
+      )
+
+    assert :ok =
+             GameRecordRepository.insert(later)
+
+    assert {
+             :ok,
+             [_second_page_record],
+             :done
+           } =
+             GameRecordRepository.next_query_page(
+               cursor,
+               10
+             )
+
+    assert GameRecordRepository.get("record-3") ==
+             {:ok, later}
+  end
+
+  test "match none returns an empty bounded page" do
+    assert GameRecordRepository.query_page(
+             GameRecordQuery.match_none(),
+             10
+           ) ==
+             {
+               :ok,
+               [],
+               :done
+             }
   end
 
   defp stored_game_id do

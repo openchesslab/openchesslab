@@ -10,6 +10,7 @@ defmodule Analysis.GameRecordRepository do
   """
 
   alias Analysis.GameRecord
+  alias Analysis.GameRecordQuery
   alias Analysis.GameRepository
 
   @type record_id :: GameRecord.id()
@@ -17,6 +18,11 @@ defmodule Analysis.GameRecordRepository do
 
   @type record_page ::
           {:ok, [GameRecord.t()], :done | record_cursor()}
+          | {:error, term()}
+  @type query_cursor :: term()
+
+  @type query_page ::
+          {:ok, [GameRecord.t()], :done | query_cursor()}
           | {:error, term()}
 
   @callback ready?() :: boolean()
@@ -41,4 +47,15 @@ defmodule Analysis.GameRecordRepository do
             ) :: record_page()
 
   @callback close_records(record_cursor()) :: :ok
+  @callback query_page(
+              GameRecordQuery.t(),
+              pos_integer()
+            ) :: query_page()
+
+  @callback next_query_page(
+              query_cursor(),
+              pos_integer()
+            ) :: query_page()
+
+  @callback close_query(query_cursor()) :: :ok
 end
