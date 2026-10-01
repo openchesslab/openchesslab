@@ -17,6 +17,7 @@ defmodule Analysis.GameRecords do
   alias Analysis.GameStart
   alias Analysis.GameStore
   alias Analysis.PositionStore
+  alias OpenChessLab.Repo
 
   defmodule OccurrenceCursor do
     @moduledoc false
@@ -463,40 +464,52 @@ defmodule Analysis.GameRecords do
     with {:ok, fingerprint} <-
            fingerprint(content),
          {:ok, replay} <-
-           replay(content),
-         {:ok, position_ids} <-
-           append_replay_positions(
-             content,
-             replay
-           ),
-         {:ok, game_id} <-
-           store_canonical_game(
-             fingerprint,
-             content,
-             position_ids
-           ) do
-      record =
-        GameRecord.new(
-          record_id,
-          game_id,
-          start,
-          metadata
-        )
+           replay(content) do
+      Repo.transact(fn ->
+        with {:ok, position_ids} <-
+               append_replay_positions(
+                 content,
+                 replay
+               ),
+             {:ok, game_id} <-
+               store_canonical_game(
+                 fingerprint,
+                 content,
+                 position_ids
+               ) do
+          store_game_record(
+            record_id,
+            game_id,
+            start,
+            metadata
+          )
+        end
+      end)
+    end
+  end
 
-      case GameRecordStore.insert(record) do
-        :ok ->
-          {:ok, record}
+  defp store_game_record(record_id, game_id, start, metadata) do
+    record =
+      GameRecord.new(
+        record_id,
+        game_id,
+        start,
+        metadata
+      )
 
-        {:error, :already_exists} ->
-          {:error, :already_exists}
+    case GameRecordStore.insert(record) do
+      :ok ->
+        {:ok, record}
 
-        {:error, reason} ->
-          {:error,
-           {
-             :game_record_store,
-             reason
-           }}
-      end
+      {:error, :already_exists} ->
+        {:error, :already_exists}
+
+      {:error, reason} ->
+        {:error,
+         {
+           :game_record_store,
+           reason
+         }}
     end
   end
 

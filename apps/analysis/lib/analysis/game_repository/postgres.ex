@@ -176,30 +176,25 @@ defmodule Analysis.GameRepository.Postgres do
           {:ok, game_id()}
           | {:error, term()}
   def put(fingerprint, %GameContent{} = content, position_ids) do
-    with :ok <- validate_fingerprint(fingerprint),
-         {:ok, encoded_content} <- GameContentCodec.encode(content),
-         :ok <- validate_position_ids(content, position_ids) do
-      Repo.transaction(fn ->
-        with :ok <- lock_fingerprint(fingerprint),
-             {:ok, game_id} <-
-               put_game(
-                 fingerprint,
-                 encoded_content,
-                 position_ids
-               ) do
-          game_id
-        else
-          {:error, reason} ->
-            Repo.rollback(reason)
+    with :ok <-
+           validate_fingerprint(fingerprint),
+         {:ok, encoded_content} <-
+           GameContentCodec.encode(content),
+         :ok <-
+           validate_position_ids(
+             content,
+             position_ids
+           ) do
+      transact(fn ->
+        with :ok <-
+               lock_fingerprint(fingerprint) do
+          put_game(
+            fingerprint,
+            encoded_content,
+            position_ids
+          )
         end
       end)
-      |> case do
-        {:ok, game_id} ->
-          {:ok, game_id}
-
-        {:error, reason} ->
-          {:error, reason}
-      end
     end
   end
 
@@ -645,5 +640,13 @@ defmodule Analysis.GameRepository.Postgres do
     is_integer(position_id) and
       position_id > 0 and
       position_id <= @max_bigint
+  end
+
+  defp transact(fun) when is_function(fun, 0) do
+    if Repo.in_transaction?() do
+      fun.()
+    else
+      Repo.transact(fun)
+    end
   end
 end

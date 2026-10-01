@@ -647,6 +647,95 @@ defmodule Analysis.GameRecordsTest do
              )
   end
 
+  test "rolls back canonical writes when concrete record persistence fails",
+       %{
+         record_id: record_id,
+         initial_position_id: initial_position_id
+       } do
+    move =
+      move(
+        "e2",
+        "e4"
+      )
+
+    content =
+      GameContent.new(
+        initial_position_id,
+        [move]
+      )
+
+    assert {:ok, fingerprint} =
+             GameFingerprint.for_content(content)
+
+    assert {:ok, resulting_position} =
+             Position.apply_move(
+               Position.starting_position(),
+               move
+             )
+
+    assert GameRecords.create(
+             record_id,
+             content,
+             GameStart.standard(),
+             %{
+               event: "Invalid durable metadata"
+             }
+           ) ==
+             {:error,
+              {
+                :game_record_store,
+                :invalid_metadata
+              }}
+
+    assert GameRecordStore.get(record_id) ==
+             :not_found
+
+    assert GameStore.find(
+             fingerprint,
+             content
+           ) ==
+             :not_found
+
+    assert PositionStore.find(resulting_position) ==
+             :not_found
+
+    assert [[0]] =
+             Repo.query!(
+               """
+               SELECT count(*)
+               FROM game_records
+               """,
+               []
+             ).rows
+
+    assert [[0]] =
+             Repo.query!(
+               """
+               SELECT count(*)
+               FROM games
+               """,
+               []
+             ).rows
+
+    assert [[0]] =
+             Repo.query!(
+               """
+               SELECT count(*)
+               FROM game_occurrences
+               """,
+               []
+             ).rows
+
+    assert [[1]] =
+             Repo.query!(
+               """
+               SELECT count(*)
+               FROM positions
+               """,
+               []
+             ).rows
+  end
+
   defp move(from, to) do
     Move.new(
       Square.from_algebraic(from),

@@ -105,7 +105,7 @@ defmodule Analysis.PositionRepository.Postgres do
           {:ok, position_id()}
           | {:error, term()}
   def put(%Position{} = position) do
-    Repo.transaction(fn ->
+    transact(fn ->
       with {:ok, position_id} <-
              put_position(position),
            {:ok, properties} <-
@@ -115,19 +115,9 @@ defmodule Analysis.PositionRepository.Postgres do
                position_id,
                properties
              ) do
-        position_id
-      else
-        {:error, reason} ->
-          Repo.rollback(reason)
+        {:ok, position_id}
       end
     end)
-    |> case do
-      {:ok, position_id} ->
-        {:ok, position_id}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
   end
 
   def put(_position) do
@@ -407,6 +397,14 @@ defmodule Analysis.PositionRepository.Postgres do
            :invalid_position_record,
            reason
          }}
+    end
+  end
+
+  defp transact(fun) when is_function(fun, 0) do
+    if Repo.in_transaction?() do
+      fun.()
+    else
+      Repo.transact(fun)
     end
   end
 end
