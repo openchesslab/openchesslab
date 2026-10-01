@@ -6,8 +6,8 @@ defmodule Analysis.PositionRepository do
   derived search features and bounded position queries.
   """
 
+  alias Analysis.PositionQuery
   alias Chess.Position
-  alias PositionDB.Query
 
   @type position_id :: pos_integer()
   @type query_cursor :: term()
@@ -29,7 +29,7 @@ defmodule Analysis.PositionRepository do
               | {:error, term()}
 
   @callback query_page(
-              Query.t(),
+              PositionQuery.t(),
               pos_integer()
             ) ::
               {:ok, [position_id()], :done | query_cursor()}

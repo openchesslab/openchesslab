@@ -13,6 +13,7 @@ defmodule Analysis.PositionStore do
   use GenServer
 
   alias Analysis.PositionDatabase
+  alias Analysis.PositionQuery
   alias Chess.PositionKey
   alias Chess.PositionProperties
   alias PositionDB.QueryResult
@@ -152,7 +153,7 @@ defmodule Analysis.PositionStore do
   end
 
   @spec query_page(
-          PositionDB.Query.t(),
+          PositionQuery.t(),
           pos_integer()
         ) ::
           query_page()

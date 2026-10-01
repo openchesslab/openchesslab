@@ -7,11 +7,11 @@ defmodule Analysis.GameSearchTest do
   alias Analysis.GameRecordStore.Memory
   alias Analysis.GameSearch
   alias Analysis.GameStore
+  alias Analysis.PositionQuery, as: Query
   alias Analysis.PositionStore
   alias Chess.Move
   alias Chess.Position
   alias Chess.Square
-  alias PositionDB.Query
 
   setup do
     previous_position_store =

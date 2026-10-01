@@ -12,7 +12,8 @@ defmodule Analysis.PositionRepository.Postgres do
   @behaviour Analysis.PositionRepository
 
   alias Analysis.PositionPropertyKeyCodec
-  alias Analysis.PositionRepository.Postgres.Query
+  alias Analysis.PositionQuery
+  alias Analysis.PositionRepository.Postgres.QueryCompiler
   alias Chess.Position
   alias Chess.PositionCodec
   alias Chess.PositionProperties
@@ -34,7 +35,7 @@ defmodule Analysis.PositionRepository.Postgres do
     ]
 
     @type t :: %__MODULE__{
-            query: PositionDB.Query.t(),
+            query: PositionQuery.t(),
             maximum_position_id: non_neg_integer(),
             last_position_id: pos_integer()
           }
@@ -305,7 +306,7 @@ defmodule Analysis.PositionRepository.Postgres do
       page_size + 1
 
     with {:ok, sql, parameters} <-
-           Query.compile(
+           QueryCompiler.compile(
              query,
              after_position_id,
              maximum_position_id,

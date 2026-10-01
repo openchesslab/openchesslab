@@ -1,13 +1,14 @@
-defmodule Analysis.PositionRepository.Postgres.Query do
+defmodule Analysis.PositionRepository.Postgres.QueryCompiler do
   @moduledoc false
 
   alias Analysis.PositionPropertyKeyCodec
+  alias Analysis.PositionQuery
+  alias Analysis.PositionQueryNormalizer
   alias Chess.Position
   alias Chess.PositionCodec
-  alias PositionDB.QueryNormalizer
 
   @spec compile(
-          PositionDB.Query.t(),
+          PositionQuery.t(),
           non_neg_integer(),
           non_neg_integer(),
           pos_integer()
@@ -19,9 +20,14 @@ defmodule Analysis.PositionRepository.Postgres.Query do
              is_integer(maximum_position_id) and maximum_position_id >= 0 and is_integer(limit) and
              limit > 0 do
     normalized =
-      QueryNormalizer.normalize(query)
+      PositionQueryNormalizer.normalize(query)
 
-    with {:ok, predicate, parameters, next_parameter} <-
+    with {
+           :ok,
+           predicate,
+           parameters,
+           next_parameter
+         } <-
            compile_predicate(
              normalized,
              [],
@@ -47,22 +53,35 @@ defmodule Analysis.PositionRepository.Postgres.Query do
       LIMIT $#{limit_parameter}::bigint
       """
 
-      {:ok, sql,
-       parameters ++
-         [
-           after_position_id,
-           maximum_position_id,
-           limit
-         ]}
+      {
+        :ok,
+        sql,
+        parameters ++
+          [
+            after_position_id,
+            maximum_position_id,
+            limit
+          ]
+      }
     end
   end
 
   defp compile_predicate(true, parameters, next_parameter) do
-    {:ok, "TRUE", parameters, next_parameter}
+    {
+      :ok,
+      "TRUE",
+      parameters,
+      next_parameter
+    }
   end
 
   defp compile_predicate(false, parameters, next_parameter) do
-    {:ok, "FALSE", parameters, next_parameter}
+    {
+      :ok,
+      "FALSE",
+      parameters,
+      next_parameter
+    }
   end
 
   defp compile_predicate({:property, property, value}, parameters, next_parameter) do
@@ -81,7 +100,15 @@ defmodule Analysis.PositionRepository.Postgres.Query do
         )
         """
 
-        {:ok, predicate, parameters ++ [encoded_property], next_parameter + 1}
+        {
+          :ok,
+          predicate,
+          parameters ++
+            [
+              encoded_property
+            ],
+          next_parameter + 1
+        }
 
       {:error, reason} ->
         {:error, reason}
@@ -92,7 +119,15 @@ defmodule Analysis.PositionRepository.Postgres.Query do
     record =
       PositionCodec.encode(position)
 
-    {:ok, "p.record = $#{next_parameter}::bytea", parameters ++ [record], next_parameter + 1}
+    {
+      :ok,
+      "p.record = $#{next_parameter}::bytea",
+      parameters ++
+        [
+          record
+        ],
+      next_parameter + 1
+    }
   end
 
   defp compile_predicate({:equivalent, _position}, _parameters, _next_parameter) do
@@ -100,13 +135,23 @@ defmodule Analysis.PositionRepository.Postgres.Query do
   end
 
   defp compile_predicate({:not, query}, parameters, next_parameter) do
-    with {:ok, predicate, parameters, next_parameter} <-
+    with {
+           :ok,
+           predicate,
+           parameters,
+           next_parameter
+         } <-
            compile_predicate(
              query,
              parameters,
              next_parameter
            ) do
-      {:ok, "NOT (#{predicate})", parameters, next_parameter}
+      {
+        :ok,
+        "NOT (#{predicate})",
+        parameters,
+        next_parameter
+      }
     end
   end
 
@@ -135,7 +180,12 @@ defmodule Analysis.PositionRepository.Postgres.Query do
   end
 
   defp compile_group([], _operator, identity, parameters, next_parameter) do
-    {:ok, identity, parameters, next_parameter}
+    {
+      :ok,
+      identity,
+      parameters,
+      next_parameter
+    }
   end
 
   defp compile_group(queries, operator, _identity, parameters, next_parameter) do
@@ -196,7 +246,12 @@ defmodule Analysis.PositionRepository.Postgres.Query do
             &"(#{&1})"
           )
 
-        {:ok, predicate, parameters, next_parameter}
+        {
+          :ok,
+          predicate,
+          parameters,
+          next_parameter
+        }
 
       {:error, reason} ->
         {:error, reason}

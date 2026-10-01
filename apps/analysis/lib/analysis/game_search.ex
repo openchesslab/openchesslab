@@ -2,14 +2,14 @@ defmodule Analysis.GameSearch do
   @moduledoc """
   Bounded game search across position queries and concrete game occurrences.
 
-  PositionDB queries are consumed in bounded pages. Matching positions are
+  Position queries are consumed in bounded pages. Matching positions are
   expanded to concrete game-record occurrences through GameRecords without
   materializing the complete result set.
   """
 
   alias Analysis.GameRecords
+  alias Analysis.PositionQuery
   alias Analysis.PositionStore
-  alias PositionDB.Query
 
   defmodule Cursor do
     @moduledoc false
@@ -44,7 +44,7 @@ defmodule Analysis.GameSearch do
           | {:error, query_error()}
 
   @spec query_page(
-          Query.t(),
+          PositionQuery.t(),
           pos_integer()
         ) ::
           query_page()

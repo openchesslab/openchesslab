@@ -1,11 +1,11 @@
 defmodule Analysis.PostgresPositionStoreTest do
   use ExUnit.Case, async: false
 
+  alias Analysis.PositionQuery, as: Query
   alias Analysis.PositionRepository.Postgres
   alias Analysis.PositionStore
   alias Chess.Position
   alias OpenChessLab.Repo
-  alias PositionDB.Query
 
   @moduletag postgres: true
 

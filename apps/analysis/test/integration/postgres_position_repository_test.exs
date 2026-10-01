@@ -2,6 +2,7 @@ defmodule Analysis.PostgresPositionRepositoryTest do
   use ExUnit.Case, async: false
 
   alias Analysis.PositionPropertyKeyCodec
+  alias Analysis.PositionQuery, as: Query
   alias Analysis.PositionRepository.Postgres, as: PositionRepository
   alias Analysis.PositionStore
   alias Chess.Move
@@ -9,7 +10,6 @@ defmodule Analysis.PostgresPositionRepositoryTest do
   alias Chess.PositionProperties
   alias Chess.Square
   alias OpenChessLab.Repo
-  alias PositionDB.Query
 
   @moduletag postgres: true
 

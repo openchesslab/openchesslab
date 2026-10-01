@@ -1,12 +1,12 @@
 defmodule Analysis.PositionStoreTest do
   use ExUnit.Case, async: false
 
+  alias Analysis.PositionQuery, as: Query
   alias Analysis.PositionStore
   alias Chess.Move
   alias Chess.Position
   alias Chess.PositionProperties
   alias Chess.Square
-  alias PositionDB.Query
 
   test "registers under the configured server name" do
     server =
