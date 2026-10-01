@@ -13,7 +13,7 @@ defmodule Analysis.GameRecord do
   alias Analysis.GameRepository
   alias Analysis.GameStart
 
-  @type id :: term()
+  @type id :: binary()
   @type game_id :: GameRepository.game_id()
 
   @type t :: %__MODULE__{
@@ -68,7 +68,8 @@ defmodule Analysis.GameRecord do
           map()
         ) :: t()
   def new(id, game_id, %GameStart{} = start, metadata)
-      when is_integer(game_id) and game_id > 0 and is_map(metadata) do
+      when is_binary(id) and byte_size(id) > 0 and is_integer(game_id) and game_id > 0 and
+             is_map(metadata) do
     %__MODULE__{
       id: id,
       game_id: game_id,

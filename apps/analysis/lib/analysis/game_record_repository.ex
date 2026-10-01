@@ -12,7 +12,7 @@ defmodule Analysis.GameRecordRepository do
   alias Analysis.GameRecord
   alias Analysis.GameRepository
 
-  @type record_id :: binary()
+  @type record_id :: GameRecord.id()
   @type record_cursor :: term()
 
   @type record_page ::
@@ -25,7 +25,7 @@ defmodule Analysis.GameRecordRepository do
               :ok
               | {:error, term()}
 
-  @callback get(GameRecord.id()) ::
+  @callback get(record_id()) ::
               {:ok, GameRecord.t()}
               | :not_found
               | {:error, term()}

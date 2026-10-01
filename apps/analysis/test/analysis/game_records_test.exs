@@ -1040,6 +1040,75 @@ defmodule Analysis.GameRecordsTest do
              ).rows
   end
 
+  test "rejects an invalid record id before canonical game creation",
+       %{
+         initial_position_id: initial_position_id
+       } do
+    move =
+      move(
+        "e2",
+        "e4"
+      )
+
+    content =
+      GameContent.new(
+        initial_position_id,
+        [move]
+      )
+
+    assert {:ok, fingerprint} =
+             GameFingerprint.for_content(content)
+
+    assert {:ok, resulting_position} =
+             Position.apply_move(
+               Position.starting_position(),
+               move
+             )
+
+    assert GameRecords.create(
+             "",
+             content,
+             GameStart.standard(),
+             %{}
+           ) ==
+             {:error, :invalid_record_id}
+
+    assert GameStore.find(
+             fingerprint,
+             content
+           ) ==
+             :not_found
+
+    assert PositionStore.find(resulting_position) ==
+             :not_found
+
+    assert [[0]] =
+             Repo.query!(
+               """
+               SELECT count(*)
+               FROM games
+               """,
+               []
+             ).rows
+
+    assert [[0]] =
+             Repo.query!(
+               """
+               SELECT count(*)
+               FROM game_records
+               """,
+               []
+             ).rows
+
+    assert GameRecords.create(
+             123,
+             content,
+             GameStart.standard(),
+             %{}
+           ) ==
+             {:error, :invalid_record_id}
+  end
+
   defp move(from, to) do
     Move.new(
       Square.from_algebraic(from),

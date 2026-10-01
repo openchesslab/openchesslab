@@ -132,4 +132,35 @@ defmodule Analysis.GameRecordTest do
              :moves
            )
   end
+
+  test "requires a non-empty textual record id" do
+    assert_raise FunctionClauseError, fn ->
+      GameRecord.new(
+        "",
+        42
+      )
+    end
+
+    assert_raise FunctionClauseError, fn ->
+      apply(
+        GameRecord,
+        :new,
+        [
+          123,
+          42
+        ]
+      )
+    end
+
+    assert_raise FunctionClauseError, fn ->
+      apply(
+        GameRecord,
+        :new,
+        [
+          nil,
+          42
+        ]
+      )
+    end
+  end
 end
