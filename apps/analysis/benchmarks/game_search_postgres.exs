@@ -7,6 +7,7 @@ defmodule Analysis.GameSearchPostgresBenchmark do
 
   alias Analysis.GameRecordQuery
   alias Analysis.GameSearch
+  alias Analysis.GameSearch.PostgresQuery
   alias Analysis.PositionQuery
   alias OpenChessLab.Repo
 
@@ -184,9 +185,7 @@ defmodule Analysis.GameSearchPostgresBenchmark do
 
   def application_result_page(page_size) do
     record_query =
-      GameRecordQuery.metadata_contains(%{
-        "white" => @matching_white
-      })
+      record_query()
 
     case GameSearch.page(
            PositionQuery.match_all(),
@@ -208,6 +207,19 @@ defmodule Analysis.GameSearchPostgresBenchmark do
     end
   end
 
+  def application_sql_result_page(page_size) do
+    {
+      sql,
+      parameters
+    } =
+      application_sql(page_size)
+
+    Repo.query!(
+      sql,
+      parameters
+    ).rows
+  end
+
   def joined_result_page(page_size) do
     Repo.query!(
       @joined_result_page_sql,
@@ -220,28 +232,28 @@ defmodule Analysis.GameSearchPostgresBenchmark do
     ).rows
   end
 
+  def application_plan(page_size) do
+    {
+      sql,
+      parameters
+    } =
+      application_sql(page_size)
+
+    explain(
+      sql,
+      parameters
+    )
+  end
+
   def joined_plan(page_size) do
-    Repo.query!(
-      """
-      EXPLAIN (COSTS TRUE)
-      #{@joined_result_page_sql}
-      """,
+    explain(
+      @joined_result_page_sql,
       [
         %{
           "white" => @matching_white
         },
         page_size
       ]
-    ).rows
-    |> Enum.map_join(
-      "\n",
-      fn
-        [line] ->
-          line
-
-        row ->
-          inspect(row)
-      end
     )
   end
 
@@ -283,6 +295,64 @@ defmodule Analysis.GameSearchPostgresBenchmark do
 
       drain_query_count(0)
     end
+  end
+
+  defp application_sql(page_size) do
+    requested_rows =
+      page_size + 1
+
+    case PostgresQuery.compile_first(
+           PositionQuery.match_all(),
+           record_query(),
+           requested_rows
+         ) do
+      {
+        :ok,
+        sql,
+        parameters
+      } ->
+        {
+          sql,
+          parameters
+        }
+
+      {:error, reason} ->
+        raise """
+        game-search SQL compilation failed: #{inspect(reason)}
+        """
+    end
+  end
+
+  defp record_query do
+    GameRecordQuery.metadata_contains(%{
+      "white" => @matching_white
+    })
+  end
+
+  defp explain(sql, parameters) do
+    Repo.query!(
+      """
+      EXPLAIN (
+        ANALYZE,
+        BUFFERS,
+        COSTS TRUE,
+        TIMING TRUE,
+        SUMMARY TRUE
+      )
+      #{sql}
+      """,
+      parameters
+    ).rows
+    |> Enum.map_join(
+      "\n",
+      fn
+        [line] ->
+          line
+
+        row ->
+          inspect(row)
+      end
+    )
   end
 
   defp drain_query_count(count) do
@@ -370,6 +440,12 @@ expected_matches =
     available_matches
   )
 
+expected_application_sql_rows =
+  min(
+    page_size + 1,
+    available_matches
+  )
+
 try do
   IO.puts("""
   Building PostgreSQL game-search benchmark fixture...
@@ -397,7 +473,15 @@ try do
     end)
 
   {
-    joined_matches,
+    application_sql_rows,
+    application_sql_query_count
+  } =
+    Benchmark.query_count(fn ->
+      Benchmark.application_sql_result_page(page_size)
+    end)
+
+  {
+    joined_rows,
     joined_query_count
   } =
     Benchmark.query_count(fn ->
@@ -412,11 +496,19 @@ try do
     """
   end
 
-  if length(joined_matches) !=
+  if length(application_sql_rows) !=
+       expected_application_sql_rows do
+    raise """
+    application SQL expected #{expected_application_sql_rows} rows,
+    got #{length(application_sql_rows)}
+    """
+  end
+
+  if length(joined_rows) !=
        expected_matches do
     raise """
-    joined SQL expected #{expected_matches} matches,
-    got #{length(joined_matches)}
+    joined SQL expected #{expected_matches} rows,
+    got #{length(joined_rows)}
     """
   end
 
@@ -430,15 +522,19 @@ try do
 
   SQL queries for one result page:
     application flow:    #{application_query_count}
+    application SQL:     #{application_sql_query_count}
     joined SQL baseline: #{joined_query_count}
 
-  Joined SQL plan:
+  Application SQL plan:
+  #{Benchmark.application_plan(page_size)}
+
+  Joined SQL baseline plan:
   #{Benchmark.joined_plan(page_size)}
   """)
 
   Benchee.run(
     %{
-      "game search: application flow" => fn ->
+      "game search: full application flow" => fn ->
         matches =
           Benchmark.application_result_page(page_size)
 
@@ -451,6 +547,20 @@ try do
         end
 
         matches
+      end,
+      "game search: application SQL only" => fn ->
+        rows =
+          Benchmark.application_sql_result_page(page_size)
+
+        if length(rows) !=
+             expected_application_sql_rows do
+          raise """
+          expected #{expected_application_sql_rows} rows,
+          got #{length(rows)}
+          """
+        end
+
+        rows
       end,
       "game search: joined SQL baseline" => fn ->
         rows =
