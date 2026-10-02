@@ -3,39 +3,6 @@ defmodule Web.ReadinessControllerTest do
 
   alias Analysis.AnalysisStore
 
-  defmodule UnavailableGameRepository do
-    @moduledoc false
-
-    @behaviour Analysis.GameRepository
-
-    @impl true
-    def ready?, do: false
-
-    @impl true
-    def put(_fingerprint, _content, _position_ids), do: {:error, :unavailable}
-
-    @impl true
-    def find(_fingerprint, _content), do: {:error, :unavailable}
-
-    @impl true
-    def get(_game_id), do: {:error, :unavailable}
-
-    @impl true
-    def occurrences(_game_id), do: {:error, :unavailable}
-
-    @impl true
-    def occurrences_page(_position_id, _page_size), do: {:error, :unavailable}
-
-    @impl true
-    def next_occurrences_page(_cursor, _page_size), do: {:error, :unavailable}
-
-    @impl true
-    def close_occurrences(_cursor), do: :ok
-
-    @impl true
-    def get_occurrence(_occurrence_id), do: {:error, :unavailable}
-  end
-
   defmodule UnavailableGameRecordRepository do
     @moduledoc false
 
@@ -114,43 +81,6 @@ defmodule Web.ReadinessControllerTest do
            ) ==
              %{
                "status" => "ready"
-             }
-  end
-
-  test "GET /ready returns service unavailable when PostgreSQL game storage is unavailable",
-       %{conn: conn} do
-    previous =
-      Application.get_env(
-        :analysis,
-        :game_repository,
-        :not_configured
-      )
-
-    on_exit(fn ->
-      restore_repository(
-        :game_repository,
-        previous
-      )
-    end)
-
-    Application.put_env(
-      :analysis,
-      :game_repository,
-      UnavailableGameRepository
-    )
-
-    conn =
-      get(
-        conn,
-        "/ready"
-      )
-
-    assert json_response(
-             conn,
-             503
-           ) ==
-             %{
-               "status" => "unavailable"
              }
   end
 

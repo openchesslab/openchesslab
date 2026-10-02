@@ -6,8 +6,8 @@ defmodule Analysis.PostgresGameRecordRepositoryTest do
   alias Analysis.GameRecord
   alias Analysis.GameRecordQuery
   alias Analysis.GameRecordRepository.Postgres, as: GameRecordRepository
-  alias Analysis.GameRepository.Postgres, as: GameRepository
   alias Analysis.GameStart
+  alias Analysis.GameStore
   alias Analysis.PositionStore
   alias Chess.Position
   alias OpenChessLab.Repo
@@ -686,7 +686,7 @@ defmodule Analysis.PostgresGameRecordRepositoryTest do
       GameFingerprint.for_content(content)
 
     {:ok, game_id} =
-      GameRepository.put(
+      GameStore.put(
         fingerprint,
         content,
         [position_id]

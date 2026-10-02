@@ -7,7 +7,7 @@ defmodule Analysis.Analyses do
   alias Analysis.GameOccurrence, as: Occurrence
   alias Analysis.GameRecord
   alias Analysis.GameRecords
-  alias Analysis.GameRepository
+  alias Analysis.GameStore
   alias Analysis.Node
   alias Analysis.PositionStore
   alias Analysis.Transition
@@ -30,6 +30,7 @@ defmodule Analysis.Analyses do
              :already_exists
              | {:invalid_position, [atom()]}
              | position_store_error()}
+
   def create(analysis_id, opts \\ []) do
     with {:ok, initial_position} <-
            initial_position(opts),
@@ -78,7 +79,7 @@ defmodule Analysis.Analyses do
           | {:error,
              :already_exists
              | :game_record_not_found
-             | {:game_not_found, GameRepository.game_id()}
+             | {:game_not_found, GameStore.game_id()}
              | game_store_error()}
 
   def create_from_game_record(analysis_id, game_record_id) do

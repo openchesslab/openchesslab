@@ -11,7 +11,7 @@ defmodule Analysis.GameRecordRepository do
 
   alias Analysis.GameRecord
   alias Analysis.GameRecordQuery
-  alias Analysis.GameRepository
+  alias Analysis.GameStore
 
   @type record_id :: GameRecord.id()
   @type record_cursor :: term()
@@ -37,12 +37,12 @@ defmodule Analysis.GameRecordRepository do
               | {:error, term()}
 
   @callback records_page_by_game_id(
-              GameRepository.game_id(),
+              GameStore.game_id(),
               pos_integer()
             ) :: record_page()
 
   @callback records_page_by_game_id(
-              GameRepository.game_id(),
+              GameStore.game_id(),
               GameRecordQuery.t(),
               pos_integer()
             ) :: record_page()

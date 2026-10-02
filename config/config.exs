@@ -1,7 +1,6 @@
 import Config
 
 config :analysis,
-  game_repository: Analysis.GameRepository.Postgres,
   game_record_repository: Analysis.GameRecordRepository.Postgres
 
 config :database, OpenChessLab.Repo,

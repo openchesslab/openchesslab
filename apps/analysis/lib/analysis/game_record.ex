@@ -10,11 +10,11 @@ defmodule Analysis.GameRecord do
   identity.
   """
 
-  alias Analysis.GameRepository
   alias Analysis.GameStart
+  alias Analysis.GameStore
 
   @type id :: binary()
-  @type game_id :: GameRepository.game_id()
+  @type game_id :: GameStore.game_id()
 
   @type metadata_scalar ::
           binary()

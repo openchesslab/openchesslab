@@ -11,7 +11,7 @@ defmodule Analysis.GameRecordStore do
   alias Analysis.GameRecordQuery
   alias Analysis.GameRecordRepository
   alias Analysis.GameRecordRepository.Postgres
-  alias Analysis.GameRepository
+  alias Analysis.GameStore
 
   @type record_cursor :: GameRecordRepository.record_cursor()
 
@@ -54,7 +54,7 @@ defmodule Analysis.GameRecordStore do
   end
 
   @spec records_page_by_game_id(
-          GameRepository.game_id(),
+          GameStore.game_id(),
           pos_integer()
         ) :: record_page()
   def records_page_by_game_id(game_id, page_size) when is_integer(page_size) and page_size > 0 do
@@ -66,7 +66,7 @@ defmodule Analysis.GameRecordStore do
   end
 
   @spec records_page_by_game_id(
-          GameRepository.game_id(),
+          GameStore.game_id(),
           GameRecordQuery.t(),
           pos_integer()
         ) :: record_page()
