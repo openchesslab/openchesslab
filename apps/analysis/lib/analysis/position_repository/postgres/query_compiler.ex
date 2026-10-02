@@ -19,9 +19,6 @@ defmodule Analysis.PositionRepository.Postgres.QueryCompiler do
       when is_integer(after_position_id) and after_position_id >= 0 and
              is_integer(maximum_position_id) and maximum_position_id >= 0 and is_integer(limit) and
              limit > 0 do
-    normalized =
-      PositionQueryNormalizer.normalize(query)
-
     with {
            :ok,
            predicate,
@@ -29,8 +26,7 @@ defmodule Analysis.PositionRepository.Postgres.QueryCompiler do
            next_parameter
          } <-
            compile_predicate(
-             normalized,
-             [],
+             query,
              1
            ) do
       after_parameter =
@@ -66,7 +62,23 @@ defmodule Analysis.PositionRepository.Postgres.QueryCompiler do
     end
   end
 
-  defp compile_predicate(true, parameters, next_parameter) do
+  @spec compile_predicate(
+          PositionQuery.t(),
+          pos_integer()
+        ) ::
+          {:ok, String.t(), [term()], pos_integer()}
+          | {:error, term()}
+  def compile_predicate(query, next_parameter)
+      when is_integer(next_parameter) and next_parameter > 0 do
+    query
+    |> PositionQueryNormalizer.normalize()
+    |> do_compile_predicate(
+      [],
+      next_parameter
+    )
+  end
+
+  defp do_compile_predicate(true, parameters, next_parameter) do
     {
       :ok,
       "TRUE",
@@ -75,7 +87,7 @@ defmodule Analysis.PositionRepository.Postgres.QueryCompiler do
     }
   end
 
-  defp compile_predicate(false, parameters, next_parameter) do
+  defp do_compile_predicate(false, parameters, next_parameter) do
     {
       :ok,
       "FALSE",
@@ -84,7 +96,7 @@ defmodule Analysis.PositionRepository.Postgres.QueryCompiler do
     }
   end
 
-  defp compile_predicate({:property, property, value}, parameters, next_parameter) do
+  defp do_compile_predicate({:property, property, value}, parameters, next_parameter) do
     case PositionPropertyKeyCodec.encode(
            property,
            value
@@ -115,7 +127,7 @@ defmodule Analysis.PositionRepository.Postgres.QueryCompiler do
     end
   end
 
-  defp compile_predicate({:equivalent, %Position{} = position}, parameters, next_parameter) do
+  defp do_compile_predicate({:equivalent, %Position{} = position}, parameters, next_parameter) do
     record =
       PositionCodec.encode(position)
 
@@ -130,18 +142,18 @@ defmodule Analysis.PositionRepository.Postgres.QueryCompiler do
     }
   end
 
-  defp compile_predicate({:equivalent, _position}, _parameters, _next_parameter) do
+  defp do_compile_predicate({:equivalent, _position}, _parameters, _next_parameter) do
     {:error, :invalid_equivalent_position}
   end
 
-  defp compile_predicate({:not, query}, parameters, next_parameter) do
+  defp do_compile_predicate({:not, query}, parameters, next_parameter) do
     with {
            :ok,
            predicate,
            parameters,
            next_parameter
          } <-
-           compile_predicate(
+           do_compile_predicate(
              query,
              parameters,
              next_parameter
@@ -155,7 +167,7 @@ defmodule Analysis.PositionRepository.Postgres.QueryCompiler do
     end
   end
 
-  defp compile_predicate({:and, queries}, parameters, next_parameter) do
+  defp do_compile_predicate({:and, queries}, parameters, next_parameter) do
     compile_group(
       queries,
       "AND",
@@ -165,7 +177,7 @@ defmodule Analysis.PositionRepository.Postgres.QueryCompiler do
     )
   end
 
-  defp compile_predicate({:or, queries}, parameters, next_parameter) do
+  defp do_compile_predicate({:or, queries}, parameters, next_parameter) do
     compile_group(
       queries,
       "OR",
@@ -175,7 +187,7 @@ defmodule Analysis.PositionRepository.Postgres.QueryCompiler do
     )
   end
 
-  defp compile_predicate(_query, _parameters, _next_parameter) do
+  defp do_compile_predicate(_query, _parameters, _next_parameter) do
     {:error, :unsupported_position_query}
   end
 
@@ -204,7 +216,7 @@ defmodule Analysis.PositionRepository.Postgres.QueryCompiler do
            parameters,
            next_parameter
          } ->
-        case compile_predicate(
+        case do_compile_predicate(
                query,
                parameters,
                next_parameter
