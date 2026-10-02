@@ -7,4 +7,8 @@ defmodule OpenChessLab.RepoTest do
     assert Repo.__adapter__() ==
              Ecto.Adapters.Postgres
   end
+
+  test "reports ready when PostgreSQL is reachable" do
+    assert Repo.ready?()
+  end
 end

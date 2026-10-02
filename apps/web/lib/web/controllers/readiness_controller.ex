@@ -2,14 +2,10 @@ defmodule Web.ReadinessController do
   use Web, :controller
 
   alias Analysis.AnalysisStore
-  alias Analysis.GameRecordStore
-  alias Analysis.GameStore
-  alias Analysis.PositionStore
+  alias OpenChessLab.Repo
 
   def show(conn, _params) do
-    if PositionStore.ready?() and
-         GameStore.ready?() and
-         GameRecordStore.ready?() and
+    if Repo.ready?() and
          AnalysisStore.ready?() do
       json(
         conn,

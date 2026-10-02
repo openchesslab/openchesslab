@@ -37,26 +37,6 @@ defmodule Analysis.GameRecordStore do
   WHERE record_id = $1
   """
 
-  @spec ready?() :: boolean()
-  def ready? do
-    case Repo.query(
-           "SELECT 1",
-           []
-         ) do
-      {:ok, _result} ->
-        true
-
-      {:error, _reason} ->
-        false
-    end
-  rescue
-    _error ->
-      false
-  catch
-    :exit, _reason ->
-      false
-  end
-
   @spec insert(GameRecord.t()) ::
           :ok
           | {:error, term()}

@@ -10,4 +10,24 @@ defmodule OpenChessLab.Repo do
   use Ecto.Repo,
     otp_app: :database,
     adapter: Ecto.Adapters.Postgres
+
+  @spec ready?() :: boolean()
+  def ready? do
+    case query(
+           "SELECT 1",
+           []
+         ) do
+      {:ok, _result} ->
+        true
+
+      {:error, _reason} ->
+        false
+    end
+  rescue
+    _error ->
+      false
+  catch
+    :exit, _reason ->
+      false
+  end
 end

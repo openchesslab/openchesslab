@@ -97,26 +97,6 @@ defmodule Analysis.PositionStore do
   WHERE record = $1
   """
 
-  @spec ready?() :: boolean()
-  def ready? do
-    case Repo.query(
-           "SELECT 1",
-           []
-         ) do
-      {:ok, _result} ->
-        true
-
-      {:error, _reason} ->
-        false
-    end
-  rescue
-    _error ->
-      false
-  catch
-    :exit, _reason ->
-      false
-  end
-
   @spec append(Position.t()) ::
           position_id()
           | {:error, term()}

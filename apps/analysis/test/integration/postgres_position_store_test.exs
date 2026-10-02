@@ -36,8 +36,6 @@ defmodule Analysis.PostgresPositionStoreTest do
 
     assert PositionStore.get(1) ==
              {:ok, position}
-
-    assert PositionStore.ready?()
   end
 
   test "storing the same exact position reuses its id" do

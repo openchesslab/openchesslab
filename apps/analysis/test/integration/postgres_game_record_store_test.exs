@@ -31,10 +31,6 @@ defmodule Analysis.PostgresGameRecordStoreTest do
     :ok
   end
 
-  test "reports ready when PostgreSQL is reachable" do
-    assert GameRecordStore.ready?()
-  end
-
   test "stores and loads a concrete game record" do
     game_id =
       stored_game_id()

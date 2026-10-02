@@ -41,7 +41,8 @@ defmodule Web.MixProject do
       {:lazy_html, "~> 0.1", only: :test},
       {:jason, "~> 1.2"},
       {:analysis, in_umbrella: true},
-      {:chess, in_umbrella: true}
+      {:chess, in_umbrella: true},
+      {:database, in_umbrella: true}
     ]
   end
 

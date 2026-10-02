@@ -32,10 +32,6 @@ defmodule Analysis.PostgresGameStoreTest do
     :ok
   end
 
-  test "reports ready when PostgreSQL is reachable" do
-    assert GameStore.ready?()
-  end
-
   test "stores canonical game content and occurrences transactionally" do
     {content, position_ids} =
       one_move_game("e2", "e4")
