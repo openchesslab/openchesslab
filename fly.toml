@@ -14,11 +14,10 @@ primary_region = 'ams'
   PHX_SERVER = 'true'
   PHX_HOST = 'openchesslab.com'
   DNS_CLUSTER_QUERY = 'openchesslab.internal'
-  GAME_RECORD_STORE_OWNER = 'true'
 
 [processes]
-  app = "env GAME_RECORD_STORE_OWNER=true /app/bin/openchesslab start"
-  replica = "env GAME_RECORD_STORE_OWNER=false /app/bin/openchesslab start"
+  app = "/app/bin/openchesslab start"
+  replica = "/app/bin/openchesslab start"
 
 [http_service]
   internal_port = 8080
