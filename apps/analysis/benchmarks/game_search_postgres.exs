@@ -14,16 +14,17 @@ defmodule Analysis.GameSearchPostgresBenchmark do
   @matching_white "Magnus Carlsen"
   @other_white "Other Player"
 
-  @joined_result_page_sql """
+  @joined_first_page_sql """
   SELECT
-    gr.record_id,
-    gr.game_id,
-    gr.fullmove_number,
-    gr.metadata,
+    p.id,
     go.id,
     go.game_id,
     go.ply,
-    go.position_id
+    gr.id,
+    gr.record_id,
+    gr.game_id,
+    gr.fullmove_number,
+    gr.metadata
   FROM positions AS p
   JOIN game_occurrences AS go
     ON go.position_id = p.id
@@ -35,6 +36,40 @@ defmodule Analysis.GameSearchPostgresBenchmark do
     go.id,
     gr.id
   LIMIT $2::bigint
+  """
+
+  @joined_next_page_sql """
+  SELECT
+    p.id,
+    go.id,
+    go.game_id,
+    go.ply,
+    gr.id,
+    gr.record_id,
+    gr.game_id,
+    gr.fullmove_number,
+    gr.metadata
+  FROM positions AS p
+  JOIN game_occurrences AS go
+    ON go.position_id = p.id
+  JOIN game_records AS gr
+    ON gr.game_id = go.game_id
+  WHERE
+    gr.metadata @> $1::jsonb
+    AND (
+      p.id,
+      go.id,
+      gr.id
+    ) > (
+      $2::bigint,
+      $3::bigint,
+      $4::bigint
+    )
+  ORDER BY
+    p.id,
+    go.id,
+    gr.id
+  LIMIT $5::bigint
   """
 
   def build(row_count, selectivity) do
@@ -183,13 +218,10 @@ defmodule Analysis.GameSearchPostgresBenchmark do
     :ok
   end
 
-  def application_result_page(page_size) do
-    record_query =
-      record_query()
-
+  def application_first_page(page_size) do
     case GameSearch.page(
            PositionQuery.match_all(),
-           record_query,
+           record_query(),
            limit: page_size
          ) do
       {
@@ -202,17 +234,71 @@ defmodule Analysis.GameSearchPostgresBenchmark do
 
       {:error, reason} ->
         raise """
-        game search failed: #{inspect(reason)}
+        first game-search page failed: #{inspect(reason)}
         """
     end
   end
 
-  def application_sql_result_page(page_size) do
+  def application_cursor(page_size) do
+    case GameSearch.page(
+           PositionQuery.match_all(),
+           record_query(),
+           limit: page_size
+         ) do
+      {
+        :ok,
+        %GameSearch.Page{
+          next: %GameSearch.Cursor{} = cursor
+        }
+      } ->
+        cursor
+
+      {
+        :ok,
+        %GameSearch.Page{
+          next: nil
+        }
+      } ->
+        raise """
+        benchmark fixture does not contain enough matches
+        for a second application page
+        """
+
+      {:error, reason} ->
+        raise """
+        first game-search page failed: #{inspect(reason)}
+        """
+    end
+  end
+
+  def application_second_page(%GameSearch.Cursor{} = cursor, page_size) do
+    case GameSearch.page(
+           PositionQuery.match_all(),
+           record_query(),
+           limit: page_size,
+           cursor: cursor
+         ) do
+      {
+        :ok,
+        %GameSearch.Page{
+          entries: matches
+        }
+      } ->
+        matches
+
+      {:error, reason} ->
+        raise """
+        second game-search page failed: #{inspect(reason)}
+        """
+    end
+  end
+
+  def application_first_sql_page(page_size) do
     {
       sql,
       parameters
     } =
-      application_sql(page_size)
+      application_first_sql(page_size)
 
     Repo.query!(
       sql,
@@ -220,24 +306,79 @@ defmodule Analysis.GameSearchPostgresBenchmark do
     ).rows
   end
 
-  def joined_result_page(page_size) do
+  def application_second_sql_page(%GameSearch.Cursor{} = cursor, page_size) do
+    {
+      sql,
+      parameters
+    } =
+      application_second_sql(
+        cursor,
+        page_size
+      )
+
     Repo.query!(
-      @joined_result_page_sql,
+      sql,
+      parameters
+    ).rows
+  end
+
+  def joined_first_page(page_size) do
+    Repo.query!(
+      @joined_first_page_sql,
       [
-        %{
-          "white" => @matching_white
-        },
+        metadata(),
         page_size
       ]
     ).rows
   end
 
-  def application_plan(page_size) do
+  def joined_keyset(page_size) do
+    joined_first_page(page_size)
+    |> List.last()
+    |> case do
+      [
+        position_id,
+        occurrence_id,
+        _occurrence_game_id,
+        _ply,
+        record_row_id,
+        _record_id,
+        _record_game_id,
+        _fullmove_number,
+        _metadata
+      ] ->
+        {
+          position_id,
+          occurrence_id,
+          record_row_id
+        }
+
+      nil ->
+        raise """
+        benchmark fixture did not produce a joined first page
+        """
+    end
+  end
+
+  def joined_second_page({position_id, occurrence_id, record_row_id}, page_size) do
+    Repo.query!(
+      @joined_next_page_sql,
+      [
+        metadata(),
+        position_id,
+        occurrence_id,
+        record_row_id,
+        page_size
+      ]
+    ).rows
+  end
+
+  def application_first_plan(page_size) do
     {
       sql,
       parameters
     } =
-      application_sql(page_size)
+      application_first_sql(page_size)
 
     explain(
       sql,
@@ -245,13 +386,40 @@ defmodule Analysis.GameSearchPostgresBenchmark do
     )
   end
 
-  def joined_plan(page_size) do
+  def application_second_plan(%GameSearch.Cursor{} = cursor, page_size) do
+    {
+      sql,
+      parameters
+    } =
+      application_second_sql(
+        cursor,
+        page_size
+      )
+
     explain(
-      @joined_result_page_sql,
+      sql,
+      parameters
+    )
+  end
+
+  def joined_first_plan(page_size) do
+    explain(
+      @joined_first_page_sql,
       [
-        %{
-          "white" => @matching_white
-        },
+        metadata(),
+        page_size
+      ]
+    )
+  end
+
+  def joined_second_plan({position_id, occurrence_id, record_row_id}, page_size) do
+    explain(
+      @joined_next_page_sql,
+      [
+        metadata(),
+        position_id,
+        occurrence_id,
+        record_row_id,
         page_size
       ]
     )
@@ -297,7 +465,7 @@ defmodule Analysis.GameSearchPostgresBenchmark do
     end
   end
 
-  defp application_sql(page_size) do
+  defp application_first_sql(page_size) do
     requested_rows =
       page_size + 1
 
@@ -318,15 +486,53 @@ defmodule Analysis.GameSearchPostgresBenchmark do
 
       {:error, reason} ->
         raise """
-        game-search SQL compilation failed: #{inspect(reason)}
+        first game-search SQL compilation failed:
+        #{inspect(reason)}
+        """
+    end
+  end
+
+  defp application_second_sql(%GameSearch.Cursor{} = cursor, page_size) do
+    requested_rows =
+      page_size + 1
+
+    case PostgresQuery.compile_next(
+           PositionQuery.match_all(),
+           record_query(),
+           cursor.maximum_position_id,
+           cursor.maximum_occurrence_id,
+           cursor.maximum_record_row_id,
+           cursor.last_position_id,
+           cursor.last_occurrence_id,
+           cursor.last_record_row_id,
+           requested_rows
+         ) do
+      {
+        :ok,
+        sql,
+        parameters
+      } ->
+        {
+          sql,
+          parameters
+        }
+
+      {:error, reason} ->
+        raise """
+        second game-search SQL compilation failed:
+        #{inspect(reason)}
         """
     end
   end
 
   defp record_query do
-    GameRecordQuery.metadata_contains(%{
+    GameRecordQuery.metadata_contains(metadata())
+  end
+
+  defp metadata do
+    %{
       "white" => @matching_white
-    })
+    }
   end
 
   defp explain(sql, parameters) do
@@ -434,16 +640,43 @@ available_matches =
     selectivity
   )
 
-expected_matches =
+if available_matches <= page_size do
+  raise """
+  benchmark fixture needs more than one result page.
+
+  Available matches: #{available_matches}
+  Page size: #{page_size}
+  """
+end
+
+first_page_matches =
   min(
     page_size,
     available_matches
   )
 
-expected_application_sql_rows =
+remaining_matches =
+  max(
+    available_matches - page_size,
+    0
+  )
+
+second_page_matches =
+  min(
+    page_size,
+    remaining_matches
+  )
+
+first_application_sql_rows =
   min(
     page_size + 1,
     available_matches
+  )
+
+second_application_sql_rows =
+  min(
+    page_size + 1,
+    remaining_matches
   )
 
 try do
@@ -464,51 +697,114 @@ try do
       selectivity
     )
 
+  application_cursor =
+    Benchmark.application_cursor(page_size)
+
+  joined_keyset =
+    Benchmark.joined_keyset(page_size)
+
   {
-    application_matches,
-    application_query_count
+    application_first_matches,
+    application_first_query_count
   } =
     Benchmark.query_count(fn ->
-      Benchmark.application_result_page(page_size)
+      Benchmark.application_first_page(page_size)
     end)
 
   {
-    application_sql_rows,
-    application_sql_query_count
+    application_first_sql_rows_result,
+    application_first_sql_query_count
   } =
     Benchmark.query_count(fn ->
-      Benchmark.application_sql_result_page(page_size)
+      Benchmark.application_first_sql_page(page_size)
     end)
 
   {
-    joined_rows,
-    joined_query_count
+    joined_first_rows,
+    joined_first_query_count
   } =
     Benchmark.query_count(fn ->
-      Benchmark.joined_result_page(page_size)
+      Benchmark.joined_first_page(page_size)
     end)
 
-  if length(application_matches) !=
-       expected_matches do
+  {
+    application_second_matches,
+    application_second_query_count
+  } =
+    Benchmark.query_count(fn ->
+      Benchmark.application_second_page(
+        application_cursor,
+        page_size
+      )
+    end)
+
+  {
+    application_second_sql_rows_result,
+    application_second_sql_query_count
+  } =
+    Benchmark.query_count(fn ->
+      Benchmark.application_second_sql_page(
+        application_cursor,
+        page_size
+      )
+    end)
+
+  {
+    joined_second_rows,
+    joined_second_query_count
+  } =
+    Benchmark.query_count(fn ->
+      Benchmark.joined_second_page(
+        joined_keyset,
+        page_size
+      )
+    end)
+
+  if length(application_first_matches) !=
+       first_page_matches do
     raise """
-    application flow expected #{expected_matches} matches,
-    got #{length(application_matches)}
+    application first page expected #{first_page_matches} matches,
+    got #{length(application_first_matches)}
     """
   end
 
-  if length(application_sql_rows) !=
-       expected_application_sql_rows do
+  if length(application_first_sql_rows_result) !=
+       first_application_sql_rows do
     raise """
-    application SQL expected #{expected_application_sql_rows} rows,
-    got #{length(application_sql_rows)}
+    application first SQL expected #{first_application_sql_rows} rows,
+    got #{length(application_first_sql_rows_result)}
     """
   end
 
-  if length(joined_rows) !=
-       expected_matches do
+  if length(joined_first_rows) !=
+       first_page_matches do
     raise """
-    joined SQL expected #{expected_matches} rows,
-    got #{length(joined_rows)}
+    joined first page expected #{first_page_matches} rows,
+    got #{length(joined_first_rows)}
+    """
+  end
+
+  if length(application_second_matches) !=
+       second_page_matches do
+    raise """
+    application second page expected #{second_page_matches} matches,
+    got #{length(application_second_matches)}
+    """
+  end
+
+  if length(application_second_sql_rows_result) !=
+       second_application_sql_rows do
+    raise """
+    application second SQL expected #{second_application_sql_rows} rows,
+    got #{length(application_second_sql_rows_result)}
+    """
+  end
+
+  if length(joined_second_rows) !=
+       second_page_matches do
+    raise """
+    joined second page expected #{second_page_matches} rows,
+    got #{length(joined_second_rows)}
     """
   end
 
@@ -518,58 +814,121 @@ try do
   rows per relation: #{row_count}
   selectivity:       1/#{selectivity}
   result page:       #{page_size}
-  expected matches:  #{expected_matches}
 
-  SQL queries for one result page:
-    application flow:    #{application_query_count}
-    application SQL:     #{application_sql_query_count}
-    joined SQL baseline: #{joined_query_count}
+  First page:
+    expected matches:     #{first_page_matches}
+    application queries:  #{application_first_query_count}
+    application SQL:      #{application_first_sql_query_count}
+    joined baseline:      #{joined_first_query_count}
 
-  Application SQL plan:
-  #{Benchmark.application_plan(page_size)}
+  Second page:
+    expected matches:     #{second_page_matches}
+    application queries:  #{application_second_query_count}
+    application SQL:      #{application_second_sql_query_count}
+    joined baseline:      #{joined_second_query_count}
 
-  Joined SQL baseline plan:
-  #{Benchmark.joined_plan(page_size)}
+  Application first-page plan:
+  #{Benchmark.application_first_plan(page_size)}
+
+  Joined first-page baseline plan:
+  #{Benchmark.joined_first_plan(page_size)}
+
+  Application second-page plan:
+  #{Benchmark.application_second_plan(application_cursor, page_size)}
+
+  Joined second-page baseline plan:
+  #{Benchmark.joined_second_plan(joined_keyset, page_size)}
   """)
 
   Benchee.run(
     %{
-      "game search: full application flow" => fn ->
+      "game search: first page application" => fn ->
         matches =
-          Benchmark.application_result_page(page_size)
+          Benchmark.application_first_page(page_size)
 
         if length(matches) !=
-             expected_matches do
+             first_page_matches do
           raise """
-          expected #{expected_matches} matches,
+          expected #{first_page_matches} matches,
           got #{length(matches)}
           """
         end
 
         matches
       end,
-      "game search: application SQL only" => fn ->
+      "game search: first page application SQL" => fn ->
         rows =
-          Benchmark.application_sql_result_page(page_size)
+          Benchmark.application_first_sql_page(page_size)
 
         if length(rows) !=
-             expected_application_sql_rows do
+             first_application_sql_rows do
           raise """
-          expected #{expected_application_sql_rows} rows,
+          expected #{first_application_sql_rows} rows,
           got #{length(rows)}
           """
         end
 
         rows
       end,
-      "game search: joined SQL baseline" => fn ->
+      "game search: first page joined baseline" => fn ->
         rows =
-          Benchmark.joined_result_page(page_size)
+          Benchmark.joined_first_page(page_size)
 
         if length(rows) !=
-             expected_matches do
+             first_page_matches do
           raise """
-          expected #{expected_matches} matches,
+          expected #{first_page_matches} rows,
+          got #{length(rows)}
+          """
+        end
+
+        rows
+      end,
+      "game search: second page application" => fn ->
+        matches =
+          Benchmark.application_second_page(
+            application_cursor,
+            page_size
+          )
+
+        if length(matches) !=
+             second_page_matches do
+          raise """
+          expected #{second_page_matches} matches,
+          got #{length(matches)}
+          """
+        end
+
+        matches
+      end,
+      "game search: second page application SQL" => fn ->
+        rows =
+          Benchmark.application_second_sql_page(
+            application_cursor,
+            page_size
+          )
+
+        if length(rows) !=
+             second_application_sql_rows do
+          raise """
+          expected #{second_application_sql_rows} rows,
+          got #{length(rows)}
+          """
+        end
+
+        rows
+      end,
+      "game search: second page joined baseline" => fn ->
+        rows =
+          Benchmark.joined_second_page(
+            joined_keyset,
+            page_size
+          )
+
+        if length(rows) !=
+             second_page_matches do
+          raise """
+          expected #{second_page_matches} rows,
           got #{length(rows)}
           """
         end
