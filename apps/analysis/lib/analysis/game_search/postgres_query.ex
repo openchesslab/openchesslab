@@ -169,11 +169,18 @@ defmodule Analysis.GameSearch.PostgresQuery do
       JOIN game_records AS gr
         ON gr.game_id = go.game_id
       WHERE
-        p.id <= $#{maximum_position_parameter}::bigint
+        go.position_id <= $#{maximum_position_parameter}::bigint
         AND go.id <= $#{maximum_occurrence_parameter}::bigint
         AND gr.id <= $#{maximum_record_parameter}::bigint
         AND (
-          p.id,
+          go.position_id,
+          go.id
+        ) >= (
+          $#{last_position_parameter}::bigint,
+          $#{last_occurrence_parameter}::bigint
+        )
+        AND (
+          go.position_id,
           go.id,
           gr.id
         ) > (
