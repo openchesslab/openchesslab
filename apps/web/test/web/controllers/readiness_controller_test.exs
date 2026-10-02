@@ -3,33 +3,6 @@ defmodule Web.ReadinessControllerTest do
 
   alias Analysis.AnalysisStore
 
-  defmodule UnavailablePositionRepository do
-    @moduledoc false
-
-    @behaviour Analysis.PositionRepository
-
-    @impl true
-    def ready?, do: false
-
-    @impl true
-    def put(_position), do: {:error, :unavailable}
-
-    @impl true
-    def get(_position_id), do: {:error, :unavailable}
-
-    @impl true
-    def find(_position), do: {:error, :unavailable}
-
-    @impl true
-    def query_page(_query, _page_size), do: {:error, :unavailable}
-
-    @impl true
-    def next_query_page(_cursor, _page_size), do: {:error, :unavailable}
-
-    @impl true
-    def close_query(_cursor), do: :ok
-  end
-
   defmodule UnavailableGameRepository do
     @moduledoc false
 
@@ -141,43 +114,6 @@ defmodule Web.ReadinessControllerTest do
            ) ==
              %{
                "status" => "ready"
-             }
-  end
-
-  test "GET /ready returns service unavailable when PostgreSQL position storage is unavailable",
-       %{conn: conn} do
-    previous =
-      Application.get_env(
-        :analysis,
-        :position_repository,
-        :not_configured
-      )
-
-    on_exit(fn ->
-      restore_repository(
-        :position_repository,
-        previous
-      )
-    end)
-
-    Application.put_env(
-      :analysis,
-      :position_repository,
-      UnavailablePositionRepository
-    )
-
-    conn =
-      get(
-        conn,
-        "/ready"
-      )
-
-    assert json_response(
-             conn,
-             503
-           ) ==
-             %{
-               "status" => "unavailable"
              }
   end
 

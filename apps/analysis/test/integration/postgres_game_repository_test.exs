@@ -5,7 +5,7 @@ defmodule Analysis.PostgresGameRepositoryTest do
   alias Analysis.GameFingerprint
   alias Analysis.GameOccurrence
   alias Analysis.GameRepository.Postgres, as: GameRepository
-  alias Analysis.PositionRepository.Postgres, as: PositionRepository
+  alias Analysis.PositionStore
   alias Chess.Move
   alias Chess.Position
   alias Chess.Square
@@ -691,8 +691,11 @@ defmodule Analysis.PostgresGameRepositoryTest do
   end
 
   defp stored_position_id(position) do
-    {:ok, position_id} =
-      PositionRepository.put(position)
+    position_id =
+      PositionStore.append(position)
+
+    assert is_integer(position_id)
+    assert position_id > 0
 
     position_id
   end

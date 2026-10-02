@@ -8,7 +8,7 @@ defmodule Analysis.PostgresGameRecordRepositoryTest do
   alias Analysis.GameRecordRepository.Postgres, as: GameRecordRepository
   alias Analysis.GameRepository.Postgres, as: GameRepository
   alias Analysis.GameStart
-  alias Analysis.PositionRepository.Postgres, as: PositionRepository
+  alias Analysis.PositionStore
   alias Chess.Position
   alias OpenChessLab.Repo
 
@@ -673,8 +673,11 @@ defmodule Analysis.PostgresGameRecordRepositoryTest do
   end
 
   defp stored_game_id do
-    {:ok, position_id} =
-      PositionRepository.put(Position.starting_position())
+    position_id =
+      PositionStore.append(Position.starting_position())
+
+    assert is_integer(position_id)
+    assert position_id > 0
 
     content =
       GameContent.new(position_id)

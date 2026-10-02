@@ -1,7 +1,6 @@
 import Config
 
 config :analysis,
-  position_repository: Analysis.PositionRepository.Postgres,
   game_repository: Analysis.GameRepository.Postgres,
   game_record_repository: Analysis.GameRecordRepository.Postgres
 

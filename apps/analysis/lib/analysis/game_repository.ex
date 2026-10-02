@@ -12,11 +12,11 @@ defmodule Analysis.GameRepository do
   alias Analysis.GameContent
   alias Analysis.GameFingerprint
   alias Analysis.GameOccurrence
-  alias Analysis.PositionRepository
+  alias Analysis.PositionStore
 
   @type game_id :: pos_integer()
   @type fingerprint :: GameFingerprint.t()
-  @type position_id :: PositionRepository.position_id()
+  @type position_id :: PositionStore.position_id()
   @type occurrence_id :: GameOccurrence.id()
   @type occurrence_cursor :: term()
 
