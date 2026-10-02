@@ -9,6 +9,9 @@ primary_region = 'ams'
 [build]
   dockerfile = 'Dockerfile'
 
+[deploy]
+  release_command = '/app/bin/openchesslab eval "OpenChessLab.Database.Release.migrate()"'
+
 [env]
   PORT = '8080'
   PHX_SERVER = 'true'
