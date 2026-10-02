@@ -58,8 +58,23 @@ defmodule Analysis.GameRecordStore do
           pos_integer()
         ) :: record_page()
   def records_page_by_game_id(game_id, page_size) when is_integer(page_size) and page_size > 0 do
+    records_page_by_game_id(
+      game_id,
+      GameRecordQuery.match_all(),
+      page_size
+    )
+  end
+
+  @spec records_page_by_game_id(
+          GameRepository.game_id(),
+          GameRecordQuery.t(),
+          pos_integer()
+        ) :: record_page()
+  def records_page_by_game_id(game_id, query, page_size)
+      when is_integer(page_size) and page_size > 0 do
     repository().records_page_by_game_id(
       game_id,
+      query,
       page_size
     )
   end

@@ -583,6 +583,95 @@ defmodule Analysis.PostgresGameRecordRepositoryTest do
              }
   end
 
+  test "filters bounded records for one canonical game by metadata" do
+    game_id =
+      stored_game_id()
+
+    first =
+      GameRecord.new(
+        "record-1",
+        game_id,
+        %{
+          "white" => "Magnus Carlsen",
+          "event" => "Wijk aan Zee"
+        }
+      )
+
+    second =
+      GameRecord.new(
+        "record-2",
+        game_id,
+        %{
+          "white" => "Other Player",
+          "event" => "Wijk aan Zee"
+        }
+      )
+
+    third =
+      GameRecord.new(
+        "record-3",
+        game_id,
+        %{
+          "white" => "Magnus Carlsen",
+          "event" => "London"
+        }
+      )
+
+    for record <- [
+          first,
+          second,
+          third
+        ] do
+      assert :ok =
+               GameRecordRepository.insert(record)
+    end
+
+    query =
+      GameRecordQuery.metadata_contains(%{
+        "white" => "Magnus Carlsen"
+      })
+
+    assert {
+             :ok,
+             [^first],
+             cursor
+           } =
+             GameRecordRepository.records_page_by_game_id(
+               game_id,
+               query,
+               1
+             )
+
+    assert %GameRecordRepository.Cursor{} =
+             cursor
+
+    assert {
+             :ok,
+             [^third],
+             :done
+           } =
+             GameRecordRepository.next_records_page(
+               cursor,
+               10
+             )
+  end
+
+  test "match none returns no records for a canonical game" do
+    game_id =
+      stored_game_id()
+
+    assert GameRecordRepository.records_page_by_game_id(
+             game_id,
+             GameRecordQuery.match_none(),
+             10
+           ) ==
+             {
+               :ok,
+               [],
+               :done
+             }
+  end
+
   defp stored_game_id do
     {:ok, position_id} =
       PositionRepository.put(Position.starting_position())

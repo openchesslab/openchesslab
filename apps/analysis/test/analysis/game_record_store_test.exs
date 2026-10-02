@@ -39,6 +39,18 @@ defmodule Analysis.GameRecordStoreTest do
     end
 
     @impl true
+    def records_page_by_game_id(game_id, query, page_size) do
+      notify({
+        :records_page_by_game_id,
+        game_id,
+        query,
+        page_size
+      })
+
+      {:ok, [], :record_cursor}
+    end
+
+    @impl true
     def next_records_page(cursor, page_size) do
       notify({
         :next_records_page,
@@ -172,6 +184,7 @@ defmodule Analysis.GameRecordStoreTest do
       {
         :records_page_by_game_id,
         42,
+        true,
         25
       }
     }
@@ -261,6 +274,32 @@ defmodule Analysis.GameRecordStoreTest do
       {
         :close_query,
         :query_cursor
+      }
+    }
+  end
+
+  test "filters records for a canonical game through the configured repository" do
+    query = {
+      :metadata_contains,
+      %{
+        "white" => "Magnus Carlsen"
+      }
+    }
+
+    assert GameRecordStore.records_page_by_game_id(
+             42,
+             query,
+             25
+           ) ==
+             {:ok, [], :record_cursor}
+
+    assert_receive {
+      :game_record_repository,
+      {
+        :records_page_by_game_id,
+        42,
+        ^query,
+        25
       }
     }
   end

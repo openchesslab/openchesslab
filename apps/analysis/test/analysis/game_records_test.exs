@@ -69,6 +69,15 @@ defmodule Analysis.GameRecordsTest do
     end
 
     @impl true
+    def records_page_by_game_id(game_id, query, page_size) do
+      Postgres.records_page_by_game_id(
+        game_id,
+        query,
+        page_size
+      )
+    end
+
+    @impl true
     def next_records_page(cursor, page_size) do
       Postgres.next_records_page(
         cursor,
@@ -129,6 +138,15 @@ defmodule Analysis.GameRecordsTest do
     def records_page_by_game_id(game_id, page_size) do
       Postgres.records_page_by_game_id(
         game_id,
+        page_size
+      )
+    end
+
+    @impl true
+    def records_page_by_game_id(game_id, query, page_size) do
+      Postgres.records_page_by_game_id(
+        game_id,
+        query,
         page_size
       )
     end

@@ -22,18 +22,21 @@ defmodule Analysis.GameRecordRepository.Postgres do
 
     @enforce_keys [
       :game_id,
+      :query,
       :maximum_row_id,
       :last_row_id
     ]
 
     defstruct [
       :game_id,
+      :query,
       :maximum_row_id,
       :last_row_id
     ]
 
     @type t :: %__MODULE__{
             game_id: pos_integer(),
+            query: GameRecordQuery.t(),
             maximum_row_id: non_neg_integer(),
             last_row_id: pos_integer()
           }
@@ -109,6 +112,21 @@ defmodule Analysis.GameRecordRepository.Postgres do
     AND id <= $3
   ORDER BY id
   LIMIT $4
+  """
+  @records_metadata_page_sql """
+  SELECT
+    id,
+    record_id,
+    game_id,
+    fullmove_number,
+    metadata
+  FROM game_records
+  WHERE game_id = $1
+    AND id > $2
+    AND id <= $3
+    AND metadata @> $4::jsonb
+  ORDER BY id
+  LIMIT $5
   """
 
   @maximum_query_row_id_sql """
@@ -211,11 +229,39 @@ defmodule Analysis.GameRecordRepository.Postgres do
         ) ::
           {:ok, [GameRecord.t()], :done | record_cursor()}
           | {:error, term()}
-  def records_page_by_game_id(game_id, page_size)
+  def records_page_by_game_id(game_id, page_size) do
+    records_page_by_game_id(
+      game_id,
+      GameRecordQuery.match_all(),
+      page_size
+    )
+  end
+
+  @impl Analysis.GameRecordRepository
+  @spec records_page_by_game_id(
+          pos_integer(),
+          GameRecordQuery.t(),
+          pos_integer()
+        ) ::
+          {:ok, [GameRecord.t()], :done | record_cursor()}
+          | {:error, term()}
+  def records_page_by_game_id(game_id, false, page_size)
       when is_integer(game_id) and game_id > 0 and is_integer(page_size) and page_size > 0 do
-    with {:ok, maximum_row_id} <-
+    {
+      :ok,
+      [],
+      :done
+    }
+  end
+
+  def records_page_by_game_id(game_id, query, page_size)
+      when is_integer(game_id) and game_id > 0 and is_integer(page_size) and page_size > 0 do
+    with :ok <-
+           validate_query(query),
+         {:ok, maximum_row_id} <-
            maximum_row_id(game_id) do
       records_page(
+        query,
         game_id,
         0,
         maximum_row_id,
@@ -224,7 +270,7 @@ defmodule Analysis.GameRecordRepository.Postgres do
     end
   end
 
-  def records_page_by_game_id(_game_id, _page_size) do
+  def records_page_by_game_id(_game_id, _query, _page_size) do
     {:error, :invalid_record_page}
   end
 
@@ -236,11 +282,17 @@ defmodule Analysis.GameRecordRepository.Postgres do
           {:ok, [GameRecord.t()], :done | record_cursor()}
           | {:error, term()}
   def next_records_page(
-        %Cursor{game_id: game_id, maximum_row_id: maximum_row_id, last_row_id: last_row_id},
+        %Cursor{
+          game_id: game_id,
+          query: query,
+          maximum_row_id: maximum_row_id,
+          last_row_id: last_row_id
+        },
         page_size
       )
       when is_integer(page_size) and page_size > 0 do
     records_page(
+      query,
       game_id,
       last_row_id,
       maximum_row_id,
@@ -357,7 +409,7 @@ defmodule Analysis.GameRecordRepository.Postgres do
     end
   end
 
-  defp records_page(game_id, after_row_id, maximum_row_id, page_size) do
+  defp records_page(true, game_id, after_row_id, maximum_row_id, page_size) do
     requested_rows =
       page_size + 1
 
@@ -372,6 +424,7 @@ defmodule Analysis.GameRecordRepository.Postgres do
          ) do
       {:ok, %{rows: rows}} ->
         build_page(
+          true,
           game_id,
           maximum_row_id,
           rows,
@@ -383,7 +436,42 @@ defmodule Analysis.GameRecordRepository.Postgres do
     end
   end
 
-  defp build_page(_game_id, _maximum_row_id, rows, page_size) when length(rows) <= page_size do
+  defp records_page(
+         {:metadata_contains, metadata} = query,
+         game_id,
+         after_row_id,
+         maximum_row_id,
+         page_size
+       ) do
+    requested_rows =
+      page_size + 1
+
+    case Repo.query(
+           @records_metadata_page_sql,
+           [
+             game_id,
+             after_row_id,
+             maximum_row_id,
+             metadata,
+             requested_rows
+           ]
+         ) do
+      {:ok, %{rows: rows}} ->
+        build_page(
+          query,
+          game_id,
+          maximum_row_id,
+          rows,
+          page_size
+        )
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp build_page(_query, _game_id, _maximum_row_id, rows, page_size)
+       when length(rows) <= page_size do
     {
       :ok,
       Enum.map(
@@ -394,7 +482,7 @@ defmodule Analysis.GameRecordRepository.Postgres do
     }
   end
 
-  defp build_page(game_id, maximum_row_id, rows, page_size) do
+  defp build_page(query, game_id, maximum_row_id, rows, page_size) do
     {
       page_rows,
       _remaining_rows
@@ -417,6 +505,7 @@ defmodule Analysis.GameRecordRepository.Postgres do
       ),
       %Cursor{
         game_id: game_id,
+        query: query,
         maximum_row_id: maximum_row_id,
         last_row_id: last_row_id
       }

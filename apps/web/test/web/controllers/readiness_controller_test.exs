@@ -86,6 +86,15 @@ defmodule Web.ReadinessControllerTest do
     end
 
     @impl true
+    def records_page_by_game_id(
+          _game_id,
+          _query,
+          _page_size
+        ) do
+      {:error, :unavailable}
+    end
+
+    @impl true
     def next_records_page(
           _cursor,
           _page_size

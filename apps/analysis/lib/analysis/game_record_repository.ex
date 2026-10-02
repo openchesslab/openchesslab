@@ -41,12 +41,19 @@ defmodule Analysis.GameRecordRepository do
               pos_integer()
             ) :: record_page()
 
+  @callback records_page_by_game_id(
+              GameRepository.game_id(),
+              GameRecordQuery.t(),
+              pos_integer()
+            ) :: record_page()
+
   @callback next_records_page(
               record_cursor(),
               pos_integer()
             ) :: record_page()
 
   @callback close_records(record_cursor()) :: :ok
+
   @callback query_page(
               GameRecordQuery.t(),
               pos_integer()
