@@ -29,34 +29,28 @@ defmodule Analysis.GameSearch.PostgresQuery do
         next_parameter
 
       sql = """
-      WITH bounds AS (
-        SELECT
-          COALESCE(
-            (
-              SELECT max(id)
-              FROM positions
-            ),
-            0
-          )::bigint AS maximum_position_id,
-          COALESCE(
-            (
-              SELECT max(id)
-              FROM game_occurrences
-            ),
-            0
-          )::bigint AS maximum_occurrence_id,
-          COALESCE(
-            (
-              SELECT max(id)
-              FROM game_records
-            ),
-            0
-          )::bigint AS maximum_record_row_id
-      )
       SELECT
-        bounds.maximum_position_id,
-        bounds.maximum_occurrence_id,
-        bounds.maximum_record_row_id,
+        COALESCE(
+          (
+            SELECT max(id)
+            FROM positions
+          ),
+          0
+        )::bigint AS maximum_position_id,
+        COALESCE(
+          (
+            SELECT max(id)
+            FROM game_occurrences
+          ),
+          0
+        )::bigint AS maximum_occurrence_id,
+        COALESCE(
+          (
+            SELECT max(id)
+            FROM game_records
+          ),
+          0
+        )::bigint AS maximum_record_row_id,
         p.id,
         go.id,
         go.game_id,
@@ -66,15 +60,11 @@ defmodule Analysis.GameSearch.PostgresQuery do
         gr.game_id,
         gr.fullmove_number,
         gr.metadata
-      FROM bounds
-      JOIN positions AS p
-        ON p.id <= bounds.maximum_position_id
+      FROM positions AS p
       JOIN game_occurrences AS go
         ON go.position_id = p.id
-        AND go.id <= bounds.maximum_occurrence_id
       JOIN game_records AS gr
         ON gr.game_id = go.game_id
-        AND gr.id <= bounds.maximum_record_row_id
       WHERE
         (#{position_predicate})
         AND (#{record_predicate})
