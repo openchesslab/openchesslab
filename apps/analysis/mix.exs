@@ -28,7 +28,8 @@ defmodule Analysis.MixProject do
       {:database, in_umbrella: true},
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.3.0"},
-      {:horde, "~> 0.10"}
+      {:horde, "~> 0.10"},
+      {:benchee, "~> 1.5", only: :dev}
     ]
   end
 end

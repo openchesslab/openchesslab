@@ -46,13 +46,13 @@ if config_env() == :prod do
     )
     |> String.to_integer()
 
-  config :database, OpenChessLab.Repo,
-    url: database_url,
-    pool_size: pool_size
-
   host =
     System.get_env("PHX_HOST") ||
       "example.com"
+
+  config :database, OpenChessLab.Repo,
+    url: database_url,
+    pool_size: pool_size
 
   config :web, Web.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
@@ -62,24 +62,19 @@ if config_env() == :prod do
     secret_key_base: secret_key_base
 
   if System.get_env("DNS_CLUSTER_QUERY") do
-    unless System.get_env("RELEASE_NODE") do
+    if !System.get_env("RELEASE_NODE") do
       raise """
       RELEASE_NODE must be configured when DNS_CLUSTER_QUERY is enabled
       """
     end
 
-    unless System.get_env("RELEASE_COOKIE") do
+    if !System.get_env("RELEASE_COOKIE") do
       raise """
       RELEASE_COOKIE must be configured when DNS_CLUSTER_QUERY is enabled
       """
     end
   end
 end
-
-config :analysis,
-  dns_cluster_query:
-    System.get_env("DNS_CLUSTER_QUERY") ||
-      :ignore
 
 analysis_store_owner =
   case System.get_env("ANALYSIS_STORE_OWNER") do
@@ -98,10 +93,6 @@ analysis_store_owner =
       """
   end
 
-config :analysis,
-       Analysis.AnalysisStoreOwner,
-       owner: analysis_store_owner
-
 analysis_store_options =
   case System.get_env("ANALYSIS_STORE_PATH") do
     nil ->
@@ -117,3 +108,12 @@ analysis_store_options =
 config :analysis,
        Analysis.AnalysisStore,
        analysis_store_options
+
+config :analysis,
+       Analysis.AnalysisStoreOwner,
+       owner: analysis_store_owner
+
+config :analysis,
+  dns_cluster_query:
+    System.get_env("DNS_CLUSTER_QUERY") ||
+      :ignore
