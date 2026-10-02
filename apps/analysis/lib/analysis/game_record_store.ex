@@ -1,124 +1,189 @@
 defmodule Analysis.GameRecordStore do
   @moduledoc """
-  Application-facing access to concrete played-game records.
+  PostgreSQL persistence for concrete played-game records.
 
-  Game-record persistence is PostgreSQL-backed and stateless at the
-  application layer. The configured repository owns durable record
-  identity and bounded record paging.
+  Logical record identity is stored in `record_id`. PostgreSQL owns an
+  independent monotonic row ID used internally for relational identity
+  and indexing.
   """
 
   alias Analysis.GameRecord
-  alias Analysis.GameRecordQuery
-  alias Analysis.GameRecordRepository
-  alias Analysis.GameRecordRepository.Postgres
-  alias Analysis.GameStore
+  alias Analysis.GameStart
+  alias OpenChessLab.Repo
 
-  @type record_cursor :: GameRecordRepository.record_cursor()
+  @insert_sql """
+  INSERT INTO game_records (
+    record_id,
+    game_id,
+    fullmove_number,
+    metadata
+  )
+  VALUES (
+    $1,
+    $2,
+    $3,
+    $4
+  )
+  RETURNING id
+  """
 
-  @type record_page ::
-          {:ok, [GameRecord.t()], :done | record_cursor()}
-          | {:error, term()}
-  @type query_cursor :: GameRecordRepository.query_cursor()
-
-  @type query_page ::
-          {:ok, [GameRecord.t()], :done | query_cursor()}
-          | {:error, term()}
-
-  @spec repository() :: module()
-  def repository do
-    Application.get_env(
-      :analysis,
-      :game_record_repository,
-      Postgres
-    )
-  end
+  @get_sql """
+  SELECT
+    record_id,
+    game_id,
+    fullmove_number,
+    metadata
+  FROM game_records
+  WHERE record_id = $1
+  """
 
   @spec ready?() :: boolean()
   def ready? do
-    repository().ready?()
+    case Repo.query(
+           "SELECT 1",
+           []
+         ) do
+      {:ok, _result} ->
+        true
+
+      {:error, _reason} ->
+        false
+    end
+  rescue
+    _error ->
+      false
+  catch
+    :exit, _reason ->
+      false
   end
 
   @spec insert(GameRecord.t()) ::
           :ok
           | {:error, term()}
   def insert(%GameRecord{} = record) do
-    repository().insert(record)
+    with :ok <-
+           validate_record(record) do
+      do_insert(record)
+    end
+  end
+
+  def insert(_record) do
+    {:error, :invalid_game_record}
   end
 
   @spec get(GameRecord.id()) ::
           {:ok, GameRecord.t()}
           | :not_found
           | {:error, term()}
-  def get(record_id) do
-    repository().get(record_id)
+  def get(record_id) when is_binary(record_id) and byte_size(record_id) > 0 do
+    case Repo.query(
+           @get_sql,
+           [record_id]
+         ) do
+      {:ok, %{rows: [row]}} ->
+        {:ok, record_from_row(row)}
+
+      {:ok, %{rows: []}} ->
+        :not_found
+
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 
-  @spec records_page_by_game_id(
-          GameStore.game_id(),
-          pos_integer()
-        ) :: record_page()
-  def records_page_by_game_id(game_id, page_size) when is_integer(page_size) and page_size > 0 do
-    records_page_by_game_id(
+  def get(_record_id) do
+    :not_found
+  end
+
+  defp do_insert(%GameRecord{} = record) do
+    start =
+      GameRecord.start(record)
+
+    case Repo.query(
+           @insert_sql,
+           [
+             GameRecord.id(record),
+             GameRecord.game_id(record),
+             GameStart.fullmove_number(start),
+             GameRecord.metadata(record)
+           ]
+         ) do
+      {:ok, %{rows: [[_row_id]]}} ->
+        :ok
+
+      {:error,
+       %Postgrex.Error{
+         postgres: %{
+           code: :unique_violation,
+           constraint: "game_records_record_id_unique"
+         }
+       }} ->
+        {:error, :already_exists}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp record_from_row([record_id, game_id, fullmove_number, metadata]) do
+    GameRecord.new(
+      record_id,
       game_id,
-      GameRecordQuery.match_all(),
-      page_size
+      GameStart.new(fullmove_number),
+      metadata
     )
   end
 
-  @spec records_page_by_game_id(
-          GameStore.game_id(),
-          GameRecordQuery.t(),
-          pos_integer()
-        ) :: record_page()
-  def records_page_by_game_id(game_id, query, page_size)
-      when is_integer(page_size) and page_size > 0 do
-    repository().records_page_by_game_id(
-      game_id,
-      query,
-      page_size
-    )
+  defp validate_record(%GameRecord{
+         id: record_id,
+         game_id: game_id,
+         start: %GameStart{fullmove_number: fullmove_number},
+         metadata: metadata
+       }) do
+    with :ok <-
+           validate_record_id(record_id),
+         :ok <-
+           validate_game_id(game_id),
+         :ok <-
+           validate_fullmove_number(fullmove_number) do
+      validate_metadata(metadata)
+    end
   end
 
-  @spec next_records_page(
-          record_cursor(),
-          pos_integer()
-        ) :: record_page()
-  def next_records_page(cursor, page_size) when is_integer(page_size) and page_size > 0 do
-    repository().next_records_page(
-      cursor,
-      page_size
-    )
+  defp validate_record(_record) do
+    {:error, :invalid_game_record}
   end
 
-  @spec close_record_scan(record_cursor()) :: :ok
-  def close_record_scan(cursor) do
-    repository().close_records(cursor)
+  defp validate_record_id(record_id) when is_binary(record_id) and byte_size(record_id) > 0 do
+    :ok
   end
 
-  @spec query_page(
-          GameRecordQuery.t(),
-          pos_integer()
-        ) :: query_page()
-  def query_page(query, page_size) when is_integer(page_size) and page_size > 0 do
-    repository().query_page(
-      query,
-      page_size
-    )
+  defp validate_record_id(_record_id) do
+    {:error, :invalid_record_id}
   end
 
-  @spec next_query_page(
-          query_cursor(),
-          pos_integer()
-        ) :: query_page()
-  def next_query_page(cursor, page_size) when is_integer(page_size) and page_size > 0 do
-    repository().next_query_page(
-      cursor,
-      page_size
-    )
+  defp validate_game_id(game_id) when is_integer(game_id) and game_id > 0 do
+    :ok
   end
 
-  @spec close_query(query_cursor()) :: :ok
-  def close_query(cursor) do
-    repository().close_query(cursor)
+  defp validate_game_id(_game_id) do
+    {:error, :invalid_game_id}
+  end
+
+  defp validate_fullmove_number(fullmove_number)
+       when is_integer(fullmove_number) and fullmove_number > 0 do
+    :ok
+  end
+
+  defp validate_fullmove_number(_fullmove_number) do
+    {:error, :invalid_fullmove_number}
+  end
+
+  defp validate_metadata(metadata) do
+    if GameRecord.valid_metadata?(metadata) do
+      :ok
+    else
+      {:error, :invalid_metadata}
+    end
   end
 end

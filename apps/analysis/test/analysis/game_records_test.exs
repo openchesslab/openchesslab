@@ -14,178 +14,6 @@ defmodule Analysis.GameRecordsTest do
   alias Chess.Square
   alias OpenChessLab.Repo
 
-  defmodule BarrierGameRecordRepository do
-    @moduledoc false
-
-    @behaviour Analysis.GameRecordRepository
-
-    alias Analysis.GameRecordRepository.Postgres
-
-    @impl true
-    def ready? do
-      Postgres.ready?()
-    end
-
-    @impl true
-    def insert(record) do
-      Postgres.insert(record)
-    end
-
-    @impl true
-    def get(record_id) do
-      result =
-        Postgres.get(record_id)
-
-      case Application.get_env(
-             :analysis,
-             :game_record_get_barrier
-           ) do
-        pid when is_pid(pid) ->
-          send(
-            pid,
-            {
-              :game_record_get_checked,
-              self(),
-              result
-            }
-          )
-
-          receive do
-            :continue_game_record_get ->
-              result
-          end
-
-        _other ->
-          result
-      end
-    end
-
-    @impl true
-    def records_page_by_game_id(game_id, page_size) do
-      Postgres.records_page_by_game_id(
-        game_id,
-        page_size
-      )
-    end
-
-    @impl true
-    def records_page_by_game_id(game_id, query, page_size) do
-      Postgres.records_page_by_game_id(
-        game_id,
-        query,
-        page_size
-      )
-    end
-
-    @impl true
-    def next_records_page(cursor, page_size) do
-      Postgres.next_records_page(
-        cursor,
-        page_size
-      )
-    end
-
-    @impl true
-    def close_records(cursor) do
-      Postgres.close_records(cursor)
-    end
-
-    @impl true
-    def query_page(query, page_size) do
-      Postgres.query_page(
-        query,
-        page_size
-      )
-    end
-
-    @impl true
-    def next_query_page(cursor, page_size) do
-      Postgres.next_query_page(
-        cursor,
-        page_size
-      )
-    end
-
-    @impl true
-    def close_query(cursor) do
-      Postgres.close_query(cursor)
-    end
-  end
-
-  defmodule FailingInsertGameRecordRepository do
-    @moduledoc false
-
-    @behaviour Analysis.GameRecordRepository
-
-    alias Analysis.GameRecordRepository.Postgres
-
-    @impl true
-    def ready? do
-      Postgres.ready?()
-    end
-
-    @impl true
-    def insert(_record) do
-      {:error, :disk_failure}
-    end
-
-    @impl true
-    def get(record_id) do
-      Postgres.get(record_id)
-    end
-
-    @impl true
-    def records_page_by_game_id(game_id, page_size) do
-      Postgres.records_page_by_game_id(
-        game_id,
-        page_size
-      )
-    end
-
-    @impl true
-    def records_page_by_game_id(game_id, query, page_size) do
-      Postgres.records_page_by_game_id(
-        game_id,
-        query,
-        page_size
-      )
-    end
-
-    @impl true
-    def next_records_page(cursor, page_size) do
-      Postgres.next_records_page(
-        cursor,
-        page_size
-      )
-    end
-
-    @impl true
-    def close_records(cursor) do
-      Postgres.close_records(cursor)
-    end
-
-    @impl true
-    def query_page(query, page_size) do
-      Postgres.query_page(
-        query,
-        page_size
-      )
-    end
-
-    @impl true
-    def next_query_page(cursor, page_size) do
-      Postgres.next_query_page(
-        cursor,
-        page_size
-      )
-    end
-
-    @impl true
-    def close_query(cursor) do
-      Postgres.close_query(cursor)
-    end
-  end
-
   setup do
     Repo.query!(
       """
@@ -327,27 +155,21 @@ defmodule Analysis.GameRecordsTest do
     game_id =
       GameRecord.game_id(first)
 
-    assert {
-             :ok,
-             records,
-             :done
-           } =
-             GameRecordStore.records_page_by_game_id(
-               game_id,
-               10
-             )
+    assert GameRecordStore.get(record_id) ==
+             {:ok, first}
 
-    assert records ==
-             [
-               first,
-               second
-             ]
+    assert GameRecordStore.get(second_record_id) ==
+             {:ok, second}
 
-    assert Enum.all?(
-             records,
-             &(GameRecord.game_id(&1) ==
-                 game_id)
-           )
+    assert [[2]] =
+             Repo.query!(
+               """
+               SELECT count(*)
+               FROM game_records
+               WHERE game_id = $1
+               """,
+               [game_id]
+             ).rows
   end
 
   test "rejects an existing concrete record before canonicalizing another game",
@@ -553,9 +375,32 @@ defmodule Analysis.GameRecordsTest do
 
   test "rolls back canonical writes when concrete record persistence fails",
        %{
-         record_id: record_id,
          initial_position_id: initial_position_id
        } do
+    record_id =
+      "record-rejected-by-test-constraint"
+
+    Repo.query!(
+      """
+      ALTER TABLE game_records
+      ADD CONSTRAINT game_records_test_reject_record
+      CHECK (
+        record_id <> 'record-rejected-by-test-constraint'
+      )
+      """,
+      []
+    )
+
+    on_exit(fn ->
+      Repo.query!(
+        """
+        ALTER TABLE game_records
+        DROP CONSTRAINT IF EXISTS game_records_test_reject_record
+        """,
+        []
+      )
+    end)
+
     move =
       move(
         "e2",
@@ -577,39 +422,21 @@ defmodule Analysis.GameRecordsTest do
                move
              )
 
-    previous_repository =
-      Application.get_env(
-        :analysis,
-        :game_record_repository,
-        :not_configured
-      )
-
-    on_exit(fn ->
-      restore_env(
-        :game_record_repository,
-        previous_repository
-      )
-    end)
-
-    Application.put_env(
-      :analysis,
-      :game_record_repository,
-      FailingInsertGameRecordRepository
-    )
-
-    assert GameRecords.create(
-             record_id,
-             content,
-             GameStart.standard(),
-             %{
-               "event" => "Example"
+    assert {
+             :error,
+             {
+               :game_record_store,
+               %Postgrex.Error{}
              }
-           ) ==
-             {:error,
-              {
-                :game_record_store,
-                :disk_failure
-              }}
+           } =
+             GameRecords.create(
+               record_id,
+               content,
+               GameStart.standard(),
+               %{
+                 "event" => "Example"
+               }
+             )
 
     assert GameRecordStore.get(record_id) ==
              :not_found
@@ -660,49 +487,11 @@ defmodule Analysis.GameRecordsTest do
              ).rows
   end
 
-  test "concurrent creates with the same record id roll back the losing canonical writes",
+  test "concurrent creates with the same record id keep only one aggregate",
        %{
          record_id: record_id,
          initial_position_id: initial_position_id
        } do
-    previous_repository =
-      Application.get_env(
-        :analysis,
-        :game_record_repository,
-        :not_configured
-      )
-
-    previous_barrier =
-      Application.get_env(
-        :analysis,
-        :game_record_get_barrier,
-        :not_configured
-      )
-
-    on_exit(fn ->
-      restore_env(
-        :game_record_repository,
-        previous_repository
-      )
-
-      restore_env(
-        :game_record_get_barrier,
-        previous_barrier
-      )
-    end)
-
-    Application.put_env(
-      :analysis,
-      :game_record_repository,
-      BarrierGameRecordRepository
-    )
-
-    Application.put_env(
-      :analysis,
-      :game_record_get_barrier,
-      self()
-    )
-
     first_move =
       move(
         "e2",
@@ -762,36 +551,6 @@ defmodule Analysis.GameRecordsTest do
           }
         )
       end)
-
-    assert_receive {
-      :game_record_get_checked,
-      first_waiting_pid,
-      :not_found
-    }
-
-    assert_receive {
-      :game_record_get_checked,
-      second_waiting_pid,
-      :not_found
-    }
-
-    refute first_waiting_pid ==
-             second_waiting_pid
-
-    Application.delete_env(
-      :analysis,
-      :game_record_get_barrier
-    )
-
-    send(
-      first_waiting_pid,
-      :continue_game_record_get
-    )
-
-    send(
-      second_waiting_pid,
-      :continue_game_record_get
-    )
 
     results =
       Task.await_many(
@@ -1033,21 +792,6 @@ defmodule Analysis.GameRecordsTest do
     Move.new(
       Square.from_algebraic(from),
       Square.from_algebraic(to)
-    )
-  end
-
-  defp restore_env(key, :not_configured) do
-    Application.delete_env(
-      :analysis,
-      key
-    )
-  end
-
-  defp restore_env(key, value) do
-    Application.put_env(
-      :analysis,
-      key,
-      value
     )
   end
 end

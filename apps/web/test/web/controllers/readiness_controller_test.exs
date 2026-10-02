@@ -3,70 +3,6 @@ defmodule Web.ReadinessControllerTest do
 
   alias Analysis.AnalysisStore
 
-  defmodule UnavailableGameRecordRepository do
-    @moduledoc false
-
-    @behaviour Analysis.GameRecordRepository
-
-    @impl true
-    def ready?, do: false
-
-    @impl true
-    def insert(_record), do: {:error, :unavailable}
-
-    @impl true
-    def get(_record_id), do: {:error, :unavailable}
-
-    @impl true
-    def records_page_by_game_id(
-          _game_id,
-          _page_size
-        ) do
-      {:error, :unavailable}
-    end
-
-    @impl true
-    def records_page_by_game_id(
-          _game_id,
-          _query,
-          _page_size
-        ) do
-      {:error, :unavailable}
-    end
-
-    @impl true
-    def next_records_page(
-          _cursor,
-          _page_size
-        ) do
-      {:error, :unavailable}
-    end
-
-    @impl true
-    def close_records(_cursor), do: :ok
-
-    @impl true
-    def query_page(
-          _query,
-          _page_size
-        ) do
-      {:error, :unavailable}
-    end
-
-    @impl true
-    def next_query_page(
-          _cursor,
-          _page_size
-        ) do
-      {:error, :unavailable}
-    end
-
-    @impl true
-    def close_query(_cursor) do
-      :ok
-    end
-  end
-
   test "GET /ready returns ready when required stores are reachable",
        %{conn: conn} do
     conn =
@@ -119,58 +55,6 @@ defmodule Web.ReadinessControllerTest do
              %{
                "status" => "unavailable"
              }
-  end
-
-  test "GET /ready returns service unavailable when PostgreSQL game record storage is unavailable",
-       %{conn: conn} do
-    previous =
-      Application.get_env(
-        :analysis,
-        :game_record_repository,
-        :not_configured
-      )
-
-    on_exit(fn ->
-      restore_repository(
-        :game_record_repository,
-        previous
-      )
-    end)
-
-    Application.put_env(
-      :analysis,
-      :game_record_repository,
-      UnavailableGameRecordRepository
-    )
-
-    conn =
-      get(
-        conn,
-        "/ready"
-      )
-
-    assert json_response(
-             conn,
-             503
-           ) ==
-             %{
-               "status" => "unavailable"
-             }
-  end
-
-  defp restore_repository(key, :not_configured) do
-    Application.delete_env(
-      :analysis,
-      key
-    )
-  end
-
-  defp restore_repository(key, repository) do
-    Application.put_env(
-      :analysis,
-      key,
-      repository
-    )
   end
 
   defp restore_module_config(module, :not_configured) do

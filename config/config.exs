@@ -1,8 +1,5 @@
 import Config
 
-config :analysis,
-  game_record_repository: Analysis.GameRecordRepository.Postgres
-
 config :database, OpenChessLab.Repo,
   migration_primary_key: [
     name: :id,
