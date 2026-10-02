@@ -10,7 +10,15 @@ if System.get_env("PHX_SERVER") do
   config :web, Web.Endpoint, server: true
 end
 
-config :web, Web.Endpoint, http: [port: String.to_integer(System.get_env("PORT", "4000"))]
+config :web, Web.Endpoint,
+  http: [
+    port:
+      System.get_env(
+        "PORT",
+        "4000"
+      )
+      |> String.to_integer()
+  ]
 
 if config_env() == :dev do
   config :web, Web.Endpoint,
@@ -39,6 +47,24 @@ if config_env() == :prod do
       PostgreSQL is authoritative storage and must be configured in production.
       """
 
+  database_url =
+    String.replace(
+      database_url,
+      "@pgbouncer.",
+      "@direct.",
+      global: false
+    )
+
+  socket_options =
+    if System.get_env("ECTO_IPV6") in [
+         "true",
+         "1"
+       ] do
+      [:inet6]
+    else
+      []
+    end
+
   pool_size =
     System.get_env(
       "POOL_SIZE",
@@ -52,12 +78,26 @@ if config_env() == :prod do
 
   config :database, OpenChessLab.Repo,
     url: database_url,
-    pool_size: pool_size
+    pool_size: pool_size,
+    socket_options: socket_options
 
   config :web, Web.Endpoint,
-    url: [host: host, port: 443, scheme: "https"],
+    url: [
+      host: host,
+      port: 443,
+      scheme: "https"
+    ],
     http: [
-      ip: {0, 0, 0, 0, 0, 0, 0, 0}
+      ip: {
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      }
     ],
     secret_key_base: secret_key_base
 

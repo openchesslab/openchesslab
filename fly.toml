@@ -17,6 +17,7 @@ primary_region = 'ams'
   PHX_SERVER = 'true'
   PHX_HOST = 'openchesslab.com'
   DNS_CLUSTER_QUERY = 'openchesslab.internal'
+  ECTO_IPV6 = 'true'
 
 [http_service]
   internal_port = 8080
