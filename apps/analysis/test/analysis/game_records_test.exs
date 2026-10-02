@@ -4,6 +4,7 @@ defmodule Analysis.GameRecordsTest do
   alias Analysis.GameContent
   alias Analysis.GameFingerprint
   alias Analysis.GameRecord
+  alias Analysis.GameRecordQuery
   alias Analysis.GameRecords
   alias Analysis.GameRecordStore
   alias Analysis.GameStart
@@ -1295,6 +1296,105 @@ defmodule Analysis.GameRecordsTest do
                """,
                []
              ).rows
+  end
+
+  test "filters concrete occurrence records by metadata",
+       %{
+         initial_position_id: initial_position_id
+       } do
+    content =
+      GameContent.new(initial_position_id)
+
+    assert {:ok, fingerprint} =
+             GameFingerprint.for_content(content)
+
+    assert {:ok, game_id} =
+             GameStore.put(
+               fingerprint,
+               content,
+               [initial_position_id]
+             )
+
+    first =
+      GameRecord.new(
+        "record-#{unique_id()}",
+        game_id,
+        %{
+          "white" => "Magnus Carlsen",
+          "event" => "Wijk aan Zee"
+        }
+      )
+
+    excluded =
+      GameRecord.new(
+        "record-#{unique_id()}",
+        game_id,
+        %{
+          "white" => "Other Player",
+          "event" => "Wijk aan Zee"
+        }
+      )
+
+    third =
+      GameRecord.new(
+        "record-#{unique_id()}",
+        game_id,
+        %{
+          "white" => "Magnus Carlsen",
+          "event" => "London"
+        }
+      )
+
+    for record <- [
+          first,
+          excluded,
+          third
+        ] do
+      assert :ok =
+               GameRecordStore.insert(record)
+    end
+
+    query =
+      GameRecordQuery.metadata_contains(%{
+        "white" => "Magnus Carlsen"
+      })
+
+    assert {
+             :ok,
+             [
+               {
+                 ^first,
+                 occurrence
+               }
+             ],
+             cursor
+           } =
+             GameRecords.occurrences_page_by_position_id(
+               initial_position_id,
+               query,
+               1
+             )
+
+    assert occurrence.game_id ==
+             game_id
+
+    assert occurrence.position_id ==
+             initial_position_id
+
+    assert {
+             :ok,
+             [
+               {
+                 ^third,
+                 ^occurrence
+               }
+             ],
+             :done
+           } =
+             GameRecords.next_occurrences_page(
+               cursor,
+               10
+             )
   end
 
   defp move(from, to) do

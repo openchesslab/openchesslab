@@ -11,6 +11,7 @@ defmodule Analysis.GameRecords do
   alias Analysis.GameFingerprint
   alias Analysis.GameOccurrence, as: Occurrence
   alias Analysis.GameRecord
+  alias Analysis.GameRecordQuery
   alias Analysis.GameRecordStore
   alias Analysis.GameReplay
   alias Analysis.GameRepository
@@ -22,9 +23,13 @@ defmodule Analysis.GameRecords do
   defmodule OccurrenceCursor do
     @moduledoc false
 
-    @enforce_keys [:occurrence_cursor]
+    @enforce_keys [
+      :occurrence_cursor,
+      :record_query
+    ]
 
     defstruct occurrence_cursor: :done,
+              record_query: true,
               current_occurrence: nil,
               record_cursor: nil
   end
@@ -54,6 +59,7 @@ defmodule Analysis.GameRecords do
             occurrence_cursor:
               :done
               | GameStore.occurrence_cursor(),
+            record_query: GameRecordQuery.t(),
             current_occurrence:
               Occurrence.t()
               | nil,
@@ -141,6 +147,30 @@ defmodule Analysis.GameRecords do
           occurrence_page()
   def occurrences_page_by_position_id(position_id, page_size)
       when is_integer(page_size) and page_size > 0 do
+    occurrences_page_by_position_id(
+      position_id,
+      GameRecordQuery.match_all(),
+      page_size
+    )
+  end
+
+  @spec occurrences_page_by_position_id(
+          GameRepository.position_id(),
+          GameRecordQuery.t(),
+          pos_integer()
+        ) ::
+          occurrence_page()
+  def occurrences_page_by_position_id(_position_id, false, page_size)
+      when is_integer(page_size) and page_size > 0 do
+    {
+      :ok,
+      [],
+      :done
+    }
+  end
+
+  def occurrences_page_by_position_id(position_id, record_query, page_size)
+      when is_integer(page_size) and page_size > 0 do
     case GameStore.occurrences_page(
            position_id,
            1
@@ -166,6 +196,7 @@ defmodule Analysis.GameRecords do
         take_occurrence_matches_page(
           %OccurrenceCursor{
             occurrence_cursor: occurrence_cursor,
+            record_query: record_query,
             current_occurrence: occurrence
           },
           page_size
@@ -301,11 +332,15 @@ defmodule Analysis.GameRecords do
   end
 
   defp next_occurrence_match(
-         %OccurrenceCursor{current_occurrence: %Occurrence{} = occurrence, record_cursor: nil} =
-           cursor
+         %OccurrenceCursor{
+           current_occurrence: %Occurrence{} = occurrence,
+           record_query: record_query,
+           record_cursor: nil
+         } = cursor
        ) do
     case GameRecordStore.records_page_by_game_id(
            occurrence.game_id,
+           record_query,
            1
          ) do
       {

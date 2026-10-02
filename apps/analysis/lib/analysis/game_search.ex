@@ -7,6 +7,7 @@ defmodule Analysis.GameSearch do
   materializing the complete result set.
   """
 
+  alias Analysis.GameRecordQuery
   alias Analysis.GameRecords
   alias Analysis.PositionQuery
   alias Analysis.PositionRepository
@@ -15,9 +16,13 @@ defmodule Analysis.GameSearch do
   defmodule Cursor do
     @moduledoc false
 
-    @enforce_keys [:position_cursor]
+    @enforce_keys [
+      :position_cursor,
+      :record_query
+    ]
 
     defstruct position_cursor: :done,
+              record_query: true,
               position_ids: [],
               current_position_id: nil,
               occurrence_cursor: nil
@@ -31,6 +36,7 @@ defmodule Analysis.GameSearch do
             position_cursor:
               :done
               | PositionStore.query_cursor(),
+            record_query: GameRecordQuery.t(),
             position_ids: [PositionRepository.position_id()],
             current_position_id:
               PositionRepository.position_id()
@@ -49,9 +55,33 @@ defmodule Analysis.GameSearch do
           pos_integer()
         ) ::
           query_page()
-  def query_page(query, page_size) when is_integer(page_size) and page_size > 0 do
+  def query_page(position_query, page_size) when is_integer(page_size) and page_size > 0 do
+    query_page(
+      position_query,
+      GameRecordQuery.match_all(),
+      page_size
+    )
+  end
+
+  @spec query_page(
+          PositionQuery.t(),
+          GameRecordQuery.t(),
+          pos_integer()
+        ) ::
+          query_page()
+  def query_page(_position_query, false, page_size)
+      when is_integer(page_size) and page_size > 0 do
+    {
+      :ok,
+      [],
+      :done
+    }
+  end
+
+  def query_page(position_query, record_query, page_size)
+      when is_integer(page_size) and page_size > 0 do
     case PositionStore.query_page(
-           query,
+           position_query,
            page_size
          ) do
       {
@@ -71,7 +101,11 @@ defmodule Analysis.GameSearch do
         position_cursor
       } ->
         take_query_page(
-          %Cursor{position_cursor: position_cursor, position_ids: position_ids},
+          %Cursor{
+            position_cursor: position_cursor,
+            record_query: record_query,
+            position_ids: position_ids
+          },
           page_size
         )
 
@@ -275,9 +309,16 @@ defmodule Analysis.GameSearch do
     }
   end
 
-  defp next_match(%Cursor{current_position_id: position_id, occurrence_cursor: nil} = cursor) do
+  defp next_match(
+         %Cursor{
+           current_position_id: position_id,
+           record_query: record_query,
+           occurrence_cursor: nil
+         } = cursor
+       ) do
     case GameRecords.occurrences_page_by_position_id(
            position_id,
+           record_query,
            1
          ) do
       {

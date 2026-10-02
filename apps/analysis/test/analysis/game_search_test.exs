@@ -4,6 +4,7 @@ defmodule Analysis.GameSearchTest do
   alias Analysis.GameContent
   alias Analysis.GameFingerprint
   alias Analysis.GameRecord
+  alias Analysis.GameRecordQuery
   alias Analysis.GameRecordStore
   alias Analysis.GameSearch
   alias Analysis.GameStore
@@ -349,6 +350,140 @@ defmodule Analysis.GameSearchTest do
 
     assert second_occurrence.game_id ==
              game_id
+  end
+
+  test "combines position search with concrete record metadata filtering" do
+    first_position =
+      Position.starting_position()
+
+    {:ok, second_position} =
+      Position.apply_move(
+        first_position,
+        move(
+          "e2",
+          "e4"
+        )
+      )
+
+    first_position_id =
+      PositionStore.append(first_position)
+
+    second_position_id =
+      PositionStore.append(second_position)
+
+    first_content =
+      GameContent.new(first_position_id)
+
+    second_content =
+      GameContent.new(second_position_id)
+
+    assert {:ok, first_game_id} =
+             GameStore.put(
+               fingerprint(first_content),
+               first_content,
+               [first_position_id]
+             )
+
+    assert {:ok, second_game_id} =
+             GameStore.put(
+               fingerprint(second_content),
+               second_content,
+               [second_position_id]
+             )
+
+    first_match =
+      GameRecord.new(
+        "record-1",
+        first_game_id,
+        %{
+          "white" => "Magnus Carlsen",
+          "event" => "Wijk aan Zee"
+        }
+      )
+
+    excluded =
+      GameRecord.new(
+        "record-2",
+        first_game_id,
+        %{
+          "white" => "Other Player",
+          "event" => "Wijk aan Zee"
+        }
+      )
+
+    second_match =
+      GameRecord.new(
+        "record-3",
+        second_game_id,
+        %{
+          "white" => "Magnus Carlsen",
+          "event" => "London"
+        }
+      )
+
+    for record <- [
+          first_match,
+          excluded,
+          second_match
+        ] do
+      assert :ok =
+               GameRecordStore.insert(record)
+    end
+
+    record_query =
+      GameRecordQuery.metadata_contains(%{
+        "white" => "Magnus Carlsen"
+      })
+
+    assert {
+             :ok,
+             [
+               {
+                 ^first_match,
+                 first_occurrence
+               }
+             ],
+             cursor
+           } =
+             GameSearch.query_page(
+               Query.match_all(),
+               record_query,
+               1
+             )
+
+    assert first_occurrence.position_id ==
+             first_position_id
+
+    assert {
+             :ok,
+             [
+               {
+                 ^second_match,
+                 second_occurrence
+               }
+             ],
+             :done
+           } =
+             GameSearch.next_query_page(
+               cursor,
+               1
+             )
+
+    assert second_occurrence.position_id ==
+             second_position_id
+  end
+
+  test "returns no matches when the record query matches none" do
+    assert GameSearch.query_page(
+             Query.match_all(),
+             GameRecordQuery.match_none(),
+             10
+           ) ==
+             {
+               :ok,
+               [],
+               :done
+             }
   end
 
   defp fingerprint(content) do
