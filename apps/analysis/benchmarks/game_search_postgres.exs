@@ -13,13 +13,7 @@ defmodule Analysis.GameSearchPostgresBenchmark do
   @matching_white "Magnus Carlsen"
   @other_white "Other Player"
 
-  @joined_first_position_page_sql """
-  WITH candidate_positions AS (
-    SELECT id
-    FROM positions
-    ORDER BY id
-    LIMIT $2::bigint
-  )
+  @joined_result_page_sql """
   SELECT
     gr.record_id,
     gr.game_id,
@@ -29,16 +23,17 @@ defmodule Analysis.GameSearchPostgresBenchmark do
     go.game_id,
     go.ply,
     go.position_id
-  FROM candidate_positions AS candidate
+  FROM positions AS p
   JOIN game_occurrences AS go
-    ON go.position_id = candidate.id
+    ON go.position_id = p.id
   JOIN game_records AS gr
     ON gr.game_id = go.game_id
   WHERE gr.metadata @> $1::jsonb
   ORDER BY
-    candidate.id,
+    p.id,
     go.id,
     gr.id
+  LIMIT $2::bigint
   """
 
   def build(row_count, selectivity) do
@@ -187,32 +182,23 @@ defmodule Analysis.GameSearchPostgresBenchmark do
     :ok
   end
 
-  def application_first_position_page(page_size) do
+  def application_result_page(page_size) do
     record_query =
       GameRecordQuery.metadata_contains(%{
         "white" => @matching_white
       })
 
-    case GameSearch.query_page(
+    case GameSearch.page(
            PositionQuery.match_all(),
            record_query,
-           page_size
+           limit: page_size
          ) do
       {
         :ok,
-        matches,
-        :done
+        %GameSearch.Page{
+          entries: matches
+        }
       } ->
-        matches
-
-      {
-        :ok,
-        matches,
-        cursor
-      } ->
-        :ok =
-          GameSearch.close_query(cursor)
-
         matches
 
       {:error, reason} ->
@@ -222,9 +208,9 @@ defmodule Analysis.GameSearchPostgresBenchmark do
     end
   end
 
-  def joined_first_position_page(page_size) do
+  def joined_result_page(page_size) do
     Repo.query!(
-      @joined_first_position_page_sql,
+      @joined_result_page_sql,
       [
         %{
           "white" => @matching_white
@@ -238,7 +224,7 @@ defmodule Analysis.GameSearchPostgresBenchmark do
     Repo.query!(
       """
       EXPLAIN (COSTS TRUE)
-      #{@joined_first_position_page_sql}
+      #{@joined_result_page_sql}
       """,
       [
         %{
@@ -372,11 +358,17 @@ if page_size <= 0 do
   raise "GAME_SEARCH_BENCH_PAGE_SIZE must be positive"
 end
 
-if page_size > row_count do
-  raise """
-  GAME_SEARCH_BENCH_PAGE_SIZE must not exceed GAME_SEARCH_BENCH_ROWS
-  """
-end
+available_matches =
+  div(
+    row_count,
+    selectivity
+  )
+
+expected_matches =
+  min(
+    page_size,
+    available_matches
+  )
 
 try do
   IO.puts("""
@@ -396,18 +388,12 @@ try do
       selectivity
     )
 
-  expected_matches =
-    div(
-      page_size,
-      selectivity
-    )
-
   {
     application_matches,
     application_query_count
   } =
     Benchmark.query_count(fn ->
-      Benchmark.application_first_position_page(page_size)
+      Benchmark.application_result_page(page_size)
     end)
 
   {
@@ -415,7 +401,7 @@ try do
     joined_query_count
   } =
     Benchmark.query_count(fn ->
-      Benchmark.joined_first_position_page(page_size)
+      Benchmark.joined_result_page(page_size)
     end)
 
   if length(application_matches) !=
@@ -439,12 +425,12 @@ try do
 
   rows per relation: #{row_count}
   selectivity:       1/#{selectivity}
-  position page:     #{page_size}
+  result page:       #{page_size}
   expected matches:  #{expected_matches}
 
-  SQL queries for one position page:
-    current application flow: #{application_query_count}
-    joined SQL baseline:       #{joined_query_count}
+  SQL queries for one result page:
+    application flow:    #{application_query_count}
+    joined SQL baseline: #{joined_query_count}
 
   Joined SQL plan:
   #{Benchmark.joined_plan(page_size)}
@@ -452,9 +438,9 @@ try do
 
   Benchee.run(
     %{
-      "game search: current application flow" => fn ->
+      "game search: application flow" => fn ->
         matches =
-          Benchmark.application_first_position_page(page_size)
+          Benchmark.application_result_page(page_size)
 
         if length(matches) !=
              expected_matches do
@@ -468,7 +454,7 @@ try do
       end,
       "game search: joined SQL baseline" => fn ->
         rows =
-          Benchmark.joined_first_position_page(page_size)
+          Benchmark.joined_result_page(page_size)
 
         if length(rows) !=
              expected_matches do

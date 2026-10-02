@@ -33,19 +33,7 @@ defmodule Analysis.GameSearchTest do
     :ok
   end
 
-  test "returns an empty page when the position query has no matches" do
-    assert GameSearch.query_page(
-             Query.match_none(),
-             10
-           ) ==
-             {
-               :ok,
-               [],
-               :done
-             }
-  end
-
-  test "pages concrete game occurrences across matching positions without duplicates or omissions" do
+  test "executes position and record predicates in one PostgreSQL query" do
     first_position =
       Position.starting_position()
 
@@ -58,340 +46,19 @@ defmodule Analysis.GameSearchTest do
         )
       )
 
-    first_position_id =
-      PositionStore.append(first_position)
+    {
+      first_position_id,
+      first_game_id
+    } =
+      stored_game(first_position)
 
-    second_position_id =
-      PositionStore.append(second_position)
+    {
+      _second_position_id,
+      second_game_id
+    } =
+      stored_game(second_position)
 
-    assert {:ok, first_game_id} =
-             GameStore.put(
-               fingerprint(GameContent.new(first_position_id)),
-               GameContent.new(first_position_id),
-               [
-                 first_position_id
-               ]
-             )
-
-    assert {:ok, second_game_id} =
-             GameStore.put(
-               fingerprint(GameContent.new(second_position_id)),
-               GameContent.new(second_position_id),
-               [
-                 second_position_id
-               ]
-             )
-
-    first_record =
-      GameRecord.new(
-        "record-1",
-        first_game_id
-      )
-
-    second_record =
-      GameRecord.new(
-        "record-2",
-        first_game_id
-      )
-
-    third_record =
-      GameRecord.new(
-        "record-3",
-        second_game_id
-      )
-
-    assert :ok =
-             GameRecordStore.insert(first_record)
-
-    assert :ok =
-             GameRecordStore.insert(second_record)
-
-    assert :ok =
-             GameRecordStore.insert(third_record)
-
-    assert {
-             :ok,
-             first_page,
-             cursor
-           } =
-             GameSearch.query_page(
-               Query.match_all(),
-               2
-             )
-
-    assert length(first_page) ==
-             2
-
-    assert {
-             :ok,
-             second_page,
-             :done
-           } =
-             GameSearch.next_query_page(
-               cursor,
-               2
-             )
-
-    assert length(second_page) ==
-             1
-
-    matches =
-      first_page ++
-        second_page
-
-    assert MapSet.new(
-             Enum.map(
-               matches,
-               fn {record, occurrence} ->
-                 {
-                   record,
-                   occurrence.game_id,
-                   occurrence.ply,
-                   occurrence.position_id
-                 }
-               end
-             )
-           ) ==
-             MapSet.new([
-               {
-                 first_record,
-                 first_game_id,
-                 0,
-                 first_position_id
-               },
-               {
-                 second_record,
-                 first_game_id,
-                 0,
-                 first_position_id
-               },
-               {
-                 third_record,
-                 second_game_id,
-                 0,
-                 second_position_id
-               }
-             ])
-  end
-
-  test "does not create a cursor when the complete search fits in the first page" do
-    position_id =
-      PositionStore.append(Position.starting_position())
-
-    assert {:ok, game_id} =
-             GameStore.put(
-               fingerprint(GameContent.new(position_id)),
-               GameContent.new(position_id),
-               [
-                 position_id
-               ]
-             )
-
-    record =
-      GameRecord.new(
-        "record-1",
-        game_id
-      )
-
-    assert :ok =
-             GameRecordStore.insert(record)
-
-    assert {
-             :ok,
-             [
-               {
-                 ^record,
-                 occurrence
-               }
-             ],
-             :done
-           } =
-             GameSearch.query_page(
-               Query.match_all(),
-               1
-             )
-
-    assert occurrence.game_id ==
-             game_id
-
-    assert occurrence.ply ==
-             0
-
-    assert occurrence.position_id ==
-             position_id
-  end
-
-  test "skips matching positions without concrete games" do
-    first_position =
-      Position.starting_position()
-
-    {:ok, second_position} =
-      Position.apply_move(
-        first_position,
-        move(
-          "e2",
-          "e4"
-        )
-      )
-
-    first_position_id =
-      PositionStore.append(first_position)
-
-    second_position_id =
-      PositionStore.append(second_position)
-
-    assert {:ok, game_id} =
-             GameStore.put(
-               fingerprint(GameContent.new(second_position_id)),
-               GameContent.new(second_position_id),
-               [
-                 second_position_id
-               ]
-             )
-
-    record =
-      GameRecord.new(
-        "record-1",
-        game_id
-      )
-
-    assert :ok =
-             GameRecordStore.insert(record)
-
-    assert {
-             :ok,
-             matches,
-             :done
-           } =
-             GameSearch.query_page(
-               Query.match_all(),
-               10
-             )
-
-    assert [
-             {
-               ^record,
-               occurrence
-             }
-           ] =
-             matches
-
-    assert occurrence.position_id ==
-             second_position_id
-
-    refute occurrence.position_id ==
-             first_position_id
-  end
-
-  test "closing an unfinished search cursor is a no-op for stateless repositories" do
-    position_id =
-      PositionStore.append(Position.starting_position())
-
-    assert {:ok, game_id} =
-             GameStore.put(
-               fingerprint(GameContent.new(position_id)),
-               GameContent.new(position_id),
-               [position_id]
-             )
-
-    first =
-      GameRecord.new(
-        "record-1",
-        game_id
-      )
-
-    second =
-      GameRecord.new(
-        "record-2",
-        game_id
-      )
-
-    assert :ok =
-             GameRecordStore.insert(first)
-
-    assert :ok =
-             GameRecordStore.insert(second)
-
-    assert {
-             :ok,
-             [
-               {
-                 ^first,
-                 first_occurrence
-               }
-             ],
-             cursor
-           } =
-             GameSearch.query_page(
-               Query.match_all(),
-               1
-             )
-
-    assert first_occurrence.game_id ==
-             game_id
-
-    assert :ok =
-             GameSearch.close_query(cursor)
-
-    assert {
-             :ok,
-             [
-               {
-                 ^second,
-                 second_occurrence
-               }
-             ],
-             :done
-           } =
-             GameSearch.next_query_page(
-               cursor,
-               1
-             )
-
-    assert second_occurrence.game_id ==
-             game_id
-  end
-
-  test "combines position search with concrete record metadata filtering" do
-    first_position =
-      Position.starting_position()
-
-    {:ok, second_position} =
-      Position.apply_move(
-        first_position,
-        move(
-          "e2",
-          "e4"
-        )
-      )
-
-    first_position_id =
-      PositionStore.append(first_position)
-
-    second_position_id =
-      PositionStore.append(second_position)
-
-    first_content =
-      GameContent.new(first_position_id)
-
-    second_content =
-      GameContent.new(second_position_id)
-
-    assert {:ok, first_game_id} =
-             GameStore.put(
-               fingerprint(first_content),
-               first_content,
-               [first_position_id]
-             )
-
-    assert {:ok, second_game_id} =
-             GameStore.put(
-               fingerprint(second_content),
-               second_content,
-               [second_position_id]
-             )
-
-    first_match =
+    matching_record =
       GameRecord.new(
         "record-1",
         first_game_id,
@@ -401,7 +68,7 @@ defmodule Analysis.GameSearchTest do
         }
       )
 
-    excluded =
+    excluded_by_record_query =
       GameRecord.new(
         "record-2",
         first_game_id,
@@ -411,7 +78,7 @@ defmodule Analysis.GameSearchTest do
         }
       )
 
-    second_match =
+    excluded_by_position_query =
       GameRecord.new(
         "record-3",
         second_game_id,
@@ -422,9 +89,9 @@ defmodule Analysis.GameSearchTest do
       )
 
     for record <- [
-          first_match,
-          excluded,
-          second_match
+          matching_record,
+          excluded_by_record_query,
+          excluded_by_position_query
         ] do
       assert :ok =
                GameRecordStore.insert(record)
@@ -435,62 +102,581 @@ defmodule Analysis.GameSearchTest do
         "white" => "Magnus Carlsen"
       })
 
+    {
+      result,
+      query_count
+    } =
+      query_count(fn ->
+        GameSearch.page(
+          Query.equivalent(first_position),
+          record_query,
+          limit: 10
+        )
+      end)
+
+    assert query_count ==
+             1
+
     assert {
              :ok,
-             [
-               {
-                 ^first_match,
-                 first_occurrence
-               }
-             ],
-             cursor
+             %GameSearch.Page{
+               entries: [
+                 {
+                   ^matching_record,
+                   occurrence
+                 }
+               ],
+               next: nil
+             }
            } =
-             GameSearch.query_page(
+             result
+
+    assert occurrence.game_id ==
+             first_game_id
+
+    assert occurrence.ply ==
+             0
+
+    assert occurrence.position_id ==
+             first_position_id
+  end
+
+  test "pages the joined result relation without duplicates or omissions" do
+    {
+      position_id,
+      game_id
+    } =
+      stored_game(Position.starting_position())
+
+    records =
+      Enum.map(
+        1..5,
+        fn index ->
+          record =
+            GameRecord.new(
+              "record-#{index}",
+              game_id,
+              %{
+                "index" => index
+              }
+            )
+
+          assert :ok =
+                   GameRecordStore.insert(record)
+
+          record
+        end
+      )
+
+    assert {
+             :ok,
+             %GameSearch.Page{
+               entries: first_page,
+               next: first_cursor
+             }
+           } =
+             GameSearch.page(
                Query.match_all(),
-               record_query,
-               1
+               limit: 2
+             )
+
+    assert %GameSearch.Cursor{} =
+             first_cursor
+
+    assert {
+             :ok,
+             %GameSearch.Page{
+               entries: second_page,
+               next: second_cursor
+             }
+           } =
+             GameSearch.page(
+               Query.match_all(),
+               limit: 2,
+               cursor: first_cursor
+             )
+
+    assert %GameSearch.Cursor{} =
+             second_cursor
+
+    assert {
+             :ok,
+             %GameSearch.Page{
+               entries: third_page,
+               next: nil
+             }
+           } =
+             GameSearch.page(
+               Query.match_all(),
+               limit: 2,
+               cursor: second_cursor
+             )
+
+    matches =
+      first_page ++
+        second_page ++
+        third_page
+
+    assert Enum.map(
+             matches,
+             fn {record, occurrence} ->
+               {
+                 record,
+                 occurrence.game_id,
+                 occurrence.ply,
+                 occurrence.position_id
+               }
+             end
+           ) ==
+             Enum.map(
+               records,
+               fn record ->
+                 {
+                   record,
+                   game_id,
+                   0,
+                   position_id
+                 }
+               end
+             )
+  end
+
+  test "limit applies to actual search results rather than candidate positions" do
+    records =
+      Enum.map(
+        1..5,
+        fn index ->
+          position =
+            if index == 1 do
+              Position.starting_position()
+            else
+              position_after_pawn_move(index)
+            end
+
+          {
+            _position_id,
+            game_id
+          } =
+            stored_game(position)
+
+          excluded =
+            GameRecord.new(
+              "excluded-#{index}",
+              game_id,
+              %{
+                "white" => "Other Player"
+              }
+            )
+
+          matching =
+            GameRecord.new(
+              "matching-#{index}",
+              game_id,
+              %{
+                "white" => "Magnus Carlsen"
+              }
+            )
+
+          assert :ok =
+                   GameRecordStore.insert(excluded)
+
+          assert :ok =
+                   GameRecordStore.insert(matching)
+
+          matching
+        end
+      )
+
+    query =
+      GameRecordQuery.metadata_contains(%{
+        "white" => "Magnus Carlsen"
+      })
+
+    assert {
+             :ok,
+             %GameSearch.Page{
+               entries: first_page,
+               next: cursor
+             }
+           } =
+             GameSearch.page(
+               Query.match_all(),
+               query,
+               limit: 3
+             )
+
+    assert length(first_page) ==
+             3
+
+    assert %GameSearch.Cursor{} =
+             cursor
+
+    assert {
+             :ok,
+             %GameSearch.Page{
+               entries: second_page,
+               next: nil
+             }
+           } =
+             GameSearch.page(
+               Query.match_all(),
+               query,
+               limit: 3,
+               cursor: cursor
+             )
+
+    assert Enum.map(
+             first_page ++ second_page,
+             fn {record, _occurrence} ->
+               record
+             end
+           ) ==
+             records
+  end
+
+  test "excludes rows inserted after the first page snapshot" do
+    first_position =
+      Position.starting_position()
+
+    {
+      first_position_id,
+      first_game_id
+    } =
+      stored_game(first_position)
+
+    first =
+      GameRecord.new(
+        "record-1",
+        first_game_id
+      )
+
+    second =
+      GameRecord.new(
+        "record-2",
+        first_game_id
+      )
+
+    assert :ok =
+             GameRecordStore.insert(first)
+
+    assert :ok =
+             GameRecordStore.insert(second)
+
+    assert {
+             :ok,
+             %GameSearch.Page{
+               entries: [
+                 {
+                   ^first,
+                   first_occurrence
+                 }
+               ],
+               next: cursor
+             }
+           } =
+             GameSearch.page(
+               Query.match_all(),
+               limit: 1
              )
 
     assert first_occurrence.position_id ==
              first_position_id
 
+    later_record =
+      GameRecord.new(
+        "record-3",
+        first_game_id
+      )
+
+    assert :ok =
+             GameRecordStore.insert(later_record)
+
+    {:ok, second_position} =
+      Position.apply_move(
+        first_position,
+        move(
+          "e2",
+          "e4"
+        )
+      )
+
+    {
+      _second_position_id,
+      second_game_id
+    } =
+      stored_game(second_position)
+
+    later_game_record =
+      GameRecord.new(
+        "record-4",
+        second_game_id
+      )
+
+    assert :ok =
+             GameRecordStore.insert(later_game_record)
+
     assert {
              :ok,
-             [
-               {
-                 ^second_match,
-                 second_occurrence
-               }
-             ],
-             :done
+             %GameSearch.Page{
+               entries: [
+                 {
+                   ^second,
+                   second_occurrence
+                 }
+               ],
+               next: nil
+             }
            } =
-             GameSearch.next_query_page(
-               cursor,
-               1
+             GameSearch.page(
+               Query.match_all(),
+               limit: 10,
+               cursor: cursor
              )
 
     assert second_occurrence.position_id ==
-             second_position_id
+             first_position_id
   end
 
-  test "returns no matches when the record query matches none" do
-    assert GameSearch.query_page(
-             Query.match_all(),
-             GameRecordQuery.match_none(),
-             10
-           ) ==
+  test "skips matching positions without concrete game results" do
+    first_position =
+      Position.starting_position()
+
+    {:ok, second_position} =
+      Position.apply_move(
+        first_position,
+        move(
+          "e2",
+          "e4"
+        )
+      )
+
+    first_position_id =
+      PositionStore.append(first_position)
+
+    {
+      second_position_id,
+      game_id
+    } =
+      stored_game(second_position)
+
+    record =
+      GameRecord.new(
+        "record-1",
+        game_id
+      )
+
+    assert :ok =
+             GameRecordStore.insert(record)
+
+    assert {
+             :ok,
+             %GameSearch.Page{
+               entries: [
+                 {
+                   ^record,
+                   occurrence
+                 }
+               ],
+               next: nil
+             }
+           } =
+             GameSearch.page(
+               Query.match_all(),
+               limit: 10
+             )
+
+    assert occurrence.position_id ==
+             second_position_id
+
+    refute occurrence.position_id ==
+             first_position_id
+  end
+
+  test "match-none queries return an empty page without querying PostgreSQL" do
+    {
+      position_result,
+      position_query_count
+    } =
+      query_count(fn ->
+        GameSearch.page(
+          Query.match_none(),
+          limit: 10
+        )
+      end)
+
+    assert position_result ==
              {
                :ok,
-               [],
-               :done
+               %GameSearch.Page{
+                 entries: [],
+                 next: nil
+               }
              }
+
+    assert position_query_count ==
+             0
+
+    {
+      record_result,
+      record_query_count
+    } =
+      query_count(fn ->
+        GameSearch.page(
+          Query.match_all(),
+          GameRecordQuery.match_none(),
+          limit: 10
+        )
+      end)
+
+    assert record_result ==
+             {
+               :ok,
+               %GameSearch.Page{
+                 entries: [],
+                 next: nil
+               }
+             }
+
+    assert record_query_count ==
+             0
   end
 
-  defp fingerprint(content) do
+  test "requires a positive bounded page limit" do
+    assert GameSearch.page(
+             Query.match_all(),
+             []
+           ) ==
+             {:error, :missing_limit}
+
+    assert GameSearch.page(
+             Query.match_all(),
+             limit: 0
+           ) ==
+             {:error, :invalid_limit}
+
+    assert GameSearch.page(
+             Query.match_all(),
+             limit: -1
+           ) ==
+             {:error, :invalid_limit}
+  end
+
+  test "rejects invalid cursor values" do
+    assert GameSearch.page(
+             Query.match_all(),
+             limit: 10,
+             cursor: make_ref()
+           ) ==
+             {:error, :invalid_cursor}
+  end
+
+  def handle_query(_event, _measurements, _metadata, parent) do
+    send(
+      parent,
+      :game_search_query
+    )
+
+    :ok
+  end
+
+  defp stored_game(position) do
+    position_id =
+      PositionStore.append(position)
+
+    assert is_integer(position_id)
+    assert position_id > 0
+
+    content =
+      GameContent.new(position_id)
+
     {:ok, fingerprint} =
       GameFingerprint.for_content(content)
 
-    fingerprint
+    assert {:ok, game_id} =
+             GameStore.put(
+               fingerprint,
+               content,
+               [
+                 position_id
+               ]
+             )
+
+    {
+      position_id,
+      game_id
+    }
+  end
+
+  defp query_count(fun) when is_function(fun, 0) do
+    event =
+      Repo.config()
+      |> Keyword.fetch!(:telemetry_prefix)
+      |> Kernel.++([:query])
+
+    handler_id = {
+      __MODULE__,
+      make_ref()
+    }
+
+    :ok =
+      :telemetry.attach(
+        handler_id,
+        event,
+        &__MODULE__.handle_query/4,
+        self()
+      )
+
+    try do
+      result =
+        fun.()
+
+      {
+        result,
+        drain_query_count(0)
+      }
+    after
+      :telemetry.detach(handler_id)
+
+      drain_query_count(0)
+    end
+  end
+
+  defp drain_query_count(count) do
+    receive do
+      :game_search_query ->
+        drain_query_count(count + 1)
+    after
+      0 ->
+        count
+    end
+  end
+
+  defp position_after_pawn_move(index) do
+    file =
+      Enum.at(
+        [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e",
+          "f",
+          "g",
+          "h"
+        ],
+        index - 2
+      )
+
+    {:ok, position} =
+      Position.apply_move(
+        Position.starting_position(),
+        move(
+          "#{file}2",
+          "#{file}3"
+        )
+      )
+
+    position
   end
 
   defp move(from, to) do

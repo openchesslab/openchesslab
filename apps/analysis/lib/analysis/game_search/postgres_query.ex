@@ -1,10 +1,10 @@
-defmodule Analysis.GameSearchRepository.Postgres.QueryCompiler do
+defmodule Analysis.GameSearch.PostgresQuery do
   @moduledoc false
 
-  alias Analysis.GameRecord
   alias Analysis.GameRecordQuery
+  alias Analysis.GameRecordQuery.Postgres, as: GameRecordPostgres
   alias Analysis.PositionQuery
-  alias Analysis.PositionRepository.Postgres.QueryCompiler, as: PositionQueryCompiler
+  alias Analysis.PositionQuery.Postgres, as: PositionPostgres
 
   @spec compile_first(
           PositionQuery.t(),
@@ -115,17 +115,17 @@ defmodule Analysis.GameSearchRepository.Postgres.QueryCompiler do
         maximum_position_id,
         maximum_occurrence_id,
         maximum_record_row_id,
-        after_position_id,
-        after_occurrence_id,
-        after_record_row_id,
+        last_position_id,
+        last_occurrence_id,
+        last_record_row_id,
         limit
       )
       when is_integer(maximum_position_id) and maximum_position_id >= 0 and
              is_integer(maximum_occurrence_id) and maximum_occurrence_id >= 0 and
              is_integer(maximum_record_row_id) and maximum_record_row_id >= 0 and
-             is_integer(after_position_id) and after_position_id > 0 and
-             is_integer(after_occurrence_id) and after_occurrence_id > 0 and
-             is_integer(after_record_row_id) and after_record_row_id > 0 and is_integer(limit) and
+             is_integer(last_position_id) and last_position_id > 0 and
+             is_integer(last_occurrence_id) and last_occurrence_id > 0 and
+             is_integer(last_record_row_id) and last_record_row_id > 0 and is_integer(limit) and
              limit > 0 do
     with {
            :ok,
@@ -147,17 +147,17 @@ defmodule Analysis.GameSearchRepository.Postgres.QueryCompiler do
       maximum_record_parameter =
         maximum_occurrence_parameter + 1
 
-      after_position_parameter =
+      last_position_parameter =
         maximum_record_parameter + 1
 
-      after_occurrence_parameter =
-        after_position_parameter + 1
+      last_occurrence_parameter =
+        last_position_parameter + 1
 
-      after_record_parameter =
-        after_occurrence_parameter + 1
+      last_record_parameter =
+        last_occurrence_parameter + 1
 
       limit_parameter =
-        after_record_parameter + 1
+        last_record_parameter + 1
 
       sql = """
       SELECT
@@ -187,9 +187,9 @@ defmodule Analysis.GameSearchRepository.Postgres.QueryCompiler do
           go.id,
           gr.id
         ) > (
-          $#{after_position_parameter}::bigint,
-          $#{after_occurrence_parameter}::bigint,
-          $#{after_record_parameter}::bigint
+          $#{last_position_parameter}::bigint,
+          $#{last_occurrence_parameter}::bigint,
+          $#{last_record_parameter}::bigint
         )
         AND (#{position_predicate})
         AND (#{record_predicate})
@@ -208,9 +208,9 @@ defmodule Analysis.GameSearchRepository.Postgres.QueryCompiler do
             maximum_position_id,
             maximum_occurrence_id,
             maximum_record_row_id,
-            after_position_id,
-            after_occurrence_id,
-            after_record_row_id,
+            last_position_id,
+            last_occurrence_id,
+            last_record_row_id,
             limit
           ]
       }
@@ -224,7 +224,7 @@ defmodule Analysis.GameSearchRepository.Postgres.QueryCompiler do
            position_parameters,
            next_parameter
          } <-
-           PositionQueryCompiler.compile_predicate(
+           PositionPostgres.compile_predicate(
              position_query,
              1
            ),
@@ -234,7 +234,7 @@ defmodule Analysis.GameSearchRepository.Postgres.QueryCompiler do
            record_parameters,
            next_parameter
          } <-
-           compile_record_predicate(
+           GameRecordPostgres.compile_predicate(
              record_query,
              next_parameter
            ) do
@@ -247,42 +247,5 @@ defmodule Analysis.GameSearchRepository.Postgres.QueryCompiler do
         next_parameter
       }
     end
-  end
-
-  defp compile_record_predicate(true, next_parameter) do
-    {
-      :ok,
-      "TRUE",
-      [],
-      next_parameter
-    }
-  end
-
-  defp compile_record_predicate(false, next_parameter) do
-    {
-      :ok,
-      "FALSE",
-      [],
-      next_parameter
-    }
-  end
-
-  defp compile_record_predicate({:metadata_contains, metadata}, next_parameter) do
-    if GameRecord.valid_metadata?(metadata) do
-      {
-        :ok,
-        "gr.metadata @> $#{next_parameter}::jsonb",
-        [
-          metadata
-        ],
-        next_parameter + 1
-      }
-    else
-      {:error, :invalid_record_query}
-    end
-  end
-
-  defp compile_record_predicate(_query, _next_parameter) do
-    {:error, :invalid_record_query}
   end
 end
