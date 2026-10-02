@@ -34,44 +34,6 @@ defmodule Analysis.AnalysesTest do
     )
   end
 
-  defmodule RecordingAnalysisStore do
-    @moduledoc false
-    @behaviour Analysis.AnalysisStore
-
-    def insert(store, analysis) do
-      send(self(), {:analysis_store_insert, store, analysis})
-      {:ok, 42}
-    end
-
-    def get(store, analysis_id) do
-      send(self(), {:analysis_store_get, store, analysis_id})
-      :not_found
-    end
-
-    def list(store) do
-      send(self(), {:analysis_store_list, store})
-      []
-    end
-
-    def update(store, analysis, revision) do
-      send(
-        self(),
-        {:analysis_store_update, store, analysis, revision}
-      )
-
-      {:ok, revision + 1}
-    end
-
-    def delete(store, analysis_id, revision) do
-      send(
-        self(),
-        {:analysis_store_delete, store, analysis_id, revision}
-      )
-
-      :ok
-    end
-  end
-
   setup do
     analysis_id = "analysis-#{System.unique_integer([:positive])}"
 
@@ -914,62 +876,5 @@ defmodule Analysis.AnalysesTest do
     assert {:ok, 1} = Analyses.insert(analysis)
 
     assert {analysis, 1} in Analyses.list()
-  end
-
-  test "uses PostgreSQL instead of the configured legacy analysis store adapter", %{
-    analysis_id: analysis_id
-  } do
-    previous =
-      Application.get_env(
-        :analysis,
-        Analysis.AnalysisStore,
-        :not_configured
-      )
-
-    on_exit(fn ->
-      case previous do
-        :not_configured ->
-          Application.delete_env(
-            :analysis,
-            Analysis.AnalysisStore
-          )
-
-        value ->
-          Application.put_env(
-            :analysis,
-            Analysis.AnalysisStore,
-            value
-          )
-      end
-    end)
-
-    Application.put_env(
-      :analysis,
-      Analysis.AnalysisStore,
-      adapter: RecordingAnalysisStore,
-      store: :configured_analysis_store
-    )
-
-    analysis =
-      AnalysisModel.new(
-        analysis_id,
-        42
-      )
-
-    assert {:ok, 1} =
-             Analyses.insert(analysis)
-
-    assert Analyses.get(analysis_id) ==
-             {
-               :ok,
-               analysis,
-               1
-             }
-
-    refute_received {
-      :analysis_store_insert,
-      _store,
-      _analysis
-    }
   end
 end

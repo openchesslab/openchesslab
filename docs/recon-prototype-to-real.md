@@ -16,7 +16,7 @@ the team should adjust.
 | `Analysis.Node` | Single occurrence: `position_id` (lookup into PositionStore), `transition` (move or edit), `comment`, `children`. |
 | `Analysis.Transition` | Either `{:move, Move.t()}` or `:edit`. |
 | `Analysis.Analyses` | Public API. `create / get / list / play / edit / promote / remove / set_comment / create_from_game`. All mutations go through `persist/2` which uses the analysis store's revisions. |
-| `Analysis.AnalysisStore` | Revisions-based optimistic concurrency. Behaviour: `Memory` adapter in tests; `DETS` adapter for persistence. Distributed via `Horde.Registry` (`Analysis.AnalysisStoreRegistry`). Owner node can be configured via `Analysis.AnalysisStoreOwner`. |
+| `Analysis.AnalysisStore` | PostgreSQL-native persistence for analysis aggregates with revision-based optimistic concurrency. Mutable aggregate data is encoded with `Analysis.AnalysisCodec`; identity and revision are stored in relational columns. |
 | `Analysis.PositionStore` | Append-only positions, distributed via `Horde.Registry` (`Analysis.PositionStoreRegistry`). Returns a `position_id` per `append/1`. |
 | `Analysis.PositionDatabase` | Underlying storage for `PositionStore`. Disk-backed (DETS segments) when configured. Property indexes (`open_files`, `material`) for query. |
 | `Analysis.Rooms` | Room registry. `start_room / get / add_analysis / remove_analysis / stop_room`. Each Room is a `RoomServer` GenServer under `Horde.DynamicSupervisor`. |

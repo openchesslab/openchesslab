@@ -76,43 +76,6 @@ if config_env() == :prod do
   end
 end
 
-analysis_store_owner =
-  case System.get_env("ANALYSIS_STORE_OWNER") do
-    nil ->
-      true
-
-    "true" ->
-      true
-
-    "false" ->
-      false
-
-    value ->
-      raise """
-      ANALYSIS_STORE_OWNER must be true or false, got: #{inspect(value)}
-      """
-  end
-
-analysis_store_options =
-  case System.get_env("ANALYSIS_STORE_PATH") do
-    nil ->
-      []
-
-    path ->
-      [
-        adapter: Analysis.AnalysisStore.Dets,
-        path: path
-      ]
-  end
-
-config :analysis,
-       Analysis.AnalysisStore,
-       analysis_store_options
-
-config :analysis,
-       Analysis.AnalysisStoreOwner,
-       owner: analysis_store_owner
-
 config :analysis,
   dns_cluster_query:
     System.get_env("DNS_CLUSTER_QUERY") ||

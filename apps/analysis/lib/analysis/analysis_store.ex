@@ -12,33 +12,7 @@ defmodule Analysis.AnalysisStore do
   alias Analysis.AnalysisCodec
   alias OpenChessLab.Repo
 
-  @registry Analysis.AnalysisStoreRegistry
-  @registry_key :analysis_store
-
-  @type store :: GenServer.server()
   @type revision :: pos_integer()
-
-  # These callbacks remain temporarily while the legacy Memory/DETS
-  # implementations still exist. They disappear together with those
-  # implementations in the next cleanup slice.
-  @callback insert(store(), AnalysisModel.t()) ::
-              {:ok, revision()}
-              | {:error, :already_exists}
-
-  @callback get(store(), AnalysisModel.id()) ::
-              {:ok, AnalysisModel.t(), revision()}
-              | :not_found
-
-  @callback list(store()) ::
-              [{AnalysisModel.t(), revision()}]
-
-  @callback update(store(), AnalysisModel.t(), revision()) ::
-              {:ok, revision()}
-              | {:error, :not_found | :conflict}
-
-  @callback delete(store(), AnalysisModel.id(), revision()) ::
-              :ok
-              | {:error, :not_found | :conflict}
 
   @insert_sql """
   INSERT INTO analyses (
@@ -96,32 +70,6 @@ defmodule Analysis.AnalysisStore do
   FROM analyses
   WHERE analysis_id = $1
   """
-
-  @spec clustered_store() :: GenServer.server()
-  def clustered_store do
-    {:via, Horde.Registry, {@registry, @registry_key}}
-  end
-
-  @doc """
-  Temporary readiness check for the legacy AnalysisStore process.
-
-  This remains only until the legacy AnalysisStore supervision is removed.
-  PostgreSQL readiness itself belongs to `OpenChessLab.Repo.ready?/0`.
-  """
-  @spec ready?() :: boolean()
-  def ready? do
-    GenServer.call(
-      legacy_store(),
-      :ping,
-      1_000
-    ) == :ok
-  rescue
-    ArgumentError ->
-      false
-  catch
-    :exit, _reason ->
-      false
-  end
 
   @spec insert(AnalysisModel.t()) ::
           {:ok, revision()}
@@ -285,17 +233,5 @@ defmodule Analysis.AnalysisStore do
         raise ArgumentError,
               "cannot decode stored analysis: #{inspect(reason)}"
     end
-  end
-
-  defp legacy_store do
-    :analysis
-    |> Application.get_env(
-      __MODULE__,
-      []
-    )
-    |> Keyword.get(
-      :store,
-      clustered_store()
-    )
   end
 end

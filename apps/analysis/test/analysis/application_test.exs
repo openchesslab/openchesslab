@@ -1,110 +1,25 @@
 defmodule Analysis.ApplicationTest do
   use ExUnit.Case, async: false
 
-  alias Analysis.AnalysisStore
-  alias Analysis.AnalysisStore.Dets
-  alias Analysis.AnalysisStore.Memory
-  alias Analysis.AnalysisStoreOwner
   alias Analysis.Application, as: AnalysisApplication
 
-  setup do
-    previous_analysis_store_owner =
-      Application.get_env(
-        :analysis,
-        AnalysisStoreOwner,
-        :not_configured
-      )
+  test "does not start legacy persistent store processes" do
+    children =
+      AnalysisApplication.children()
 
-    previous_analysis_store =
-      Application.get_env(
-        :analysis,
-        AnalysisStore,
-        :not_configured
-      )
-
-    on_exit(fn ->
-      restore_config(
-        AnalysisStoreOwner,
-        previous_analysis_store_owner
-      )
-
-      restore_config(
-        AnalysisStore,
-        previous_analysis_store
-      )
-    end)
-
-    Application.delete_env(
-      :analysis,
-      AnalysisStoreOwner
-    )
-
-    Application.delete_env(
-      :analysis,
-      AnalysisStore
-    )
-
-    :ok
-  end
-
-  test "does not start a legacy position store process" do
     refute Enum.any?(
-             AnalysisApplication.children(),
+             children,
              fn
                {Analysis.PositionStore, _options} ->
                  true
 
-               _child ->
-                 false
-             end
-           )
-  end
+               {Analysis.GameStore, _options} ->
+                 true
 
-  test "starts the configured analysis store adapter" do
-    Application.put_env(
-      :analysis,
-      AnalysisStore,
-      adapter: Dets,
-      path: "analyses.dets"
-    )
+               {Analysis.AnalysisStore.Memory, _options} ->
+                 true
 
-    assert {
-             Dets,
-             options
-           } =
-             Enum.find(
-               AnalysisApplication.children(),
-               fn
-                 {Dets, _options} -> true
-                 _child -> false
-               end
-             )
-
-    assert Keyword.get(options, :path) ==
-             "analyses.dets"
-
-    assert Keyword.get(options, :name) ==
-             AnalysisStore.clustered_store()
-  end
-
-  test "does not start the configured analysis store adapter on a non-owner node" do
-    Application.put_env(
-      :analysis,
-      AnalysisStore,
-      adapter: Dets,
-      path: "analyses.dets"
-    )
-
-    Application.put_env(
-      :analysis,
-      AnalysisStoreOwner,
-      owner: false
-    )
-
-    refute Enum.any?(
-             AnalysisApplication.children(),
-             fn
-               {Dets, _options} ->
+               {Analysis.AnalysisStore.Dets, _options} ->
                  true
 
                _child ->
@@ -113,32 +28,24 @@ defmodule Analysis.ApplicationTest do
            )
   end
 
-  test "preserves an explicitly configured analysis store" do
-    Application.put_env(
-      :analysis,
-      AnalysisStore,
-      adapter: Dets,
-      path: "analyses.dets",
-      store: :custom_analysis_store
-    )
+  test "does not start an analysis store Horde registry" do
+    refute Enum.any?(
+             AnalysisApplication.children(),
+             fn
+               {
+                 Horde.Registry,
+                 options
+               } ->
+                 Keyword.get(
+                   options,
+                   :name
+                 ) ==
+                   Analysis.AnalysisStoreRegistry
 
-    assert {
-             Dets,
-             options
-           } =
-             Enum.find(
-               AnalysisApplication.children(),
-               fn
-                 {Dets, _options} -> true
-                 _child -> false
-               end
-             )
-
-    assert Keyword.get(options, :path) ==
-             "analyses.dets"
-
-    assert Keyword.get(options, :name) ==
-             :custom_analysis_store
+               _child ->
+                 false
+             end
+           )
   end
 
   test "starts DNS clustering disabled by default" do
@@ -198,73 +105,26 @@ defmodule Analysis.ApplicationTest do
            } in AnalysisApplication.children()
   end
 
-  test "starts the analysis store registry" do
+  test "preserves the Room Horde registry" do
     assert {
              Horde.Registry,
              [
-               name: Analysis.AnalysisStoreRegistry,
+               name: Analysis.RoomRegistry,
                keys: :unique,
                members: :auto
              ]
            } in AnalysisApplication.children()
   end
 
-  test "starts the analysis store with the cluster-wide store by default" do
+  test "preserves the Room Horde dynamic supervisor" do
     assert {
-             Memory,
+             Horde.DynamicSupervisor,
              [
-               name: AnalysisStore.clustered_store()
-             ]
-           } in AnalysisApplication.children()
-  end
-
-  test "does not start the analysis store on a non-owner node" do
-    Application.put_env(
-      :analysis,
-      AnalysisStoreOwner,
-      owner: false
-    )
-
-    refute Enum.any?(
-             AnalysisApplication.children(),
-             fn
-               {Memory, _options} ->
-                 true
-
-               _child ->
-                 false
-             end
-           )
-  end
-
-  test "starts the analysis store registry on a non-owner node" do
-    Application.put_env(
-      :analysis,
-      AnalysisStoreOwner,
-      owner: false
-    )
-
-    assert {
-             Horde.Registry,
-             [
-               name: Analysis.AnalysisStoreRegistry,
-               keys: :unique,
+               name: Analysis.RoomSupervisor,
+               strategy: :one_for_one,
                members: :auto
              ]
            } in AnalysisApplication.children()
-  end
-
-  test "does not start a canonical game store process" do
-    refute Enum.any?(
-             AnalysisApplication.children(),
-             fn
-               {Analysis.GameStore, _options} ->
-                 true
-
-               _child ->
-                 false
-             end
-           )
   end
 
   defp restore_config(key, :not_configured) do
