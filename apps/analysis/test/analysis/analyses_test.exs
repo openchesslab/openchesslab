@@ -916,7 +916,7 @@ defmodule Analysis.AnalysesTest do
     assert {analysis, 1} in Analyses.list()
   end
 
-  test "uses the configured analysis store adapter", %{
+  test "uses PostgreSQL instead of the configured legacy analysis store adapter", %{
     analysis_id: analysis_id
   } do
     previous =
@@ -950,15 +950,26 @@ defmodule Analysis.AnalysesTest do
       store: :configured_analysis_store
     )
 
-    analysis = AnalysisModel.new(analysis_id, 42)
+    analysis =
+      AnalysisModel.new(
+        analysis_id,
+        42
+      )
 
-    assert {:ok, 42} =
+    assert {:ok, 1} =
              Analyses.insert(analysis)
 
-    assert_received {
+    assert Analyses.get(analysis_id) ==
+             {
+               :ok,
+               analysis,
+               1
+             }
+
+    refute_received {
       :analysis_store_insert,
-      :configured_analysis_store,
-      ^analysis
+      _store,
+      _analysis
     }
   end
 end
