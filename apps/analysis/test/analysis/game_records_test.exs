@@ -788,10 +788,108 @@ defmodule Analysis.GameRecordsTest do
              ).rows
   end
 
+  test "does not query for an existing record before creating a new one",
+       %{
+         record_id: record_id,
+         initial_position_id: initial_position_id
+       } do
+    content =
+      GameContent.new(
+        initial_position_id,
+        [
+          move("e2", "e4")
+        ]
+      )
+
+    queries =
+      capture_queries(fn ->
+        assert {:ok, _record} =
+                 GameRecords.create(
+                   record_id,
+                   content,
+                   GameStart.standard(),
+                   %{}
+                 )
+      end)
+
+    refute Enum.any?(
+             queries,
+             fn query ->
+               normalized =
+                 query
+                 |> String.replace(
+                   ~r/\s+/,
+                   " "
+                 )
+                 |> String.trim()
+
+               String.starts_with?(
+                 normalized,
+                 "SELECT record_id, game_id, fullmove_number, metadata FROM game_records WHERE record_id = $1"
+               )
+             end
+           )
+  end
+
   defp move(from, to) do
     Move.new(
       Square.from_algebraic(from),
       Square.from_algebraic(to)
     )
+  end
+
+  defp capture_queries(fun) do
+    telemetry_prefix =
+      Repo.config()
+      |> Keyword.fetch!(:telemetry_prefix)
+
+    event =
+      telemetry_prefix ++
+        [:query]
+
+    handler_id =
+      {
+        __MODULE__,
+        make_ref()
+      }
+
+    parent =
+      self()
+
+    :ok =
+      :telemetry.attach(
+        handler_id,
+        event,
+        fn _event, _measurements, metadata, parent ->
+          send(
+            parent,
+            {
+              :captured_query,
+              metadata.query
+            }
+          )
+        end,
+        parent
+      )
+
+    try do
+      fun.()
+      drain_queries([])
+    after
+      :telemetry.detach(handler_id)
+    end
+  end
+
+  defp drain_queries(queries) do
+    receive do
+      {
+        :captured_query,
+        query
+      } ->
+        drain_queries([query | queries])
+    after
+      0 ->
+        Enum.reverse(queries)
+    end
   end
 end

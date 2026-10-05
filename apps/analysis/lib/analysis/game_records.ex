@@ -43,25 +43,12 @@ defmodule Analysis.GameRecords do
   def create(record_id, %GameContent{} = content, %GameStart{} = start, metadata)
       when is_binary(record_id) and byte_size(record_id) > 0 and is_map(metadata) do
     if GameRecord.valid_metadata?(metadata) do
-      case GameRecordStore.get(record_id) do
-        {:ok, _record} ->
-          {:error, :already_exists}
-
-        :not_found ->
-          do_create(
-            record_id,
-            content,
-            start,
-            metadata
-          )
-
-        {:error, reason} ->
-          {:error,
-           {
-             :game_record_store,
-             reason
-           }}
-      end
+      do_create(
+        record_id,
+        content,
+        start,
+        metadata
+      )
     else
       {:error, :invalid_metadata}
     end
