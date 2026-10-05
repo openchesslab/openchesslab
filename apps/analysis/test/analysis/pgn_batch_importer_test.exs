@@ -546,11 +546,102 @@ defmodule Analysis.PgnBatchImporterTest do
              :not_found
   end
 
+  test "imports a PGN file through the streaming boundary" do
+    first_id =
+      unique_record_id()
+
+    second_id =
+      unique_record_id()
+
+    path =
+      temporary_pgn_path()
+
+    File.write!(
+      path,
+      """
+      [Event "First from file"]
+
+      1. e4 e5 *
+
+      [Event "Second from file"]
+
+      1. d4 d5 *
+      """
+    )
+
+    on_exit(fn ->
+      File.rm(path)
+    end)
+
+    record_ids = %{
+      1 => first_id,
+      2 => second_id
+    }
+
+    assert PgnBatchImporter.import_file(
+             path,
+             &Map.fetch!(record_ids, &1)
+           ) ==
+             {:ok, 2}
+
+    assert {:ok, first} =
+             GameRecords.get(first_id)
+
+    assert {:ok, second} =
+             GameRecords.get(second_id)
+
+    assert GameRecord.metadata(first)["event"] ==
+             "First from file"
+
+    assert GameRecord.metadata(second)["event"] ==
+             "Second from file"
+  end
+
+  test "reports file open errors without raising" do
+    missing_path =
+      temporary_pgn_path()
+
+    assert PgnBatchImporter.import_file(
+             missing_path,
+             fn index ->
+               "missing-file-#{index}"
+             end
+           ) ==
+             {:error,
+              {
+                :file,
+                :enoent
+              }}
+  end
+
+  test "validates file import arguments before opening the file" do
+    assert PgnBatchImporter.import_file(
+             "",
+             fn _index ->
+               unique_record_id()
+             end
+           ) ==
+             {:error, :invalid_path}
+
+    assert PgnBatchImporter.import_file(
+             temporary_pgn_path(),
+             :not_a_function
+           ) ==
+             {:error, :invalid_record_id_provider}
+  end
+
   defp unique_record_id do
     "pgn-batch-import-test-" <>
       Base.url_encode64(
         :crypto.strong_rand_bytes(16),
         padding: false
       )
+  end
+
+  defp temporary_pgn_path do
+    Path.join(
+      System.tmp_dir!(),
+      "openchesslab-pgn-batch-#{System.unique_integer([:positive])}.pgn"
+    )
   end
 end

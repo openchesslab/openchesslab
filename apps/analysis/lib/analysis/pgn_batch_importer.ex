@@ -14,6 +14,10 @@ defmodule Analysis.PgnBatchImporter do
   game before continuing. A later parse or persistence failure therefore
   leaves the successfully imported prefix durable.
 
+  `import_file/2` is the file-backed entry point for large PGN collections.
+  It opens the file as a line stream and delegates directly to
+  `import_stream/2`; the complete file is never loaded into memory.
+
   Persistence is intentionally atomic per game rather than per batch.
 
   Concrete game-record identity remains caller-owned. Bounded imports
@@ -46,6 +50,11 @@ defmodule Analysis.PgnBatchImporter do
           | :invalid_record_id_provider
           | {:invalid_record_id, pos_integer()}
           | {:import_failed, pos_integer(), PgnImporter.import_error()}
+  @type file_import_error ::
+          :invalid_path
+          | :invalid_record_id_provider
+          | {:file, term()}
+          | stream_import_error()
 
   @spec parse(String.t()) ::
           {:ok, [PgnImporter.result()]}
@@ -112,6 +121,47 @@ defmodule Analysis.PgnBatchImporter do
   end
 
   def import_stream(_lines, _record_id_for_index) do
+    {:error, :invalid_record_id_provider}
+  end
+
+  @spec import_file(
+          String.t(),
+          (pos_integer() -> GameRecord.id())
+        ) ::
+          {:ok, non_neg_integer()}
+          | {:error, file_import_error()}
+  def import_file(path, record_id_for_index)
+      when is_binary(path) and byte_size(path) > 0 and is_function(record_id_for_index, 1) do
+    case File.open(
+           path,
+           [:read, :utf8],
+           fn io ->
+             io
+             |> IO.stream(:line)
+             |> import_stream(record_id_for_index)
+           end
+         ) do
+      {:ok, result} ->
+        result
+
+      {:error, reason} ->
+        {:error,
+         {
+           :file,
+           reason
+         }}
+    end
+  end
+
+  def import_file(path, _record_id_for_index) when not is_binary(path) do
+    {:error, :invalid_path}
+  end
+
+  def import_file("", _record_id_for_index) do
+    {:error, :invalid_path}
+  end
+
+  def import_file(_path, _record_id_for_index) do
     {:error, :invalid_record_id_provider}
   end
 
