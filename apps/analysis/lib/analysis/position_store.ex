@@ -426,14 +426,13 @@ defmodule Analysis.PositionStore do
 
   defp put(%Position{} = position) do
     transact(fn ->
-      with {:ok, position_id} <-
+      with {:ok, position_id, status} <-
              put_position(position),
-           {:ok, properties} <-
-             encoded_properties(position),
            :ok <-
-             put_features(
+             put_features_if_needed(
+               position,
                position_id,
-               properties
+               status
              ) do
         {:ok, position_id}
       end
@@ -449,14 +448,37 @@ defmodule Analysis.PositionStore do
            [record]
          ) do
       {:ok, %{rows: [[position_id]]}} ->
-        {:ok, position_id}
+        {:ok, position_id, :inserted}
 
       {:ok, %{rows: []}} ->
-        find_record(record)
+        case find_record(record) do
+          {:ok, position_id} ->
+            {:ok, position_id, :existing}
+
+          :not_found ->
+            {:error, :position_not_found_after_conflict}
+
+          {:error, reason} ->
+            {:error, reason}
+        end
 
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  defp put_features_if_needed(position, position_id, :inserted) do
+    with {:ok, properties} <-
+           encoded_properties(position) do
+      put_features(
+        position_id,
+        properties
+      )
+    end
+  end
+
+  defp put_features_if_needed(_position, _position_id, :existing) do
+    :ok
   end
 
   defp put_features(position_id, properties) do

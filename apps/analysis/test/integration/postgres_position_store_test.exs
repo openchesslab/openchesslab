@@ -428,10 +428,87 @@ defmodule Analysis.PostgresPositionStoreTest do
              ).rows
   end
 
+  test "does not rewrite features when storing an existing exact position" do
+    position =
+      Position.starting_position()
+
+    position_id =
+      PositionStore.append(position)
+
+    queries =
+      capture_queries(fn ->
+        assert PositionStore.append(position) ==
+                 position_id
+      end)
+
+    refute Enum.any?(
+             queries,
+             &String.contains?(
+               &1,
+               "INSERT INTO position_features"
+             )
+           )
+  end
+
   defp move(from, to) do
     Move.new(
       Square.from_algebraic(from),
       Square.from_algebraic(to)
     )
+  end
+
+  defp capture_queries(fun) do
+    telemetry_prefix =
+      Repo.config()
+      |> Keyword.fetch!(:telemetry_prefix)
+
+    event =
+      telemetry_prefix ++
+        [:query]
+
+    handler_id =
+      {
+        __MODULE__,
+        make_ref()
+      }
+
+    parent =
+      self()
+
+    :ok =
+      :telemetry.attach(
+        handler_id,
+        event,
+        fn _event, _measurements, metadata, parent ->
+          send(
+            parent,
+            {
+              :captured_query,
+              metadata.query
+            }
+          )
+        end,
+        parent
+      )
+
+    try do
+      fun.()
+      drain_queries([])
+    after
+      :telemetry.detach(handler_id)
+    end
+  end
+
+  defp drain_queries(queries) do
+    receive do
+      {
+        :captured_query,
+        query
+      } ->
+        drain_queries([query | queries])
+    after
+      0 ->
+        Enum.reverse(queries)
+    end
   end
 end
