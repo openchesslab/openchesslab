@@ -11,8 +11,8 @@ defmodule Analysis.PgnImporter do
   played-game content and are ignored.
 
   Each parse or import operation accepts exactly one game. Multi-game
-  PGN input is rejected explicitly and can later be handled by a
-  dedicated bulk-import boundary.
+  PGN input is rejected explicitly here and handled separately by
+  `Analysis.PgnBatchImporter`.
 
   Durable imports are stored through `Analysis.GameRecords`, which owns
   canonical game reuse, occurrence creation and concrete game-record
