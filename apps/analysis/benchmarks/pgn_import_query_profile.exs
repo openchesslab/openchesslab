@@ -6,9 +6,13 @@ defmodule Analysis.PgnImportQueryProfile do
   @moduledoc false
 
   alias Analysis.PgnBatchImporter
+  alias Chess.Notation.SAN
+  alias Chess.Position
   alias OpenChessLab.Repo
 
-  def build_fixture(path, game_count) do
+  @unique_game_plies 4
+
+  def build_fixture(path, game_count, :duplicate) do
     File.open!(
       path,
       [:write, :utf8],
@@ -16,20 +20,36 @@ defmodule Analysis.PgnImportQueryProfile do
         Enum.each(
           1..game_count,
           fn index ->
-            IO.write(
+            write_game(
               io,
-              """
-              [Event "PGN query profile #{index}"]
-              [White "Alice"]
-              [Black "Bob"]
-              [Result "*"]
-
-              1. e4 e5 2. Nf3 Nc6 *
-
-              """
+              index,
+              "1. e4 e5 2. Nf3 Nc6 *"
             )
           end
         )
+      end
+    )
+
+    File.stat!(path).size
+  end
+
+  def build_fixture(path, game_count, :unique) do
+    movetexts =
+      unique_movetexts(game_count)
+
+    File.open!(
+      path,
+      [:write, :utf8],
+      fn io ->
+        movetexts
+        |> Enum.with_index(1)
+        |> Enum.each(fn {movetext, index} ->
+          write_game(
+            io,
+            index,
+            movetext
+          )
+        end)
       end
     )
 
@@ -123,6 +143,73 @@ defmodule Analysis.PgnImportQueryProfile do
       :telemetry.detach(handler_id)
       :ets.delete(table)
     end
+  end
+
+  def database_counts do
+    case Repo.query!(
+           """
+           SELECT
+             (SELECT count(*) FROM positions),
+             (SELECT count(*) FROM position_features),
+             (SELECT count(*) FROM games),
+             (SELECT count(*) FROM game_occurrences),
+             (SELECT count(*) FROM game_records)
+           """,
+           []
+         ).rows do
+      [
+        [
+          positions,
+          position_features,
+          games,
+          game_occurrences,
+          game_records
+        ]
+      ] ->
+        %{
+          positions: positions,
+          position_features: position_features,
+          games: games,
+          game_occurrences: game_occurrences,
+          game_records: game_records
+        }
+    end
+  end
+
+  def validate_counts!(:duplicate, game_count, counts) do
+    if counts.games != 1 do
+      raise """
+      duplicate fixture expected one canonical game,
+      got #{counts.games}
+      """
+    end
+
+    if counts.game_records != game_count do
+      raise """
+      duplicate fixture expected #{game_count} game records,
+      got #{counts.game_records}
+      """
+    end
+
+    :ok
+  end
+
+  def validate_counts!(:unique, game_count, counts) do
+    if counts.games != game_count do
+      raise """
+      unique fixture expected #{game_count} canonical games,
+      got #{counts.games}
+      """
+    end
+
+    if counts.game_records != game_count do
+      raise """
+      unique fixture expected #{game_count} game records,
+      got #{counts.game_records}
+      """
+    end
+
+    :ok
   end
 
   def handle_query(_event, measurements, metadata, table) do
@@ -318,6 +405,155 @@ defmodule Analysis.PgnImportQueryProfile do
     |> truncate(140)
   end
 
+  defp write_game(io, index, movetext) do
+    IO.write(
+      io,
+      """
+      [Event "PGN query profile #{index}"]
+      [White "Alice"]
+      [Black "Bob"]
+      [Result "*"]
+
+      #{movetext}
+
+      """
+    )
+  end
+
+  defp unique_movetexts(game_count) do
+    {
+      reversed_games,
+      remaining
+    } =
+      collect_games(
+        Position.starting_position(),
+        @unique_game_plies,
+        [],
+        [],
+        game_count
+      )
+
+    if remaining != 0 do
+      generated_count =
+        game_count - remaining
+
+      raise """
+      could generate only #{generated_count} unique #{@unique_game_plies}-ply games,
+      requested #{game_count}
+      """
+    end
+
+    reversed_games
+    |> Enum.reverse()
+    |> Enum.map(&format_movetext/1)
+  end
+
+  defp collect_games(_position, _plies_remaining, _reversed_sans, games, 0) do
+    {
+      games,
+      0
+    }
+  end
+
+  defp collect_games(_position, 0, reversed_sans, games, remaining) do
+    {
+      [
+        Enum.reverse(reversed_sans)
+        | games
+      ],
+      remaining - 1
+    }
+  end
+
+  defp collect_games(position, plies_remaining, reversed_sans, games, remaining) do
+    position
+    |> Position.legal_moves()
+    |> Enum.reduce_while(
+      {
+        games,
+        remaining
+      },
+      fn move, {games, remaining} ->
+        if remaining == 0 do
+          {:halt,
+           {
+             games,
+             remaining
+           }}
+        else
+          {:ok, san} =
+            SAN.format(
+              position,
+              move
+            )
+
+          {:ok, next_position} =
+            Position.apply_move(
+              position,
+              move
+            )
+
+          {
+            games,
+            remaining
+          } =
+            collect_games(
+              next_position,
+              plies_remaining - 1,
+              [
+                san
+                | reversed_sans
+              ],
+              games,
+              remaining
+            )
+
+          if remaining == 0 do
+            {:halt,
+             {
+               games,
+               remaining
+             }}
+          else
+            {:cont,
+             {
+               games,
+               remaining
+             }}
+          end
+        end
+      end
+    )
+  end
+
+  defp format_movetext(sans) do
+    sans
+    |> Enum.chunk_every(2)
+    |> Enum.with_index(1)
+    |> Enum.map_join(
+      " ",
+      fn
+        {
+          [
+            white,
+            black
+          ],
+          move_number
+        } ->
+          "#{move_number}. #{white} #{black}"
+
+        {
+          [
+            white
+          ],
+          move_number
+        } ->
+          "#{move_number}. #{white}"
+      end
+    )
+    |> Kernel.<>(" *")
+  end
+
   defp query_profile(table) do
     [
       {
@@ -418,6 +654,24 @@ game_count =
   )
   |> String.to_integer()
 
+fixture_mode =
+  case System.get_env(
+         "PGN_IMPORT_PROFILE_FIXTURE",
+         "duplicate"
+       ) do
+    "duplicate" ->
+      :duplicate
+
+    "unique" ->
+      :unique
+
+    fixture ->
+      raise """
+      PGN_IMPORT_PROFILE_FIXTURE must be "duplicate" or "unique",
+      got #{inspect(fixture)}
+      """
+  end
+
 if game_count <= 0 do
   raise "PGN_IMPORT_PROFILE_GAMES must be positive"
 end
@@ -441,13 +695,15 @@ try do
   IO.puts("""
   Building PGN import query-profile fixture...
 
-  games: #{game_count}
+  games:   #{game_count}
+  fixture: #{fixture_mode}
   """)
 
   file_size =
     Profile.build_fixture(
       path,
-      game_count
+      game_count,
+      fixture_mode
     )
 
   IO.puts("""
@@ -463,12 +719,30 @@ try do
       run_id
     )
 
+  counts =
+    Profile.database_counts()
+
+  :ok =
+    Profile.validate_counts!(
+      fixture_mode,
+      game_count,
+      counts
+    )
+
   IO.puts("""
   PGN import PostgreSQL query profile
 
   games:          #{game_count}
+  fixture:        #{fixture_mode}
   elapsed:        #{Profile.format_seconds(result.elapsed_seconds)}
   throughput:     #{Profile.format_rate(game_count, result.elapsed_seconds)}
+
+  Durable rows:
+    positions:         #{counts.positions}
+    position features: #{counts.position_features}
+    canonical games:   #{counts.games}
+    occurrences:       #{counts.game_occurrences}
+    game records:      #{counts.game_records}
 
   PostgreSQL/Ecto:
     queries:       #{result.query_count}
