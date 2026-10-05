@@ -261,14 +261,11 @@ defmodule Web.PgnImporter do
     token =
       normalize_san(token)
 
-    case matching_move(
+    case SAN.parse(
            position,
            token
          ) do
-      nil ->
-        {:error, "Could not parse move #{token}"}
-
-      move ->
+      {:ok, move} ->
         case Position.apply_move(
                position,
                move
@@ -283,25 +280,10 @@ defmodule Web.PgnImporter do
           {:error, :illegal_move} ->
             {:error, "Illegal move #{token}"}
         end
+
+      {:error, :invalid_san} ->
+        {:error, "Could not parse move #{token}"}
     end
-  end
-
-  defp matching_move(position, token) do
-    position
-    |> Position.legal_moves()
-    |> Enum.find(fn move ->
-      case SAN.format(
-             position,
-             move
-           ) do
-        {:ok, san} ->
-          normalize_san(san) ==
-            token
-
-        _other ->
-          false
-      end
-    end)
   end
 
   defp normalize_san(token) do
