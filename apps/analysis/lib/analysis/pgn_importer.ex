@@ -1,10 +1,14 @@
 defmodule Analysis.PgnImporter do
   @moduledoc """
-  Parses bounded main-line PGNs and imports them as durable played games.
+  Parses bounded single-game main-line PGNs and imports them as durable played games.
 
   PGNs are interpreted from the standard starting position. Comments,
   NAGs and side variations do not contribute to canonical played-game
   content and are ignored.
+
+  Each parse or import operation accepts exactly one game. Multi-game
+  PGN input is rejected explicitly and can later be handled by a
+  dedicated bulk-import boundary.
 
   Custom FEN starting positions are not supported yet and are rejected
   explicitly rather than being interpreted as standard-start games.
@@ -23,6 +27,8 @@ defmodule Analysis.PgnImporter do
   alias Chess.Position
 
   @max_pgn_bytes 100_000
+
+  @header_line_regex ~r/^\s*\[([A-Za-z0-9_]+)\s+"((?:\\.|[^"])*)"\]\s*$/
 
   @type result :: %{
           headers: %{optional(String.t()) => String.t()},
@@ -72,6 +78,8 @@ defmodule Analysis.PgnImporter do
       parse_headers(pgn)
 
     with :ok <-
+           validate_single_game(pgn),
+         :ok <-
            validate_standard_start(headers),
          {:ok, position, moves} <-
            pgn
@@ -129,6 +137,89 @@ defmodule Analysis.PgnImporter do
     )
   end
 
+  defp validate_single_game(pgn) do
+    cleaned =
+      strip_non_mainline_noise(pgn)
+
+    tokens =
+      cleaned
+      |> remove_headers()
+      |> String.split(
+        ~r/\s+/,
+        trim: true
+      )
+
+    if header_after_movetext?(cleaned) or
+         content_after_result?(tokens) or
+         repeated_first_move_number?(tokens) do
+      {:error, "Multiple games are not supported"}
+    else
+      :ok
+    end
+  end
+
+  defp header_after_movetext?(pgn) do
+    pgn
+    |> String.split(~r/\R/)
+    |> Enum.reduce_while(
+      :before_movetext,
+      fn line, state ->
+        cond do
+          String.trim(line) == "" ->
+            {:cont, state}
+
+          Regex.match?(
+            @header_line_regex,
+            line
+          ) and state == :movetext ->
+            {:halt, :multiple_games}
+
+          Regex.match?(
+            @header_line_regex,
+            line
+          ) ->
+            {:cont, state}
+
+          true ->
+            {:cont, :movetext}
+        end
+      end
+    )
+    |> case do
+      :multiple_games ->
+        true
+
+      _state ->
+        false
+    end
+  end
+
+  defp content_after_result?(tokens) do
+    case Enum.split_while(
+           tokens,
+           &(not result_token?(&1))
+         ) do
+      {_before, []} ->
+        false
+
+      {_before, [_result]} ->
+        false
+
+      {_before, [_result | _after_result]} ->
+        true
+    end
+  end
+
+  defp repeated_first_move_number?(tokens) do
+    Enum.count(
+      tokens,
+      &Regex.match?(
+        ~r/^1\.(?!\.)/,
+        &1
+      )
+    ) > 1
+  end
+
   defp validate_standard_start(headers) do
     if headers["SetUp"] == "1" or
          Map.has_key?(
@@ -171,10 +262,20 @@ defmodule Analysis.PgnImporter do
 
   defp movetext(pgn) do
     pgn
-    |> String.replace(
+    |> remove_headers()
+    |> strip_non_mainline_noise()
+  end
+
+  defp remove_headers(pgn) do
+    String.replace(
+      pgn,
       ~r/^\s*\[[^\]]+\]\s*$/m,
       " "
     )
+  end
+
+  defp strip_non_mainline_noise(pgn) do
+    pgn
     |> String.replace(
       ~r/\{[^}]*\}/s,
       " "

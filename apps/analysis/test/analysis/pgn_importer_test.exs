@@ -61,6 +61,69 @@ defmodule Analysis.PgnImporterTest do
               }}
   end
 
+  test "rejects two headered games" do
+    pgn = """
+    [Event "First"]
+    [White "Alice"]
+    [Black "Bob"]
+    [Result "1-0"]
+
+    1. e4 e5 1-0
+
+    [Event "Second"]
+    [White "Carol"]
+    [Black "Dave"]
+    [Result "0-1"]
+
+    1. d4 d5 0-1
+    """
+
+    assert PgnImporter.parse(pgn) ==
+             {:error,
+              {
+                :invalid_pgn,
+                "Multiple games are not supported"
+              }}
+  end
+
+  test "rejects two tagless games" do
+    pgn = """
+    1. e4 e5 1-0
+
+    1. d4 d5 0-1
+    """
+
+    assert PgnImporter.parse(pgn) ==
+             {:error,
+              {
+                :invalid_pgn,
+                "Multiple games are not supported"
+              }}
+  end
+
+  test "rejects a second game even when the first has no termination marker" do
+    pgn = """
+    1. e4 e5
+
+    1. d4 d5
+    """
+
+    assert PgnImporter.parse(pgn) ==
+             {:error,
+              {
+                :invalid_pgn,
+                "Multiple games are not supported"
+              }}
+  end
+
+  test "allows an explicit black move number inside one game" do
+    assert {:ok, parsed} =
+             PgnImporter.parse("1. e4 1... e5 2. Nf3 Nc6 *")
+
+    assert length(parsed.moves) ==
+             4
+  end
+
   test "imports a PGN as a durable concrete game record" do
     record_id =
       unique_record_id()
@@ -136,6 +199,34 @@ defmodule Analysis.PgnImporterTest do
                record_id,
                "1. e4 e5 2. ThisIsNotSAN"
              )
+
+    assert GameRecords.get(record_id) ==
+             :not_found
+  end
+
+  test "does not create a game record for multi-game PGN" do
+    record_id =
+      unique_record_id()
+
+    pgn = """
+    [Event "First"]
+
+    1. e4 e5 1-0
+
+    [Event "Second"]
+
+    1. d4 d5 0-1
+    """
+
+    assert PgnImporter.import_game(
+             record_id,
+             pgn
+           ) ==
+             {:error,
+              {
+                :invalid_pgn,
+                "Multiple games are not supported"
+              }}
 
     assert GameRecords.get(record_id) ==
              :not_found
