@@ -108,6 +108,38 @@ defmodule Analysis.PgnImporterTest do
               }}
   end
 
+  test "rejects a FEN starting position without SetUp one" do
+    fen =
+      "4k3/8/8/8/8/8/4K3/7R w - - 12 37"
+
+    pgn_without_setup = """
+    [FEN "#{fen}"]
+
+    37. Rh2 *
+    """
+
+    assert PgnImporter.parse(pgn_without_setup) ==
+             {:error,
+              {
+                :invalid_pgn,
+                "FEN starting position requires SetUp \"1\""
+              }}
+
+    pgn_with_setup_zero = """
+    [SetUp "0"]
+    [FEN "#{fen}"]
+
+    37. Rh2 *
+    """
+
+    assert PgnImporter.parse(pgn_with_setup_zero) ==
+             {:error,
+              {
+                :invalid_pgn,
+                "FEN starting position requires SetUp \"1\""
+              }}
+  end
+
   test "rejects two headered games" do
     pgn = """
     [Event "First"]

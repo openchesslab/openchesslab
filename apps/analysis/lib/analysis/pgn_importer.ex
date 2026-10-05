@@ -249,13 +249,10 @@ defmodule Analysis.PgnImporter do
         {:error, "SetUp tag requires a FEN starting position"}
 
       {
-        setup,
+        "1",
         fen
       }
-      when setup in [
-             nil,
-             "1"
-           ] and is_binary(fen) ->
+      when is_binary(fen) ->
         case FEN.parse(fen) do
           {:ok,
            %{
