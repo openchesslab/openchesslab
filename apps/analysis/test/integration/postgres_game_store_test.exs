@@ -16,18 +16,11 @@ defmodule Analysis.PostgresGameStoreTest do
   @collision_fingerprint :binary.copy(<<0xA5>>, 32)
 
   setup do
-    Repo.query!(
-      """
-      TRUNCATE TABLE
-        game_occurrences,
-        games,
-        position_features,
-        positions
-      RESTART IDENTITY
-      CASCADE
-      """,
-      []
-    )
+    truncate()
+
+    on_exit(fn ->
+      truncate()
+    end)
 
     :ok
   end
@@ -475,6 +468,23 @@ defmodule Analysis.PostgresGameStoreTest do
                """,
                []
              ).rows
+  end
+
+  defp truncate do
+    Repo.query!(
+      """
+      TRUNCATE TABLE
+        game_occurrences,
+        games,
+        position_features,
+        positions
+      RESTART IDENTITY
+      CASCADE
+      """,
+      []
+    )
+
+    :ok
   end
 
   defp one_move_game(from, to) do
