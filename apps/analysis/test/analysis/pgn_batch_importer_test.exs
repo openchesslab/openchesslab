@@ -344,6 +344,208 @@ defmodule Analysis.PgnBatchImporterTest do
              {:ok, existing}
   end
 
+  test "streams durable imports one game at a time" do
+    first_id =
+      unique_record_id()
+
+    second_id =
+      unique_record_id()
+
+    record_ids = %{
+      1 => first_id,
+      2 => second_id
+    }
+
+    lines =
+      """
+      [Event "First"]
+
+      1. e4 e5 *
+
+      [Event "Second"]
+
+      1. d4 d5 *
+      """
+      |> String.split(
+        ~r/\R/,
+        trim: false
+      )
+      |> Stream.map(& &1)
+
+    assert PgnBatchImporter.import_stream(
+             lines,
+             &Map.fetch!(record_ids, &1)
+           ) ==
+             {:ok, 2}
+
+    assert {:ok, first} =
+             GameRecords.get(first_id)
+
+    assert {:ok, second} =
+             GameRecords.get(second_id)
+
+    assert GameRecord.metadata(first)["event"] ==
+             "First"
+
+    assert GameRecord.metadata(second)["event"] ==
+             "Second"
+  end
+
+  test "streaming import keeps the successful prefix when a later game is invalid" do
+    first_id =
+      unique_record_id()
+
+    second_id =
+      unique_record_id()
+
+    record_ids = %{
+      1 => first_id,
+      2 => second_id
+    }
+
+    lines =
+      """
+      [Event "First"]
+
+      1. e4 e5 *
+
+      [Event "Broken"]
+
+      1. d4 ThisIsNotSAN *
+      """
+      |> String.split(
+        ~r/\R/,
+        trim: false
+      )
+      |> Stream.map(& &1)
+
+    assert {:error,
+            {
+              :invalid_game,
+              2,
+              {
+                :invalid_pgn,
+                message
+              }
+            }} =
+             PgnBatchImporter.import_stream(
+               lines,
+               &Map.fetch!(record_ids, &1)
+             )
+
+    assert message =~
+             "Could not parse move"
+
+    assert {:ok, first} =
+             GameRecords.get(first_id)
+
+    assert GameRecord.metadata(first)["event"] ==
+             "First"
+
+    assert GameRecords.get(second_id) ==
+             :not_found
+  end
+
+  test "streaming import reports an invalid caller supplied record ID at its game index" do
+    first_id =
+      unique_record_id()
+
+    lines =
+      """
+      [Event "First"]
+
+      1. e4 *
+
+      [Event "Second"]
+
+      1. d4 *
+      """
+      |> String.split(
+        ~r/\R/,
+        trim: false
+      )
+      |> Stream.map(& &1)
+
+    assert PgnBatchImporter.import_stream(
+             lines,
+             fn
+               1 -> first_id
+               2 -> ""
+             end
+           ) ==
+             {:error,
+              {
+                :invalid_record_id,
+                2
+              }}
+
+    assert {:ok, first} =
+             GameRecords.get(first_id)
+
+    assert GameRecord.metadata(first)["event"] ==
+             "First"
+  end
+
+  test "streaming import stops consuming input after a failed game" do
+    first_id =
+      unique_record_id()
+
+    second_id =
+      unique_record_id()
+
+    test_pid =
+      self()
+
+    lines =
+      [
+        "[Event \"First\"]",
+        "",
+        "1. e4 *",
+        "",
+        "[Event \"Broken\"]",
+        "",
+        "1. d4 ThisIsNotSAN *",
+        "",
+        "[Event \"Third\"]",
+        "1. c4 *"
+      ]
+      |> Stream.map(fn line ->
+        if line == "1. c4 *" do
+          send(
+            test_pid,
+            :third_game_movetext_consumed
+          )
+        end
+
+        line
+      end)
+
+    assert {:error,
+            {
+              :invalid_game,
+              2,
+              {
+                :invalid_pgn,
+                _message
+              }
+            }} =
+             PgnBatchImporter.import_stream(
+               lines,
+               fn
+                 1 -> first_id
+                 2 -> second_id
+               end
+             )
+
+    refute_received :third_game_movetext_consumed
+
+    assert {:ok, _first} =
+             GameRecords.get(first_id)
+
+    assert GameRecords.get(second_id) ==
+             :not_found
+  end
+
   defp unique_record_id do
     "pgn-batch-import-test-" <>
       Base.url_encode64(
