@@ -98,7 +98,7 @@ defmodule Analysis.GameRecords do
            fingerprint(content),
          {:ok, replay} <-
            replay(content) do
-      Repo.transact(fn ->
+      transact(fn ->
         with {:ok, position_ids} <-
                append_replay_positions(
                  content,
@@ -332,6 +332,14 @@ defmodule Analysis.GameRecords do
            :position_store,
            reason
          }}
+    end
+  end
+
+  defp transact(fun) when is_function(fun, 0) do
+    if Repo.in_transaction?() do
+      fun.()
+    else
+      Repo.transact(fun)
     end
   end
 end

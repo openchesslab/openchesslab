@@ -1,4 +1,5 @@
 ExUnit.start()
+Logger.configure(level: :warning)
 
 OpenChessLab.Repo.query!(
   """

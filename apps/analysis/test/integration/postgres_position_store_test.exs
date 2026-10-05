@@ -1,5 +1,3 @@
-Logger.configure(level: :warning)
-
 defmodule Analysis.PostgresPositionStoreTest do
   use ExUnit.Case, async: false
 

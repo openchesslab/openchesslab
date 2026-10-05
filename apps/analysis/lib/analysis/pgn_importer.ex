@@ -27,6 +27,7 @@ defmodule Analysis.PgnImporter do
   alias Chess.Notation.FEN
   alias Chess.Notation.SAN
   alias Chess.Position
+  alias OpenChessLab.Repo
 
   @max_pgn_bytes 100_000
 
@@ -80,21 +81,23 @@ defmodule Analysis.PgnImporter do
       })
       when is_binary(record_id) and byte_size(record_id) > 0 and is_map(headers) and
              is_list(moves) do
-    with {:ok, initial_position_id} <-
-           store_initial_position(initial_position) do
-      content =
-        GameContent.new(
-          initial_position_id,
-          moves
-        )
+    Repo.transact(fn ->
+      with {:ok, initial_position_id} <-
+             store_initial_position(initial_position) do
+        content =
+          GameContent.new(
+            initial_position_id,
+            moves
+          )
 
-      GameRecords.create(
-        record_id,
-        content,
-        start,
-        metadata(headers)
-      )
-    end
+        GameRecords.create(
+          record_id,
+          content,
+          start,
+          metadata(headers)
+        )
+      end
+    end)
   end
 
   def import_parsed(record_id, _parsed) when is_binary(record_id) and byte_size(record_id) > 0 do

@@ -1,5 +1,3 @@
-Logger.configure(level: :warning)
-
 defmodule Analysis.PgnImporterTest do
   use ExUnit.Case, async: false
 
@@ -11,6 +9,7 @@ defmodule Analysis.PgnImporterTest do
   alias Analysis.PositionStore
   alias Chess.Notation.FEN
   alias Chess.Position
+  alias OpenChessLab.Repo
 
   @sample_pgn """
   [Event "OpenChessLab sample"]
@@ -366,6 +365,155 @@ defmodule Analysis.PgnImporterTest do
 
     assert GameRecords.get(record_id) ==
              :not_found
+  end
+
+  test "imports one durable PGN in one PostgreSQL transaction" do
+    record_id =
+      unique_record_id()
+
+    pgn = """
+    [Event "Single transaction"]
+
+    1. e4 e5 2. Nf3 Nc6 *
+    """
+
+    queries =
+      capture_queries(fn ->
+        assert {:ok, _record} =
+                 PgnImporter.import_game(
+                   record_id,
+                   pgn
+                 )
+      end)
+
+    assert Enum.count(
+             queries,
+             &(&1 == "begin")
+           ) ==
+             1
+
+    assert Enum.count(
+             queries,
+             &(&1 == "commit")
+           ) ==
+             1
+  end
+
+  test "rolls back the initial position when durable import fails" do
+    record_id =
+      "pgn-import-rejected-by-test-constraint"
+
+    fen =
+      "4k3/8/8/8/8/8/3K4/7R w - - 12 47"
+
+    assert {:ok, fen_context} =
+             FEN.parse(fen)
+
+    assert PositionStore.find(fen_context.position) ==
+             :not_found
+
+    Repo.query!(
+      """
+      ALTER TABLE game_records
+      ADD CONSTRAINT game_records_pgn_import_test_reject_record
+      CHECK (
+        record_id <> 'pgn-import-rejected-by-test-constraint'
+      )
+      """,
+      []
+    )
+
+    on_exit(fn ->
+      Repo.query!(
+        """
+        ALTER TABLE game_records
+        DROP CONSTRAINT IF EXISTS game_records_pgn_import_test_reject_record
+        """,
+        []
+      )
+    end)
+
+    pgn = """
+    [Event "Rejected import"]
+    [SetUp "1"]
+    [FEN "#{fen}"]
+    [Result "*"]
+
+    47. Rh2 *
+    """
+
+    assert {
+             :error,
+             {
+               :game_record_store,
+               %Postgrex.Error{}
+             }
+           } =
+             PgnImporter.import_game(
+               record_id,
+               pgn
+             )
+
+    assert PositionStore.find(fen_context.position) ==
+             :not_found
+
+    assert GameRecords.get(record_id) ==
+             :not_found
+  end
+
+  defp capture_queries(fun) do
+    telemetry_prefix =
+      Repo.config()
+      |> Keyword.fetch!(:telemetry_prefix)
+
+    event =
+      telemetry_prefix ++
+        [:query]
+
+    handler_id =
+      {
+        __MODULE__,
+        make_ref()
+      }
+
+    parent =
+      self()
+
+    :ok =
+      :telemetry.attach(
+        handler_id,
+        event,
+        fn _event, _measurements, metadata, parent ->
+          send(
+            parent,
+            {
+              :captured_query,
+              metadata.query
+            }
+          )
+        end,
+        parent
+      )
+
+    try do
+      fun.()
+      drain_queries([])
+    after
+      :telemetry.detach(handler_id)
+    end
+  end
+
+  defp drain_queries(queries) do
+    receive do
+      {
+        :captured_query,
+        query
+      } ->
+        drain_queries([query | queries])
+    after
+      0 ->
+        Enum.reverse(queries)
+    end
   end
 
   defp unique_record_id do
