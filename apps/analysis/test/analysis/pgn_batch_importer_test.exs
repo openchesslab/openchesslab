@@ -1,8 +1,11 @@
 defmodule Analysis.PgnBatchImporterTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
+  alias Analysis.GameRecord
+  alias Analysis.GameRecords
   alias Analysis.GameStart
   alias Analysis.PgnBatchImporter
+  alias Analysis.PgnImporter
 
   test "parses headered games in source order" do
     pgn = """
@@ -135,5 +138,217 @@ defmodule Analysis.PgnBatchImporterTest do
   test "rejects an empty batch" do
     assert PgnBatchImporter.parse(" \n\n ") ==
              {:error, :empty_batch}
+  end
+
+  test "durably imports parsed games using caller supplied record IDs" do
+    first_id =
+      unique_record_id()
+
+    second_id =
+      unique_record_id()
+
+    pgn = """
+    [Event "First"]
+    [White "Alice"]
+    [Black "Bob"]
+
+    1. e4 e5 *
+
+    [Event "Second"]
+    [White "Carol"]
+    [Black "Dave"]
+
+    1. d4 d5 *
+    """
+
+    assert {:ok, [first, second]} =
+             PgnBatchImporter.import_games(
+               [
+                 first_id,
+                 second_id
+               ],
+               pgn
+             )
+
+    assert GameRecord.id(first) ==
+             first_id
+
+    assert GameRecord.id(second) ==
+             second_id
+
+    assert GameRecord.metadata(first)["event"] ==
+             "First"
+
+    assert GameRecord.metadata(second)["event"] ==
+             "Second"
+
+    assert {:ok, ^first, _content, _occurrences} =
+             GameRecords.load(first_id)
+
+    assert {:ok, ^second, _content, _occurrences} =
+             GameRecords.load(second_id)
+  end
+
+  test "does not persist any games when parsing the batch fails" do
+    first_id =
+      unique_record_id()
+
+    second_id =
+      unique_record_id()
+
+    pgn = """
+    [Event "Valid"]
+
+    1. e4 e5 *
+
+    [Event "Broken"]
+
+    1. d4 ThisIsNotSAN *
+    """
+
+    assert {:error,
+            {
+              :invalid_game,
+              2,
+              {
+                :invalid_pgn,
+                _message
+              }
+            }} =
+             PgnBatchImporter.import_games(
+               [
+                 first_id,
+                 second_id
+               ],
+               pgn
+             )
+
+    assert GameRecords.get(first_id) ==
+             :not_found
+
+    assert GameRecords.get(second_id) ==
+             :not_found
+  end
+
+  test "requires exactly one record ID per game before persistence" do
+    record_id =
+      unique_record_id()
+
+    pgn = """
+    [Event "First"]
+
+    1. e4 *
+
+    [Event "Second"]
+
+    1. d4 *
+    """
+
+    assert PgnBatchImporter.import_games(
+             [record_id],
+             pgn
+           ) ==
+             {:error,
+              {
+                :record_id_count_mismatch,
+                2,
+                1
+              }}
+
+    assert GameRecords.get(record_id) ==
+             :not_found
+  end
+
+  test "rejects duplicate record IDs before persistence" do
+    record_id =
+      unique_record_id()
+
+    pgn = """
+    [Event "First"]
+
+    1. e4 *
+
+    [Event "Second"]
+
+    1. d4 *
+    """
+
+    assert PgnBatchImporter.import_games(
+             [
+               record_id,
+               record_id
+             ],
+             pgn
+           ) ==
+             {:error,
+              {
+                :duplicate_record_id,
+                2
+              }}
+
+    assert GameRecords.get(record_id) ==
+             :not_found
+  end
+
+  test "keeps the successful prefix when persistence of a later game fails" do
+    first_id =
+      unique_record_id()
+
+    existing_id =
+      unique_record_id()
+
+    assert {:ok, existing} =
+             PgnImporter.import_game(
+               existing_id,
+               """
+               [Event "Existing"]
+
+               1. c4 *
+               """
+             )
+
+    pgn = """
+    [Event "First"]
+
+    1. e4 *
+
+    [Event "Second"]
+
+    1. d4 *
+    """
+
+    assert PgnBatchImporter.import_games(
+             [
+               first_id,
+               existing_id
+             ],
+             pgn
+           ) ==
+             {:error,
+              {
+                :import_failed,
+                2,
+                :already_exists
+              }}
+
+    assert {:ok, first} =
+             GameRecords.get(first_id)
+
+    assert GameRecord.id(first) ==
+             first_id
+
+    assert GameRecord.metadata(first)["event"] ==
+             "First"
+
+    assert GameRecords.get(existing_id) ==
+             {:ok, existing}
+  end
+
+  defp unique_record_id do
+    "pgn-batch-import-test-" <>
+      Base.url_encode64(
+        :crypto.strong_rand_bytes(16),
+        padding: false
+      )
   end
 end

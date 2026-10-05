@@ -41,7 +41,8 @@ defmodule Analysis.PgnImporter do
         }
 
   @type import_error ::
-          {:invalid_pgn, String.t()}
+          :invalid_parsed_game
+          | {:invalid_pgn, String.t()}
           | GameRecords.create_error()
 
   @spec import_game(
@@ -52,25 +53,55 @@ defmodule Analysis.PgnImporter do
           | {:error, import_error()}
   def import_game(record_id, pgn) when is_binary(record_id) and byte_size(record_id) > 0 do
     with {:ok, parsed} <-
-           parse(pgn),
-         {:ok, initial_position_id} <-
-           store_initial_position(parsed.initial_position) do
-      content =
-        GameContent.new(
-          initial_position_id,
-          parsed.moves
-        )
-
-      GameRecords.create(
+           parse(pgn) do
+      import_parsed(
         record_id,
-        content,
-        parsed.start,
-        metadata(parsed.headers)
+        parsed
       )
     end
   end
 
   def import_game(_record_id, _pgn) do
+    {:error, :invalid_record_id}
+  end
+
+  @spec import_parsed(
+          GameRecord.id(),
+          result()
+        ) ::
+          {:ok, GameRecord.t()}
+          | {:error, import_error()}
+  def import_parsed(record_id, %{
+        headers: headers,
+        initial_position: %Position{} = initial_position,
+        start: %GameStart{} = start,
+        moves: moves,
+        final_position: %Position{}
+      })
+      when is_binary(record_id) and byte_size(record_id) > 0 and is_map(headers) and
+             is_list(moves) do
+    with {:ok, initial_position_id} <-
+           store_initial_position(initial_position) do
+      content =
+        GameContent.new(
+          initial_position_id,
+          moves
+        )
+
+      GameRecords.create(
+        record_id,
+        content,
+        start,
+        metadata(headers)
+      )
+    end
+  end
+
+  def import_parsed(record_id, _parsed) when is_binary(record_id) and byte_size(record_id) > 0 do
+    {:error, :invalid_parsed_game}
+  end
+
+  def import_parsed(_record_id, _parsed) do
     {:error, :invalid_record_id}
   end
 
