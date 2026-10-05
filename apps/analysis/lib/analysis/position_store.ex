@@ -90,16 +90,60 @@ defmodule Analysis.PositionStore do
   """
 
   @insert_positions_sql """
-  INSERT INTO positions (record)
-  SELECT DISTINCT
-    input.record
-  FROM unnest($1::bytea[]) AS input(record)
+  WITH inserted_positions AS (
+    INSERT INTO positions (record)
+    SELECT DISTINCT
+      input.record
+    FROM unnest($1::bytea[]) AS input(record)
+    ORDER BY
+      input.record
+    ON CONFLICT (record) DO NOTHING
+    RETURNING
+      id,
+      record
+  ),
+  feature_input AS (
+    SELECT
+      input.record,
+      input.property,
+      input.ordinality
+    FROM unnest(
+      $2::bytea[],
+      $3::bytea[]
+    )
+      WITH ORDINALITY AS input(
+        record,
+        property,
+        ordinality
+      )
+  ),
+  inserted_features AS (
+    INSERT INTO position_features (
+      position_id,
+      properties
+    )
+    SELECT
+      inserted_positions.id,
+      array_agg(
+        feature_input.property
+        ORDER BY feature_input.ordinality
+      )
+    FROM inserted_positions
+    JOIN feature_input
+      ON feature_input.record = inserted_positions.record
+    GROUP BY
+      inserted_positions.id
+    RETURNING
+      position_id
+  )
+  SELECT
+    inserted_positions.id,
+    inserted_positions.record
+  FROM inserted_positions
+  JOIN inserted_features
+    ON inserted_features.position_id = inserted_positions.id
   ORDER BY
-    input.record
-  ON CONFLICT (record) DO NOTHING
-  RETURNING
-    id,
-    record
+    inserted_positions.record
   """
 
   @find_position_ids_sql """
@@ -524,17 +568,23 @@ defmodule Analysis.PositionStore do
     positions_by_record =
       Map.new(encoded_positions)
 
-    transact(fn ->
-      with {:ok, inserted_rows} <-
-             insert_positions(records),
-           :ok <-
-             put_inserted_features(
-               inserted_rows,
-               positions_by_record
-             ) do
-        find_position_ids(records)
-      end
-    end)
+    with {
+           :ok,
+           feature_records,
+           feature_properties
+         } <-
+           encode_feature_rows(positions_by_record) do
+      transact(fn ->
+        with {:ok, _inserted_rows} <-
+               insert_positions(
+                 records,
+                 feature_records,
+                 feature_properties
+               ) do
+          find_position_ids(records)
+        end
+      end)
+    end
   end
 
   defp put_position(%Position{} = position) do
@@ -575,10 +625,14 @@ defmodule Analysis.PositionStore do
     end
   end
 
-  defp insert_positions(records) do
+  defp insert_positions(records, feature_records, feature_properties) do
     case Repo.query(
            @insert_positions_sql,
-           [records]
+           [
+             records,
+             feature_records,
+             feature_properties
+           ]
          ) do
       {:ok, %{rows: rows}} ->
         {:ok, rows}
@@ -635,35 +689,62 @@ defmodule Analysis.PositionStore do
     end
   end
 
-  defp put_inserted_features(inserted_rows, positions_by_record) do
-    Enum.reduce_while(
-      inserted_rows,
-      :ok,
+  defp encode_feature_rows(positions_by_record) do
+    positions_by_record
+    |> Enum.sort_by(fn {record, _position} ->
+      record
+    end)
+    |> Enum.reduce_while(
+      {
+        :ok,
+        [],
+        []
+      },
       fn
-        [
-          position_id,
-          record
-        ],
-        :ok ->
-          with {:ok, position} <-
-                 Map.fetch(
-                   positions_by_record,
-                   record
-                 ),
-               {:ok, properties} <-
-                 encoded_properties(position),
-               :ok <-
-                 put_features(
-                   position_id,
-                   properties
-                 ) do
-            {:cont, :ok}
-          else
-            :error ->
-              {:halt,
+        {
+          record,
+          %Position{} = position
+        },
+        {
+          :ok,
+          reversed_records,
+          reversed_properties
+        } ->
+          case encoded_properties(position) do
+            {:ok, properties} ->
+              {
+                reversed_records,
+                reversed_properties
+              } =
+                Enum.reduce(
+                  properties,
+                  {
+                    reversed_records,
+                    reversed_properties
+                  },
+                  fn property,
+                     {
+                       reversed_records,
+                       reversed_properties
+                     } ->
+                    {
+                      [
+                        record
+                        | reversed_records
+                      ],
+                      [
+                        property
+                        | reversed_properties
+                      ]
+                    }
+                  end
+                )
+
+              {:cont,
                {
-                 :error,
-                 :inserted_position_not_in_batch
+                 :ok,
+                 reversed_records,
+                 reversed_properties
                }}
 
             {:error, reason} ->
@@ -675,6 +756,17 @@ defmodule Analysis.PositionStore do
           end
       end
     )
+    |> case do
+      {
+        :ok,
+        reversed_records,
+        reversed_properties
+      } ->
+        {:ok, Enum.reverse(reversed_records), Enum.reverse(reversed_properties)}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 
   defp put_features_if_needed(position, position_id, :inserted) do
