@@ -1,4 +1,4 @@
-defmodule Web.PgnImporter do
+defmodule Analysis.PgnImporter do
   @moduledoc """
   Parses bounded main-line PGNs and imports them as durable played games.
 

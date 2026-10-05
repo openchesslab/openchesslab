@@ -7,6 +7,7 @@ defmodule Web.RoomLive do
   alias Analysis.AnalysisEvents
   alias Analysis.Analyses
   alias Analysis.Node
+  alias Analysis.PgnImporter
   alias Analysis.RoomChat
   alias Analysis.RoomEvents
   alias Analysis.Rooms
@@ -14,7 +15,6 @@ defmodule Web.RoomLive do
   alias Chess.PositionDraft
   alias Web.AnalysisView
   alias Web.DemoData
-  alias Web.PgnImporter
   alias Web.Presence
 
   @shape_colors ~w(yellow blue red orange purple)

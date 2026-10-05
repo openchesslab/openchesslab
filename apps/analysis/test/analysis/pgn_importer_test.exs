@@ -1,17 +1,27 @@
-defmodule Web.PgnImporterTest do
+defmodule Analysis.PgnImporterTest do
   use ExUnit.Case, async: false
 
   alias Analysis.GameContent
   alias Analysis.GameRecord
   alias Analysis.GameRecords
+  alias Analysis.PgnImporter
   alias Analysis.PositionStore
   alias Chess.Position
-  alias Web.DemoData
-  alias Web.PgnImporter
 
-  test "parses the sample main line and validates every SAN move" do
+  @sample_pgn """
+  [Event "OpenChessLab sample"]
+  [Site "Local demo"]
+  [Date "2026.01.01"]
+  [White "Alice Example"]
+  [Black "Boris Example"]
+  [Result "*"]
+
+  1. e4 {A classical opening} e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 *
+  """
+
+  test "parses a main line and validates every SAN move" do
     assert {:ok, parsed} =
-             PgnImporter.parse(DemoData.game("demo-ruy-lopez").pgn)
+             PgnImporter.parse(@sample_pgn)
 
     assert length(parsed.moves) ==
              10
