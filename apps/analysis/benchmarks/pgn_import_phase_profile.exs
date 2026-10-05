@@ -7,9 +7,13 @@ defmodule Analysis.PgnImportPhaseProfile do
 
   alias Analysis.PgnBatchImporter
   alias Analysis.PgnImporter
+  alias Chess.Notation.SAN
+  alias Chess.Position
   alias OpenChessLab.Repo
 
-  def build_fixture(path, game_count) do
+  @unique_game_plies 4
+
+  def build_fixture(path, game_count, :duplicate) do
     File.open!(
       path,
       [:write, :utf8],
@@ -17,20 +21,36 @@ defmodule Analysis.PgnImportPhaseProfile do
         Enum.each(
           1..game_count,
           fn index ->
-            IO.write(
+            write_game(
               io,
-              """
-              [Event "PGN phase profile #{index}"]
-              [White "Alice"]
-              [Black "Bob"]
-              [Result "*"]
-
-              1. e4 e5 2. Nf3 Nc6 *
-
-              """
+              index,
+              "1. e4 e5 2. Nf3 Nc6 *"
             )
           end
         )
+      end
+    )
+
+    File.stat!(path).size
+  end
+
+  def build_fixture(path, game_count, :unique) do
+    movetexts =
+      unique_movetexts(game_count)
+
+    File.open!(
+      path,
+      [:write, :utf8],
+      fn io ->
+        movetexts
+        |> Enum.with_index(1)
+        |> Enum.each(fn {movetext, index} ->
+          write_game(
+            io,
+            index,
+            movetext
+          )
+        end)
       end
     )
 
@@ -225,6 +245,155 @@ defmodule Analysis.PgnImportPhaseProfile do
     Enum.max(values)
   end
 
+  defp write_game(io, index, movetext) do
+    IO.write(
+      io,
+      """
+      [Event "PGN phase profile #{index}"]
+      [White "Alice"]
+      [Black "Bob"]
+      [Result "*"]
+
+      #{movetext}
+
+      """
+    )
+  end
+
+  defp unique_movetexts(game_count) do
+    {
+      reversed_games,
+      remaining
+    } =
+      collect_games(
+        Position.starting_position(),
+        @unique_game_plies,
+        [],
+        [],
+        game_count
+      )
+
+    if remaining != 0 do
+      generated_count =
+        game_count - remaining
+
+      raise """
+      could generate only #{generated_count} unique #{@unique_game_plies}-ply games,
+      requested #{game_count}
+      """
+    end
+
+    reversed_games
+    |> Enum.reverse()
+    |> Enum.map(&format_movetext/1)
+  end
+
+  defp collect_games(_position, _plies_remaining, _reversed_sans, games, 0) do
+    {
+      games,
+      0
+    }
+  end
+
+  defp collect_games(_position, 0, reversed_sans, games, remaining) do
+    {
+      [
+        Enum.reverse(reversed_sans)
+        | games
+      ],
+      remaining - 1
+    }
+  end
+
+  defp collect_games(position, plies_remaining, reversed_sans, games, remaining) do
+    position
+    |> Position.legal_moves()
+    |> Enum.reduce_while(
+      {
+        games,
+        remaining
+      },
+      fn move, {games, remaining} ->
+        if remaining == 0 do
+          {:halt,
+           {
+             games,
+             remaining
+           }}
+        else
+          {:ok, san} =
+            SAN.format(
+              position,
+              move
+            )
+
+          {:ok, next_position} =
+            Position.apply_move(
+              position,
+              move
+            )
+
+          {
+            games,
+            remaining
+          } =
+            collect_games(
+              next_position,
+              plies_remaining - 1,
+              [
+                san
+                | reversed_sans
+              ],
+              games,
+              remaining
+            )
+
+          if remaining == 0 do
+            {:halt,
+             {
+               games,
+               remaining
+             }}
+          else
+            {:cont,
+             {
+               games,
+               remaining
+             }}
+          end
+        end
+      end
+    )
+  end
+
+  defp format_movetext(sans) do
+    sans
+    |> Enum.chunk_every(2)
+    |> Enum.with_index(1)
+    |> Enum.map_join(
+      " ",
+      fn
+        {
+          [
+            white,
+            black
+          ],
+          move_number
+        } ->
+          "#{move_number}. #{white} #{black}"
+
+        {
+          [
+            white
+          ],
+          move_number
+        } ->
+          "#{move_number}. #{white}"
+      end
+    )
+    |> Kernel.<>(" *")
+  end
+
   defp measure(fun) when is_function(fun, 0) do
     :erlang.garbage_collect()
 
@@ -284,6 +453,24 @@ run_count =
   )
   |> String.to_integer()
 
+fixture_mode =
+  case System.get_env(
+         "PGN_IMPORT_PHASE_FIXTURE",
+         "duplicate"
+       ) do
+    "duplicate" ->
+      :duplicate
+
+    "unique" ->
+      :unique
+
+    fixture ->
+      raise """
+      PGN_IMPORT_PHASE_FIXTURE must be "duplicate" or "unique",
+      got #{inspect(fixture)}
+      """
+  end
+
 if game_count <= 0 do
   raise "PGN_IMPORT_PHASE_GAMES must be positive"
 end
@@ -302,14 +489,16 @@ try do
   IO.puts("""
   Building PGN import phase-profile fixture...
 
-  games: #{game_count}
-  runs:  #{run_count}
+  games:   #{game_count}
+  runs:    #{run_count}
+  fixture: #{fixture_mode}
   """)
 
   file_size =
     Profile.build_fixture(
       path,
-      game_count
+      game_count,
+      fixture_mode
     )
 
   pgn =
@@ -365,7 +554,7 @@ try do
 
         IO.puts("""
         Run #{run}:
-          parse only:  #{Profile.format_seconds(result.parse_seconds)} | #{Profile.format_rate(game_count, result.parse_seconds)}
+          parse only:   #{Profile.format_seconds(result.parse_seconds)} | #{Profile.format_rate(game_count, result.parse_seconds)}
           persist only: #{Profile.format_seconds(result.persist_seconds)} | #{Profile.format_rate(game_count, result.persist_seconds)}
           end-to-end:   #{Profile.format_seconds(result.end_to_end_seconds)} | #{Profile.format_rate(game_count, result.end_to_end_seconds)}
         """)
@@ -404,25 +593,26 @@ try do
   IO.puts("""
   PGN import phase profile
 
-  games: #{game_count}
-  runs:  #{run_count}
+  games:   #{game_count}
+  runs:    #{run_count}
+  fixture: #{fixture_mode}
 
   Parse only:
-    min:        #{Profile.format_seconds(Profile.minimum(parse_times))}
-    median:     #{Profile.format_seconds(parse_median)}
-    max:        #{Profile.format_seconds(Profile.maximum(parse_times))}
+    min:         #{Profile.format_seconds(Profile.minimum(parse_times))}
+    median:      #{Profile.format_seconds(parse_median)}
+    max:         #{Profile.format_seconds(Profile.maximum(parse_times))}
     median rate: #{Profile.format_rate(game_count, parse_median)}
 
   Persist pre-parsed games:
-    min:        #{Profile.format_seconds(Profile.minimum(persist_times))}
-    median:     #{Profile.format_seconds(persist_median)}
-    max:        #{Profile.format_seconds(Profile.maximum(persist_times))}
+    min:         #{Profile.format_seconds(Profile.minimum(persist_times))}
+    median:      #{Profile.format_seconds(persist_median)}
+    max:         #{Profile.format_seconds(Profile.maximum(persist_times))}
     median rate: #{Profile.format_rate(game_count, persist_median)}
 
   Streaming end-to-end:
-    min:        #{Profile.format_seconds(Profile.minimum(end_to_end_times))}
-    median:     #{Profile.format_seconds(end_to_end_median)}
-    max:        #{Profile.format_seconds(Profile.maximum(end_to_end_times))}
+    min:         #{Profile.format_seconds(Profile.minimum(end_to_end_times))}
+    median:      #{Profile.format_seconds(end_to_end_median)}
+    max:         #{Profile.format_seconds(Profile.maximum(end_to_end_times))}
     median rate: #{Profile.format_rate(game_count, end_to_end_median)}
   """)
 after
