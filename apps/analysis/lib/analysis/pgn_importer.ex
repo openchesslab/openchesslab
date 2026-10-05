@@ -22,6 +22,7 @@ defmodule Analysis.PgnImporter do
   alias Analysis.GameContent
   alias Analysis.GameRecord
   alias Analysis.GameRecords
+  alias Analysis.GameReplay
   alias Analysis.GameStart
   alias Analysis.PositionStore
   alias Chess.Notation.FEN
@@ -38,6 +39,7 @@ defmodule Analysis.PgnImporter do
           initial_position: Position.t(),
           start: GameStart.t(),
           moves: [Chess.Move.t()],
+          replay: [GameReplay.occurrence()],
           final_position: Position.t()
         }
 
@@ -77,10 +79,11 @@ defmodule Analysis.PgnImporter do
         initial_position: %Position{} = initial_position,
         start: %GameStart{} = start,
         moves: moves,
+        replay: replay,
         final_position: %Position{}
       })
       when is_binary(record_id) and byte_size(record_id) > 0 and is_map(headers) and
-             is_list(moves) do
+             is_list(moves) and is_list(replay) do
     Repo.transact(fn ->
       with {:ok, initial_position_id} <-
              store_initial_position(initial_position) do
@@ -90,11 +93,12 @@ defmodule Analysis.PgnImporter do
             moves
           )
 
-        GameRecords.create(
+        GameRecords.create_replayed(
           record_id,
           content,
           start,
-          metadata(headers)
+          metadata(headers),
+          replay
         )
       end
     end)
@@ -119,7 +123,7 @@ defmodule Analysis.PgnImporter do
            validate_single_game(pgn),
          {:ok, initial_position, start} <-
            starting_context(headers),
-         {:ok, position, moves} <-
+         {:ok, position, replay} <-
            pgn
            |> movetext()
            |> tokenize()
@@ -127,15 +131,24 @@ defmodule Analysis.PgnImporter do
              initial_position,
              []
            ) do
-      if moves == [] do
+      if replay == [] do
         {:error, {:invalid_pgn, "No moves found"}}
       else
+        moves =
+          Enum.map(
+            replay,
+            fn {move, _position} ->
+              move
+            end
+          )
+
         {:ok,
          %{
            headers: headers,
            initial_position: initial_position,
            start: start,
-           moves: Enum.reverse(moves),
+           moves: moves,
+           replay: replay,
            final_position: position
          }}
       end
@@ -433,11 +446,11 @@ defmodule Analysis.PgnImporter do
     ]
   end
 
-  defp replay([], position, moves) do
-    {:ok, position, moves}
+  defp replay([], position, replay) do
+    {:ok, position, Enum.reverse(replay)}
   end
 
-  defp replay([token | rest], position, moves) do
+  defp replay([token | rest], position, replay) do
     token =
       normalize_san(token)
 
@@ -454,7 +467,13 @@ defmodule Analysis.PgnImporter do
             replay(
               rest,
               next_position,
-              [move | moves]
+              [
+                {
+                  move,
+                  next_position
+                }
+                | replay
+              ]
             )
 
           {:error, :illegal_move} ->

@@ -16,6 +16,7 @@ defmodule Analysis.GameRecords do
   alias Analysis.GameStart
   alias Analysis.GameStore
   alias Analysis.PositionStore
+  alias Chess.Position
   alias OpenChessLab.Repo
 
   @type create_error ::
@@ -55,6 +56,46 @@ defmodule Analysis.GameRecords do
   end
 
   def create(_record_id, %GameContent{}, %GameStart{}, metadata) when is_map(metadata) do
+    {:error, :invalid_record_id}
+  end
+
+  @doc """
+  Creates a durable game record from a replay that has already been validated.
+
+  Unlike `create/4`, this function does not resolve the initial position or
+  apply the canonical moves again. The caller must have produced the replay
+  while validating exactly the moves in the supplied game content.
+
+  The replay is still checked structurally against the canonical move list so
+  mismatched content and replay data cannot accidentally be persisted.
+  """
+  @spec create_replayed(
+          GameRecord.id(),
+          GameContent.t(),
+          GameStart.t(),
+          GameRecord.metadata(),
+          [GameReplay.occurrence()]
+        ) ::
+          {:ok, GameRecord.t()}
+          | {:error, create_error()}
+  def create_replayed(record_id, %GameContent{} = content, %GameStart{} = start, metadata, replay)
+      when is_binary(record_id) and byte_size(record_id) > 0 and is_map(metadata) and
+             is_list(replay) do
+    if GameRecord.valid_metadata?(metadata) do
+      do_create_replayed(
+        record_id,
+        content,
+        start,
+        metadata,
+        replay
+      )
+    else
+      {:error, :invalid_metadata}
+    end
+  end
+
+  def create_replayed(_record_id, %GameContent{}, %GameStart{}, metadata, replay)
+      when is_map(metadata) and is_list(replay) do
     {:error, :invalid_record_id}
   end
 
@@ -98,27 +139,57 @@ defmodule Analysis.GameRecords do
            fingerprint(content),
          {:ok, replay} <-
            replay(content) do
-      transact(fn ->
-        with {:ok, position_ids} <-
-               append_replay_positions(
-                 content,
-                 replay
-               ),
-             {:ok, game_id} <-
-               store_canonical_game(
-                 fingerprint,
-                 content,
-                 position_ids
-               ) do
-          store_game_record(
-            record_id,
-            game_id,
-            start,
-            metadata
-          )
-        end
-      end)
+      persist(
+        record_id,
+        content,
+        start,
+        metadata,
+        fingerprint,
+        replay
+      )
     end
+  end
+
+  defp do_create_replayed(record_id, content, start, metadata, replay) do
+    with {:ok, fingerprint} <-
+           fingerprint(content),
+         :ok <-
+           validate_replay(
+             content,
+             replay
+           ) do
+      persist(
+        record_id,
+        content,
+        start,
+        metadata,
+        fingerprint,
+        replay
+      )
+    end
+  end
+
+  defp persist(record_id, content, start, metadata, fingerprint, replay) do
+    transact(fn ->
+      with {:ok, position_ids} <-
+             append_replay_positions(
+               content,
+               replay
+             ),
+           {:ok, game_id} <-
+             store_canonical_game(
+               fingerprint,
+               content,
+               position_ids
+             ) do
+        store_game_record(
+          record_id,
+          game_id,
+          start,
+          metadata
+        )
+      end
+    end)
   end
 
   defp store_game_record(record_id, game_id, start, metadata) do
@@ -243,6 +314,33 @@ defmodule Analysis.GameRecords do
            reason
          }}
     end
+  end
+
+  defp validate_replay(content, replay) do
+    validate_replay_moves(
+      GameContent.moves(content),
+      replay
+    )
+  end
+
+  defp validate_replay_moves([], []) do
+    :ok
+  end
+
+  defp validate_replay_moves([move | moves], [{replay_move, %Position{}} | replay])
+       when replay_move == move do
+    validate_replay_moves(
+      moves,
+      replay
+    )
+  end
+
+  defp validate_replay_moves(_moves, _replay) do
+    {:error,
+     {
+       :invalid_game,
+       :invalid_replay
+     }}
   end
 
   defp append_replay_positions(content, replay) do
