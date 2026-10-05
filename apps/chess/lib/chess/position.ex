@@ -572,16 +572,16 @@ defmodule Chess.Position do
           {:error, :illegal_move}
         end
 
-      {7, {:white, _piece}} when rem(from, 8) > 0 ->
+      {7, {:white, _piece}} when rem(from, 8) < 7 ->
         capture_pawn(position, from, to, :black, :white, promotion)
 
-      {9, {:white, _piece}} when rem(from, 8) < 7 ->
+      {9, {:white, _piece}} when rem(from, 8) > 0 ->
         capture_pawn(position, from, to, :black, :white, promotion)
 
-      {7, nil} when rem(from, 8) > 0 ->
+      {7, nil} when rem(from, 8) < 7 ->
         en_passant_capture(position, :black, from, to, :white)
 
-      {9, nil} when rem(from, 8) < 7 ->
+      {9, nil} when rem(from, 8) > 0 ->
         en_passant_capture(position, :black, from, to, :white)
 
       _ ->
@@ -1004,35 +1004,24 @@ defmodule Chess.Position do
     end
   end
 
-  defp en_passant_capture(position, color, from, to, captured_color) do
-    if position.en_passant == to do
-      captured_square =
-        case color do
-          :white -> to - 8
-          :black -> to + 8
-        end
+  defp en_passant_capture(position, :white, from, to, :black) do
+    do_en_passant_capture(
+      position,
+      from,
+      to,
+      to - 8,
+      :black
+    )
+  end
 
-      if piece_at(position, captured_square) == {captured_color, :pawn} do
-        piece = piece_at(position, from)
-
-        position =
-          position
-          |> remove_piece(from)
-          |> remove_piece(captured_square)
-          |> put_piece(to, piece)
-
-        {:ok,
-         %{
-           position
-           | side_to_move: captured_color,
-             en_passant: nil
-         }}
-      else
-        {:error, :illegal_move}
-      end
-    else
-      {:error, :illegal_move}
-    end
+  defp en_passant_capture(position, :black, from, to, :white) do
+    do_en_passant_capture(
+      position,
+      from,
+      to,
+      to + 8,
+      :white
+    )
   end
 
   defp adjacent_enemy_pawn?(position, square, enemy_color) do
@@ -1290,5 +1279,32 @@ defmodule Chess.Position do
     |> Board.pieces()
     |> Enum.map(fn {square, {color, kind}} -> [square, "#{color}_#{kind}"] end)
     |> Enum.sort_by(fn [square, _piece] -> square end)
+  end
+
+  defp do_en_passant_capture(position, from, to, captured_square, captured_color) do
+    if position.en_passant == to and
+         piece_at(position, captured_square) ==
+           {captured_color, :pawn} do
+      piece =
+        piece_at(
+          position,
+          from
+        )
+
+      position =
+        position
+        |> remove_piece(from)
+        |> remove_piece(captured_square)
+        |> put_piece(to, piece)
+
+      {:ok,
+       %{
+         position
+         | side_to_move: captured_color,
+           en_passant: nil
+       }}
+    else
+      {:error, :illegal_move}
+    end
   end
 end
