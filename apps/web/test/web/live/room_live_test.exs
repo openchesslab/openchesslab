@@ -3,6 +3,7 @@ defmodule Web.RoomLiveTest do
 
   alias Analysis.Analysis, as: AnalysisModel
   alias Analysis.Analyses
+  alias Analysis.GameRecords
   alias Analysis.Node
   alias Analysis.PositionStore
   alias Analysis.Rooms
@@ -203,21 +204,49 @@ defmodule Web.RoomLiveTest do
     assert html =~ "1/1"
   end
 
-  test "a PGN file upload is replayed into a room analysis", %{conn: conn, code: code} do
-    {:ok, view, _html} = live(conn, "/rooms/#{code}")
-    render_click(view, "open-import", %{})
+  test "a PGN file upload is durably imported into a room analysis",
+       %{
+         conn: conn,
+         code: code
+       } do
+    {:ok, view, _html} =
+      live(
+        conn,
+        "/rooms/#{code}"
+      )
+
+    render_click(
+      view,
+      "open-import",
+      %{}
+    )
 
     upload =
-      file_input(view, "#pgn-import-form", :pgn, [
-        %{
-          name: "sample.pgn",
-          content: DemoData.game("demo-ruy-lopez").pgn,
-          type: "application/x-chess-pgn"
-        }
-      ])
+      file_input(
+        view,
+        "#pgn-import-form",
+        :pgn,
+        [
+          %{
+            name: "sample.pgn",
+            content: DemoData.game("demo-ruy-lopez").pgn,
+            type: "application/x-chess-pgn"
+          }
+        ]
+      )
 
-    render_upload(upload, "sample.pgn")
-    render_submit(view, "import-pgn", %{"pgn_text" => ""})
+    render_upload(
+      upload,
+      "sample.pgn"
+    )
+
+    render_submit(
+      view,
+      "import-pgn",
+      %{
+        "pgn_text" => ""
+      }
+    )
 
     analysis_id =
       room_analysis_id!(code)
@@ -225,7 +254,29 @@ defmodule Web.RoomLiveTest do
     assert {:ok, analysis, _revision} =
              Analyses.get(analysis_id)
 
-    assert length(AnalysisView.move_entries(analysis, "en")) == 10
+    assert length(
+             AnalysisView.move_entries(
+               analysis,
+               "en"
+             )
+           ) ==
+             10
+
+    assert is_binary(analysis.source_game_record_id)
+
+    assert {
+             :ok,
+             _record,
+             content,
+             occurrences
+           } =
+             GameRecords.load(analysis.source_game_record_id)
+
+    assert length(content.moves) ==
+             10
+
+    assert length(occurrences) ==
+             11
   end
 
   test "a pasted PGN imports into a room analysis", %{conn: conn, code: code} do

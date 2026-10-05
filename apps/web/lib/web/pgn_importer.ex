@@ -1,13 +1,24 @@
 defmodule Web.PgnImporter do
   @moduledoc """
-  Small main-line PGN reader used by the web demo importer.
+  Parses bounded main-line PGNs and imports them as durable played games.
 
-  This is deliberately scoped to the UI's pasted/sample PGNs: it reads
-  SAN from the standard starting position, ignores comments and side
-  variations, and asks the chess application to validate every move.
-  It is not a replacement for a canonical game import service.
+  PGNs are interpreted from the standard starting position. Comments,
+  NAGs and side variations do not contribute to canonical played-game
+  content and are ignored.
+
+  Custom FEN starting positions are not supported yet and are rejected
+  explicitly rather than being interpreted as standard-start games.
+
+  Durable imports are stored through `Analysis.GameRecords`, which owns
+  canonical game reuse, occurrence creation and concrete game-record
+  persistence.
   """
 
+  alias Analysis.GameContent
+  alias Analysis.GameRecord
+  alias Analysis.GameRecords
+  alias Analysis.GameStart
+  alias Analysis.PositionStore
   alias Chess.Notation.SAN
   alias Chess.Position
 
@@ -19,101 +30,297 @@ defmodule Web.PgnImporter do
           final_position: Position.t()
         }
 
-  @spec parse(String.t()) :: {:ok, result()} | {:error, {:invalid_pgn, String.t()}}
+  @type import_error ::
+          {:invalid_pgn, String.t()}
+          | GameRecords.create_error()
+
+  @spec import_game(
+          GameRecord.id(),
+          String.t()
+        ) ::
+          {:ok, GameRecord.t()}
+          | {:error, import_error()}
+  def import_game(record_id, pgn) when is_binary(record_id) and byte_size(record_id) > 0 do
+    with {:ok, parsed} <-
+           parse(pgn),
+         {:ok, initial_position_id} <-
+           store_initial_position() do
+      content =
+        GameContent.new(
+          initial_position_id,
+          parsed.moves
+        )
+
+      GameRecords.create(
+        record_id,
+        content,
+        GameStart.standard(),
+        metadata(parsed.headers)
+      )
+    end
+  end
+
+  def import_game(_record_id, _pgn) do
+    {:error, :invalid_record_id}
+  end
+
+  @spec parse(String.t()) ::
+          {:ok, result()}
+          | {:error, {:invalid_pgn, String.t()}}
   def parse(pgn) when is_binary(pgn) and byte_size(pgn) <= @max_pgn_bytes do
-    headers = parse_headers(pgn)
+    headers =
+      parse_headers(pgn)
 
-    pgn
-    |> movetext()
-    |> tokenize()
-    |> replay(Position.starting_position(), [])
-    |> case do
-      {:ok, position, moves} ->
-        if moves == [] do
-          {:error, {:invalid_pgn, "No moves found"}}
-        else
-          {:ok, %{headers: headers, moves: Enum.reverse(moves), final_position: position}}
-        end
-
+    with :ok <-
+           validate_standard_start(headers),
+         {:ok, position, moves} <-
+           pgn
+           |> movetext()
+           |> tokenize()
+           |> replay(
+             Position.starting_position(),
+             []
+           ) do
+      if moves == [] do
+        {:error, {:invalid_pgn, "No moves found"}}
+      else
+        {:ok,
+         %{
+           headers: headers,
+           moves: Enum.reverse(moves),
+           final_position: position
+         }}
+      end
+    else
       {:error, message} ->
         {:error, {:invalid_pgn, message}}
     end
   end
 
-  def parse(_pgn), do: {:error, {:invalid_pgn, "PGN is too large or invalid"}}
+  def parse(_pgn) do
+    {:error, {:invalid_pgn, "PGN is too large or invalid"}}
+  end
+
+  defp store_initial_position do
+    case PositionStore.append(Position.starting_position()) do
+      position_id
+      when is_integer(position_id) and
+             position_id > 0 ->
+        {:ok, position_id}
+
+      {:error, reason} ->
+        {:error,
+         {
+           :position_store,
+           reason
+         }}
+    end
+  end
+
+  defp metadata(headers) do
+    Map.new(
+      headers,
+      fn {key, value} ->
+        {
+          Macro.underscore(key),
+          value
+        }
+      end
+    )
+  end
+
+  defp validate_standard_start(headers) do
+    if headers["SetUp"] == "1" or
+         Map.has_key?(
+           headers,
+           "FEN"
+         ) do
+      {:error, "Custom starting positions are not supported"}
+    else
+      :ok
+    end
+  end
 
   defp parse_headers(pgn) do
-    Regex.scan(~r/^\s*\[([A-Za-z0-9_]+)\s+"((?:\\.|[^"])*)"\]\s*$/m, pgn)
-    |> Map.new(fn [_, key, value] ->
-      value = value |> String.replace("\\\"", "\"") |> String.replace("\\\\", "\\")
-      {key, value}
+    Regex.scan(
+      ~r/^\s*\[([A-Za-z0-9_]+)\s+"((?:\\.|[^"])*)"\]\s*$/m,
+      pgn
+    )
+    |> Map.new(fn [
+                    _match,
+                    key,
+                    value
+                  ] ->
+      value =
+        value
+        |> String.replace(
+          "\\\"",
+          "\""
+        )
+        |> String.replace(
+          "\\\\",
+          "\\"
+        )
+
+      {
+        key,
+        value
+      }
     end)
   end
 
   defp movetext(pgn) do
     pgn
-    |> String.replace(~r/^\s*\[[^\]]+\]\s*$/m, " ")
-    |> String.replace(~r/\{[^}]*\}/s, " ")
-    |> String.replace(~r/;[^\r\n]*/, " ")
-    |> String.replace(~r/\$\d+/, " ")
+    |> String.replace(
+      ~r/^\s*\[[^\]]+\]\s*$/m,
+      " "
+    )
+    |> String.replace(
+      ~r/\{[^}]*\}/s,
+      " "
+    )
+    |> String.replace(
+      ~r/;[^\r\n]*/,
+      " "
+    )
+    |> String.replace(
+      ~r/\$\d+/,
+      " "
+    )
     |> strip_variations(0)
   end
 
-  defp strip_variations(text, 20), do: text
+  defp strip_variations(text, 20) do
+    text
+  end
 
   defp strip_variations(text, depth) do
-    stripped = String.replace(text, ~r/\([^()]*\)/, " ")
-    if stripped == text, do: text, else: strip_variations(stripped, depth + 1)
+    stripped =
+      String.replace(
+        text,
+        ~r/\([^()]*\)/,
+        " "
+      )
+
+    if stripped == text do
+      text
+    else
+      strip_variations(
+        stripped,
+        depth + 1
+      )
+    end
   end
 
   defp tokenize(text) do
     text
-    |> String.split(~r/\s+/, trim: true)
+    |> String.split(
+      ~r/\s+/,
+      trim: true
+    )
     |> Enum.flat_map(&split_move_number/1)
     |> Enum.reject(&result_token?/1)
   end
 
   defp split_move_number(token) do
-    case Regex.run(~r/^\d+\.(?:\.\.)?(.*)$/, token) do
-      [_, ""] -> []
-      [_, move] -> [move]
-      _ -> [token]
+    case Regex.run(
+           ~r/^\d+\.(?:\.\.)?(.*)$/,
+           token
+         ) do
+      [
+        _match,
+        ""
+      ] ->
+        []
+
+      [
+        _match,
+        move
+      ] ->
+        [move]
+
+      _other ->
+        [token]
     end
   end
 
-  defp result_token?(token), do: token in ["1-0", "0-1", "1/2-1/2", "*"]
+  defp result_token?(token) do
+    token in [
+      "1-0",
+      "0-1",
+      "1/2-1/2",
+      "*"
+    ]
+  end
 
-  defp replay([], position, moves), do: {:ok, position, moves}
+  defp replay([], position, moves) do
+    {:ok, position, moves}
+  end
 
   defp replay([token | rest], position, moves) do
-    token = normalize_san(token)
+    token =
+      normalize_san(token)
 
-    case matching_move(position, token) do
+    case matching_move(
+           position,
+           token
+         ) do
       nil ->
         {:error, "Could not parse move #{token}"}
 
       move ->
-        case Position.apply_move(position, move) do
-          {:ok, next_position} -> replay(rest, next_position, [move | moves])
-          {:error, :illegal_move} -> {:error, "Illegal move #{token}"}
+        case Position.apply_move(
+               position,
+               move
+             ) do
+          {:ok, next_position} ->
+            replay(
+              rest,
+              next_position,
+              [move | moves]
+            )
+
+          {:error, :illegal_move} ->
+            {:error, "Illegal move #{token}"}
         end
     end
   end
 
   defp matching_move(position, token) do
-    Enum.find(Position.legal_moves(position), fn move ->
-      case SAN.format(position, move) do
-        {:ok, san} -> normalize_san(san) == token
-        _ -> false
+    position
+    |> Position.legal_moves()
+    |> Enum.find(fn move ->
+      case SAN.format(
+             position,
+             move
+           ) do
+        {:ok, san} ->
+          normalize_san(san) ==
+            token
+
+        _other ->
+          false
       end
     end)
   end
 
   defp normalize_san(token) do
     token
-    |> String.replace("0-0-0", "O-O-O")
-    |> String.replace("0-0", "O-O")
-    |> String.replace(~r/e\.p\.?$/i, "")
-    |> String.replace(~r/[!?]+$/, "")
+    |> String.replace(
+      "0-0-0",
+      "O-O-O"
+    )
+    |> String.replace(
+      "0-0",
+      "O-O"
+    )
+    |> String.replace(
+      ~r/e\.p\.?$/i,
+      ""
+    )
+    |> String.replace(
+      ~r/[!?]+$/,
+      ""
+    )
   end
 end

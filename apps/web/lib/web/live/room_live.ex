@@ -1375,73 +1375,109 @@ defmodule Web.RoomLive do
   end
 
   defp import_pgn(socket, pgn) when is_binary(pgn) do
-    case PgnImporter.parse(pgn) do
-      {:ok, parsed} ->
-        case create_imported_analysis(socket, parsed.moves) do
+    record_id =
+      new_game_record_id()
+
+    case PgnImporter.import_game(
+           record_id,
+           pgn
+         ) do
+      {:ok, record} ->
+        case create_imported_analysis(
+               socket,
+               record.id
+             ) do
           {:ok, analysis_id} ->
-            socket = refresh_room(socket)
+            socket =
+              refresh_room(socket)
 
             {:noreply,
              socket
-             |> assign(ui_modal: nil, pgn: pgn, import_error: nil, current_path: [])
-             |> push_patch(to: analysis_url(socket.assigns.room_code, analysis_id))
-             |> notify(Web.I18n.plural("room.importedCount", 1, %{message: ""}))}
+             |> assign(
+               ui_modal: nil,
+               pgn: pgn,
+               import_error: nil,
+               current_path: []
+             )
+             |> push_patch(
+               to:
+                 analysis_url(
+                   socket.assigns.room_code,
+                   analysis_id
+                 )
+             )
+             |> notify(
+               Web.I18n.plural(
+                 "room.importedCount",
+                 1,
+                 %{message: ""}
+               )
+             )}
 
           {:error, reason} ->
             {:noreply,
              assign(
                socket,
                import_error:
-                 Web.I18n.t("room.importFailed", socket.assigns.locale, %{
-                   message: inspect(reason)
-                 })
+                 Web.I18n.t(
+                   "room.importFailed",
+                   socket.assigns.locale,
+                   %{
+                     message: inspect(reason)
+                   }
+                 )
              )}
         end
 
-      {:error, {:invalid_pgn, message}} ->
+      {:error,
+       {
+         :invalid_pgn,
+         message
+       }} ->
         {:noreply,
-         assign(socket,
-           import_error: Web.I18n.t("room.parseError", socket.assigns.locale, %{message: message})
+         assign(
+           socket,
+           import_error:
+             Web.I18n.t(
+               "room.parseError",
+               socket.assigns.locale,
+               %{
+                 message: message
+               }
+             )
+         )}
+
+      {:error, reason} ->
+        {:noreply,
+         assign(
+           socket,
+           import_error:
+             Web.I18n.t(
+               "room.importFailed",
+               socket.assigns.locale,
+               %{
+                 message: inspect(reason)
+               }
+             )
          )}
     end
   end
 
-  defp create_imported_analysis(_socket, []), do: {:error, :no_moves}
-
-  defp create_imported_analysis(socket, moves) do
+  defp create_imported_analysis(socket, game_record_id) do
     analysis_id =
       new_analysis_id()
 
     with {:ok, analysis, _revision} <-
-           Analyses.create(analysis_id),
+           Analyses.create_from_game_record(
+             analysis_id,
+             game_record_id
+           ),
          :ok <-
            Rooms.add_analysis(
              socket.assigns.room_code,
              analysis.id
-           ),
-         {:ok, _analysis, _revision, _path} <-
-           replay_import(
-             analysis.id,
-             moves
            ) do
       {:ok, analysis.id}
-    end
-  end
-
-  defp replay_import(analysis_id, moves) do
-    Enum.reduce_while(moves, {:ok, [], nil, nil}, fn move, {:ok, path, _analysis, _revision} ->
-      case Analyses.play(analysis_id, path, move) do
-        {:ok, analysis, revision, next_path} ->
-          {:cont, {:ok, next_path, analysis, revision}}
-
-        {:error, reason} ->
-          {:halt, {:error, reason}}
-      end
-    end)
-    |> case do
-      {:ok, _path, analysis, revision} when not is_nil(analysis) -> {:ok, analysis, revision, []}
-      {:ok, _path, nil, nil} -> {:error, :no_moves}
-      error -> error
     end
   end
 
@@ -2134,6 +2170,14 @@ defmodule Web.RoomLive do
 
   defp eval_fill_style(preview, "black"), do: "height:#{eval_white_share(preview)}%;top:0"
   defp eval_fill_style(preview, _orientation), do: "height:#{eval_white_share(preview)}%;bottom:0"
+
+  defp new_game_record_id do
+    "game-record-" <>
+      Base.url_encode64(
+        :crypto.strong_rand_bytes(16),
+        padding: false
+      )
+  end
 
   defp new_analysis_id do
     "analysis-" <>
