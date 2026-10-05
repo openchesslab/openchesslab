@@ -100,14 +100,6 @@ defmodule Analysis.PostgresPositionStoreBatchTest do
                first
              ])
 
-    Repo.query!(
-      """
-      UPDATE position_features
-      SET properties = '{}'::bytea[]
-      """,
-      []
-    )
-
     queries =
       capture_queries(fn ->
         assert PositionStore.append_many([
@@ -128,7 +120,7 @@ defmodule Analysis.PostgresPositionStoreBatchTest do
              normalized_queries,
              &String.starts_with?(
                &1,
-               "WITH inserted_positions AS"
+               "INSERT INTO positions (record) SELECT DISTINCT input.record FROM unnest"
              )
            ) ==
              1
@@ -144,24 +136,11 @@ defmodule Analysis.PostgresPositionStoreBatchTest do
 
     refute Enum.any?(
              normalized_queries,
-             &String.starts_with?(
+             &String.contains?(
                &1,
                "INSERT INTO position_features"
              )
            )
-
-    assert [
-             [0],
-             [0]
-           ] =
-             Repo.query!(
-               """
-               SELECT cardinality(properties)
-               FROM position_features
-               ORDER BY position_id
-               """,
-               []
-             ).rows
   end
 
   test "concurrent batches reuse canonical positions even when input order differs" do
@@ -227,96 +206,6 @@ defmodule Analysis.PostgresPositionStoreBatchTest do
           end)
       end
     )
-
-    assert [[2]] =
-             Repo.query!(
-               """
-               SELECT count(*)
-               FROM positions
-               """,
-               []
-             ).rows
-
-    assert [[2]] =
-             Repo.query!(
-               """
-               SELECT count(*)
-               FROM position_features
-               """,
-               []
-             ).rows
-  end
-
-  test "new position batches insert positions and features together" do
-    first =
-      Position.starting_position()
-
-    {:ok, second} =
-      Position.apply_move(
-        first,
-        move(
-          "e2",
-          "e4"
-        )
-      )
-
-    queries =
-      capture_queries(fn ->
-        assert {:ok, position_ids} =
-                 PositionStore.append_many([
-                   first,
-                   second
-                 ])
-
-        assert length(position_ids) == 2
-      end)
-
-    normalized_queries =
-      Enum.map(
-        queries,
-        &normalize_query/1
-      )
-
-    combined_inserts =
-      Enum.filter(
-        normalized_queries,
-        &String.starts_with?(
-          &1,
-          "WITH inserted_positions AS"
-        )
-      )
-
-    assert length(combined_inserts) == 1
-
-    [combined_insert] =
-      combined_inserts
-
-    assert String.contains?(
-             combined_insert,
-             "INSERT INTO positions"
-           )
-
-    assert String.contains?(
-             combined_insert,
-             "INSERT INTO position_features"
-           )
-
-    assert Enum.count(
-             normalized_queries,
-             &String.starts_with?(
-               &1,
-               "SELECT p.id FROM unnest"
-             )
-           ) ==
-             1
-
-    refute Enum.any?(
-             normalized_queries,
-             &String.starts_with?(
-               &1,
-               "INSERT INTO position_features"
-             )
-           )
 
     assert [[2]] =
              Repo.query!(
