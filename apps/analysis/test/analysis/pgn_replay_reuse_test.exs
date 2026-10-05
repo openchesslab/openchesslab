@@ -6,7 +6,6 @@ defmodule Analysis.PgnReplayReuseTest do
   alias Analysis.GameRecords
   alias Analysis.GameStart
   alias Analysis.PgnImporter
-  alias Analysis.PositionStore
   alias OpenChessLab.Repo
 
   setup do
@@ -53,7 +52,7 @@ defmodule Analysis.PgnReplayReuseTest do
              parsed.final_position
   end
 
-  test "parsed import does not load the initial position to replay the game again" do
+  test "parsed import persists every game position through one PostgreSQL batch" do
     record_id =
       unique_record_id()
 
@@ -76,10 +75,42 @@ defmodule Analysis.PgnReplayReuseTest do
                  record_id
       end)
 
+    normalized_queries =
+      Enum.map(
+        queries,
+        &normalize_query/1
+      )
+
     refute Enum.any?(
-             queries,
+             normalized_queries,
+             &String.starts_with?(
+               &1,
+               "WITH inserted AS"
+             )
+           )
+
+    assert Enum.count(
+             normalized_queries,
+             &String.starts_with?(
+               &1,
+               "INSERT INTO positions (record) SELECT DISTINCT input.record FROM unnest"
+             )
+           ) ==
+             1
+
+    assert Enum.count(
+             normalized_queries,
+             &String.starts_with?(
+               &1,
+               "SELECT p.id FROM unnest"
+             )
+           ) ==
+             1
+
+    refute Enum.any?(
+             normalized_queries,
              fn query ->
-               normalize_query(query) ==
+               query ==
                  "SELECT record FROM positions WHERE id = $1"
              end
            )
@@ -106,21 +137,13 @@ defmodule Analysis.PgnReplayReuseTest do
     assert {:ok, d4} =
              PgnImporter.parse("1. d4 *")
 
-    initial_position_id =
-      PositionStore.append(e4.initial_position)
-
-    content =
-      GameContent.new(
-        initial_position_id,
-        e4.moves
-      )
-
     record_id =
       unique_record_id()
 
     assert GameRecords.create_replayed(
              record_id,
-             content,
+             e4.initial_position,
+             e4.moves,
              GameStart.standard(),
              %{},
              d4.replay

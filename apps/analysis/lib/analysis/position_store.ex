@@ -89,6 +89,30 @@ defmodule Analysis.PositionStore do
   LIMIT 1
   """
 
+  @insert_positions_sql """
+  INSERT INTO positions (record)
+  SELECT DISTINCT
+    input.record
+  FROM unnest($1::bytea[]) AS input(record)
+  ORDER BY
+    input.record
+  ON CONFLICT (record) DO NOTHING
+  RETURNING
+    id,
+    record
+  """
+
+  @find_position_ids_sql """
+  SELECT
+    p.id
+  FROM unnest($1::bytea[])
+    WITH ORDINALITY AS input(record, ordinality)
+  JOIN positions AS p
+    ON p.record = input.record
+  ORDER BY
+    input.ordinality
+  """
+
   @insert_features_sql """
   INSERT INTO position_features (
     position_id,
@@ -127,6 +151,28 @@ defmodule Analysis.PositionStore do
   end
 
   def append(_position) do
+    {:error, :invalid_position}
+  end
+
+  @spec append_many([Position.t()]) ::
+          {:ok, [position_id()]}
+          | {:error, term()}
+  def append_many([]) do
+    {:ok, []}
+  end
+
+  def append_many(positions) when is_list(positions) do
+    if Enum.all?(
+         positions,
+         &match?(%Position{}, &1)
+       ) do
+      put_many(positions)
+    else
+      {:error, :invalid_position}
+    end
+  end
+
+  def append_many(_positions) do
     {:error, :invalid_position}
   end
 
@@ -455,6 +501,42 @@ defmodule Analysis.PositionStore do
     end)
   end
 
+  defp put_many(positions) do
+    encoded_positions =
+      Enum.map(
+        positions,
+        fn %Position{} = position ->
+          {
+            PositionCodec.encode(position),
+            position
+          }
+        end
+      )
+
+    records =
+      Enum.map(
+        encoded_positions,
+        fn {record, _position} ->
+          record
+        end
+      )
+
+    positions_by_record =
+      Map.new(encoded_positions)
+
+    transact(fn ->
+      with {:ok, inserted_rows} <-
+             insert_positions(records),
+           :ok <-
+             put_inserted_features(
+               inserted_rows,
+               positions_by_record
+             ) do
+        find_position_ids(records)
+      end
+    end)
+  end
+
   defp put_position(%Position{} = position) do
     record =
       PositionCodec.encode(position)
@@ -493,6 +575,53 @@ defmodule Analysis.PositionStore do
     end
   end
 
+  defp insert_positions(records) do
+    case Repo.query(
+           @insert_positions_sql,
+           [records]
+         ) do
+      {:ok, %{rows: rows}} ->
+        {:ok, rows}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp find_position_ids(records) do
+    expected_count =
+      length(records)
+
+    case Repo.query(
+           @find_position_ids_sql,
+           [records]
+         ) do
+      {:ok,
+       %{
+         rows: rows
+       }}
+      when length(rows) == expected_count ->
+        {:ok,
+         Enum.map(
+           rows,
+           fn [position_id] ->
+             position_id
+           end
+         )}
+
+      {:ok, %{rows: rows}} ->
+        {:error,
+         {
+           :unexpected_position_count,
+           expected_count,
+           length(rows)
+         }}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
   defp resolve_concurrent_position(record) do
     case find_record(record) do
       {:ok, position_id} ->
@@ -504,6 +633,48 @@ defmodule Analysis.PositionStore do
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  defp put_inserted_features(inserted_rows, positions_by_record) do
+    Enum.reduce_while(
+      inserted_rows,
+      :ok,
+      fn
+        [
+          position_id,
+          record
+        ],
+        :ok ->
+          with {:ok, position} <-
+                 Map.fetch(
+                   positions_by_record,
+                   record
+                 ),
+               {:ok, properties} <-
+                 encoded_properties(position),
+               :ok <-
+                 put_features(
+                   position_id,
+                   properties
+                 ) do
+            {:cont, :ok}
+          else
+            :error ->
+              {:halt,
+               {
+                 :error,
+                 :inserted_position_not_in_batch
+               }}
+
+            {:error, reason} ->
+              {:halt,
+               {
+                 :error,
+                 reason
+               }}
+          end
+      end
+    )
   end
 
   defp put_features_if_needed(position, position_id, :inserted) do
