@@ -4,8 +4,10 @@ defmodule Analysis.PgnImporterTest do
   alias Analysis.GameContent
   alias Analysis.GameRecord
   alias Analysis.GameRecords
+  alias Analysis.GameStart
   alias Analysis.PgnImporter
   alias Analysis.PositionStore
+  alias Chess.Notation.FEN
   alias Chess.Position
 
   @sample_pgn """
@@ -45,19 +47,64 @@ defmodule Analysis.PgnImporterTest do
              "Could not parse move"
   end
 
-  test "rejects custom starting positions explicitly" do
+  test "parses a custom FEN starting position and preserves its move number" do
+    fen =
+      "4k3/8/8/8/8/8/4K3/7R w - - 12 37"
+
     pgn = """
     [SetUp "1"]
-    [FEN "8/8/8/8/8/8/4K3/7k w - - 0 1"]
+    [FEN "#{fen}"]
 
-    1. Kf3
+    37. Rh2 *
+    """
+
+    assert {:ok, parsed} =
+             PgnImporter.parse(pgn)
+
+    assert {:ok, fen_context} =
+             FEN.parse(fen)
+
+    assert parsed.initial_position ==
+             fen_context.position
+
+    assert parsed.start ==
+             GameStart.new(37)
+
+    assert length(parsed.moves) ==
+             1
+
+    assert parsed.final_position.side_to_move ==
+             :black
+  end
+
+  test "rejects an invalid custom FEN starting position" do
+    pgn = """
+    [SetUp "1"]
+    [FEN "this is not FEN"]
+
+    1. e4
     """
 
     assert PgnImporter.parse(pgn) ==
              {:error,
               {
                 :invalid_pgn,
-                "Custom starting positions are not supported"
+                "Invalid FEN starting position"
+              }}
+  end
+
+  test "rejects SetUp without a FEN starting position" do
+    pgn = """
+    [SetUp "1"]
+
+    1. e4
+    """
+
+    assert PgnImporter.parse(pgn) ==
+             {:error,
+              {
+                :invalid_pgn,
+                "SetUp tag requires a FEN starting position"
               }}
   end
 
@@ -184,6 +231,61 @@ defmodule Analysis.PgnImporterTest do
 
     assert initial_position ==
              Position.starting_position()
+  end
+
+  test "durably imports a game from a custom FEN starting position" do
+    record_id =
+      unique_record_id()
+
+    fen =
+      "4k3/8/8/8/8/8/4K3/7R w - - 12 37"
+
+    pgn = """
+    [Event "Custom position"]
+    [SetUp "1"]
+    [FEN "#{fen}"]
+    [Result "*"]
+
+    37. Rh2 *
+    """
+
+    assert {:ok, record} =
+             PgnImporter.import_game(
+               record_id,
+               pgn
+             )
+
+    assert GameRecord.start(record) ==
+             GameStart.new(37)
+
+    assert {
+             :ok,
+             ^record,
+             content,
+             occurrences
+           } =
+             GameRecords.load(record_id)
+
+    assert length(GameContent.moves(content)) ==
+             1
+
+    assert Enum.map(
+             occurrences,
+             & &1.ply
+           ) ==
+             [
+               0,
+               1
+             ]
+
+    assert {:ok, expected} =
+             FEN.parse(fen)
+
+    assert {:ok, stored_initial_position} =
+             PositionStore.get(GameContent.initial_position_id(content))
+
+    assert stored_initial_position ==
+             expected.position
   end
 
   test "does not create a game record for invalid PGN" do

@@ -2,16 +2,17 @@ defmodule Analysis.PgnImporter do
   @moduledoc """
   Parses bounded single-game main-line PGNs and imports them as durable played games.
 
-  PGNs are interpreted from the standard starting position. Comments,
-  NAGs and side variations do not contribute to canonical played-game
-  content and are ignored.
+  PGNs use the standard starting position by default. A custom starting
+  position can be supplied with PGN FEN tags. The FEN fullmove number is
+  retained as game-record context; the halfmove clock is validated but is
+  not part of OpenChessLab position identity.
+
+  Comments, NAGs and side variations do not contribute to canonical
+  played-game content and are ignored.
 
   Each parse or import operation accepts exactly one game. Multi-game
   PGN input is rejected explicitly and can later be handled by a
   dedicated bulk-import boundary.
-
-  Custom FEN starting positions are not supported yet and are rejected
-  explicitly rather than being interpreted as standard-start games.
 
   Durable imports are stored through `Analysis.GameRecords`, which owns
   canonical game reuse, occurrence creation and concrete game-record
@@ -23,6 +24,7 @@ defmodule Analysis.PgnImporter do
   alias Analysis.GameRecords
   alias Analysis.GameStart
   alias Analysis.PositionStore
+  alias Chess.Notation.FEN
   alias Chess.Notation.SAN
   alias Chess.Position
 
@@ -32,6 +34,8 @@ defmodule Analysis.PgnImporter do
 
   @type result :: %{
           headers: %{optional(String.t()) => String.t()},
+          initial_position: Position.t(),
+          start: GameStart.t(),
           moves: [Chess.Move.t()],
           final_position: Position.t()
         }
@@ -50,7 +54,7 @@ defmodule Analysis.PgnImporter do
     with {:ok, parsed} <-
            parse(pgn),
          {:ok, initial_position_id} <-
-           store_initial_position() do
+           store_initial_position(parsed.initial_position) do
       content =
         GameContent.new(
           initial_position_id,
@@ -60,7 +64,7 @@ defmodule Analysis.PgnImporter do
       GameRecords.create(
         record_id,
         content,
-        GameStart.standard(),
+        parsed.start,
         metadata(parsed.headers)
       )
     end
@@ -79,14 +83,14 @@ defmodule Analysis.PgnImporter do
 
     with :ok <-
            validate_single_game(pgn),
-         :ok <-
-           validate_standard_start(headers),
+         {:ok, initial_position, start} <-
+           starting_context(headers),
          {:ok, position, moves} <-
            pgn
            |> movetext()
            |> tokenize()
            |> replay(
-             Position.starting_position(),
+             initial_position,
              []
            ) do
       if moves == [] do
@@ -95,12 +99,15 @@ defmodule Analysis.PgnImporter do
         {:ok,
          %{
            headers: headers,
+           initial_position: initial_position,
+           start: start,
            moves: Enum.reverse(moves),
            final_position: position
          }}
       end
     else
-      {:error, message} ->
+      {:error, message}
+      when is_binary(message) ->
         {:error, {:invalid_pgn, message}}
     end
   end
@@ -109,8 +116,8 @@ defmodule Analysis.PgnImporter do
     {:error, {:invalid_pgn, "PGN is too large or invalid"}}
   end
 
-  defp store_initial_position do
-    case PositionStore.append(Position.starting_position()) do
+  defp store_initial_position(%Position{} = position) do
+    case PositionStore.append(position) do
       position_id
       when is_integer(position_id) and
              position_id > 0 ->
@@ -220,15 +227,56 @@ defmodule Analysis.PgnImporter do
     ) > 1
   end
 
-  defp validate_standard_start(headers) do
-    if headers["SetUp"] == "1" or
-         Map.has_key?(
-           headers,
-           "FEN"
-         ) do
-      {:error, "Custom starting positions are not supported"}
-    else
-      :ok
+  defp starting_context(headers) do
+    case {
+      headers["SetUp"],
+      headers["FEN"]
+    } do
+      {
+        setup,
+        nil
+      }
+      when setup in [
+             nil,
+             "0"
+           ] ->
+        {:ok, Position.starting_position(), GameStart.standard()}
+
+      {
+        "1",
+        nil
+      } ->
+        {:error, "SetUp tag requires a FEN starting position"}
+
+      {
+        setup,
+        fen
+      }
+      when setup in [
+             nil,
+             "1"
+           ] and is_binary(fen) ->
+        case FEN.parse(fen) do
+          {:ok,
+           %{
+             position: position,
+             fullmove_number: fullmove_number
+           }} ->
+            {:ok, position, GameStart.new(fullmove_number)}
+
+          {:error, :invalid_fen} ->
+            {:error, "Invalid FEN starting position"}
+        end
+
+      {
+        _setup,
+        fen
+      }
+      when is_binary(fen) ->
+        {:error, "FEN starting position requires SetUp \"1\""}
+
+      _context ->
+        {:error, "Invalid SetUp tag"}
     end
   end
 
