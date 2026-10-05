@@ -265,6 +265,180 @@ defmodule Analysis.PostgresGameRecordStoreTest do
              ).rows
   end
 
+  test "pages concrete game records without duplicates or omissions" do
+    game_id =
+      stored_game_id()
+
+    first =
+      record(
+        "record-1",
+        game_id
+      )
+
+    second =
+      record(
+        "record-2",
+        game_id
+      )
+
+    third =
+      record(
+        "record-3",
+        game_id
+      )
+
+    assert :ok =
+             GameRecordStore.insert(first)
+
+    assert :ok =
+             GameRecordStore.insert(second)
+
+    assert :ok =
+             GameRecordStore.insert(third)
+
+    assert {
+             :ok,
+             %GameRecordStore.Page{
+               entries: [
+                 ^first,
+                 ^second
+               ],
+               next: cursor
+             }
+           } =
+             GameRecordStore.page(limit: 2)
+
+    assert %GameRecordStore.Cursor{} =
+             cursor
+
+    assert {
+             :ok,
+             %GameRecordStore.Page{
+               entries: [
+                 ^third
+               ],
+               next: nil
+             }
+           } =
+             GameRecordStore.page(
+               limit: 2,
+               cursor: cursor
+             )
+  end
+
+  test "does not include records added after a listing starts" do
+    game_id =
+      stored_game_id()
+
+    first =
+      record(
+        "record-1",
+        game_id
+      )
+
+    second =
+      record(
+        "record-2",
+        game_id
+      )
+
+    third =
+      record(
+        "record-3",
+        game_id
+      )
+
+    assert :ok =
+             GameRecordStore.insert(first)
+
+    assert :ok =
+             GameRecordStore.insert(second)
+
+    assert {
+             :ok,
+             %GameRecordStore.Page{
+               entries: [
+                 ^first
+               ],
+               next: cursor
+             }
+           } =
+             GameRecordStore.page(limit: 1)
+
+    assert :ok =
+             GameRecordStore.insert(third)
+
+    assert {
+             :ok,
+             %GameRecordStore.Page{
+               entries: [
+                 ^second
+               ],
+               next: nil
+             }
+           } =
+             GameRecordStore.page(
+               limit: 10,
+               cursor: cursor
+             )
+
+    assert {
+             :ok,
+             %GameRecordStore.Page{
+               entries: [
+                 ^first,
+                 ^second,
+                 ^third
+               ],
+               next: nil
+             }
+           } =
+             GameRecordStore.page(limit: 10)
+  end
+
+  test "returns an empty page when no records exist" do
+    assert GameRecordStore.page(limit: 10) ==
+             {
+               :ok,
+               %GameRecordStore.Page{
+                 entries: [],
+                 next: nil
+               }
+             }
+  end
+
+  test "requires a positive page limit" do
+    assert GameRecordStore.page([]) ==
+             {:error, :missing_limit}
+
+    assert GameRecordStore.page(limit: 0) ==
+             {:error, :invalid_limit}
+
+    assert GameRecordStore.page(limit: -1) ==
+             {:error, :invalid_limit}
+  end
+
+  test "rejects invalid page options and cursors" do
+    assert GameRecordStore.page(:invalid) ==
+             {:error, :invalid_page_options}
+
+    assert GameRecordStore.page(
+             limit: 10,
+             cursor: make_ref()
+           ) ==
+             {:error, :invalid_cursor}
+  end
+
+  defp record(record_id, game_id) do
+    GameRecord.new(
+      record_id,
+      game_id,
+      %{
+        "record" => record_id
+      }
+    )
+  end
+
   defp stored_game_id do
     position_id =
       PositionStore.append(Position.starting_position())
