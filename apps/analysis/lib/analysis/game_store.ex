@@ -6,9 +6,10 @@ defmodule Analysis.GameStore do
   by comparing the complete deterministic `Analysis.GameContentCodec` record.
 
   New-game insertion and occurrence insertion happen in one PostgreSQL
-  transaction. A transaction-level advisory lock serializes writers for one
-  fingerprint bucket so concurrent inserts cannot create duplicate exact
-  content while still allowing distinct games with the same fingerprint.
+  statement inside one transaction. A transaction-level advisory lock
+  serializes writers for one fingerprint bucket so concurrent inserts cannot
+  create duplicate exact content while still allowing distinct games with the
+  same fingerprint.
   """
 
   alias Analysis.GameContent
@@ -30,31 +31,42 @@ defmodule Analysis.GameStore do
   SELECT pg_advisory_xact_lock($1)
   """
 
-  @insert_game_sql """
-  INSERT INTO games (
-    fingerprint,
-    content
-  )
-  VALUES (
-    $1,
-    $2
-  )
-  RETURNING id
-  """
-
-  @insert_occurrences_sql """
-  INSERT INTO game_occurrences (
-    game_id,
-    ply,
-    position_id
+  @insert_game_with_occurrences_sql """
+  WITH inserted_game AS (
+    INSERT INTO games (
+      fingerprint,
+      content
+    )
+    VALUES (
+      $1,
+      $2
+    )
+    RETURNING id
+  ),
+  inserted_occurrences AS (
+    INSERT INTO game_occurrences (
+      game_id,
+      ply,
+      position_id
+    )
+    SELECT
+      inserted_game.id,
+      occurrence.ordinality - 1,
+      occurrence.position_id
+    FROM inserted_game
+    CROSS JOIN unnest($3::bigint[])
+      WITH ORDINALITY AS occurrence(position_id, ordinality)
+    ORDER BY
+      occurrence.ordinality
+    RETURNING game_id
   )
   SELECT
-    $1,
-    occurrence.ordinality - 1,
-    occurrence.position_id
-  FROM unnest($2::bigint[])
-    WITH ORDINALITY AS occurrence(position_id, ordinality)
-  ORDER BY occurrence.ordinality
+    inserted_game.id,
+    (
+      SELECT count(*)
+      FROM inserted_occurrences
+    )::bigint AS occurrence_count
+  FROM inserted_game
   """
 
   @find_sql """
@@ -355,47 +367,49 @@ defmodule Analysis.GameStore do
   end
 
   defp insert_game(fingerprint, encoded_content, position_ids) do
-    case Repo.query(
-           @insert_game_sql,
-           [
-             fingerprint,
-             encoded_content
-           ]
-         ) do
-      {:ok, %{rows: [[game_id]]}} ->
-        with :ok <-
-               insert_occurrences(
-                 game_id,
-                 position_ids
-               ) do
-          {:ok, game_id}
-        end
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  defp insert_occurrences(game_id, position_ids) do
     expected_count =
       length(position_ids)
 
     case Repo.query(
-           @insert_occurrences_sql,
+           @insert_game_with_occurrences_sql,
            [
-             game_id,
+             fingerprint,
+             encoded_content,
              position_ids
            ]
          ) do
-      {:ok, %{num_rows: ^expected_count}} ->
-        :ok
+      {:ok,
+       %{
+         rows: [
+           [
+             game_id,
+             ^expected_count
+           ]
+         ]
+       }} ->
+        {:ok, game_id}
 
-      {:ok, %{num_rows: actual_count}} ->
+      {:ok,
+       %{
+         rows: [
+           [
+             _game_id,
+             actual_count
+           ]
+         ]
+       }} ->
         {:error,
          {
            :unexpected_occurrence_count,
            expected_count,
            actual_count
+         }}
+
+      {:ok, %{rows: rows}} ->
+        {:error,
+         {
+           :unexpected_game_insert_result,
+           rows
          }}
 
       {:error, reason} ->
