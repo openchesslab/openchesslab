@@ -66,11 +66,27 @@ defmodule Analysis.PositionStore do
           {:ok, Page.t()}
           | {:error, term()}
 
-  @insert_position_sql """
-  INSERT INTO positions (record)
-  VALUES ($1)
-  ON CONFLICT (record) DO NOTHING
-  RETURNING id
+  @put_position_sql """
+  WITH inserted AS (
+    INSERT INTO positions (record)
+    VALUES ($1)
+    ON CONFLICT (record) DO NOTHING
+    RETURNING id
+  )
+  SELECT
+    id,
+    TRUE AS inserted
+  FROM inserted
+
+  UNION ALL
+
+  SELECT
+    id,
+    FALSE AS inserted
+  FROM positions
+  WHERE record = $1
+
+  LIMIT 1
   """
 
   @insert_features_sql """
@@ -444,23 +460,46 @@ defmodule Analysis.PositionStore do
       PositionCodec.encode(position)
 
     case Repo.query(
-           @insert_position_sql,
+           @put_position_sql,
            [record]
          ) do
-      {:ok, %{rows: [[position_id]]}} ->
+      {:ok,
+       %{
+         rows: [
+           [
+             position_id,
+             true
+           ]
+         ]
+       }} ->
         {:ok, position_id, :inserted}
 
+      {:ok,
+       %{
+         rows: [
+           [
+             position_id,
+             false
+           ]
+         ]
+       }} ->
+        {:ok, position_id, :existing}
+
       {:ok, %{rows: []}} ->
-        case find_record(record) do
-          {:ok, position_id} ->
-            {:ok, position_id, :existing}
+        resolve_concurrent_position(record)
 
-          :not_found ->
-            {:error, :position_not_found_after_conflict}
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
 
-          {:error, reason} ->
-            {:error, reason}
-        end
+  defp resolve_concurrent_position(record) do
+    case find_record(record) do
+      {:ok, position_id} ->
+        {:ok, position_id, :existing}
+
+      :not_found ->
+        {:error, :position_not_found_after_conflict}
 
       {:error, reason} ->
         {:error, reason}

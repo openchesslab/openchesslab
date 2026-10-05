@@ -1,3 +1,5 @@
+Logger.configure(level: :warning)
+
 defmodule Analysis.PostgresPositionStoreTest do
   use ExUnit.Case, async: false
 
@@ -448,6 +450,97 @@ defmodule Analysis.PostgresPositionStoreTest do
                "INSERT INTO position_features"
              )
            )
+  end
+
+  test "resolves an existing exact position without a separate lookup query" do
+    position =
+      Position.starting_position()
+
+    position_id =
+      PositionStore.append(position)
+
+    queries =
+      capture_queries(fn ->
+        assert PositionStore.append(position) ==
+                 position_id
+      end)
+
+    normalized_queries =
+      Enum.map(
+        queries,
+        fn query ->
+          query
+          |> String.replace(
+            ~r/\s+/,
+            " "
+          )
+          |> String.trim()
+        end
+      )
+
+    assert Enum.count(
+             normalized_queries,
+             &String.starts_with?(
+               &1,
+               "WITH inserted AS"
+             )
+           ) ==
+             1
+
+    refute Enum.any?(
+             normalized_queries,
+             &String.starts_with?(
+               &1,
+               "SELECT id FROM positions WHERE record = $1"
+             )
+           )
+  end
+
+  test "concurrent exact position stores reuse one canonical position" do
+    position =
+      Position.starting_position()
+
+    tasks =
+      Enum.map(
+        1..10,
+        fn _index ->
+          Task.async(fn ->
+            PositionStore.append(position)
+          end)
+        end
+      )
+
+    position_ids =
+      Task.await_many(
+        tasks,
+        5_000
+      )
+
+    assert [
+             position_id
+           ] =
+             Enum.uniq(position_ids)
+
+    assert is_integer(position_id)
+    assert position_id > 0
+
+    assert [[1]] =
+             Repo.query!(
+               """
+               SELECT count(*)
+               FROM positions
+               """,
+               []
+             ).rows
+
+    assert [[1]] =
+             Repo.query!(
+               """
+               SELECT count(*)
+               FROM position_features
+               """,
+               []
+             ).rows
   end
 
   defp move(from, to) do

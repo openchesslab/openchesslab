@@ -1,3 +1,5 @@
+Logger.configure(level: :warning)
+
 defmodule Analysis.GameRecordsTest do
   use ExUnit.Case, async: false
 

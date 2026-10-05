@@ -1,3 +1,5 @@
+Logger.configure(level: :warning)
+
 defmodule Analysis.PgnBatchImporterTest do
   use ExUnit.Case, async: false
 
