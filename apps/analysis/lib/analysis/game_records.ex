@@ -79,6 +79,12 @@ defmodule Analysis.GameRecords do
     GameRecordStore.get(record_id)
   end
 
+  @spec page(keyword()) ::
+          GameRecordStore.page_result()
+  def page(options) do
+    GameRecordStore.page(options)
+  end
+
   @spec load(GameRecord.id()) ::
           {:ok, GameRecord.t(), GameContent.t(), [Occurrence.t()]}
           | :not_found
