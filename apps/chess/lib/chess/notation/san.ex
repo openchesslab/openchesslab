@@ -17,6 +17,8 @@ defmodule Chess.Notation.SAN do
   alias Chess.Position
   alias Chess.Square
 
+  @destination_regex ~r/([a-h][1-8])(?:=[QRBN])?$/
+
   @spec format(Position.t(), Move.t()) ::
           {:ok, String.t()} | {:error, :illegal_move}
   def format(%Position{} = position, %Move{} = move) do
@@ -41,8 +43,15 @@ defmodule Chess.Notation.SAN do
     legal_moves =
       Position.legal_moves(position)
 
+    candidate_moves =
+      candidate_moves(
+        position,
+        san,
+        legal_moves
+      )
+
     case Enum.find(
-           legal_moves,
+           candidate_moves,
            fn move ->
              format_legal_move(
                position,
@@ -61,6 +70,144 @@ defmodule Chess.Notation.SAN do
 
   def parse(%Position{}, _san) do
     {:error, :invalid_san}
+  end
+
+  defp candidate_moves(position, san, legal_moves) do
+    san_without_check =
+      remove_check_suffix(san)
+
+    case san_without_check do
+      "O-O" ->
+        Enum.filter(
+          legal_moves,
+          &kingside_castle_candidate?(
+            position,
+            &1
+          )
+        )
+
+      "O-O-O" ->
+        Enum.filter(
+          legal_moves,
+          &queenside_castle_candidate?(
+            position,
+            &1
+          )
+        )
+
+      _other ->
+        ordinary_candidate_moves(
+          position,
+          san_without_check,
+          legal_moves
+        )
+    end
+  end
+
+  defp ordinary_candidate_moves(position, san, legal_moves) do
+    case Regex.run(
+           @destination_regex,
+           san,
+           capture: :all_but_first
+         ) do
+      [destination] ->
+        destination_square =
+          Square.from_algebraic(destination)
+
+        piece =
+          san_piece(san)
+
+        Enum.filter(
+          legal_moves,
+          fn %Move{
+               from: from,
+               to: to
+             } ->
+            to == destination_square and
+              Position.piece_at(
+                position,
+                from
+              ) ==
+                {
+                  position.side_to_move,
+                  piece
+                }
+          end
+        )
+
+      _no_destination ->
+        []
+    end
+  end
+
+  defp kingside_castle_candidate?(position, %Move{} = move) do
+    castle_candidate?(
+      position,
+      move
+    ) and
+      move.to > move.from
+  end
+
+  defp queenside_castle_candidate?(position, %Move{} = move) do
+    castle_candidate?(
+      position,
+      move
+    ) and
+      move.to < move.from
+  end
+
+  defp castle_candidate?(position, %Move{} = move) do
+    Position.piece_at(
+      position,
+      move.from
+    ) ==
+      {
+        position.side_to_move,
+        :king
+      } and
+      abs(move.to - move.from) == 2
+  end
+
+  defp san_piece(<<"K", _rest::binary>>) do
+    :king
+  end
+
+  defp san_piece(<<"Q", _rest::binary>>) do
+    :queen
+  end
+
+  defp san_piece(<<"R", _rest::binary>>) do
+    :rook
+  end
+
+  defp san_piece(<<"B", _rest::binary>>) do
+    :bishop
+  end
+
+  defp san_piece(<<"N", _rest::binary>>) do
+    :knight
+  end
+
+  defp san_piece(_san) do
+    :pawn
+  end
+
+  defp remove_check_suffix(<<>>) do
+    ""
+  end
+
+  defp remove_check_suffix(san) do
+    prefix_size =
+      byte_size(san) - 1
+
+    case san do
+      <<prefix::binary-size(^prefix_size), suffix>>
+      when suffix in [?+, ?#] ->
+        prefix
+
+      _other ->
+        san
+    end
   end
 
   defp format_legal_move(position, %Move{} = move, legal_moves) do
