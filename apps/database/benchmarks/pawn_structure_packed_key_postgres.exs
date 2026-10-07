@@ -14,7 +14,7 @@ defmodule OpenChessLab.Database.PawnStructurePackedKeyPostgresBenchmark do
 
   @table "pawn_structure_packed_key_bench_positions"
   @pair_index "pawn_structure_packed_key_bench_pair_index"
-  @packed_index "pawn_structure_packed_key_bench_packed_index"
+  @packed_expression_index "pawn_structure_packed_key_bench_expression_index"
 
   @source_structure %PawnStructure{
     white: 0x0E817000,
@@ -30,10 +30,7 @@ defmodule OpenChessLab.Database.PawnStructurePackedKeyPostgresBenchmark do
     structure_count =
       length(encoded_structures)
 
-    {
-      white_keys,
-      black_keys
-    } =
+    {white_keys, black_keys} =
       Enum.unzip(encoded_structures)
 
     packed_keys =
@@ -48,8 +45,7 @@ defmodule OpenChessLab.Database.PawnStructurePackedKeyPostgresBenchmark do
     )
 
     row_count =
-      posting_count *
-        selectivity
+      posting_count * selectivity
 
     cleanup()
 
@@ -57,8 +53,7 @@ defmodule OpenChessLab.Database.PawnStructurePackedKeyPostgresBenchmark do
     CREATE UNLOGGED TABLE #{@table} (
       id bigint NOT NULL,
       white_pawns bigint NOT NULL,
-      black_pawns bigint NOT NULL,
-      pawn_structure_key bytea NOT NULL
+      black_pawns bigint NOT NULL
     )
     """)
 
@@ -68,10 +63,7 @@ defmodule OpenChessLab.Database.PawnStructurePackedKeyPostgresBenchmark do
         SELECT
           id,
           CASE
-            WHEN mod(
-              id,
-              $2::bigint
-            ) = 0
+            WHEN mod(id, $2::bigint) = 0
               THEN (
                 $3::bigint[]
               )[
@@ -83,10 +75,7 @@ defmodule OpenChessLab.Database.PawnStructurePackedKeyPostgresBenchmark do
             ELSE id
           END AS white_pawns,
           CASE
-            WHEN mod(
-              id,
-              $2::bigint
-            ) = 0
+            WHEN mod(id, $2::bigint) = 0
               THEN (
                 $4::bigint[]
               )[
@@ -105,15 +94,12 @@ defmodule OpenChessLab.Database.PawnStructurePackedKeyPostgresBenchmark do
       INSERT INTO #{@table} (
         id,
         white_pawns,
-        black_pawns,
-        pawn_structure_key
+        black_pawns
       )
       SELECT
         id,
         white_pawns,
-        black_pawns,
-        int8send(white_pawns) ||
-          int8send(black_pawns)
+        black_pawns
       FROM generated_positions
       """,
       [
@@ -134,9 +120,12 @@ defmodule OpenChessLab.Database.PawnStructurePackedKeyPostgresBenchmark do
     """)
 
     setup_query!("""
-    CREATE INDEX #{@packed_index}
+    CREATE INDEX #{@packed_expression_index}
     ON #{@table} (
-      pawn_structure_key,
+      (
+        int8send(white_pawns) ||
+          int8send(black_pawns)
+      ),
       id
     )
     """)
@@ -151,7 +140,7 @@ defmodule OpenChessLab.Database.PawnStructurePackedKeyPostgresBenchmark do
       packed_keys: packed_keys,
       table_size: relation_size(@table),
       pair_index_size: relation_size(@pair_index),
-      packed_index_size: relation_size(@packed_index)
+      packed_expression_index_size: relation_size(@packed_expression_index)
     }
   end
 
@@ -178,10 +167,10 @@ defmodule OpenChessLab.Database.PawnStructurePackedKeyPostgresBenchmark do
       requested_rows
     ]
 
-    packed_first_sql =
-      packed_first_sql()
+    expression_first_sql =
+      expression_first_sql()
 
-    packed_first_parameters = [
+    expression_first_parameters = [
       packed_keys,
       requested_rows
     ]
@@ -192,24 +181,21 @@ defmodule OpenChessLab.Database.PawnStructurePackedKeyPostgresBenchmark do
         pair_first_parameters
       )
 
-    packed_first_ids =
+    expression_first_ids =
       query_ids(
-        packed_first_sql,
-        packed_first_parameters
+        expression_first_sql,
+        expression_first_parameters
       )
 
     validate_equal_results!(
       :first_page,
       pair_first_ids,
-      packed_first_ids
+      expression_first_ids
     )
 
     validate_ids!(
       pair_first_ids,
-      min(
-        posting_count,
-        requested_rows
-      ),
+      min(posting_count, requested_rows),
       selectivity,
       nil
     )
@@ -230,10 +216,10 @@ defmodule OpenChessLab.Database.PawnStructurePackedKeyPostgresBenchmark do
       requested_rows
     ]
 
-    packed_second_sql =
-      packed_second_sql()
+    expression_second_sql =
+      expression_second_sql()
 
-    packed_second_parameters = [
+    expression_second_parameters = [
       packed_keys,
       last_position_id,
       row_count,
@@ -246,16 +232,16 @@ defmodule OpenChessLab.Database.PawnStructurePackedKeyPostgresBenchmark do
         pair_second_parameters
       )
 
-    packed_second_ids =
+    expression_second_ids =
       query_ids(
-        packed_second_sql,
-        packed_second_parameters
+        expression_second_sql,
+        expression_second_parameters
       )
 
     validate_equal_results!(
       :second_page,
       pair_second_ids,
-      packed_second_ids
+      expression_second_ids
     )
 
     expected_second_count =
@@ -275,17 +261,20 @@ defmodule OpenChessLab.Database.PawnStructurePackedKeyPostgresBenchmark do
     PostgreSQL server version:
     #{server_version()}
 
+    Packed expression index:
+    #{index_definition(@packed_expression_index)}
+
     Current pair-relation first-page plan:
     #{explain(pair_first_sql, pair_first_parameters)}
 
-    Packed scalar-array first-page plan:
-    #{explain(packed_first_sql, packed_first_parameters)}
+    Packed expression scalar-array first-page plan:
+    #{explain(expression_first_sql, expression_first_parameters)}
 
     Current pair-relation second-page plan:
     #{explain(pair_second_sql, pair_second_parameters)}
 
-    Packed scalar-array second-page plan:
-    #{explain(packed_second_sql, packed_second_parameters)}
+    Packed expression scalar-array second-page plan:
+    #{explain(expression_second_sql, expression_second_parameters)}
     """)
 
     Benchee.run(
@@ -294,22 +283,16 @@ defmodule OpenChessLab.Database.PawnStructurePackedKeyPostgresBenchmark do
           pair_first_sql
           |> query_ids(pair_first_parameters)
           |> validate_ids!(
-            min(
-              posting_count,
-              requested_rows
-            ),
+            min(posting_count, requested_rows),
             selectivity,
             nil
           )
         end,
-        "packed scalar-array: first page" => fn ->
-          packed_first_sql
-          |> query_ids(packed_first_parameters)
+        "packed expression: first page" => fn ->
+          expression_first_sql
+          |> query_ids(expression_first_parameters)
           |> validate_ids!(
-            min(
-              posting_count,
-              requested_rows
-            ),
+            min(posting_count, requested_rows),
             selectivity,
             nil
           )
@@ -323,9 +306,9 @@ defmodule OpenChessLab.Database.PawnStructurePackedKeyPostgresBenchmark do
             last_position_id
           )
         end,
-        "packed scalar-array: second page" => fn ->
-          packed_second_sql
-          |> query_ids(packed_second_parameters)
+        "packed expression: second page" => fn ->
+          expression_second_sql
+          |> query_ids(expression_second_parameters)
           |> validate_ids!(
             expected_second_count,
             selectivity,
@@ -365,14 +348,16 @@ defmodule OpenChessLab.Database.PawnStructurePackedKeyPostgresBenchmark do
     """
   end
 
-  defp packed_first_sql do
+  defp expression_first_sql do
     """
     SELECT
       p.id
     FROM #{@table} AS p
     WHERE
-      p.pawn_structure_key =
-        ANY($1::bytea[])
+      (
+        int8send(p.white_pawns) ||
+          int8send(p.black_pawns)
+      ) = ANY($1::bytea[])
     ORDER BY
       p.id
     LIMIT $2::bigint
@@ -403,14 +388,16 @@ defmodule OpenChessLab.Database.PawnStructurePackedKeyPostgresBenchmark do
     """
   end
 
-  defp packed_second_sql do
+  defp expression_second_sql do
     """
     SELECT
       p.id
     FROM #{@table} AS p
     WHERE
-      p.pawn_structure_key =
-        ANY($1::bytea[])
+      (
+        int8send(p.white_pawns) ||
+          int8send(p.black_pawns)
+      ) = ANY($1::bytea[])
       AND p.id > $2::bigint
       AND p.id <= $3::bigint
     ORDER BY
@@ -426,8 +413,7 @@ defmodule OpenChessLab.Database.PawnStructurePackedKeyPostgresBenchmark do
         2
       )
 
-    if length(structures) !=
-         @expected_keys do
+    if length(structures) != @expected_keys do
       raise """
       expected #{@expected_keys} distance-2 pawn-structure keys,
       got #{length(structures)}
@@ -438,10 +424,7 @@ defmodule OpenChessLab.Database.PawnStructurePackedKeyPostgresBenchmark do
       structures,
       fn structure ->
         case PositionPawnStructureCodec.encode(structure) do
-          {
-            :ok,
-            encoded_structure
-          } ->
+          {:ok, encoded_structure} ->
             encoded_structure
 
           {:error, reason} ->
@@ -477,11 +460,7 @@ defmodule OpenChessLab.Database.PawnStructurePackedKeyPostgresBenchmark do
              packed_key
            ]
          ).rows do
-      [
-        [
-          true
-        ]
-      ] ->
+      [[true]] ->
         :ok
 
       result ->
@@ -501,26 +480,22 @@ defmodule OpenChessLab.Database.PawnStructurePackedKeyPostgresBenchmark do
       parameters
     )
     |> Map.fetch!(:rows)
-    |> Enum.map(fn
-      [
-        id
-      ] ->
-        id
+    |> Enum.map(fn [id] ->
+      id
     end)
   end
 
-  defp validate_equal_results!(page, pair_ids, packed_ids) do
-    if pair_ids !=
-         packed_ids do
+  defp validate_equal_results!(page, pair_ids, expression_ids) do
+    if pair_ids != expression_ids do
       raise """
-      packed scalar-array results differ from the current
+      packed expression results differ from the current
       pair-relation results for #{page}.
 
       Pair relation:
       #{inspect(pair_ids)}
 
-      Packed scalar-array:
-      #{inspect(packed_ids)}
+      Packed expression:
+      #{inspect(expression_ids)}
       """
     end
 
@@ -528,16 +503,14 @@ defmodule OpenChessLab.Database.PawnStructurePackedKeyPostgresBenchmark do
   end
 
   defp validate_ids!(ids, expected_count, selectivity, after_position_id) do
-    if length(ids) !=
-         expected_count do
+    if length(ids) != expected_count do
       raise """
       expected #{expected_count} result rows,
       got #{length(ids)}
       """
     end
 
-    if ids !=
-         Enum.sort(ids) do
+    if ids != Enum.sort(ids) do
       raise """
       result IDs are not ordered
       """
@@ -546,10 +519,7 @@ defmodule OpenChessLab.Database.PawnStructurePackedKeyPostgresBenchmark do
     if !Enum.all?(
          ids,
          fn id ->
-           rem(
-             id,
-             selectivity
-           ) == 0
+           rem(id, selectivity) == 0
          end
        ) do
       raise """
@@ -558,39 +528,23 @@ defmodule OpenChessLab.Database.PawnStructurePackedKeyPostgresBenchmark do
       """
     end
 
-    case {
-      after_position_id,
-      ids
-    } do
-      {
-        nil,
-        _ids
-      } ->
+    case {after_position_id, ids} do
+      {nil, _ids} ->
         :ok
 
-      {
-        _after_position_id,
-        []
-      } ->
+      {_after_position_id, []} ->
         :ok
 
       {
         after_position_id,
-        [
-          first_id
-          | _remaining
-        ]
+        [first_id | _remaining]
       }
-      when first_id >
-             after_position_id ->
+      when first_id > after_position_id ->
         :ok
 
       {
         after_position_id,
-        [
-          first_id
-          | _remaining
-        ]
+        [first_id | _remaining]
       } ->
         raise """
         expected page to start after #{after_position_id},
@@ -617,14 +571,8 @@ defmodule OpenChessLab.Database.PawnStructurePackedKeyPostgresBenchmark do
     |> Map.fetch!(:rows)
     |> Enum.map_join(
       "\n",
-      fn
-        [
-          line
-        ] ->
-          line
-
-        row ->
-          inspect(row)
+      fn [line] ->
+        line
       end
     )
   end
@@ -635,11 +583,7 @@ defmodule OpenChessLab.Database.PawnStructurePackedKeyPostgresBenchmark do
            "SHOW server_version",
            []
          ).rows do
-      [
-        [
-          version
-        ]
-      ] ->
+      [[version]] ->
         version
     end
   end
@@ -652,16 +596,25 @@ defmodule OpenChessLab.Database.PawnStructurePackedKeyPostgresBenchmark do
              to_regclass($1::text)
            )
            """,
-           [
-             relation
-           ]
+           [relation]
          ).rows do
-      [
-        [
-          size
-        ]
-      ] ->
+      [[size]] ->
         size
+    end
+  end
+
+  defp index_definition(index) do
+    case SQL.query!(
+           Repo,
+           """
+           SELECT pg_get_indexdef(
+             to_regclass($1::text)
+           )
+           """,
+           [index]
+         ).rows do
+      [[definition]] ->
+        definition
     end
   end
 
@@ -737,8 +690,7 @@ if page_size <= 0 do
   """
 end
 
-if posting_count <
-     page_size * 2 do
+if posting_count < page_size * 2 do
   raise """
   PAWN_PACKED_KEY_BENCH_POSTINGS must be at least twice
   PAWN_PACKED_KEY_BENCH_PAGE_SIZE so the benchmark has a
@@ -748,7 +700,7 @@ end
 
 try do
   IO.puts("""
-  Building packed pawn-structure key benchmark fixture...
+  Building packed pawn-structure expression-index benchmark fixture...
 
   neighborhood matches: #{posting_count}
   selectivity:          1/#{selectivity}
@@ -764,25 +716,26 @@ try do
     )
 
   IO.puts("""
-  Packed pawn-structure key paging benchmark
+  Packed pawn-structure expression-index paging benchmark
 
-  rows:                  #{fixture.row_count}
-  table size:            #{fixture.table_size} bytes
-  pair index size:       #{fixture.pair_index_size} bytes
-  packed index size:     #{fixture.packed_index_size} bytes
-  neighborhood keys:     #{fixture.structure_count}
+  rows:                    #{fixture.row_count}
+  table size:              #{fixture.table_size} bytes
+  pair index size:         #{fixture.pair_index_size} bytes
+  expression index size:   #{fixture.packed_expression_index_size} bytes
+  neighborhood keys:       #{fixture.structure_count}
 
   This compares two exact, collision-free representations over the
   same rows:
 
     * the current two-bigint key relation joined through
       (white_pawns, black_pawns, id)
-    * one packed 128-bit key searched with = ANY(bytea[]) through
-      (pawn_structure_key, id)
+    * a packed 128-bit scalar-array search through an expression
+      index over the existing white_pawns and black_pawns columns
 
-  The packed bytea representation is benchmark-only. This experiment
-  tests PostgreSQL's native B-tree scalar-array scan strategy before
-  making any production schema decision.
+  Unlike the previous packed-key experiment, this table has no
+  stored pawn_structure_key column. The experiment therefore tests
+  whether PostgreSQL can retain the scalar-array advantage without
+  increasing the positions heap width.
   """)
 
   Benchmark.benchmark(
