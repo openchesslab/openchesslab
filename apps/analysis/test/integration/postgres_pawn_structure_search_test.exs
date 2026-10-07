@@ -26,6 +26,41 @@ defmodule Analysis.PostgresPawnStructureSearchTest do
     :ok
   end
 
+  test "indexes pawn structure in keyset paging order" do
+    assert [
+             [
+               index_definition
+             ]
+           ] =
+             Repo.query!(
+               """
+               SELECT pg_get_indexdef(index_relation.oid)
+               FROM pg_class AS index_relation
+               JOIN pg_index AS index_metadata
+                 ON index_metadata.indexrelid = index_relation.oid
+               JOIN pg_class AS table_relation
+                 ON table_relation.oid = index_metadata.indrelid
+               WHERE
+                 table_relation.relname = 'positions'
+                 AND index_relation.relname = 'positions_pawn_structure_index'
+               """,
+               []
+             ).rows
+
+    normalized_definition =
+      index_definition
+      |> String.replace(
+        ~r/\s+/,
+        " "
+      )
+      |> String.trim()
+
+    assert String.contains?(
+             normalized_definition,
+             "(white_pawns, black_pawns, id)"
+           )
+  end
+
   test "stores exact pawn occupancy in PostgreSQL" do
     position =
       Position.starting_position()
