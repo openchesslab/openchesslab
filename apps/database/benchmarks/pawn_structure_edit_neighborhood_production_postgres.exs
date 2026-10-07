@@ -139,7 +139,7 @@ defmodule OpenChessLab.Database.PawnStructureEditNeighborhoodProductionPostgresB
       ]
     )
 
-    setup_query!("ANALYZE positions")
+    setup_query!("VACUUM (ANALYZE) positions")
 
     %{
       row_count: row_count,
@@ -1021,6 +1021,10 @@ try do
 
   This benchmark uses the real positions table and production
   positions_pawn_structure_index.
+
+  The fixture is vacuumed after loading so PostgreSQL can use the
+  visibility map for steady-state index-only scans over immutable
+  canonical positions.
 
   It separates:
 
