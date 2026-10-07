@@ -91,6 +91,39 @@ defmodule Analysis.PositionQuery do
     |> pawn_structures()
   end
 
+  @doc """
+  Searches the exact pawn structure and every single-push neighbor under
+  every supported pawn-structure symmetry.
+
+  The bounded set contains the symmetries of:
+
+    * the exact structure
+    * every structure produced by shifting exactly one pawn one rank
+      forward
+
+  Duplicate structures are removed before constructing the query.
+  """
+  @spec pawn_structure_single_push_symmetry_neighborhood(
+          Position.t()
+          | PawnStructure.t()
+        ) ::
+          t()
+  def pawn_structure_single_push_symmetry_neighborhood(%Position{} = position) do
+    position
+    |> PawnStructure.from_position()
+    |> pawn_structure_single_push_symmetry_neighborhood()
+  end
+
+  def pawn_structure_single_push_symmetry_neighborhood(%PawnStructure{} = structure) do
+    [
+      structure
+      | PawnStructure.single_pushes(structure)
+    ]
+    |> Enum.flat_map(&PawnStructure.symmetries/1)
+    |> Enum.uniq()
+    |> pawn_structures()
+  end
+
   @spec color_reversed_pawn_structure(
           Position.t()
           | PawnStructure.t()
