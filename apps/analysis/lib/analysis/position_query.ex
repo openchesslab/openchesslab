@@ -42,6 +42,23 @@ defmodule Analysis.PositionQuery do
     )
   end
 
+  @spec color_reversed_pawn_structure(
+          Position.t()
+          | PawnStructure.t()
+        ) ::
+          t()
+  def color_reversed_pawn_structure(%Position{} = position) do
+    position
+    |> PawnStructure.from_position()
+    |> color_reversed_pawn_structure()
+  end
+
+  def color_reversed_pawn_structure(%PawnStructure{} = structure) do
+    structure
+    |> PawnStructure.color_reversed()
+    |> pawn_structure()
+  end
+
   @spec equivalent(term()) :: t()
   def equivalent(position) do
     {:equivalent, position}
