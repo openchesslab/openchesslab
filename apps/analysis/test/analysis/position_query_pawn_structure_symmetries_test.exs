@@ -6,7 +6,7 @@ defmodule Analysis.PositionQueryPawnStructureSymmetriesTest do
   alias Chess.Position
   alias Chess.Square
 
-  test "builds a dedicated query node containing every distinct symmetry" do
+  test "builds a bounded pawn structure set containing every distinct symmetry" do
     position =
       Position.new()
       |> Position.put_piece(
@@ -29,18 +29,18 @@ defmodule Analysis.PositionQueryPawnStructureSymmetriesTest do
 
     assert PositionQuery.pawn_structure_symmetries(structure) ==
              {
-               :pawn_structure_symmetries,
+               :pawn_structures,
                symmetries
              }
 
     assert PositionQuery.pawn_structure_symmetries(position) ==
              {
-               :pawn_structure_symmetries,
+               :pawn_structures,
                symmetries
              }
   end
 
-  test "keeps a collapsed symmetry class as one dedicated query node" do
+  test "keeps a collapsed symmetry class as one bounded structure set" do
     structure =
       Position.starting_position()
       |> PawnStructure.from_position()
@@ -52,7 +52,7 @@ defmodule Analysis.PositionQueryPawnStructureSymmetriesTest do
 
     assert PositionQuery.pawn_structure_symmetries(structure) ==
              {
-               :pawn_structure_symmetries,
+               :pawn_structures,
                [
                  structure
                ]

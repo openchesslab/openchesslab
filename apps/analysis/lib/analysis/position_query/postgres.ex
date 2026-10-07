@@ -75,7 +75,7 @@ defmodule Analysis.PositionQuery.Postgres do
     end
   end
 
-  defp do_compile_predicate({:pawn_structure_symmetries, structures}, parameters, next_parameter)
+  defp do_compile_predicate({:pawn_structures, structures}, parameters, next_parameter)
        when is_list(structures) do
     queries =
       Enum.map(

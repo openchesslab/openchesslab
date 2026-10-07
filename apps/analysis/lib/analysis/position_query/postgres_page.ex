@@ -75,7 +75,7 @@ defmodule Analysis.PositionQuery.PostgresPage do
     end
   end
 
-  defp symmetry_scan({:pawn_structure_symmetries, [_structure | _remaining] = structures}) do
+  defp symmetry_scan({:pawn_structures, [_structure | _remaining] = structures}) do
     {
       :ok,
       structures,
@@ -93,7 +93,7 @@ defmodule Analysis.PositionQuery.PostgresPage do
 
       index ->
         {
-          :pawn_structure_symmetries,
+          :pawn_structures,
           structures
         } =
           Enum.at(
@@ -119,7 +119,7 @@ defmodule Analysis.PositionQuery.PostgresPage do
     :none
   end
 
-  defp symmetry_node?({:pawn_structure_symmetries, [_structure | _remaining]}) do
+  defp symmetry_node?({:pawn_structures, [_structure | _remaining]}) do
     true
   end
 

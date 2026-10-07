@@ -111,7 +111,7 @@ defmodule Analysis.GameSearch.PostgresQuery do
     end
   end
 
-  defp symmetry_scan({:pawn_structure_symmetries, [_structure | _remaining] = structures}) do
+  defp symmetry_scan({:pawn_structures, [_structure | _remaining] = structures}) do
     {
       :ok,
       structures,
@@ -129,7 +129,7 @@ defmodule Analysis.GameSearch.PostgresQuery do
 
       index ->
         {
-          :pawn_structure_symmetries,
+          :pawn_structures,
           structures
         } =
           Enum.at(
@@ -155,7 +155,7 @@ defmodule Analysis.GameSearch.PostgresQuery do
     :none
   end
 
-  defp symmetry_node?({:pawn_structure_symmetries, [_structure | _remaining]}) do
+  defp symmetry_node?({:pawn_structures, [_structure | _remaining]}) do
     true
   end
 
