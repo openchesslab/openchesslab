@@ -8,6 +8,7 @@ defmodule OpenChessLab.Database.PawnStructureEditDistancePostgresBenchmark do
 
   alias Analysis.PositionPawnStructureCodec
   alias Chess.PawnStructure
+  alias Chess.PawnStructure.EditDistance
   alias Ecto.Adapters.SQL
   alias OpenChessLab.Repo
 
@@ -511,27 +512,25 @@ defmodule OpenChessLab.Database.PawnStructureEditDistancePostgresBenchmark do
   end
 
   defp distance_two_structures do
-    first_neighbors =
-      elementary_neighbors(@source_structure)
+    distance_one =
+      EditDistance.neighborhood(
+        @source_structure,
+        1
+      )
 
-    if length(first_neighbors) !=
-         @expected_distance_one_keys do
+    if length(distance_one) !=
+         @expected_distance_one_keys + 1 do
       raise """
       benchmark source structure must produce #{@expected_distance_one_keys}
-      distinct distance-one neighbors, got #{length(first_neighbors)}
+      distinct distance-one neighbors, got #{length(distance_one) - 1}
       """
     end
 
     structures =
-      [
-        @source_structure
-        | first_neighbors ++
-            Enum.flat_map(
-              first_neighbors,
-              &elementary_neighbors/1
-            )
-      ]
-      |> Enum.uniq()
+      EditDistance.neighborhood(
+        @source_structure,
+        2
+      )
 
     if length(structures) !=
          @expected_distance_two_keys do
@@ -542,16 +541,6 @@ defmodule OpenChessLab.Database.PawnStructureEditDistancePostgresBenchmark do
     end
 
     structures
-  end
-
-  defp elementary_neighbors(%PawnStructure{} = structure) do
-    [
-      PawnStructure.single_rank_neighbors(structure),
-      PawnStructure.single_capture_like_neighbors(structure),
-      PawnStructure.single_pawn_removals(structure)
-    ]
-    |> List.flatten()
-    |> Enum.uniq()
   end
 
   defp encoded_distance_two_structures do

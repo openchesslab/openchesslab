@@ -265,6 +265,127 @@ defmodule Chess.PawnStructureEditDistanceTest do
              :beyond_limit
   end
 
+  test "enumerates the exact structure at distance zero" do
+    structure =
+      pawn_structure([
+        {"h2", {:white, :pawn}},
+        {"c7", {:black, :pawn}}
+      ])
+
+    assert EditDistance.neighborhood(
+             structure,
+             0
+           ) ==
+             [
+               structure
+             ]
+  end
+
+  test "enumerates every structure reachable within one elementary edit" do
+    source =
+      pawn_structure([
+        {"d4", {:white, :pawn}},
+        {"h7", {:black, :pawn}}
+      ])
+
+    neighborhood =
+      EditDistance.neighborhood(
+        source,
+        1
+      )
+
+    assert hd(neighborhood) ==
+             source
+
+    assert length(neighborhood) ==
+             MapSet.size(MapSet.new(neighborhood))
+
+    assert Enum.all?(
+             neighborhood,
+             &EditDistance.within?(
+               source,
+               &1,
+               1
+             )
+           )
+  end
+
+  test "distance-two neighborhood contains structures requiring two edits" do
+    source =
+      pawn_structure([
+        {"a2", {:white, :pawn}},
+        {"e2", {:white, :pawn}}
+      ])
+
+    two_rank_shifts =
+      pawn_structure([
+        {"a3", {:white, :pawn}},
+        {"e3", {:white, :pawn}}
+      ])
+
+    assert two_rank_shifts in EditDistance.neighborhood(
+             source,
+             2
+           )
+
+    refute two_rank_shifts in EditDistance.neighborhood(
+             source,
+             1
+           )
+  end
+
+  test "neighborhood preserves directional pawn-removal semantics" do
+    full =
+      pawn_structure([
+        {"h2", {:white, :pawn}},
+        {"c7", {:black, :pawn}}
+      ])
+
+    reduced =
+      pawn_structure([
+        {"c7", {:black, :pawn}}
+      ])
+
+    assert reduced in EditDistance.neighborhood(
+             full,
+             1
+           )
+
+    refute full in EditDistance.neighborhood(
+             reduced,
+             2
+           )
+  end
+
+  test "sixteen-pawn benchmark structure has the expected bounded neighborhoods" do
+    source =
+      %PawnStructure{
+        white: 0x0E817000,
+        black: 0x00029D6000000000
+      }
+
+    distance_one =
+      EditDistance.neighborhood(
+        source,
+        1
+      )
+
+    distance_two =
+      EditDistance.neighborhood(
+        source,
+        2
+      )
+
+    assert length(distance_one) ==
+             93
+
+    assert length(distance_two) ==
+             4_022
+
+    assert length(distance_two) ==
+             MapSet.size(MapSet.new(distance_two))
+  end
+
   defp pawn_structure(pieces) do
     pieces
     |> position()

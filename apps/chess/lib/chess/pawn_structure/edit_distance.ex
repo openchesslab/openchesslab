@@ -1,6 +1,7 @@
 defmodule Chess.PawnStructure.EditDistance do
   @moduledoc """
-  Measures bounded directional edit distance between pawn structures.
+  Measures and enumerates bounded directional edit distance between pawn
+  structures.
 
   The supported elementary edits are the structural transformations exposed
   by `Chess.PawnStructure`:
@@ -27,6 +28,130 @@ defmodule Chess.PawnStructure.EditDistance do
   @type result ::
           {:ok, distance()}
           | :beyond_limit
+
+  @doc """
+  Returns every pawn structure reachable from the source within the requested
+  maximum number of elementary edits.
+
+  The source itself is always the first result.
+
+  Each structure is returned exactly once. Results are ordered by discovery
+  distance and then by the deterministic order of the elementary structural
+  transformations.
+
+  Because pawn removal is directional, the neighborhood is directional too:
+  removing a pawn is an elementary edit, adding it again is not.
+  """
+  @spec neighborhood(
+          PawnStructure.t(),
+          maximum_distance()
+        ) ::
+          [PawnStructure.t()]
+  def neighborhood(%PawnStructure{} = source, 0) do
+    [
+      source
+    ]
+  end
+
+  def neighborhood(%PawnStructure{} = source, maximum_distance) when maximum_distance in 1..2 do
+    {
+      _seen,
+      _frontier,
+      result_reversed
+    } =
+      Enum.reduce(
+        1..maximum_distance,
+        {
+          MapSet.new([
+            source
+          ]),
+          [
+            source
+          ],
+          [
+            source
+          ]
+        },
+        fn
+          _distance,
+          {
+            seen,
+            frontier,
+            result_reversed
+          } ->
+            {
+              seen,
+              next_frontier_reversed,
+              result_reversed
+            } =
+              Enum.reduce(
+                frontier,
+                {
+                  seen,
+                  [],
+                  result_reversed
+                },
+                fn
+                  structure,
+                  {
+                    seen,
+                    next_frontier_reversed,
+                    result_reversed
+                  } ->
+                    Enum.reduce(
+                      elementary_neighbors(structure),
+                      {
+                        seen,
+                        next_frontier_reversed,
+                        result_reversed
+                      },
+                      fn
+                        neighbor,
+                        {
+                          seen,
+                          next_frontier_reversed,
+                          result_reversed
+                        } ->
+                          if MapSet.member?(
+                               seen,
+                               neighbor
+                             ) do
+                            {
+                              seen,
+                              next_frontier_reversed,
+                              result_reversed
+                            }
+                          else
+                            {
+                              MapSet.put(
+                                seen,
+                                neighbor
+                              ),
+                              [
+                                neighbor
+                                | next_frontier_reversed
+                              ],
+                              [
+                                neighbor
+                                | result_reversed
+                              ]
+                            }
+                          end
+                      end
+                    )
+                end
+              )
+
+            {
+              seen,
+              Enum.reverse(next_frontier_reversed),
+              result_reversed
+            }
+        end
+      )
+
+    Enum.reverse(result_reversed)
+  end
 
   @spec bounded(
           PawnStructure.t(),
@@ -182,7 +307,7 @@ defmodule Chess.PawnStructure.EditDistance do
     end
   end
 
-  defp elementary_neighbors(structure) do
+  defp elementary_neighbors(%PawnStructure{} = structure) do
     [
       PawnStructure.single_rank_neighbors(structure),
       PawnStructure.single_capture_like_neighbors(structure),
