@@ -7,6 +7,7 @@ defmodule Analysis.PositionQuery do
   """
 
   alias Chess.PawnStructure
+  alias Chess.PawnStructure.EditDistance
   alias Chess.Position
 
   @type t ::
@@ -14,6 +15,7 @@ defmodule Analysis.PositionQuery do
           | false
           | {:property, atom(), term()}
           | {:pawn_structures, [PawnStructure.t()]}
+          | {:pawn_structure_edit_neighborhood, [PawnStructure.t()]}
           | {:equivalent, term()}
           | {:and, [t()]}
           | {:or, [t()]}
@@ -48,6 +50,47 @@ defmodule Analysis.PositionQuery do
     {
       :pawn_structures,
       structures
+    }
+  end
+
+  @doc """
+  Searches every pawn structure reachable within the requested number of
+  elementary pawn-structure edits.
+
+  The supported elementary edits are:
+
+    * one single-rank displacement in either direction
+    * one capture-like displacement in either direction
+    * removal of exactly one pawn
+
+  Pawn removal is directional. Querying a structure containing a pawn may
+  therefore find an otherwise-identical structure without that pawn, while
+  querying the reduced structure does not implicitly add the pawn.
+
+  The neighborhood is materialized once when the query is constructed so
+  paging does not recompute the bounded edit graph.
+  """
+  @spec pawn_structure_edit_neighborhood(
+          Position.t()
+          | PawnStructure.t(),
+          EditDistance.maximum_distance()
+        ) ::
+          t()
+  def pawn_structure_edit_neighborhood(%Position{} = position, maximum_distance)
+      when maximum_distance in 0..2 do
+    position
+    |> PawnStructure.from_position()
+    |> pawn_structure_edit_neighborhood(maximum_distance)
+  end
+
+  def pawn_structure_edit_neighborhood(%PawnStructure{} = structure, maximum_distance)
+      when maximum_distance in 0..2 do
+    {
+      :pawn_structure_edit_neighborhood,
+      EditDistance.neighborhood(
+        structure,
+        maximum_distance
+      )
     }
   end
 

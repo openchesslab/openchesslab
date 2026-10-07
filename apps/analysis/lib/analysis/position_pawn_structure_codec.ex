@@ -18,6 +18,11 @@ defmodule Analysis.PositionPawnStructureCodec do
           integer()
         }
 
+  @type encoded_many :: {
+          [integer()],
+          [integer()]
+        }
+
   @spec encode(PawnStructure.t()) ::
           {:ok, encoded()}
           | {:error, :invalid_pawn_structure}
@@ -35,6 +40,73 @@ defmodule Analysis.PositionPawnStructureCodec do
   end
 
   def encode(_structure) do
+    {:error, :invalid_pawn_structure}
+  end
+
+  @spec encode_many([PawnStructure.t()]) ::
+          {:ok, encoded_many()}
+          | {:error, :invalid_pawn_structure}
+  def encode_many(structures) when is_list(structures) do
+    structures
+    |> Enum.reduce_while(
+      {
+        :ok,
+        [],
+        []
+      },
+      fn
+        structure,
+        {
+          :ok,
+          white_pawns,
+          black_pawns
+        } ->
+          case encode(structure) do
+            {:ok,
+             {
+               white,
+               black
+             }} ->
+              {:cont,
+               {
+                 :ok,
+                 [
+                   white
+                   | white_pawns
+                 ],
+                 [
+                   black
+                   | black_pawns
+                 ]
+               }}
+
+            {:error, reason} ->
+              {:halt,
+               {
+                 :error,
+                 reason
+               }}
+          end
+      end
+    )
+    |> case do
+      {
+        :ok,
+        white_pawns,
+        black_pawns
+      } ->
+        {:ok,
+         {
+           Enum.reverse(white_pawns),
+           Enum.reverse(black_pawns)
+         }}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  def encode_many(_structures) do
     {:error, :invalid_pawn_structure}
   end
 

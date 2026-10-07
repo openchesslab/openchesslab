@@ -75,6 +75,47 @@ defmodule Analysis.PositionQuery.Postgres do
     end
   end
 
+  defp do_compile_predicate(
+         {:pawn_structure_edit_neighborhood, structures},
+         parameters,
+         next_parameter
+       )
+       when is_list(structures) do
+    with {:ok,
+          {
+            white_pawns,
+            black_pawns
+          }} <-
+           PositionPawnStructureCodec.encode_many(structures) do
+      predicate = """
+      EXISTS (
+        SELECT 1
+        FROM unnest(
+          $#{next_parameter}::bigint[],
+          $#{next_parameter + 1}::bigint[]
+        ) AS pawn_structure_keys(
+          white_pawns,
+          black_pawns
+        )
+        WHERE
+          pawn_structure_keys.white_pawns = p.white_pawns
+          AND pawn_structure_keys.black_pawns = p.black_pawns
+      )
+      """
+
+      {
+        :ok,
+        predicate,
+        parameters ++
+          [
+            white_pawns,
+            black_pawns
+          ],
+        next_parameter + 2
+      }
+    end
+  end
+
   defp do_compile_predicate({:pawn_structures, structures}, parameters, next_parameter)
        when is_list(structures) do
     queries =
@@ -212,38 +253,43 @@ defmodule Analysis.PositionQuery.Postgres do
         parameters,
         next_parameter
       },
-      fn query,
-         {
-           :ok,
-           predicates,
-           parameters,
-           next_parameter
-         } ->
-        case do_compile_predicate(
-               query,
-               parameters,
-               next_parameter
-             ) do
-          {
-            :ok,
-            predicate,
-            parameters,
-            next_parameter
-          } ->
-            {:cont,
-             {
-               :ok,
-               [
-                 predicate
-                 | predicates
-               ],
-               parameters,
-               next_parameter
-             }}
+      fn
+        query,
+        {
+          :ok,
+          predicates,
+          parameters,
+          next_parameter
+        } ->
+          case do_compile_predicate(
+                 query,
+                 parameters,
+                 next_parameter
+               ) do
+            {
+              :ok,
+              predicate,
+              parameters,
+              next_parameter
+            } ->
+              {:cont,
+               {
+                 :ok,
+                 [
+                   predicate
+                   | predicates
+                 ],
+                 parameters,
+                 next_parameter
+               }}
 
-          {:error, reason} ->
-            {:halt, {:error, reason}}
-        end
+            {:error, reason} ->
+              {:halt,
+               {
+                 :error,
+                 reason
+               }}
+          end
       end
     )
     |> case do

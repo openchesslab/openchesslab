@@ -29,6 +29,15 @@ defmodule Analysis.PositionQueryNormalizer do
     end
   end
 
+  defp do_normalize({:pawn_structure_edit_neighborhood, []}) do
+    false
+  end
+
+  defp do_normalize({:pawn_structure_edit_neighborhood, structures} = query)
+       when is_list(structures) do
+    query
+  end
+
   defp do_normalize({:equivalent, _position} = query) do
     query
   end

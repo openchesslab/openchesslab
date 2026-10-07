@@ -252,6 +252,61 @@ defmodule Analysis.PositionQueryPostgresPageTest do
              101
   end
 
+  test "compiles an edit neighborhood as two bigint array parameters" do
+    query =
+      asymmetric_position()
+      |> Query.pawn_structure_edit_neighborhood(2)
+
+    assert {
+             :ok,
+             sql,
+             parameters
+           } =
+             PostgresPage.compile_first(
+               query,
+               101
+             )
+
+    sql =
+      normalize_sql(sql)
+
+    assert String.contains?(
+             sql,
+             "FROM unnest( $1::bigint[], $2::bigint[] )"
+           )
+
+    assert String.contains?(
+             sql,
+             "pawn_structure_keys.white_pawns = p.white_pawns"
+           )
+
+    assert String.contains?(
+             sql,
+             "pawn_structure_keys.black_pawns = p.black_pawns"
+           )
+
+    refute String.contains?(
+             sql,
+             "UNION ALL"
+           )
+
+    assert [
+             white_pawns,
+             black_pawns,
+             101
+           ] =
+             parameters
+
+    assert is_list(white_pawns)
+    assert is_list(black_pawns)
+
+    assert length(white_pawns) ==
+             length(black_pawns)
+
+    assert length(white_pawns) >
+             1
+  end
+
   defp asymmetric_position do
     Position.new()
     |> Position.put_piece(
