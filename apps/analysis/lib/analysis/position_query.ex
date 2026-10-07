@@ -6,6 +6,9 @@ defmodule Analysis.PositionQuery do
   of the persistence engine that executes them.
   """
 
+  alias Chess.PawnStructure
+  alias Chess.Position
+
   @type t ::
           true
           | false
@@ -18,6 +21,25 @@ defmodule Analysis.PositionQuery do
   @spec property(atom(), term()) :: t()
   def property(property, value) do
     {:property, property, value}
+  end
+
+  @spec pawn_structure(
+          Position.t()
+          | PawnStructure.t()
+        ) ::
+          t()
+  def pawn_structure(%Position{} = position) do
+    property(
+      :pawn_structure,
+      PawnStructure.from_position(position)
+    )
+  end
+
+  def pawn_structure(%PawnStructure{} = structure) do
+    property(
+      :pawn_structure,
+      structure
+    )
   end
 
   @spec equivalent(term()) :: t()

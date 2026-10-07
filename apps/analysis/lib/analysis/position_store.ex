@@ -13,10 +13,12 @@ defmodule Analysis.PositionStore do
   excluding positions inserted after the scan starts.
   """
 
+  alias Analysis.PositionPawnStructureCodec
   alias Analysis.PositionPropertyKeyCodec
   alias Analysis.PositionQuery
   alias Analysis.PositionQuery.Postgres, as: PostgresQuery
   alias Analysis.PositionQueryNormalizer
+  alias Chess.PawnStructure
   alias Chess.Position
   alias Chess.PositionCodec
   alias Chess.PositionProperties
@@ -68,8 +70,16 @@ defmodule Analysis.PositionStore do
 
   @put_position_sql """
   WITH inserted AS (
-    INSERT INTO positions (record)
-    VALUES ($1)
+    INSERT INTO positions (
+      record,
+      white_pawns,
+      black_pawns
+    )
+    VALUES (
+      $1,
+      $2,
+      $3
+    )
     ON CONFLICT (record) DO NOTHING
     RETURNING id
   )
@@ -90,10 +100,24 @@ defmodule Analysis.PositionStore do
   """
 
   @insert_positions_sql """
-  INSERT INTO positions (record)
+  INSERT INTO positions (
+    record,
+    white_pawns,
+    black_pawns
+  )
   SELECT DISTINCT
-    input.record
-  FROM unnest($1::bytea[]) AS input(record)
+    input.record,
+    input.white_pawns,
+    input.black_pawns
+  FROM unnest(
+    $1::bytea[],
+    $2::bigint[],
+    $3::bigint[]
+  ) AS input(
+    record,
+    white_pawns,
+    black_pawns
+  )
   ORDER BY
     input.record
   ON CONFLICT (record) DO NOTHING
@@ -502,89 +526,212 @@ defmodule Analysis.PositionStore do
   end
 
   defp put_many(positions) do
-    encoded_positions =
-      Enum.map(
-        positions,
-        fn %Position{} = position ->
-          {
-            PositionCodec.encode(position),
-            position
-          }
+    with {:ok, encoded_positions} <-
+           encode_positions(positions) do
+      records =
+        Enum.map(
+          encoded_positions,
+          fn
+            {
+              record,
+              _position,
+              _white_pawns,
+              _black_pawns
+            } ->
+              record
+          end
+        )
+
+      white_pawns =
+        Enum.map(
+          encoded_positions,
+          fn
+            {
+              _record,
+              _position,
+              white_pawns,
+              _black_pawns
+            } ->
+              white_pawns
+          end
+        )
+
+      black_pawns =
+        Enum.map(
+          encoded_positions,
+          fn
+            {
+              _record,
+              _position,
+              _white_pawns,
+              black_pawns
+            } ->
+              black_pawns
+          end
+        )
+
+      positions_by_record =
+        Map.new(
+          encoded_positions,
+          fn
+            {
+              record,
+              position,
+              _white_pawns,
+              _black_pawns
+            } ->
+              {
+                record,
+                position
+              }
+          end
+        )
+
+      transact(fn ->
+        with {:ok, inserted_rows} <-
+               insert_positions(
+                 records,
+                 white_pawns,
+                 black_pawns
+               ),
+             :ok <-
+               put_inserted_features(
+                 inserted_rows,
+                 positions_by_record
+               ) do
+          find_position_ids(records)
         end
-      )
-
-    records =
-      Enum.map(
-        encoded_positions,
-        fn {record, _position} ->
-          record
-        end
-      )
-
-    positions_by_record =
-      Map.new(encoded_positions)
-
-    transact(fn ->
-      with {:ok, inserted_rows} <-
-             insert_positions(records),
-           :ok <-
-             put_inserted_features(
-               inserted_rows,
-               positions_by_record
-             ) do
-        find_position_ids(records)
-      end
-    end)
-  end
-
-  defp put_position(%Position{} = position) do
-    record =
-      PositionCodec.encode(position)
-
-    case Repo.query(
-           @put_position_sql,
-           [record]
-         ) do
-      {:ok,
-       %{
-         rows: [
-           [
-             position_id,
-             true
-           ]
-         ]
-       }} ->
-        {:ok, position_id, :inserted}
-
-      {:ok,
-       %{
-         rows: [
-           [
-             position_id,
-             false
-           ]
-         ]
-       }} ->
-        {:ok, position_id, :existing}
-
-      {:ok, %{rows: []}} ->
-        resolve_concurrent_position(record)
-
-      {:error, reason} ->
-        {:error, reason}
+      end)
     end
   end
 
-  defp insert_positions(records) do
+  defp put_position(%Position{} = position) do
+    with {:ok,
+          {
+            record,
+            _position,
+            white_pawns,
+            black_pawns
+          }} <-
+           encode_position(position) do
+      case Repo.query(
+             @put_position_sql,
+             [
+               record,
+               white_pawns,
+               black_pawns
+             ]
+           ) do
+        {:ok,
+         %{
+           rows: [
+             [
+               position_id,
+               true
+             ]
+           ]
+         }} ->
+          {:ok, position_id, :inserted}
+
+        {:ok,
+         %{
+           rows: [
+             [
+               position_id,
+               false
+             ]
+           ]
+         }} ->
+          {:ok, position_id, :existing}
+
+        {:ok, %{rows: []}} ->
+          resolve_concurrent_position(record)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  defp insert_positions(records, white_pawns, black_pawns) do
     case Repo.query(
            @insert_positions_sql,
-           [records]
+           [
+             records,
+             white_pawns,
+             black_pawns
+           ]
          ) do
       {:ok, %{rows: rows}} ->
         {:ok, rows}
 
       {:error, reason} ->
         {:error, reason}
+    end
+  end
+
+  defp encode_positions(positions) do
+    positions
+    |> Enum.reduce_while(
+      {
+        :ok,
+        []
+      },
+      fn
+        %Position{} = position,
+        {
+          :ok,
+          encoded_positions
+        } ->
+          case encode_position(position) do
+            {:ok, encoded_position} ->
+              {:cont,
+               {
+                 :ok,
+                 [
+                   encoded_position
+                   | encoded_positions
+                 ]
+               }}
+
+            {:error, reason} ->
+              {:halt,
+               {
+                 :error,
+                 reason
+               }}
+          end
+      end
+    )
+    |> case do
+      {
+        :ok,
+        encoded_positions
+      } ->
+        {:ok, Enum.reverse(encoded_positions)}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp encode_position(%Position{} = position) do
+    structure =
+      PawnStructure.from_position(position)
+
+    with {:ok,
+          {
+            white_pawns,
+            black_pawns
+          }} <-
+           PositionPawnStructureCodec.encode(structure) do
+      {:ok,
+       {
+         PositionCodec.encode(position),
+         position,
+         white_pawns,
+         black_pawns
+       }}
     end
   end
 

@@ -120,7 +120,9 @@ defmodule Analysis.PostgresPositionStoreBatchTest do
              normalized_queries,
              &String.starts_with?(
                &1,
-               "INSERT INTO positions (record) SELECT DISTINCT input.record FROM unnest"
+               "INSERT INTO positions ( record, white_pawns, black_pawns ) " <>
+                 "SELECT DISTINCT input.record, input.white_pawns, input.black_pawns " <>
+                 "FROM unnest("
              )
            ) ==
              1

@@ -6,6 +6,7 @@ defmodule Analysis.PositionQuery.Postgres do
   the SQL alias `p`.
   """
 
+  alias Analysis.PositionPawnStructureCodec
   alias Analysis.PositionPropertyKeyCodec
   alias Analysis.PositionQuery
   alias Analysis.PositionQueryNormalizer
@@ -44,6 +45,34 @@ defmodule Analysis.PositionQuery.Postgres do
       parameters,
       next_parameter
     }
+  end
+
+  defp do_compile_predicate({:property, :pawn_structure, structure}, parameters, next_parameter) do
+    case PositionPawnStructureCodec.encode(structure) do
+      {:ok,
+       {
+         white_pawns,
+         black_pawns
+       }} ->
+        predicate = """
+        p.white_pawns = $#{next_parameter}::bigint
+        AND p.black_pawns = $#{next_parameter + 1}::bigint
+        """
+
+        {
+          :ok,
+          predicate,
+          parameters ++
+            [
+              white_pawns,
+              black_pawns
+            ],
+          next_parameter + 2
+        }
+
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 
   defp do_compile_predicate({:property, property, value}, parameters, next_parameter) do
