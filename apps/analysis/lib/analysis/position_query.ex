@@ -76,6 +76,24 @@ defmodule Analysis.PositionQuery do
     |> pawn_structure()
   end
 
+  @spec pawn_structure_symmetries(
+          Position.t()
+          | PawnStructure.t()
+        ) ::
+          t()
+  def pawn_structure_symmetries(%Position{} = position) do
+    position
+    |> PawnStructure.from_position()
+    |> pawn_structure_symmetries()
+  end
+
+  def pawn_structure_symmetries(%PawnStructure{} = structure) do
+    structure
+    |> PawnStructure.symmetries()
+    |> Enum.map(&pawn_structure/1)
+    |> any()
+  end
+
   @spec equivalent(term()) :: t()
   def equivalent(position) do
     {:equivalent, position}

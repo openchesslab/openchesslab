@@ -88,6 +88,40 @@ defmodule Chess.PawnStructure do
     }
   end
 
+  @doc """
+  Returns every distinct pawn structure equivalent under the supported
+  symmetries.
+
+  The equivalence class contains up to four structures:
+
+    * the exact structure
+    * color reversal
+    * file reflection
+    * color reversal combined with file reflection
+
+  Structures that coincide because of symmetry are returned only once.
+  """
+  @spec symmetries(t()) :: [t()]
+  def symmetries(%__MODULE__{} = structure) do
+    color_reversed =
+      color_reversed(structure)
+
+    file_reflected =
+      file_reflected(structure)
+
+    color_reversed_and_file_reflected =
+      color_reversed
+      |> file_reflected()
+
+    [
+      structure,
+      color_reversed,
+      file_reflected,
+      color_reversed_and_file_reflected
+    ]
+    |> Enum.uniq()
+  end
+
   defp flip_ranks(bitboard) do
     0..7
     |> Enum.reduce(
