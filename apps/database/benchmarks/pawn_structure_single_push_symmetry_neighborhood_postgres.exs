@@ -22,10 +22,12 @@ defmodule OpenChessLab.Database.PawnStructureSinglePushSymmetryNeighborhoodPostg
   # Black:
   #   a6 b7 c6 d6 e6 f5 g5 h6
   #
-  # All sixteen pawns can be shifted one rank forward. The exact
-  # structure plus those sixteen variants produces seventeen structures.
+  # All sixteen pawns can be shifted one rank in both directions. The
+  # exact structure plus those thirty-two direction-independent neighbors
+  # produces thirty-three structures.
+  #
   # Expanding each under the four supported symmetries produces exactly
-  # sixty-eight distinct pawn structures.
+  # one hundred thirty-two distinct pawn structures.
   @source_structure %PawnStructure{
     white: 0x0E817000,
     black: 0x00029D6000000000
@@ -290,7 +292,7 @@ defmodule OpenChessLab.Database.PawnStructureSinglePushSymmetryNeighborhoodPostg
     #{explain(generic_next_sql,
     generic_next_parameters)}
 
-    Specialized 68-key bounded-set compiler route
+    Specialized 132-key bounded-set compiler route
 
     First-page plan:
     #{explain(optimized_first_sql,
@@ -303,7 +305,7 @@ defmodule OpenChessLab.Database.PawnStructureSinglePushSymmetryNeighborhoodPostg
 
     Benchee.run(
       %{
-        "68-key bounded set: first page" => fn ->
+        "132-key bounded set: first page" => fn ->
           optimized_first_sql
           |> query_page(optimized_first_parameters)
           |> validate_page!(
@@ -312,7 +314,7 @@ defmodule OpenChessLab.Database.PawnStructureSinglePushSymmetryNeighborhoodPostg
             selectivity
           )
         end,
-        "68-key bounded set: second page" => fn ->
+        "132-key bounded set: second page" => fn ->
           optimized_next_sql
           |> query_page(optimized_next_parameters)
           |> validate_page!(
@@ -321,7 +323,7 @@ defmodule OpenChessLab.Database.PawnStructureSinglePushSymmetryNeighborhoodPostg
             selectivity
           )
         end,
-        "68-key generic OR: first page" => fn ->
+        "132-key generic OR: first page" => fn ->
           generic_first_sql
           |> query_page(generic_first_parameters)
           |> validate_page!(
@@ -330,7 +332,7 @@ defmodule OpenChessLab.Database.PawnStructureSinglePushSymmetryNeighborhoodPostg
             selectivity
           )
         end,
-        "68-key generic OR: second page" => fn ->
+        "132-key generic OR: second page" => fn ->
           generic_next_sql
           |> query_page(generic_next_parameters)
           |> validate_page!(
@@ -354,13 +356,13 @@ defmodule OpenChessLab.Database.PawnStructureSinglePushSymmetryNeighborhoodPostg
     structures =
       [
         @source_structure
-        | PawnStructure.single_pushes(@source_structure)
+        | PawnStructure.single_rank_neighbors(@source_structure)
       ]
 
-    if length(structures) != 17 do
+    if length(structures) != 33 do
       raise """
-      benchmark source structure must produce 17 neighborhood keys,
-      got #{length(structures)}
+      benchmark source structure must produce 33 direction-independent
+      neighborhood keys, got #{length(structures)}
       """
     end
 
@@ -373,10 +375,10 @@ defmodule OpenChessLab.Database.PawnStructureSinglePushSymmetryNeighborhoodPostg
       |> Enum.flat_map(&PawnStructure.symmetries/1)
       |> Enum.uniq()
 
-    if length(structures) != 68 do
+    if length(structures) != 132 do
       raise """
-      benchmark neighborhood must produce 68 distinct symmetry-expanded keys,
-      got #{length(structures)}
+      benchmark neighborhood must produce 132 distinct symmetry-expanded
+      keys, got #{length(structures)}
       """
     end
 
@@ -776,7 +778,7 @@ defmodule OpenChessLab.Database.PawnStructureSinglePushSymmetryNeighborhoodPostg
   end
 end
 
-_database_url =
+database_url =
   System.get_env("DATABASE_URL") ||
     raise """
     DATABASE_URL is required.
@@ -787,6 +789,17 @@ _database_url =
 
         ecto://openchesslab:openchesslab@localhost/openchesslab_bench
     """
+
+if URI.parse(database_url).path !=
+     "/openchesslab_bench" do
+  raise """
+  benchmark must use the dedicated openchesslab_bench database.
+
+  DATABASE_URL points to:
+
+      #{database_url}
+  """
+end
 
 posting_count =
   System.get_env(
@@ -838,12 +851,12 @@ end
 
 try do
   IO.puts("""
-  Building PostgreSQL symmetry-expanded single-push neighborhood fixture...
+  Building PostgreSQL symmetry-expanded direction-independent pawn neighborhood fixture...
 
   neighborhood matches: #{posting_count}
   selectivity:          1/#{selectivity}
   rows:                 #{posting_count * selectivity}
-  neighborhood keys:    68
+  neighborhood keys:    132
   page size:            #{page_size}
   """)
 
@@ -854,7 +867,7 @@ try do
     )
 
   IO.puts("""
-  PostgreSQL symmetry-expanded single-push neighborhood benchmark
+  PostgreSQL symmetry-expanded direction-independent pawn neighborhood benchmark
 
   rows:              #{fixture.row_count}
   table size:        #{fixture.table_size} bytes
@@ -863,7 +876,7 @@ try do
   neighborhood keys: #{fixture.structure_count}
 
   Comparing the generic OR compiler route with the production
-  68-key bounded pawn-structure set compiler route.
+  132-key bounded pawn-structure set compiler route.
   """)
 
   Benchmark.benchmark(
