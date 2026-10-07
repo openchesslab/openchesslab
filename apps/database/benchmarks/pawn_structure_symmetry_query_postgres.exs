@@ -6,233 +6,39 @@ Logger.configure(level: :warning)
 defmodule OpenChessLab.Database.PawnStructureSymmetryQueryPostgresBenchmark do
   @moduledoc false
 
+  alias Analysis.PositionPawnStructureCodec
+  alias Analysis.PositionQuery
+  alias Analysis.PositionQuery.PostgresPage
+  alias Chess.PawnStructure
   alias Ecto.Adapters.SQL
   alias OpenChessLab.Repo
 
   @table "openchesslab_pawn_structure_symmetry_benchmark"
   @index "#{@table}_paging_index"
 
-  @target_parameters [
-    1001,
-    2001,
-    1002,
-    2002,
-    1003,
-    2003,
-    1004,
-    2004
-  ]
-
-  @or_first_page_sql """
-  SELECT
-    COALESCE(
-      (
-        SELECT max(id)
-        FROM #{@table}
-      ),
-      0
-    )::bigint AS maximum_position_id,
-    p.id
-  FROM #{@table} AS p
-  WHERE
-    (
-      (
-        p.white_pawns = $1::bigint
-        AND p.black_pawns = $2::bigint
-      )
-      OR
-      (
-        p.white_pawns = $3::bigint
-        AND p.black_pawns = $4::bigint
-      )
-      OR
-      (
-        p.white_pawns = $5::bigint
-        AND p.black_pawns = $6::bigint
-      )
-      OR
-      (
-        p.white_pawns = $7::bigint
-        AND p.black_pawns = $8::bigint
-      )
-    )
-  ORDER BY
-    p.id
-  LIMIT $9::bigint
-  """
-
-  @or_next_page_sql """
-  SELECT
-    $9::bigint AS maximum_position_id,
-    p.id
-  FROM #{@table} AS p
-  WHERE
-    p.id > $10::bigint
-    AND p.id <= $9::bigint
-    AND (
-      (
-        p.white_pawns = $1::bigint
-        AND p.black_pawns = $2::bigint
-      )
-      OR
-      (
-        p.white_pawns = $3::bigint
-        AND p.black_pawns = $4::bigint
-      )
-      OR
-      (
-        p.white_pawns = $5::bigint
-        AND p.black_pawns = $6::bigint
-      )
-      OR
-      (
-        p.white_pawns = $7::bigint
-        AND p.black_pawns = $8::bigint
-      )
-    )
-  ORDER BY
-    p.id
-  LIMIT $11::bigint
-  """
-
-  @union_first_page_sql """
-  SELECT
-    COALESCE(
-      (
-        SELECT max(id)
-        FROM #{@table}
-      ),
-      0
-    )::bigint AS maximum_position_id,
-    matches.id
-  FROM (
-    (
-      SELECT
-        p.id
-      FROM #{@table} AS p
-      WHERE
-        p.white_pawns = $1::bigint
-        AND p.black_pawns = $2::bigint
-      ORDER BY
-        p.id
-    )
-
-    UNION ALL
-
-    (
-      SELECT
-        p.id
-      FROM #{@table} AS p
-      WHERE
-        p.white_pawns = $3::bigint
-        AND p.black_pawns = $4::bigint
-      ORDER BY
-        p.id
-    )
-
-    UNION ALL
-
-    (
-      SELECT
-        p.id
-      FROM #{@table} AS p
-      WHERE
-        p.white_pawns = $5::bigint
-        AND p.black_pawns = $6::bigint
-      ORDER BY
-        p.id
-    )
-
-    UNION ALL
-
-    (
-      SELECT
-        p.id
-      FROM #{@table} AS p
-      WHERE
-        p.white_pawns = $7::bigint
-        AND p.black_pawns = $8::bigint
-      ORDER BY
-        p.id
-    )
-  ) AS matches
-  ORDER BY
-    matches.id
-  LIMIT $9::bigint
-  """
-
-  @union_next_page_sql """
-  SELECT
-    $9::bigint AS maximum_position_id,
-    matches.id
-  FROM (
-    (
-      SELECT
-        p.id
-      FROM #{@table} AS p
-      WHERE
-        p.white_pawns = $1::bigint
-        AND p.black_pawns = $2::bigint
-        AND p.id > $10::bigint
-        AND p.id <= $9::bigint
-      ORDER BY
-        p.id
-    )
-
-    UNION ALL
-
-    (
-      SELECT
-        p.id
-      FROM #{@table} AS p
-      WHERE
-        p.white_pawns = $3::bigint
-        AND p.black_pawns = $4::bigint
-        AND p.id > $10::bigint
-        AND p.id <= $9::bigint
-      ORDER BY
-        p.id
-    )
-
-    UNION ALL
-
-    (
-      SELECT
-        p.id
-      FROM #{@table} AS p
-      WHERE
-        p.white_pawns = $5::bigint
-        AND p.black_pawns = $6::bigint
-        AND p.id > $10::bigint
-        AND p.id <= $9::bigint
-      ORDER BY
-        p.id
-    )
-
-    UNION ALL
-
-    (
-      SELECT
-        p.id
-      FROM #{@table} AS p
-      WHERE
-        p.white_pawns = $7::bigint
-        AND p.black_pawns = $8::bigint
-        AND p.id > $10::bigint
-        AND p.id <= $9::bigint
-      ORDER BY
-        p.id
-    )
-  ) AS matches
-  ORDER BY
-    matches.id
-  LIMIT $11::bigint
-  """
+  # One white pawn on b4 and one black pawn on f6.
+  #
+  # This structure has four distinct supported symmetries:
+  #
+  #   exact
+  #   color reversed
+  #   file reflected
+  #   color reversed + file reflected
+  #
+  # The values are ordinary bitboards and deliberately stay below
+  # PostgreSQL's signed-bigint high bit.
+  @source_structure %PawnStructure{
+    white: 33_554_432,
+    black: 35_184_372_088_832
+  }
 
   def build(posting_count, selectivity) do
     row_count =
       posting_count *
         selectivity
+
+    target_parameters =
+      encoded_symmetry_parameters()
 
     drop_table()
 
@@ -295,7 +101,7 @@ defmodule OpenChessLab.Database.PawnStructureSymmetryQueryPostgresBenchmark do
       [
         row_count,
         selectivity
-        | @target_parameters
+        | target_parameters
       ]
     )
 
@@ -319,41 +125,115 @@ defmodule OpenChessLab.Database.PawnStructureSymmetryQueryPostgresBenchmark do
   end
 
   def benchmark(posting_count, selectivity, page_size, row_count) do
-    or_first_page =
-      first_page(
-        :or,
+    generic_query =
+      generic_or_query()
+
+    optimized_query =
+      PositionQuery.pawn_structure_symmetries(@source_structure)
+
+    {
+      generic_first_sql,
+      generic_first_parameters
+    } =
+      compile_first!(
+        generic_query,
         page_size
       )
 
-    union_first_page =
-      first_page(
-        :union_all,
+    {
+      optimized_first_sql,
+      optimized_first_parameters
+    } =
+      compile_first!(
+        optimized_query,
         page_size
       )
 
-    if or_first_page !=
-         union_first_page do
-      raise """
-      OR and UNION ALL returned different first pages.
+    validate_first_page_shapes!(
+      generic_first_sql,
+      optimized_first_sql
+    )
 
-      OR:
-      #{inspect(or_first_page)}
+    generic_first_page =
+      query_page(
+        generic_first_sql,
+        generic_first_parameters
+      )
 
-      UNION ALL:
-      #{inspect(union_first_page)}
-      """
-    end
+    optimized_first_page =
+      query_page(
+        optimized_first_sql,
+        optimized_first_parameters
+      )
 
-    last_position_id =
-      or_first_page
-      |> Map.fetch!(:position_ids)
-      |> List.last()
+    assert_same_page!(
+      "first",
+      generic_first_page,
+      optimized_first_page
+    )
 
     expected_first_page_size =
       min(
         posting_count,
         page_size
       )
+
+    validate_page!(
+      generic_first_page,
+      row_count,
+      expected_first_page_size,
+      selectivity
+    )
+
+    last_position_id =
+      generic_first_page
+      |> Map.fetch!(:position_ids)
+      |> List.last()
+
+    {
+      generic_next_sql,
+      generic_next_parameters
+    } =
+      compile_next!(
+        generic_query,
+        row_count,
+        last_position_id,
+        page_size
+      )
+
+    {
+      optimized_next_sql,
+      optimized_next_parameters
+    } =
+      compile_next!(
+        optimized_query,
+        row_count,
+        last_position_id,
+        page_size
+      )
+
+    validate_next_page_shapes!(
+      generic_next_sql,
+      optimized_next_sql
+    )
+
+    generic_second_page =
+      query_page(
+        generic_next_sql,
+        generic_next_parameters
+      )
+
+    optimized_second_page =
+      query_page(
+        optimized_next_sql,
+        optimized_next_parameters
+      )
+
+    assert_same_page!(
+      "second",
+      generic_second_page,
+      optimized_second_page
+    )
 
     expected_second_page_size =
       posting_count
@@ -362,131 +242,67 @@ defmodule OpenChessLab.Database.PawnStructureSymmetryQueryPostgresBenchmark do
       |> min(page_size)
 
     validate_page!(
-      or_first_page,
-      row_count,
-      expected_first_page_size,
-      selectivity
-    )
-
-    or_second_page =
-      next_page(
-        :or,
-        row_count,
-        last_position_id,
-        page_size
-      )
-
-    union_second_page =
-      next_page(
-        :union_all,
-        row_count,
-        last_position_id,
-        page_size
-      )
-
-    if or_second_page !=
-         union_second_page do
-      raise """
-      OR and UNION ALL returned different second pages.
-
-      OR:
-      #{inspect(or_second_page)}
-
-      UNION ALL:
-      #{inspect(union_second_page)}
-      """
-    end
-
-    validate_page!(
-      or_second_page,
+      generic_second_page,
       row_count,
       expected_second_page_size,
       selectivity
     )
 
     IO.puts("""
-    Current OR query
+    Generic OR compiler route
 
     First-page plan:
-    #{first_page_plan(:or,
-    page_size)}
+    #{explain(generic_first_sql,
+    generic_first_parameters)}
 
     Second-page plan:
-    #{next_page_plan(:or,
-    row_count,
-    last_position_id,
-    page_size)}
+    #{explain(generic_next_sql,
+    generic_next_parameters)}
 
-    Ordered UNION ALL query
+    Specialized symmetry compiler route
 
     First-page plan:
-    #{first_page_plan(:union_all,
-    page_size)}
+    #{explain(optimized_first_sql,
+    optimized_first_parameters)}
 
     Second-page plan:
-    #{next_page_plan(:union_all,
-    row_count,
-    last_position_id,
-    page_size)}
+    #{explain(optimized_next_sql,
+    optimized_next_parameters)}
     """)
 
     Benchee.run(
       %{
-        "current OR: first page" => fn ->
-          result =
-            first_page(
-              :or,
-              page_size
-            )
-
-          validate_page!(
-            result,
+        "generic OR compiler: first page" => fn ->
+          generic_first_sql
+          |> query_page(generic_first_parameters)
+          |> validate_page!(
             row_count,
             expected_first_page_size,
             selectivity
           )
         end,
-        "current OR: second page" => fn ->
-          result =
-            next_page(
-              :or,
-              row_count,
-              last_position_id,
-              page_size
-            )
-
-          validate_page!(
-            result,
+        "generic OR compiler: second page" => fn ->
+          generic_next_sql
+          |> query_page(generic_next_parameters)
+          |> validate_page!(
             row_count,
             expected_second_page_size,
             selectivity
           )
         end,
-        "ordered UNION ALL: first page" => fn ->
-          result =
-            first_page(
-              :union_all,
-              page_size
-            )
-
-          validate_page!(
-            result,
+        "specialized symmetry compiler: first page" => fn ->
+          optimized_first_sql
+          |> query_page(optimized_first_parameters)
+          |> validate_page!(
             row_count,
             expected_first_page_size,
             selectivity
           )
         end,
-        "ordered UNION ALL: second page" => fn ->
-          result =
-            next_page(
-              :union_all,
-              row_count,
-              last_position_id,
-              page_size
-            )
-
-          validate_page!(
-            result,
+        "specialized symmetry compiler: second page" => fn ->
+          optimized_next_sql
+          |> query_page(optimized_next_parameters)
+          |> validate_page!(
             row_count,
             expected_second_page_size,
             selectivity
@@ -503,66 +319,222 @@ defmodule OpenChessLab.Database.PawnStructureSymmetryQueryPostgresBenchmark do
     drop_table()
   end
 
-  def first_page(shape, page_size) do
-    shape
-    |> first_page_sql()
-    |> query_page(
-      @target_parameters ++
-        [
-          page_size
-        ]
+  defp generic_or_query do
+    @source_structure
+    |> PawnStructure.symmetries()
+    |> Enum.map(&PositionQuery.pawn_structure/1)
+    |> PositionQuery.any()
+  end
+
+  defp encoded_symmetry_parameters do
+    structures =
+      PawnStructure.symmetries(@source_structure)
+
+    if length(structures) != 4 do
+      raise """
+      benchmark source structure must have four distinct symmetries,
+      got #{length(structures)}
+      """
+    end
+
+    Enum.flat_map(
+      structures,
+      fn structure ->
+        case PositionPawnStructureCodec.encode(structure) do
+          {:ok,
+           {
+             white_pawns,
+             black_pawns
+           }} ->
+            [
+              white_pawns,
+              black_pawns
+            ]
+
+          {:error, reason} ->
+            raise """
+            could not encode benchmark pawn structure:
+
+            #{inspect(reason)}
+            """
+        end
+      end
     )
   end
 
-  def next_page(shape, maximum_position_id, last_position_id, page_size) do
-    shape
-    |> next_page_sql()
-    |> query_page(
-      @target_parameters ++
-        [
-          maximum_position_id,
-          last_position_id,
-          page_size
-        ]
+  defp compile_first!(query, page_size) do
+    case PostgresPage.compile_first(
+           query,
+           page_size
+         ) do
+      {
+        :ok,
+        sql,
+        parameters
+      } ->
+        {
+          benchmark_relation(sql),
+          parameters
+        }
+
+      {:error, reason} ->
+        raise """
+        could not compile first page:
+
+        #{inspect(reason)}
+        """
+    end
+  end
+
+  defp compile_next!(query, maximum_position_id, last_position_id, page_size) do
+    case PostgresPage.compile_next(
+           query,
+           maximum_position_id,
+           last_position_id,
+           page_size
+         ) do
+      {
+        :ok,
+        sql,
+        parameters
+      } ->
+        {
+          benchmark_relation(sql),
+          parameters
+        }
+
+      {:error, reason} ->
+        raise """
+        could not compile next page:
+
+        #{inspect(reason)}
+        """
+    end
+  end
+
+  # The production compiler deliberately targets the canonical
+  # `positions` relation. The benchmark uses a compact synthetic
+  # relation with the same indexed columns so a 10M-row fixture does
+  # not also need to materialize 67-byte canonical position records
+  # and their unique index.
+  #
+  # Only the relation identifier is substituted. The predicate,
+  # UNION ALL branches, ordering, paging bounds and parameter layout
+  # are exactly those produced by PostgresPage.
+  defp benchmark_relation(sql) do
+    rewritten =
+      String.replace(
+        sql,
+        "FROM positions",
+        "FROM #{@table}"
+      )
+
+    if rewritten == sql do
+      raise """
+      compiled query did not reference the positions relation
+      """
+    end
+
+    rewritten
+  end
+
+  defp validate_first_page_shapes!(generic_sql, optimized_sql) do
+    normalized_generic =
+      normalize_sql(generic_sql)
+
+    normalized_optimized =
+      normalize_sql(optimized_sql)
+
+    if String.contains?(
+         normalized_generic,
+         "UNION ALL"
+       ) do
+      raise """
+      generic OR compiler unexpectedly produced UNION ALL
+      """
+    end
+
+    if occurrences(
+         normalized_generic,
+         " OR "
+       ) != 3 do
+      raise """
+      generic OR compiler did not produce the expected four-way OR
+      """
+    end
+
+    if occurrences(
+         normalized_optimized,
+         "UNION ALL"
+       ) != 3 do
+      raise """
+      specialized symmetry compiler did not produce four UNION ALL branches
+      """
+    end
+
+    if String.contains?(
+         normalized_optimized,
+         " OR "
+       ) do
+      raise """
+      specialized symmetry compiler unexpectedly produced OR
+      """
+    end
+
+    if occurrences(
+         normalized_optimized,
+         "ORDER BY p.id"
+       ) != 4 do
+      raise """
+      specialized symmetry compiler did not order every equality scan by id
+      """
+    end
+  end
+
+  defp validate_next_page_shapes!(generic_sql, optimized_sql) do
+    validate_first_page_shapes!(
+      generic_sql,
+      optimized_sql
     )
+
+    normalized_optimized =
+      normalize_sql(optimized_sql)
+
+    if occurrences(
+         normalized_optimized,
+         "p.id >"
+       ) != 4 do
+      raise """
+      specialized symmetry compiler did not push the lower keyset bound
+      into every branch
+      """
+    end
+
+    if occurrences(
+         normalized_optimized,
+         "p.id <="
+       ) != 4 do
+      raise """
+      specialized symmetry compiler did not push the high-water bound
+      into every branch
+      """
+    end
   end
 
-  def first_page_plan(shape, page_size) do
-    explain(
-      first_page_sql(shape),
-      @target_parameters ++
-        [
-          page_size
-        ]
-    )
-  end
+  defp assert_same_page!(page_name, generic_page, optimized_page) do
+    if generic_page !=
+         optimized_page do
+      raise """
+      generic OR and specialized symmetry compiler returned different
+      #{page_name} pages.
 
-  def next_page_plan(shape, maximum_position_id, last_position_id, page_size) do
-    explain(
-      next_page_sql(shape),
-      @target_parameters ++
-        [
-          maximum_position_id,
-          last_position_id,
-          page_size
-        ]
-    )
-  end
+      Generic OR:
+      #{inspect(generic_page)}
 
-  defp first_page_sql(:or) do
-    @or_first_page_sql
-  end
-
-  defp first_page_sql(:union_all) do
-    @union_first_page_sql
-  end
-
-  defp next_page_sql(:or) do
-    @or_next_page_sql
-  end
-
-  defp next_page_sql(:union_all) do
-    @union_next_page_sql
+      Specialized symmetry:
+      #{inspect(optimized_page)}
+      """
+    end
   end
 
   defp query_page(sql, parameters) do
@@ -602,6 +574,7 @@ defmodule OpenChessLab.Database.PawnStructureSymmetryQueryPostgresBenchmark do
           row ->
             raise """
             inconsistent page row:
+
             #{inspect(row)}
             """
         end
@@ -724,6 +697,22 @@ defmodule OpenChessLab.Database.PawnStructureSymmetryQueryPostgresBenchmark do
     end
   end
 
+  defp normalize_sql(sql) do
+    sql
+    |> String.replace(
+      ~r/\s+/,
+      " "
+    )
+    |> String.trim()
+  end
+
+  defp occurrences(string, fragment) do
+    string
+    |> String.split(fragment)
+    |> length()
+    |> Kernel.-(1)
+  end
+
   defp setup_query!(sql, parameters \\ []) do
     SQL.query!(
       Repo,
@@ -815,15 +804,15 @@ try do
     )
 
   IO.puts("""
-  PostgreSQL pawn-structure symmetry query benchmark
+  PostgreSQL production-compiler pawn-structure symmetry benchmark
 
   rows:       #{fixture.row_count}
   table size: #{fixture.table_size} bytes
   index size: #{fixture.index_size} bytes
   total size: #{fixture.total_size} bytes
 
-  Comparing the current four-way OR predicate with four ordered
-  equality scans combined using UNION ALL.
+  Comparing the generic OR compiler route with the specialized
+  pawn-structure symmetry compiler route.
   """)
 
   Benchmark.benchmark(
