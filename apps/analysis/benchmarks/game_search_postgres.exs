@@ -1,6 +1,6 @@
 alias Analysis.GameSearchPostgresBenchmark, as: Benchmark
 
-Logger.configure(level: :info)
+Logger.configure(level: :warning)
 
 defmodule Analysis.GameSearchPostgresBenchmark do
   @moduledoc false
