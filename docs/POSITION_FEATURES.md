@@ -1,0 +1,412 @@
+- **1. Exacte toestand van de positie**
+  - bezetting van ieder veld
+  - type en kleur van ieder stuk
+  - side to move
+  - positie van beide koningen
+  - rokaderechten
+  - en-passantmogelijkheid
+  - exacte witte-pionnenbezetting
+  - exacte zwarte-pionnenbezetting
+  - exacte piece occupancy per stuktype en kleur
+
+  **2. Materiaal**
+  - aantal dames
+  - aantal torens
+  - aantal lopers
+  - aantal paarden
+  - aantal pionnen
+  - totale materiaalwaarde
+  - materiaalverschil
+  - materiaalverhouding per stuktype
+  - loperpaar
+  - beide partijen loperpaar
+  - paard tegen loper
+  - toren tegen lichte stukken
+  - dame tegen torens
+  - twee torens tegen dame
+  - exchange advantage / exchange sacrifice
+  - ongelijke materiaalbalans
+  - opposite-colored bishops
+  - same-colored bishops
+  - queenless middlegame / queens afwezig
+  - overgang naar eindspelmateriaal
+
+  **3. Pionnenstructuur**
+  - exacte pionnenstructuur
+  - aantal pionnen per vleugel
+  - pawn islands
+  - geïsoleerde pion
+  - isolated queen pawn / IQP
+  - backward pawn
+  - doubled pawns
+  - tripled pawns
+  - passed pawn
+  - protected passed pawn
+  - connected passed pawns
+  - candidate passed pawn
+  - connected pawns
+  - hanging pawns
+  - pawn chains
+  - basis van een pawn chain
+  - pawn majority
+  - kingside majority
+  - queenside majority
+  - minority
+  - minority-attackstructuur
+  - pawn lever
+  - mogelijke pawn break
+  - locked pawn structure
+  - open pawn structure
+  - fixed pawn structure
+  - zwakke pion
+  - zwakke pion die niet door een andere pion kan worden gedekt
+  - advanced pawn
+  - overextended pawn
+  - rook behind passed pawn
+  - blockaded passed pawn
+  - blockade-square
+  - afstand tussen vergelijkbare pionnenstructuren
+  - één pion één rang verschoven
+  - capture-like diagonale pionverschuiving
+  - ontbrekende/toegevoegde pion
+  - kleurgespiegelde pionnenstructuur
+
+  **4. Stukplaatsing**
+  - stuk op specifiek veld
+  - stuktype op specifiek veld
+  - concentratie van stukken op een vleugel
+  - stukken in het centrum
+  - stukken in vijandelijk gebied
+  - advanced pieces
+  - centralized pieces
+  - knight on rim
+  - knight outpost
+  - bishop on active diagonal
+  - bad bishop
+  - good bishop
+  - bishop outside pawn chain
+  - trapped bishop
+  - trapped rook
+  - trapped queen
+  - trapped piece in het algemeen
+  - rook on seventh rank
+  - rook behind passed pawn
+  - rook on open file
+  - rook on semi-open file
+  - doubled rooks
+  - connected rooks
+  - queen centralization
+  - king centralization, met name in eindspelen
+
+  **5. Mobiliteit en activiteit**
+  - totale mobiliteit
+  - mobiliteit per partij
+  - mobiliteit per stuk
+  - aantal legale zetten
+  - aantal beschikbare velden per stuk
+  - restricted piece
+  - trapped piece
+  - actieve versus passieve stukken
+  - rook activity
+  - bishop activity
+  - queen activity
+  - knight activity
+  - king activity
+  - development
+  - ontwikkelingsvoorsprong
+  - undeveloped pieces
+  - tempi / development deficit
+  - piece coordination
+  - slecht gecoördineerde stukken
+
+  **6. Centrum**
+  - bezetting van het centrum
+  - controle over het centrum
+  - controle over d4/e4/d5/e5
+  - uitgebreid centrum
+  - pawn center
+  - piece center
+  - stabiel centrum
+  - mobiel centrum
+  - locked center
+  - open center
+  - central pawn tension
+  - central breakthrough
+  - central dominance
+
+  **7. Ruimte**
+  - totale space advantage
+  - ruimte op kingside
+  - ruimte op queenside
+  - ruimte in het centrum
+  - aantal gecontroleerde velden in vijandelijke helft
+  - territory advantage
+  - cramping van de tegenstander
+  - advanced pawn chain die ruimte wint
+  - space-gaining pawn push
+
+  **8. Velden en zwaktes**
+  - weak square
+  - hole
+  - outpost square
+  - occupied outpost
+  - potential outpost
+  - weak color complex
+  - dark-square weakness
+  - light-square weakness
+  - zwakke velden rond koning
+  - zwakke velden achter pionnen
+  - invasion square
+  - entry square voor zware stukken
+  - permanent versus tijdelijke zwakte
+
+  **9. Lijnen**
+  - open file
+  - semi-open file
+  - closed file
+  - open diagonal
+  - semi-open diagonal
+  - lange diagonalen
+  - open rank
+  - rook op open file
+  - rook op semi-open file
+  - controle over open file
+  - contesting an open file
+  - penetratie over open file
+  - batterij op file
+  - batterij op diagonal
+  - queen-rook battery
+  - queen-bishop battery
+  - bishop battery
+  - x-ray langs file/rank/diagonal
+
+  **10. Aanvallen en verdedigers**
+  - attack map
+  - attacked squares
+  - defended squares
+  - aantal aanvallers per veld
+  - aantal verdedigers per veld
+  - attacked pieces
+  - undefended pieces
+  - loose pieces
+  - hanging pieces
+  - en prise pieces
+  - overprotected pieces
+  - overloaded defender
+  - underdefended piece
+  - aanvaller-verdedigerverhouding op een doelveld
+  - druk op een specifiek veld
+  - druk op een specifiek stuk
+  - pressure on isolated pawn
+  - pressure on backward pawn
+  - pressure on passed pawn
+  - pressure on f2/f7
+  - pressure on king zone
+
+  **11. Koningsveiligheid**
+  - koning heeft gerokeerd
+  - kingside castled
+  - queenside castled
+  - uncastled king
+  - koning nog in het centrum
+  - verloren rokaderecht
+  - pawn shield
+  - ontbrekende shield pawns
+  - verzwakte pionnen rond koning
+  - open file naar koning
+  - semi-open file naar koning
+  - open diagonal naar koning
+  - exposed king
+  - king zone
+  - aantal aanvallers rond koning
+  - aantal verdedigers rond koning
+  - aanvalskracht rond koning
+  - escape squares
+  - beperkte vluchtvelden
+  - back-rank weakness
+  - mating-net pressure
+  - opposite-side castling
+  - king-safety advantage
+
+  **12. Tactische geometrie**
+  - pin
+  - absolute pin
+  - relative pin
+  - skewer
+  - fork
+  - discovered attack
+  - discovered check
+  - double attack
+  - double check
+  - x-ray attack
+  - battery
+  - overloaded piece
+  - deflection possibility
+  - decoy possibility
+  - removal of defender
+  - interference
+  - clearance
+  - zwischenzug possibilities
+  - trapped piece
+  - loose piece
+  - hanging piece
+
+  **13. Concrete tactische dreigingen**
+  - check
+  - aantal checks
+  - capture threats
+  - mate threat
+  - mating net
+  - promotion threat
+  - discovered attack threat
+  - fork threat
+  - pin exploitation
+  - sacrifice opportunity
+  - tactical tension
+  - forcing-move density
+  - aantal forcing moves
+  - check/capture/threat-mogelijkheden
+
+  **14. Specifieke tactische motieven**
+  - Greek gift / Bxh7+ of ...Bxh2+
+  - back-rank motifs
+  - smothered-mate motifs
+  - rook sacrifice against king
+  - exchange sacrifice
+  - clearance sacrifice
+  - deflection
+  - overloaded defender
+  - trapped queen
+  - mating battery
+  - f2/f7 attack
+
+  **15. Strategische doelen en plannen**
+  - kingside attack
+  - queenside attack
+  - queenside expansion
+  - central attack
+  - minority attack
+  - attack against isolated pawn
+  - blockade isolated pawn
+  - attack backward pawn
+  - exploit weak square
+  - establish outpost
+  - occupy open file
+  - double rooks on file
+  - penetrate seventh rank
+  - exchange bad piece
+  - preserve good piece
+  - trade queens
+  - avoid queen trade
+  - improve worst-placed piece
+  - activate king
+  - create passed pawn
+  - advance passed pawn
+  - blockade passed pawn
+  - pawn break
+  - pawn storm
+  - space-gaining pawn advance
+  - transfer pieces to kingside
+  - transfer pieces to queenside
+  - rook lift
+  - pressure along a file
+  - pressure along a diagonal
+  - exploit color-complex weakness
+
+  **16. Structurele spanningen**
+  - pawn tension
+  - central tension
+  - kingside tension
+  - queenside tension
+  - unresolved captures
+  - mutually attacked pieces
+  - opposed pawns
+  - possible pawn breaks
+  - lever structure
+  - static versus dynamic structure
+
+  **17. Stukkwaliteit en relaties tussen stukken**
+  - good bishop
+  - bad bishop
+  - bishop versus own pawn color complex
+  - bishop pair
+  - opposite-colored bishops
+  - knight outpost
+  - strong knight versus bad bishop
+  - active rook
+  - passive rook
+  - queen activity
+  - piece coordination
+  - batteries
+  - connected rooks
+  - rooks cut off from each other
+  - piece harmony
+  - poorly placed piece
+  - best/worst placed piece
+
+  **18. Initiatief en dynamiek**
+  - initiatief
+  - tempo advantage
+  - development lead
+  - attacking momentum
+  - forcing-move density
+  - tactical potential
+  - attacking potential
+  - defending burden
+  - ability to create threats
+  - dynamic compensation
+  - positional compensation
+  - sacrifice compensation
+
+  **19. Positietype**
+  - open position
+  - semi-open position
+  - closed position
+  - locked position
+  - tactical position
+  - quiet position
+  - sharp position
+  - maneuvering position
+  - symmetric position
+  - asymmetric position
+  - opposite-side castling position
+  - queenless middlegame
+  - endgame-like position
+  - material-imbalanced position
+
+  **20. Evaluatieve eigenschappen**
+  - totale evaluatie
+  - material advantage
+  - positional advantage
+  - space advantage
+  - mobility advantage
+  - king-safety advantage
+  - initiative advantage
+  - development advantage
+  - pawn-structure advantage
+  - piece-activity advantage
+  - tactical advantage
+  - attack strength
+  - defensive strength
+  - compensation
+  - winning/drawing/losing tendency
+
+  **21. Gelijkenis en structurele relaties met andere posities**
+  - exact dezelfde positie
+  - dezelfde positie met andere side to move
+  - kleurverwisselde positie
+  - horizontaal/verticaal gespiegeld
+  - dezelfde pawn structure
+  - vergelijkbare pawn structure
+  - dezelfde materiaalverdeling
+  - vergelijkbare materiaalverdeling
+  - dezelfde stukplaatsingspatronen
+  - dezelfde strategische structuur
+  - dezelfde king-safetystructuur
+  - dezelfde tactische geometrie
+  - vergelijkbaar aanvalsplan
+  - structurele afstand tussen posities
+  - pawn-edit distance
+  - één pion verschoven
+  - bishop ↔ knight substitution
+  - twee rooks ↔ queen substitution
