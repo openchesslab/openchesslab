@@ -123,6 +123,51 @@ defmodule Chess.PawnStructure do
   end
 
   @doc """
+  Returns every distinct pawn structure produced by shifting exactly one
+  pawn one rank forward in its color's normal direction.
+
+  White pawns are shifted toward higher square numbers and Black pawns
+  toward lower square numbers. A variant is omitted when the destination
+  lies outside the board or already contains a pawn.
+
+  These are structural transformations, not legal chess moves. Occupancy
+  by non-pawn pieces is intentionally unknown.
+  """
+  @spec single_pushes(t()) :: [t()]
+  def single_pushes(%__MODULE__{} = structure) do
+    [
+      :white,
+      :black
+    ]
+    |> Enum.flat_map(fn color ->
+      structure
+      |> color_pawns(color)
+      |> pawn_squares()
+      |> Enum.flat_map(fn from ->
+        to =
+          from +
+            forward_step(color)
+
+        case shift_pawn(
+               structure,
+               color,
+               from,
+               to
+             ) do
+          {:ok, shifted} ->
+            [
+              shifted
+            ]
+
+          {:error, _reason} ->
+            []
+        end
+      end)
+    end)
+    |> Enum.uniq()
+  end
+
+  @doc """
   Returns the same pawn structure from the opposite color perspective.
 
   Colors are swapped and ranks are reflected:
@@ -218,6 +263,27 @@ defmodule Chess.PawnStructure do
       color,
       pawns
     )
+  end
+
+  defp pawn_squares(pawns) do
+    for square <- 0..63,
+        band(
+          pawns,
+          bsl(
+            1,
+            square
+          )
+        ) != 0 do
+      square
+    end
+  end
+
+  defp forward_step(:white) do
+    8
+  end
+
+  defp forward_step(:black) do
+    -8
   end
 
   defp pawn_on?(structure, color, square) do

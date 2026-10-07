@@ -68,6 +68,29 @@ defmodule Analysis.PositionQuery do
     |> pawn_structures()
   end
 
+  @doc """
+  Searches the exact pawn structure together with every structure
+  produced by a single one-rank forward pawn shift.
+  """
+  @spec pawn_structure_single_push_neighborhood(
+          Position.t()
+          | PawnStructure.t()
+        ) ::
+          t()
+  def pawn_structure_single_push_neighborhood(%Position{} = position) do
+    position
+    |> PawnStructure.from_position()
+    |> pawn_structure_single_push_neighborhood()
+  end
+
+  def pawn_structure_single_push_neighborhood(%PawnStructure{} = structure) do
+    [
+      structure
+      | PawnStructure.single_pushes(structure)
+    ]
+    |> pawn_structures()
+  end
+
   @spec color_reversed_pawn_structure(
           Position.t()
           | PawnStructure.t()
