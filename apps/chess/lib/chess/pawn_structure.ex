@@ -9,6 +9,10 @@ defmodule Chess.PawnStructure do
   Color reversal swaps White and Black while reflecting ranks so pawn
   direction remains meaningful. For example, a White pawn on d4 becomes
   a Black pawn on d5.
+
+  File reflection mirrors the structure across the vertical center line
+  while preserving colors and ranks. For example, a White pawn on b4
+  becomes a White pawn on g4.
   """
 
   import Bitwise
@@ -66,6 +70,24 @@ defmodule Chess.PawnStructure do
     }
   end
 
+  @doc """
+  Reflects the pawn structure across the vertical center line.
+
+  Colors and ranks are preserved while files are mirrored:
+
+    * a <-> h
+    * b <-> g
+    * c <-> f
+    * d <-> e
+  """
+  @spec file_reflected(t()) :: t()
+  def file_reflected(%__MODULE__{white: white, black: black}) do
+    %__MODULE__{
+      white: flip_files(white),
+      black: flip_files(black)
+    }
+  end
+
   defp flip_ranks(bitboard) do
     0..7
     |> Enum.reduce(
@@ -83,6 +105,50 @@ defmodule Chess.PawnStructure do
             (7 - rank) * 8
           )
         )
+      end
+    )
+  end
+
+  defp flip_files(bitboard) do
+    0..7
+    |> Enum.reduce(
+      0,
+      fn rank, reflected ->
+        rank_bits =
+          bitboard
+          |> bsr(rank * 8)
+          |> band(0xFF)
+
+        bor(
+          reflected,
+          bsl(
+            reverse_byte(rank_bits),
+            rank * 8
+          )
+        )
+      end
+    )
+  end
+
+  defp reverse_byte(byte) do
+    0..7
+    |> Enum.reduce(
+      0,
+      fn file, reversed ->
+        if band(
+             byte,
+             bsl(1, file)
+           ) == 0 do
+          reversed
+        else
+          bor(
+            reversed,
+            bsl(
+              1,
+              7 - file
+            )
+          )
+        end
       end
     )
   end

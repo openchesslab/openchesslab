@@ -59,6 +59,23 @@ defmodule Analysis.PositionQuery do
     |> pawn_structure()
   end
 
+  @spec file_reflected_pawn_structure(
+          Position.t()
+          | PawnStructure.t()
+        ) ::
+          t()
+  def file_reflected_pawn_structure(%Position{} = position) do
+    position
+    |> PawnStructure.from_position()
+    |> file_reflected_pawn_structure()
+  end
+
+  def file_reflected_pawn_structure(%PawnStructure{} = structure) do
+    structure
+    |> PawnStructure.file_reflected()
+    |> pawn_structure()
+  end
+
   @spec equivalent(term()) :: t()
   def equivalent(position) do
     {:equivalent, position}
