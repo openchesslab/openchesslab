@@ -96,6 +96,36 @@ defmodule Analysis.PositionQuery do
   end
 
   @doc """
+  Searches the exact pawn structure together with every structure differing
+  by one capture-like pawn displacement.
+
+  A capture-like displacement moves exactly one pawn by one file and one
+  rank diagonally. The neighborhood is direction-independent and may
+  therefore represent either the creation or removal of a doubled-pawn
+  structure.
+
+  This models structural similarity rather than legal chess captures.
+  """
+  @spec pawn_structure_single_capture_like_neighborhood(
+          Position.t()
+          | PawnStructure.t()
+        ) ::
+          t()
+  def pawn_structure_single_capture_like_neighborhood(%Position{} = position) do
+    position
+    |> PawnStructure.from_position()
+    |> pawn_structure_single_capture_like_neighborhood()
+  end
+
+  def pawn_structure_single_capture_like_neighborhood(%PawnStructure{} = structure) do
+    [
+      structure
+      | PawnStructure.single_capture_like_neighbors(structure)
+    ]
+    |> pawn_structures()
+  end
+
+  @doc """
   Searches the exact pawn structure together with every structure obtained
   by removing exactly one pawn.
 

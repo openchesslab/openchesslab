@@ -203,6 +203,57 @@ defmodule Chess.PawnStructure do
   end
 
   @doc """
+  Returns every distinct pawn structure that is one capture-like pawn
+  displacement away from the given structure.
+
+  A capture-like displacement moves exactly one pawn by one file and one
+  rank diagonally. The relationship is direction-independent, so both the
+  pawn's normal capture direction and the reverse direction are considered.
+
+  This can represent structural differences caused by captures, including
+  the creation or removal of doubled pawns. For example, a White pawn on e4
+  may be structurally relocated to d5 while another White pawn remains on d4.
+
+  The destination must not already contain a pawn. Non-pawn occupancy is
+  intentionally unknown.
+
+  These are structural transformations, not legal chess captures.
+  """
+  @spec single_capture_like_neighbors(t()) :: [t()]
+  def single_capture_like_neighbors(%__MODULE__{} = structure) do
+    [
+      :white,
+      :black
+    ]
+    |> Enum.flat_map(fn color ->
+      structure
+      |> color_pawns(color)
+      |> pawn_squares()
+      |> Enum.flat_map(fn from ->
+        color
+        |> capture_like_destinations(from)
+        |> Enum.flat_map(fn to ->
+          case shift_pawn(
+                 structure,
+                 color,
+                 from,
+                 to
+               ) do
+            {:ok, shifted} ->
+              [
+                shifted
+              ]
+
+            {:error, _reason} ->
+              []
+          end
+        end)
+      end)
+    end)
+    |> Enum.uniq()
+  end
+
+  @doc """
   Returns every distinct pawn structure produced by removing exactly one pawn.
 
   The transformation is directional: every returned structure contains exactly
@@ -326,6 +377,57 @@ defmodule Chess.PawnStructure do
     )
   end
 
+  defp capture_like_destinations(color, square) do
+    file =
+      rem(
+        square,
+        8
+      )
+
+    rank =
+      div(
+        square,
+        8
+      )
+
+    rank_step =
+      forward_rank_step(color)
+
+    [
+      {
+        file - 1,
+        rank + rank_step
+      },
+      {
+        file + 1,
+        rank + rank_step
+      },
+      {
+        file - 1,
+        rank - rank_step
+      },
+      {
+        file + 1,
+        rank - rank_step
+      }
+    ]
+    |> Enum.flat_map(fn
+      {
+        destination_file,
+        destination_rank
+      }
+      when destination_file in 0..7 and
+             destination_rank in 0..7 ->
+        [
+          destination_rank * 8 +
+            destination_file
+        ]
+
+      _destination ->
+        []
+    end)
+  end
+
   defp remove_pawn(structure, color, square) do
     pawns =
       structure
@@ -391,6 +493,14 @@ defmodule Chess.PawnStructure do
 
   defp forward_step(:black) do
     -8
+  end
+
+  defp forward_rank_step(:white) do
+    1
+  end
+
+  defp forward_rank_step(:black) do
+    -1
   end
 
   defp pawn_on?(structure, color, square) do
