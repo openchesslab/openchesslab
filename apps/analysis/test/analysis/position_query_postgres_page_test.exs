@@ -252,7 +252,7 @@ defmodule Analysis.PositionQueryPostgresPageTest do
              101
   end
 
-  test "compiles an edit neighborhood as two bigint array parameters" do
+  test "compiles a top-level edit neighborhood as an unnested key relation" do
     query =
       asymmetric_position()
       |> Query.pawn_structure_edit_neighborhood(2)
@@ -272,22 +272,27 @@ defmodule Analysis.PositionQueryPostgresPageTest do
 
     assert String.contains?(
              sql,
-             "FROM unnest( $1::bigint[], $2::bigint[] )"
+             "FROM unnest( $1::bigint[], $2::bigint[] ) AS pawn_structure_keys"
            )
 
     assert String.contains?(
              sql,
-             "pawn_structure_keys.white_pawns = p.white_pawns"
+             "JOIN positions AS p ON p.white_pawns = pawn_structure_keys.white_pawns AND p.black_pawns = pawn_structure_keys.black_pawns"
            )
 
-    assert String.contains?(
+    refute String.contains?(
              sql,
-             "pawn_structure_keys.black_pawns = p.black_pawns"
+             "EXISTS"
            )
 
     refute String.contains?(
              sql,
              "UNION ALL"
+           )
+
+    assert String.contains?(
+             sql,
+             "ORDER BY p.id LIMIT $3::bigint"
            )
 
     assert [
@@ -305,6 +310,167 @@ defmodule Analysis.PositionQueryPostgresPageTest do
 
     assert length(white_pawns) >
              1
+  end
+
+  test "pushes position keyset bounds into the edit-neighborhood relation route" do
+    query =
+      asymmetric_position()
+      |> Query.pawn_structure_edit_neighborhood(2)
+
+    assert {
+             :ok,
+             sql,
+             parameters
+           } =
+             PostgresPage.compile_next(
+               query,
+               40,
+               10,
+               101
+             )
+
+    sql =
+      normalize_sql(sql)
+
+    assert String.contains?(
+             sql,
+             "SELECT $3::bigint AS maximum_position_id, p.id"
+           )
+
+    assert String.contains?(
+             sql,
+             "p.id > $4::bigint"
+           )
+
+    assert String.contains?(
+             sql,
+             "p.id <= $3::bigint"
+           )
+
+    assert String.contains?(
+             sql,
+             "ORDER BY p.id LIMIT $5::bigint"
+           )
+
+    assert [
+             white_pawns,
+             black_pawns,
+             40,
+             10,
+             101
+           ] =
+             parameters
+
+    assert is_list(white_pawns)
+    assert is_list(black_pawns)
+  end
+
+  test "pushes a top-level AND residual into the edit-neighborhood relation route" do
+    position =
+      asymmetric_position()
+
+    query =
+      Query.all([
+        Query.pawn_structure_edit_neighborhood(
+          position,
+          2
+        ),
+        Query.property(
+          :material,
+          PositionProperties.material(position)
+        )
+      ])
+
+    assert {
+             :ok,
+             sql,
+             parameters
+           } =
+             PostgresPage.compile_first(
+               query,
+               101
+             )
+
+    sql =
+      normalize_sql(sql)
+
+    assert String.contains?(
+             sql,
+             "FROM unnest( $1::bigint[], $2::bigint[] ) AS pawn_structure_keys"
+           )
+
+    assert occurrences(
+             sql,
+             "FROM position_features AS f"
+           ) ==
+             1
+
+    assert String.contains?(
+             sql,
+             "ORDER BY p.id LIMIT $4::bigint"
+           )
+
+    assert length(parameters) ==
+             4
+
+    assert List.last(parameters) ==
+             101
+  end
+
+  test "keeps an edit neighborhood inside a generic OR on the EXISTS fallback" do
+    position =
+      asymmetric_position()
+
+    query =
+      Query.any([
+        Query.pawn_structure_edit_neighborhood(
+          position,
+          2
+        ),
+        Query.property(
+          :material,
+          PositionProperties.material(position)
+        )
+      ])
+
+    assert {
+             :ok,
+             sql,
+             parameters
+           } =
+             PostgresPage.compile_first(
+               query,
+               101
+             )
+
+    sql =
+      normalize_sql(sql)
+
+    assert String.contains?(
+             sql,
+             "FROM positions AS p WHERE"
+           )
+
+    assert String.contains?(
+             sql,
+             "EXISTS ( SELECT 1 FROM unnest( $1::bigint[], $2::bigint[] )"
+           )
+
+    refute String.contains?(
+             sql,
+             "JOIN positions AS p ON p.white_pawns = pawn_structure_keys.white_pawns"
+           )
+
+    assert String.contains?(
+             sql,
+             " OR "
+           )
+
+    assert length(parameters) ==
+             4
+
+    assert List.last(parameters) ==
+             101
   end
 
   defp asymmetric_position do

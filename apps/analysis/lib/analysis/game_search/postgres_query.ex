@@ -22,13 +22,13 @@ defmodule Analysis.GameSearch.PostgresQuery do
     normalized_position_query =
       PositionQueryNormalizer.normalize(position_query)
 
-    case symmetry_scan(normalized_position_query) do
+    case edit_neighborhood_scan(normalized_position_query) do
       {
         :ok,
         structures,
         residual_query
       } ->
-        compile_symmetry_first(
+        compile_edit_neighborhood_first(
           structures,
           residual_query,
           record_query,
@@ -36,11 +36,26 @@ defmodule Analysis.GameSearch.PostgresQuery do
         )
 
       :none ->
-        compile_generic_first(
-          normalized_position_query,
-          record_query,
-          limit
-        )
+        case symmetry_scan(normalized_position_query) do
+          {
+            :ok,
+            structures,
+            residual_query
+          } ->
+            compile_symmetry_first(
+              structures,
+              residual_query,
+              record_query,
+              limit
+            )
+
+          :none ->
+            compile_generic_first(
+              normalized_position_query,
+              record_query,
+              limit
+            )
+        end
     end
   end
 
@@ -77,13 +92,13 @@ defmodule Analysis.GameSearch.PostgresQuery do
     normalized_position_query =
       PositionQueryNormalizer.normalize(position_query)
 
-    case symmetry_scan(normalized_position_query) do
+    case edit_neighborhood_scan(normalized_position_query) do
       {
         :ok,
         structures,
         residual_query
       } ->
-        compile_symmetry_next(
+        compile_edit_neighborhood_next(
           structures,
           residual_query,
           record_query,
@@ -97,17 +112,349 @@ defmodule Analysis.GameSearch.PostgresQuery do
         )
 
       :none ->
-        compile_generic_next(
-          normalized_position_query,
-          record_query,
-          maximum_position_id,
-          maximum_occurrence_id,
-          maximum_record_row_id,
-          last_position_id,
-          last_occurrence_id,
-          last_record_row_id,
-          limit
+        case symmetry_scan(normalized_position_query) do
+          {
+            :ok,
+            structures,
+            residual_query
+          } ->
+            compile_symmetry_next(
+              structures,
+              residual_query,
+              record_query,
+              maximum_position_id,
+              maximum_occurrence_id,
+              maximum_record_row_id,
+              last_position_id,
+              last_occurrence_id,
+              last_record_row_id,
+              limit
+            )
+
+          :none ->
+            compile_generic_next(
+              normalized_position_query,
+              record_query,
+              maximum_position_id,
+              maximum_occurrence_id,
+              maximum_record_row_id,
+              last_position_id,
+              last_occurrence_id,
+              last_record_row_id,
+              limit
+            )
+        end
+    end
+  end
+
+  defp edit_neighborhood_scan(
+         {:pawn_structure_edit_neighborhood, [_structure | _remaining] = structures}
+       ) do
+    {
+      :ok,
+      structures,
+      true
+    }
+  end
+
+  defp edit_neighborhood_scan({:and, queries}) do
+    case Enum.find_index(
+           queries,
+           &edit_neighborhood_node?/1
+         ) do
+      nil ->
+        :none
+
+      index ->
+        {
+          :pawn_structure_edit_neighborhood,
+          structures
+        } =
+          Enum.at(
+            queries,
+            index
+          )
+
+        residual_query =
+          queries
+          |> List.delete_at(index)
+          |> PositionQuery.all()
+          |> PositionQueryNormalizer.normalize()
+
+        {
+          :ok,
+          structures,
+          residual_query
+        }
+    end
+  end
+
+  defp edit_neighborhood_scan(_query) do
+    :none
+  end
+
+  defp edit_neighborhood_node?({:pawn_structure_edit_neighborhood, [_structure | _remaining]}) do
+    true
+  end
+
+  defp edit_neighborhood_node?(_query) do
+    false
+  end
+
+  defp compile_edit_neighborhood_first(structures, residual_query, record_query, limit) do
+    with {
+           :ok,
+           white_parameter,
+           black_parameter,
+           residual_predicate,
+           record_predicate,
+           parameters,
+           next_parameter
+         } <-
+           compile_edit_neighborhood_components(
+             structures,
+             residual_query,
+             record_query,
+             1
+           ) do
+      limit_parameter =
+        next_parameter
+
+      sql = """
+      SELECT
+        COALESCE(
+          (
+            SELECT max(id)
+            FROM positions
+          ),
+          0
+        )::bigint AS maximum_position_id,
+        COALESCE(
+          (
+            SELECT max(id)
+            FROM game_occurrences
+          ),
+          0
+        )::bigint AS maximum_occurrence_id,
+        COALESCE(
+          (
+            SELECT max(id)
+            FROM game_records
+          ),
+          0
+        )::bigint AS maximum_record_row_id,
+        p.id,
+        go.id,
+        go.game_id,
+        go.ply,
+        gr.id,
+        gr.record_id,
+        gr.game_id,
+        gr.fullmove_number,
+        gr.metadata
+      FROM unnest(
+        $#{white_parameter}::bigint[],
+        $#{black_parameter}::bigint[]
+      ) AS pawn_structure_keys(
+        white_pawns,
+        black_pawns
+      )
+      JOIN positions AS p
+        ON p.white_pawns = pawn_structure_keys.white_pawns
+        AND p.black_pawns = pawn_structure_keys.black_pawns
+      JOIN game_occurrences AS go
+        ON go.position_id = p.id
+      JOIN game_records AS gr
+        ON gr.game_id = go.game_id
+      WHERE
+        (#{residual_predicate})
+        AND (#{record_predicate})
+      ORDER BY
+        p.id,
+        go.id,
+        gr.id
+      LIMIT $#{limit_parameter}::bigint
+      """
+
+      {
+        :ok,
+        sql,
+        parameters ++
+          [
+            limit
+          ]
+      }
+    end
+  end
+
+  defp compile_edit_neighborhood_next(
+         structures,
+         residual_query,
+         record_query,
+         maximum_position_id,
+         maximum_occurrence_id,
+         maximum_record_row_id,
+         last_position_id,
+         last_occurrence_id,
+         last_record_row_id,
+         limit
+       ) do
+    with {
+           :ok,
+           white_parameter,
+           black_parameter,
+           residual_predicate,
+           record_predicate,
+           parameters,
+           next_parameter
+         } <-
+           compile_edit_neighborhood_components(
+             structures,
+             residual_query,
+             record_query,
+             1
+           ) do
+      maximum_position_parameter =
+        next_parameter
+
+      maximum_occurrence_parameter =
+        maximum_position_parameter + 1
+
+      maximum_record_parameter =
+        maximum_occurrence_parameter + 1
+
+      last_position_parameter =
+        maximum_record_parameter + 1
+
+      last_occurrence_parameter =
+        last_position_parameter + 1
+
+      last_record_parameter =
+        last_occurrence_parameter + 1
+
+      limit_parameter =
+        last_record_parameter + 1
+
+      sql = """
+      SELECT
+        $#{maximum_position_parameter}::bigint,
+        $#{maximum_occurrence_parameter}::bigint,
+        $#{maximum_record_parameter}::bigint,
+        p.id,
+        go.id,
+        go.game_id,
+        go.ply,
+        gr.id,
+        gr.record_id,
+        gr.game_id,
+        gr.fullmove_number,
+        gr.metadata
+      FROM unnest(
+        $#{white_parameter}::bigint[],
+        $#{black_parameter}::bigint[]
+      ) AS pawn_structure_keys(
+        white_pawns,
+        black_pawns
+      )
+      JOIN positions AS p
+        ON p.white_pawns = pawn_structure_keys.white_pawns
+        AND p.black_pawns = pawn_structure_keys.black_pawns
+      JOIN game_occurrences AS go
+        ON go.position_id = p.id
+      JOIN game_records AS gr
+        ON gr.game_id = go.game_id
+      WHERE
+        p.id >= $#{last_position_parameter}::bigint
+        AND p.id <= $#{maximum_position_parameter}::bigint
+        AND go.id <= $#{maximum_occurrence_parameter}::bigint
+        AND gr.id <= $#{maximum_record_parameter}::bigint
+        AND (
+          go.position_id,
+          go.id
+        ) >= (
+          $#{last_position_parameter}::bigint,
+          $#{last_occurrence_parameter}::bigint
         )
+        AND (
+          go.position_id,
+          go.id,
+          gr.id
+        ) > (
+          $#{last_position_parameter}::bigint,
+          $#{last_occurrence_parameter}::bigint,
+          $#{last_record_parameter}::bigint
+        )
+        AND (#{residual_predicate})
+        AND (#{record_predicate})
+      ORDER BY
+        p.id,
+        go.id,
+        gr.id
+      LIMIT $#{limit_parameter}::bigint
+      """
+
+      {
+        :ok,
+        sql,
+        parameters ++
+          [
+            maximum_position_id,
+            maximum_occurrence_id,
+            maximum_record_row_id,
+            last_position_id,
+            last_occurrence_id,
+            last_record_row_id,
+            limit
+          ]
+      }
+    end
+  end
+
+  defp compile_edit_neighborhood_components(
+         structures,
+         residual_query,
+         record_query,
+         next_parameter
+       ) do
+    white_parameter =
+      next_parameter
+
+    black_parameter =
+      white_parameter + 1
+
+    with {:ok,
+          {
+            white_pawns,
+            black_pawns
+          }} <-
+           structures
+           |> Enum.uniq()
+           |> PositionPawnStructureCodec.encode_many(),
+         {
+           :ok,
+           residual_predicate,
+           record_predicate,
+           predicate_parameters,
+           next_parameter
+         } <-
+           compile_predicates(
+             residual_query,
+             record_query,
+             black_parameter + 1
+           ) do
+      {
+        :ok,
+        white_parameter,
+        black_parameter,
+        residual_predicate,
+        record_predicate,
+        [
+          white_pawns,
+          black_pawns
+        ] ++
+          predicate_parameters,
+        next_parameter
+      }
     end
   end
 
@@ -441,25 +788,30 @@ defmodule Analysis.GameSearch.PostgresQuery do
         :ok,
         []
       },
-      fn structure,
-         {
-           :ok,
-           encoded_structures
-         } ->
-        case PositionPawnStructureCodec.encode(structure) do
-          {:ok, encoded_structure} ->
-            {:cont,
-             {
-               :ok,
-               [
-                 encoded_structure
-                 | encoded_structures
-               ]
-             }}
+      fn
+        structure,
+        {
+          :ok,
+          encoded_structures
+        } ->
+          case PositionPawnStructureCodec.encode(structure) do
+            {:ok, encoded_structure} ->
+              {:cont,
+               {
+                 :ok,
+                 [
+                   encoded_structure
+                   | encoded_structures
+                 ]
+               }}
 
-          {:error, reason} ->
-            {:halt, {:error, reason}}
-        end
+            {:error, reason} ->
+              {:halt,
+               {
+                 :error,
+                 reason
+               }}
+          end
       end
     )
     |> case do

@@ -255,6 +255,273 @@ defmodule Analysis.GameSearchPostgresQueryTest do
              101
   end
 
+  test "compiles a top-level edit neighborhood as an unnested game-search key relation" do
+    query =
+      asymmetric_position()
+      |> Query.pawn_structure_edit_neighborhood(2)
+
+    assert {
+             :ok,
+             sql,
+             parameters
+           } =
+             PostgresQuery.compile_first(
+               query,
+               GameRecordQuery.match_all(),
+               101
+             )
+
+    sql =
+      normalize_sql(sql)
+
+    assert String.contains?(
+             sql,
+             "FROM unnest( $1::bigint[], $2::bigint[] ) AS pawn_structure_keys"
+           )
+
+    assert String.contains?(
+             sql,
+             "JOIN positions AS p ON p.white_pawns = pawn_structure_keys.white_pawns AND p.black_pawns = pawn_structure_keys.black_pawns"
+           )
+
+    assert String.contains?(
+             sql,
+             "JOIN game_occurrences AS go ON go.position_id = p.id"
+           )
+
+    refute String.contains?(
+             sql,
+             "EXISTS"
+           )
+
+    refute String.contains?(
+             sql,
+             "UNION ALL"
+           )
+
+    assert String.contains?(
+             sql,
+             "ORDER BY p.id, go.id, gr.id LIMIT $3::bigint"
+           )
+
+    assert [
+             white_pawns,
+             black_pawns,
+             101
+           ] =
+             parameters
+
+    assert is_list(white_pawns)
+    assert is_list(black_pawns)
+  end
+
+  test "keeps the cursor position in the edit-neighborhood relation on the next page" do
+    query =
+      asymmetric_position()
+      |> Query.pawn_structure_edit_neighborhood(2)
+
+    assert {
+             :ok,
+             sql,
+             parameters
+           } =
+             PostgresQuery.compile_next(
+               query,
+               GameRecordQuery.match_all(),
+               40,
+               50,
+               60,
+               10,
+               20,
+               30,
+               101
+             )
+
+    sql =
+      normalize_sql(sql)
+
+    assert String.contains?(
+             sql,
+             "SELECT $3::bigint, $4::bigint, $5::bigint, p.id"
+           )
+
+    assert String.contains?(
+             sql,
+             "p.id >= $6::bigint"
+           )
+
+    assert String.contains?(
+             sql,
+             "p.id <= $3::bigint"
+           )
+
+    assert String.contains?(
+             sql,
+             "go.id <= $4::bigint"
+           )
+
+    assert String.contains?(
+             sql,
+             "gr.id <= $5::bigint"
+           )
+
+    assert String.contains?(
+             sql,
+             "( go.position_id, go.id ) >= ( $6::bigint, $7::bigint )"
+           )
+
+    assert String.contains?(
+             sql,
+             "( go.position_id, go.id, gr.id ) > ( $6::bigint, $7::bigint, $8::bigint )"
+           )
+
+    assert String.contains?(
+             sql,
+             "ORDER BY p.id, go.id, gr.id LIMIT $9::bigint"
+           )
+
+    assert [
+             white_pawns,
+             black_pawns,
+             40,
+             50,
+             60,
+             10,
+             20,
+             30,
+             101
+           ] =
+             parameters
+
+    assert is_list(white_pawns)
+    assert is_list(black_pawns)
+  end
+
+  test "pushes position and record residuals into the edit-neighborhood relation" do
+    position =
+      asymmetric_position()
+
+    position_query =
+      Query.all([
+        Query.pawn_structure_edit_neighborhood(
+          position,
+          2
+        ),
+        Query.property(
+          :material,
+          PositionProperties.material(position)
+        )
+      ])
+
+    record_query =
+      GameRecordQuery.metadata_contains(%{
+        "white" => "Magnus Carlsen"
+      })
+
+    assert {
+             :ok,
+             sql,
+             parameters
+           } =
+             PostgresQuery.compile_first(
+               position_query,
+               record_query,
+               101
+             )
+
+    sql =
+      normalize_sql(sql)
+
+    assert String.contains?(
+             sql,
+             "FROM unnest( $1::bigint[], $2::bigint[] ) AS pawn_structure_keys"
+           )
+
+    assert occurrences(
+             sql,
+             "FROM position_features AS f"
+           ) ==
+             1
+
+    assert String.contains?(
+             sql,
+             "gr.metadata @> $4::jsonb"
+           )
+
+    assert String.contains?(
+             sql,
+             "ORDER BY p.id, go.id, gr.id LIMIT $5::bigint"
+           )
+
+    assert length(parameters) ==
+             5
+
+    assert List.last(parameters) ==
+             101
+  end
+
+  test "keeps an edit neighborhood inside a generic OR on the EXISTS fallback" do
+    position =
+      asymmetric_position()
+
+    query =
+      Query.any([
+        Query.pawn_structure_edit_neighborhood(
+          position,
+          2
+        ),
+        Query.property(
+          :material,
+          PositionProperties.material(position)
+        )
+      ])
+
+    assert {
+             :ok,
+             sql,
+             parameters
+           } =
+             PostgresQuery.compile_first(
+               query,
+               GameRecordQuery.match_all(),
+               101
+             )
+
+    sql =
+      normalize_sql(sql)
+
+    assert String.contains?(
+             sql,
+             "FROM positions AS p JOIN game_occurrences AS go"
+           )
+
+    assert String.contains?(
+             sql,
+             "EXISTS ( SELECT 1 FROM unnest( $1::bigint[], $2::bigint[] )"
+           )
+
+    refute String.contains?(
+             sql,
+             "JOIN positions AS p ON p.white_pawns = pawn_structure_keys.white_pawns"
+           )
+
+    assert String.contains?(
+             sql,
+             " OR "
+           )
+
+    assert String.contains?(
+             sql,
+             "ORDER BY p.id, go.id, gr.id LIMIT $4::bigint"
+           )
+
+    assert length(parameters) ==
+             4
+
+    assert List.last(parameters) ==
+             101
+  end
+
   defp asymmetric_position do
     Position.new()
     |> Position.put_piece(
