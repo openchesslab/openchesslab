@@ -22,6 +22,7 @@ defmodule Chess.PawnStructure do
   import Bitwise
 
   alias Chess.Bitboard
+  alias Chess.PawnStructure.Difference
   alias Chess.Position
 
   @enforce_keys [
@@ -60,6 +61,43 @@ defmodule Chess.PawnStructure do
     %__MODULE__{
       white: board.white_pawns,
       black: board.black_pawns
+    }
+  end
+
+  @doc """
+  Returns the directional occupancy difference between two pawn structures.
+
+  Bits in the `*_removed` fields are present in the source but absent from the
+  target. Bits in the `*_added` fields are absent from the source but present in
+  the target.
+
+  The result contains no interpretation of the difference. Use
+  `Chess.PawnStructure.Difference.classify/1` to determine whether it represents
+  one supported elementary pawn-structure edit.
+  """
+  @spec difference(t(), t()) :: Difference.t()
+  def difference(%__MODULE__{} = source, %__MODULE__{} = target) do
+    %Difference{
+      white_removed:
+        band(
+          source.white,
+          bnot(target.white)
+        ),
+      white_added:
+        band(
+          target.white,
+          bnot(source.white)
+        ),
+      black_removed:
+        band(
+          source.black,
+          bnot(target.black)
+        ),
+      black_added:
+        band(
+          target.black,
+          bnot(source.black)
+        )
     }
   end
 
