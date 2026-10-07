@@ -27,204 +27,6 @@ defmodule Analysis.GameSearchPawnStructureSymmetryPostgresBenchmark do
     black: 35_184_372_088_832
   }
 
-  @candidate_first_sql """
-  SELECT
-    COALESCE(
-      (
-        SELECT max(id)
-        FROM #{@positions_table}
-      ),
-      0
-    )::bigint AS maximum_position_id,
-    COALESCE(
-      (
-        SELECT max(id)
-        FROM #{@occurrences_table}
-      ),
-      0
-    )::bigint AS maximum_occurrence_id,
-    COALESCE(
-      (
-        SELECT max(id)
-        FROM #{@records_table}
-      ),
-      0
-    )::bigint AS maximum_record_row_id,
-    matches.id,
-    go.id,
-    go.game_id,
-    go.ply,
-    gr.id,
-    gr.record_id,
-    gr.game_id,
-    gr.fullmove_number,
-    gr.metadata
-  FROM (
-    (
-      SELECT
-        p.id
-      FROM #{@positions_table} AS p
-      WHERE
-        p.white_pawns = $1::bigint
-        AND p.black_pawns = $2::bigint
-      ORDER BY
-        p.id
-    )
-
-    UNION ALL
-
-    (
-      SELECT
-        p.id
-      FROM #{@positions_table} AS p
-      WHERE
-        p.white_pawns = $3::bigint
-        AND p.black_pawns = $4::bigint
-      ORDER BY
-        p.id
-    )
-
-    UNION ALL
-
-    (
-      SELECT
-        p.id
-      FROM #{@positions_table} AS p
-      WHERE
-        p.white_pawns = $5::bigint
-        AND p.black_pawns = $6::bigint
-      ORDER BY
-        p.id
-    )
-
-    UNION ALL
-
-    (
-      SELECT
-        p.id
-      FROM #{@positions_table} AS p
-      WHERE
-        p.white_pawns = $7::bigint
-        AND p.black_pawns = $8::bigint
-      ORDER BY
-        p.id
-    )
-  ) AS matches
-  JOIN #{@occurrences_table} AS go
-    ON go.position_id = matches.id
-  JOIN #{@records_table} AS gr
-    ON gr.game_id = go.game_id
-  ORDER BY
-    matches.id,
-    go.id,
-    gr.id
-  LIMIT $9::bigint
-  """
-
-  @candidate_next_sql """
-  SELECT
-    $9::bigint AS maximum_position_id,
-    $10::bigint AS maximum_occurrence_id,
-    $11::bigint AS maximum_record_row_id,
-    matches.id,
-    go.id,
-    go.game_id,
-    go.ply,
-    gr.id,
-    gr.record_id,
-    gr.game_id,
-    gr.fullmove_number,
-    gr.metadata
-  FROM (
-    (
-      SELECT
-        p.id
-      FROM #{@positions_table} AS p
-      WHERE
-        p.white_pawns = $1::bigint
-        AND p.black_pawns = $2::bigint
-        AND p.id >= $12::bigint
-        AND p.id <= $9::bigint
-      ORDER BY
-        p.id
-    )
-
-    UNION ALL
-
-    (
-      SELECT
-        p.id
-      FROM #{@positions_table} AS p
-      WHERE
-        p.white_pawns = $3::bigint
-        AND p.black_pawns = $4::bigint
-        AND p.id >= $12::bigint
-        AND p.id <= $9::bigint
-      ORDER BY
-        p.id
-    )
-
-    UNION ALL
-
-    (
-      SELECT
-        p.id
-      FROM #{@positions_table} AS p
-      WHERE
-        p.white_pawns = $5::bigint
-        AND p.black_pawns = $6::bigint
-        AND p.id >= $12::bigint
-        AND p.id <= $9::bigint
-      ORDER BY
-        p.id
-    )
-
-    UNION ALL
-
-    (
-      SELECT
-        p.id
-      FROM #{@positions_table} AS p
-      WHERE
-        p.white_pawns = $7::bigint
-        AND p.black_pawns = $8::bigint
-        AND p.id >= $12::bigint
-        AND p.id <= $9::bigint
-      ORDER BY
-        p.id
-    )
-  ) AS matches
-  JOIN #{@occurrences_table} AS go
-    ON go.position_id = matches.id
-  JOIN #{@records_table} AS gr
-    ON gr.game_id = go.game_id
-  WHERE
-    go.position_id <= $9::bigint
-    AND go.id <= $10::bigint
-    AND gr.id <= $11::bigint
-    AND (
-      go.position_id,
-      go.id
-    ) >= (
-      $12::bigint,
-      $13::bigint
-    )
-    AND (
-      go.position_id,
-      go.id,
-      gr.id
-    ) > (
-      $12::bigint,
-      $13::bigint,
-      $14::bigint
-    )
-  ORDER BY
-    matches.id,
-    go.id,
-    gr.id
-  LIMIT $15::bigint
-  """
-
   def build(row_count, selectivity) do
     target_parameters =
       encoded_symmetry_parameters()
@@ -404,20 +206,34 @@ defmodule Analysis.GameSearchPawnStructureSymmetryPostgresBenchmark do
   end
 
   def benchmark(row_count, selectivity, page_size) do
-    symmetry_parameters =
-      encoded_symmetry_parameters()
+    generic_query =
+      generic_or_query()
+
+    specialized_query =
+      specialized_query()
 
     {
       generic_first_sql,
       generic_first_parameters
     } =
-      generic_first_sql(page_size)
+      compile_first!(
+        generic_query,
+        page_size
+      )
 
-    candidate_first_parameters =
-      symmetry_parameters ++
-        [
-          page_size
-        ]
+    {
+      specialized_first_sql,
+      specialized_first_parameters
+    } =
+      compile_first!(
+        specialized_query,
+        page_size
+      )
+
+    validate_compiler_shapes!(
+      generic_first_sql,
+      specialized_first_sql
+    )
 
     generic_first_rows =
       query_rows(
@@ -425,16 +241,16 @@ defmodule Analysis.GameSearchPawnStructureSymmetryPostgresBenchmark do
         generic_first_parameters
       )
 
-    candidate_first_rows =
+    specialized_first_rows =
       query_rows(
-        @candidate_first_sql,
-        candidate_first_parameters
+        specialized_first_sql,
+        specialized_first_parameters
       )
 
     assert_same_rows!(
       "first page",
       generic_first_rows,
-      candidate_first_rows
+      specialized_first_rows
     )
 
     validate_page!(
@@ -451,22 +267,28 @@ defmodule Analysis.GameSearchPawnStructureSymmetryPostgresBenchmark do
       generic_next_sql,
       generic_next_parameters
     } =
-      generic_next_sql(
+      compile_next!(
+        generic_query,
         cursor,
         page_size
       )
 
-    candidate_next_parameters =
-      symmetry_parameters ++
-        [
-          cursor.maximum_position_id,
-          cursor.maximum_occurrence_id,
-          cursor.maximum_record_row_id,
-          cursor.last_position_id,
-          cursor.last_occurrence_id,
-          cursor.last_record_row_id,
-          page_size
-        ]
+    {
+      specialized_next_sql,
+      specialized_next_parameters
+    } =
+      compile_next!(
+        specialized_query,
+        cursor,
+        page_size
+      )
+
+    validate_compiler_shapes!(
+      generic_next_sql,
+      specialized_next_sql
+    )
+
+    validate_specialized_next_bounds!(specialized_next_sql)
 
     generic_second_rows =
       query_rows(
@@ -474,16 +296,16 @@ defmodule Analysis.GameSearchPawnStructureSymmetryPostgresBenchmark do
         generic_next_parameters
       )
 
-    candidate_second_rows =
+    specialized_second_rows =
       query_rows(
-        @candidate_next_sql,
-        candidate_next_parameters
+        specialized_next_sql,
+        specialized_next_parameters
       )
 
     assert_same_rows!(
       "second page",
       generic_second_rows,
-      candidate_second_rows
+      specialized_second_rows
     )
 
     validate_page!(
@@ -494,7 +316,7 @@ defmodule Analysis.GameSearchPawnStructureSymmetryPostgresBenchmark do
     )
 
     IO.puts("""
-    Current generic OR game-search route
+    Generic OR production compiler route
 
     First-page plan:
     #{explain(generic_first_sql,
@@ -504,20 +326,20 @@ defmodule Analysis.GameSearchPawnStructureSymmetryPostgresBenchmark do
     #{explain(generic_next_sql,
     generic_next_parameters)}
 
-    Candidate ordered UNION ALL game-search route
+    Specialized symmetry production compiler route
 
     First-page plan:
-    #{explain(@candidate_first_sql,
-    candidate_first_parameters)}
+    #{explain(specialized_first_sql,
+    specialized_first_parameters)}
 
     Second-page plan:
-    #{explain(@candidate_next_sql,
-    candidate_next_parameters)}
+    #{explain(specialized_next_sql,
+    specialized_next_parameters)}
     """)
 
     Benchee.run(
       %{
-        "game search generic OR: first page" => fn ->
+        "game search generic OR compiler: first page" => fn ->
           generic_first_sql
           |> query_rows(generic_first_parameters)
           |> validate_page!(
@@ -526,7 +348,7 @@ defmodule Analysis.GameSearchPawnStructureSymmetryPostgresBenchmark do
             selectivity
           )
         end,
-        "game search generic OR: second page" => fn ->
+        "game search generic OR compiler: second page" => fn ->
           generic_next_sql
           |> query_rows(generic_next_parameters)
           |> validate_page!(
@@ -535,18 +357,18 @@ defmodule Analysis.GameSearchPawnStructureSymmetryPostgresBenchmark do
             selectivity
           )
         end,
-        "game search ordered UNION ALL: first page" => fn ->
-          @candidate_first_sql
-          |> query_rows(candidate_first_parameters)
+        "game search specialized symmetry compiler: first page" => fn ->
+          specialized_first_sql
+          |> query_rows(specialized_first_parameters)
           |> validate_page!(
             row_count,
             page_size,
             selectivity
           )
         end,
-        "game search ordered UNION ALL: second page" => fn ->
-          @candidate_next_sql
-          |> query_rows(candidate_next_parameters)
+        "game search specialized symmetry compiler: second page" => fn ->
+          specialized_next_sql
+          |> query_rows(specialized_next_parameters)
           |> validate_page!(
             row_count,
             page_size,
@@ -564,9 +386,20 @@ defmodule Analysis.GameSearchPawnStructureSymmetryPostgresBenchmark do
     drop_tables()
   end
 
-  defp generic_first_sql(page_size) do
+  defp generic_or_query do
+    @source_structure
+    |> PawnStructure.symmetries()
+    |> Enum.map(&PositionQuery.pawn_structure/1)
+    |> PositionQuery.any()
+  end
+
+  defp specialized_query do
+    PositionQuery.pawn_structure_symmetries(@source_structure)
+  end
+
+  defp compile_first!(query, page_size) do
     case PostgresQuery.compile_first(
-           generic_or_query(),
+           query,
            GameRecordQuery.match_all(),
            page_size
          ) do
@@ -582,16 +415,16 @@ defmodule Analysis.GameSearchPawnStructureSymmetryPostgresBenchmark do
 
       {:error, reason} ->
         raise """
-        could not compile generic first-page game search:
+        could not compile first-page game search:
 
         #{inspect(reason)}
         """
     end
   end
 
-  defp generic_next_sql(cursor, page_size) do
+  defp compile_next!(query, cursor, page_size) do
     case PostgresQuery.compile_next(
-           generic_or_query(),
+           query,
            GameRecordQuery.match_all(),
            cursor.maximum_position_id,
            cursor.maximum_occurrence_id,
@@ -613,18 +446,11 @@ defmodule Analysis.GameSearchPawnStructureSymmetryPostgresBenchmark do
 
       {:error, reason} ->
         raise """
-        could not compile generic second-page game search:
+        could not compile second-page game search:
 
         #{inspect(reason)}
         """
     end
-  end
-
-  defp generic_or_query do
-    @source_structure
-    |> PawnStructure.symmetries()
-    |> Enum.map(&PositionQuery.pawn_structure/1)
-    |> PositionQuery.any()
   end
 
   defp encoded_symmetry_parameters do
@@ -661,6 +487,75 @@ defmodule Analysis.GameSearchPawnStructureSymmetryPostgresBenchmark do
         end
       end
     )
+  end
+
+  defp validate_compiler_shapes!(generic_sql, specialized_sql) do
+    normalized_generic =
+      normalize_sql(generic_sql)
+
+    normalized_specialized =
+      normalize_sql(specialized_sql)
+
+    if String.contains?(
+         normalized_generic,
+         "UNION ALL"
+       ) do
+      raise """
+      generic OR compiler unexpectedly produced UNION ALL
+      """
+    end
+
+    if occurrences(
+         normalized_specialized,
+         "UNION ALL"
+       ) != 3 do
+      raise """
+      specialized symmetry compiler did not produce four ordered branches
+      """
+    end
+
+    if String.contains?(
+         normalized_specialized,
+         " OR "
+       ) do
+      raise """
+      specialized symmetry compiler unexpectedly produced OR
+      """
+    end
+
+    if occurrences(
+         normalized_specialized,
+         "ORDER BY p.id"
+       ) != 4 do
+      raise """
+      specialized symmetry compiler did not order every symmetry branch by id
+      """
+    end
+  end
+
+  defp validate_specialized_next_bounds!(sql) do
+    normalized_sql =
+      normalize_sql(sql)
+
+    if occurrences(
+         normalized_sql,
+         "p.id >="
+       ) != 4 do
+      raise """
+      specialized game-search compiler did not keep the cursor position
+      in every symmetry branch
+      """
+    end
+
+    if occurrences(
+         normalized_sql,
+         "p.id <="
+       ) != 4 do
+      raise """
+      specialized game-search compiler did not push the high-water mark
+      into every symmetry branch
+      """
+    end
   end
 
   defp benchmark_relations(sql) do
@@ -720,17 +615,17 @@ defmodule Analysis.GameSearchPawnStructureSymmetryPostgresBenchmark do
     end
   end
 
-  defp assert_same_rows!(page, generic_rows, candidate_rows) do
+  defp assert_same_rows!(page, generic_rows, specialized_rows) do
     if generic_rows !=
-         candidate_rows do
+         specialized_rows do
       raise """
-      generic OR and candidate UNION ALL returned different #{page}.
+      generic OR and specialized symmetry compiler returned different #{page}.
 
       Generic:
       #{inspect(generic_rows)}
 
-      Candidate:
-      #{inspect(candidate_rows)}
+      Specialized:
+      #{inspect(specialized_rows)}
       """
     end
   end
@@ -859,6 +754,22 @@ defmodule Analysis.GameSearchPawnStructureSymmetryPostgresBenchmark do
     end
   end
 
+  defp normalize_sql(sql) do
+    sql
+    |> String.replace(
+      ~r/\s+/,
+      " "
+    )
+    |> String.trim()
+  end
+
+  defp occurrences(string, fragment) do
+    string
+    |> String.split(fragment)
+    |> length()
+    |> Kernel.-(1)
+  end
+
   defp setup_query!(sql, parameters \\ [], options \\ []) do
     SQL.query!(
       Repo,
@@ -934,7 +845,8 @@ available_matches =
     selectivity
   )
 
-if available_matches < page_size * 2 do
+if available_matches <
+     page_size * 2 do
   raise """
   benchmark needs at least two full result pages.
 
@@ -961,15 +873,14 @@ try do
     )
 
   IO.puts("""
-  PostgreSQL game-search pawn-symmetry benchmark
+  PostgreSQL production-compiler game-search pawn-symmetry benchmark
 
   positions total size:   #{fixture.positions_size} bytes
   occurrences total size: #{fixture.occurrences_size} bytes
   records total size:     #{fixture.records_size} bytes
 
-  Comparing the current generic OR game-search compiler route with
-  an ordered UNION ALL position source before the occurrence and
-  record joins.
+  Comparing the generic OR compiler route with the specialized
+  pawn-structure symmetry compiler route.
   """)
 
   Benchmark.benchmark(
