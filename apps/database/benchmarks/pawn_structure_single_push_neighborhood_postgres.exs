@@ -293,25 +293,7 @@ defmodule OpenChessLab.Database.PawnStructureSinglePushNeighborhoodPostgresBench
 
     Benchee.run(
       %{
-        "generic OR: first page" => fn ->
-          generic_first_sql
-          |> query_page(generic_first_parameters)
-          |> validate_page!(
-            row_count,
-            expected_first_page_size,
-            selectivity
-          )
-        end,
-        "generic OR: second page" => fn ->
-          generic_next_sql
-          |> query_page(generic_next_parameters)
-          |> validate_page!(
-            row_count,
-            expected_second_page_size,
-            selectivity
-          )
-        end,
-        "bounded set: first page" => fn ->
+        "33-key bounded set: first page" => fn ->
           optimized_first_sql
           |> query_page(optimized_first_parameters)
           |> validate_page!(
@@ -320,9 +302,27 @@ defmodule OpenChessLab.Database.PawnStructureSinglePushNeighborhoodPostgresBench
             selectivity
           )
         end,
-        "bounded set: second page" => fn ->
+        "33-key bounded set: second page" => fn ->
           optimized_next_sql
           |> query_page(optimized_next_parameters)
+          |> validate_page!(
+            row_count,
+            expected_second_page_size,
+            selectivity
+          )
+        end,
+        "33-key generic OR: first page" => fn ->
+          generic_first_sql
+          |> query_page(generic_first_parameters)
+          |> validate_page!(
+            row_count,
+            expected_first_page_size,
+            selectivity
+          )
+        end,
+        "33-key generic OR: second page" => fn ->
+          generic_next_sql
+          |> query_page(generic_next_parameters)
           |> validate_page!(
             row_count,
             expected_second_page_size,
@@ -344,13 +344,13 @@ defmodule OpenChessLab.Database.PawnStructureSinglePushNeighborhoodPostgresBench
     structures =
       [
         @source_structure
-        | PawnStructure.single_pushes(@source_structure)
+        | PawnStructure.single_rank_neighbors(@source_structure)
       ]
 
-    if length(structures) != 17 do
+    if length(structures) != 33 do
       raise """
-      benchmark source structure must produce 17 neighborhood keys,
-      got #{length(structures)}
+      benchmark source structure must produce 33 direction-independent
+      neighborhood keys, got #{length(structures)}
       """
     end
 
@@ -619,7 +619,8 @@ defmodule OpenChessLab.Database.PawnStructureSinglePushNeighborhoodPostgresBench
       """
     end
 
-    if length(result.position_ids) != expected_count do
+    if length(result.position_ids) !=
+         expected_count do
       raise """
       expected #{expected_count} positions,
       got #{length(result.position_ids)}
@@ -750,7 +751,7 @@ defmodule OpenChessLab.Database.PawnStructureSinglePushNeighborhoodPostgresBench
   end
 end
 
-_database_url =
+database_url =
   System.get_env("DATABASE_URL") ||
     raise """
     DATABASE_URL is required.
@@ -761,6 +762,17 @@ _database_url =
 
         ecto://openchesslab:openchesslab@localhost/openchesslab_bench
     """
+
+if URI.parse(database_url).path !=
+     "/openchesslab_bench" do
+  raise """
+  benchmark must use the dedicated openchesslab_bench database.
+
+  DATABASE_URL points to:
+
+      #{database_url}
+  """
+end
 
 posting_count =
   System.get_env(
@@ -812,12 +824,12 @@ end
 
 try do
   IO.puts("""
-  Building PostgreSQL single-push pawn-structure neighborhood fixture...
+  Building PostgreSQL direction-independent pawn-structure neighborhood fixture...
 
   neighborhood matches: #{posting_count}
   selectivity:          1/#{selectivity}
   rows:                 #{posting_count * selectivity}
-  neighborhood keys:    17
+  neighborhood keys:    33
   page size:            #{page_size}
   """)
 
@@ -828,7 +840,7 @@ try do
     )
 
   IO.puts("""
-  PostgreSQL single-push pawn-structure neighborhood benchmark
+  PostgreSQL direction-independent pawn-structure neighborhood benchmark
 
   rows:              #{fixture.row_count}
   table size:        #{fixture.table_size} bytes
