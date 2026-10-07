@@ -14,11 +14,16 @@ defmodule Analysis.PgnBatchImporter do
   game before continuing. A later parse or persistence failure therefore
   leaves the successfully imported prefix durable.
 
-  `import_file/2` is the file-backed entry point for large PGN collections.
-  It opens the file as a line stream and delegates directly to
-  `import_stream/2`; the complete file is never loaded into memory.
+  `import_file/2` is the file-backed entry point for strict ordered imports.
 
-  Persistence is intentionally atomic per game rather than per batch.
+  `import_stream_parallel/3` and `import_file_parallel/3` are explicit
+  high-throughput boundaries. They process bounded windows of complete games
+  concurrently. Every game still owns its own PostgreSQL transaction, but a
+  failure does not stop later games from being attempted. Successful imports
+  are counted and failures retain their one-based source-game index.
+
+  Parallel import therefore does not provide the successful-prefix semantics
+  of `import_stream/2`.
 
   Concrete game-record identity remains caller-owned. Bounded imports
   receive explicit record IDs; streaming imports receive a function that
@@ -50,11 +55,54 @@ defmodule Analysis.PgnBatchImporter do
           | :invalid_record_id_provider
           | {:invalid_record_id, pos_integer()}
           | {:import_failed, pos_integer(), PgnImporter.import_error()}
+
   @type file_import_error ::
           :invalid_path
           | :invalid_record_id_provider
           | {:file, term()}
           | stream_import_error()
+
+  @type parallel_import_failure ::
+          {:invalid_game, pos_integer(), {:invalid_pgn, String.t()}}
+          | {:invalid_record_id, pos_integer()}
+          | {:import_failed, pos_integer(), PgnImporter.import_error()}
+
+  @type parallel_import_error ::
+          :empty_batch
+          | :game_headers_required
+          | :invalid_record_id_provider
+          | {:invalid_max_concurrency, term()}
+          | {:parallel_worker_exit, term()}
+
+  @type parallel_file_import_error ::
+          :invalid_path
+          | :invalid_record_id_provider
+          | {:invalid_max_concurrency, term()}
+          | {:file, term()}
+          | parallel_import_error()
+
+  defmodule ParallelImportResult do
+    @moduledoc """
+    Result of a completed bounded-parallel import.
+
+    Successful games are counted rather than accumulated so large imports do
+    not retain every `GameRecord` in memory. Failures retain their original
+    one-based source-game index.
+    """
+
+    @enforce_keys [
+      :imported_count,
+      :failures
+    ]
+
+    defstruct imported_count: 0,
+              failures: []
+
+    @type t :: %__MODULE__{
+            imported_count: non_neg_integer(),
+            failures: [Analysis.PgnBatchImporter.parallel_import_failure()]
+          }
+  end
 
   @spec parse(String.t()) ::
           {:ok, [PgnImporter.result()]}
@@ -124,6 +172,65 @@ defmodule Analysis.PgnBatchImporter do
     {:error, :invalid_record_id_provider}
   end
 
+  @spec import_stream_parallel(
+          Enumerable.t(),
+          (pos_integer() -> GameRecord.id()),
+          pos_integer()
+        ) ::
+          {:ok, ParallelImportResult.t()}
+          | {:error, parallel_import_error()}
+  def import_stream_parallel(lines, record_id_for_index, max_concurrency)
+      when is_function(record_id_for_index, 1) do
+    with :ok <-
+           validate_max_concurrency(max_concurrency) do
+      initial_state = %{
+        pending: [],
+        imported_count: 0,
+        failures: []
+      }
+
+      case reduce_games(
+             lines,
+             initial_state,
+             fn game, index, state ->
+               queue_parallel_game(
+                 game,
+                 index,
+                 state,
+                 record_id_for_index,
+                 max_concurrency
+               )
+             end
+           ) do
+        {:ok, state} ->
+          case flush_parallel_games(
+                 state,
+                 record_id_for_index,
+                 max_concurrency
+               ) do
+            {:ok, state} ->
+              {:ok,
+               %ParallelImportResult{
+                 imported_count: state.imported_count,
+                 failures:
+                   state.failures
+                   |> Enum.sort_by(&parallel_failure_index/1)
+               }}
+
+            {:error, _reason} = error ->
+              error
+          end
+
+        {:error, _reason} = error ->
+          error
+      end
+    end
+  end
+
+  def import_stream_parallel(_lines, _record_id_for_index, _max_concurrency) do
+    {:error, :invalid_record_id_provider}
+  end
+
   @spec import_file(
           String.t(),
           (pos_integer() -> GameRecord.id())
@@ -162,6 +269,55 @@ defmodule Analysis.PgnBatchImporter do
   end
 
   def import_file(_path, _record_id_for_index) do
+    {:error, :invalid_record_id_provider}
+  end
+
+  @spec import_file_parallel(
+          String.t(),
+          (pos_integer() -> GameRecord.id()),
+          pos_integer()
+        ) ::
+          {:ok, ParallelImportResult.t()}
+          | {:error, parallel_file_import_error()}
+  def import_file_parallel(path, record_id_for_index, max_concurrency)
+      when is_binary(path) and byte_size(path) > 0 and is_function(record_id_for_index, 1) do
+    with :ok <-
+           validate_max_concurrency(max_concurrency) do
+      case File.open(
+             path,
+             [:read, :utf8],
+             fn io ->
+               io
+               |> IO.stream(:line)
+               |> import_stream_parallel(
+                 record_id_for_index,
+                 max_concurrency
+               )
+             end
+           ) do
+        {:ok, result} ->
+          result
+
+        {:error, reason} ->
+          {:error,
+           {
+             :file,
+             reason
+           }}
+      end
+    end
+  end
+
+  def import_file_parallel(path, _record_id_for_index, _max_concurrency)
+      when not is_binary(path) do
+    {:error, :invalid_path}
+  end
+
+  def import_file_parallel("", _record_id_for_index, _max_concurrency) do
+    {:error, :invalid_path}
+  end
+
+  def import_file_parallel(_path, _record_id_for_index, _max_concurrency) do
     {:error, :invalid_record_id_provider}
   end
 
@@ -233,7 +389,10 @@ defmodule Analysis.PgnBatchImporter do
          {
            :ok,
            accumulator,
-           [line | current],
+           [
+             line
+             | current
+           ],
            :movetext,
            completed_count
          }}
@@ -256,7 +415,10 @@ defmodule Analysis.PgnBatchImporter do
      {
        :ok,
        accumulator,
-       [line | current],
+       [
+         line
+         | current
+       ],
        state,
        completed_count
      }}
@@ -276,7 +438,9 @@ defmodule Analysis.PgnBatchImporter do
          {
            :ok,
            accumulator,
-           [line],
+           [
+             line
+           ],
            :headers,
            index
          }}
@@ -295,7 +459,10 @@ defmodule Analysis.PgnBatchImporter do
      {
        :ok,
        accumulator,
-       [line | current],
+       [
+         line
+         | current
+       ],
        :headers,
        completed_count
      }}
@@ -340,7 +507,11 @@ defmodule Analysis.PgnBatchImporter do
   defp parse_game(game, index, parsed_games) do
     case PgnImporter.parse(game) do
       {:ok, parsed} ->
-        {:ok, [parsed | parsed_games]}
+        {:ok,
+         [
+           parsed
+           | parsed_games
+         ]}
 
       {:error,
        {
@@ -410,47 +581,258 @@ defmodule Analysis.PgnBatchImporter do
     end
   end
 
+  defp queue_parallel_game(game, index, state, record_id_for_index, max_concurrency) do
+    state = %{
+      state
+      | pending: [
+          {
+            index,
+            game
+          }
+          | state.pending
+        ]
+    }
+
+    if length(state.pending) >=
+         max_concurrency do
+      flush_parallel_games(
+        state,
+        record_id_for_index,
+        max_concurrency
+      )
+    else
+      {:ok, state}
+    end
+  end
+
+  defp flush_parallel_games(%{pending: []} = state, _record_id_for_index, _max_concurrency) do
+    {:ok, state}
+  end
+
+  defp flush_parallel_games(state, record_id_for_index, max_concurrency) do
+    pending =
+      Enum.reverse(state.pending)
+
+    state = %{
+      state
+      | pending: []
+    }
+
+    pending
+    |> Task.async_stream(
+      fn {index, game} ->
+        {
+          index,
+          import_parallel_game(
+            game,
+            index,
+            record_id_for_index
+          )
+        }
+      end,
+      max_concurrency: max_concurrency,
+      ordered: false,
+      timeout: :infinity
+    )
+    |> Enum.reduce_while(
+      {:ok, state},
+      fn
+        {
+          :ok,
+          {
+            _index,
+            :ok
+          }
+        },
+        {
+          :ok,
+          state
+        } ->
+          {:cont,
+           {
+             :ok,
+             %{
+               state
+               | imported_count: state.imported_count + 1
+             }
+           }}
+
+        {
+          :ok,
+          {
+            _index,
+            {
+              :error,
+              failure
+            }
+          }
+        },
+        {
+          :ok,
+          state
+        } ->
+          {:cont,
+           {
+             :ok,
+             %{
+               state
+               | failures: [
+                   failure
+                   | state.failures
+                 ]
+             }
+           }}
+
+        {
+          :exit,
+          reason
+        },
+        {
+          :ok,
+          _state
+        } ->
+          {:halt,
+           {
+             :error,
+             {
+               :parallel_worker_exit,
+               reason
+             }
+           }}
+      end
+    )
+  end
+
+  defp import_parallel_game(game, index, record_id_for_index) do
+    case PgnImporter.parse(game) do
+      {:ok, parsed} ->
+        import_parallel_parsed_game(
+          parsed,
+          index,
+          record_id_for_index
+        )
+
+      {:error,
+       {
+         :invalid_pgn,
+         _message
+       } = reason} ->
+        {:error,
+         {
+           :invalid_game,
+           index,
+           reason
+         }}
+    end
+  end
+
+  defp import_parallel_parsed_game(parsed, index, record_id_for_index) do
+    record_id =
+      record_id_for_index.(index)
+
+    if is_binary(record_id) and
+         byte_size(record_id) > 0 do
+      case PgnImporter.import_parsed(
+             record_id,
+             parsed
+           ) do
+        {:ok, _record} ->
+          :ok
+
+        {:error, reason} ->
+          {:error,
+           {
+             :import_failed,
+             index,
+             reason
+           }}
+      end
+    else
+      {:error,
+       {
+         :invalid_record_id,
+         index
+       }}
+    end
+  end
+
+  defp parallel_failure_index({:invalid_game, index, _reason}) do
+    index
+  end
+
+  defp parallel_failure_index({:invalid_record_id, index}) do
+    index
+  end
+
+  defp parallel_failure_index({:import_failed, index, _reason}) do
+    index
+  end
+
+  defp validate_max_concurrency(max_concurrency)
+       when is_integer(max_concurrency) and max_concurrency > 0 do
+    :ok
+  end
+
+  defp validate_max_concurrency(max_concurrency) do
+    {:error,
+     {
+       :invalid_max_concurrency,
+       max_concurrency
+     }}
+  end
+
   defp validate_record_ids(record_ids) do
     record_ids
     |> Enum.with_index(1)
     |> Enum.reduce_while(
-      {:ok, MapSet.new()},
-      fn {record_id, index}, {:ok, seen} ->
-        cond do
-          not is_binary(record_id) or
-              byte_size(record_id) == 0 ->
-            {:halt,
-             {
-               :error,
+      {
+        :ok,
+        MapSet.new()
+      },
+      fn
+        {
+          record_id,
+          index
+        },
+        {
+          :ok,
+          seen
+        } ->
+          cond do
+            not is_binary(record_id) or
+                byte_size(record_id) == 0 ->
+              {:halt,
                {
-                 :invalid_record_id,
-                 index
-               }
-             }}
+                 :error,
+                 {
+                   :invalid_record_id,
+                   index
+                 }
+               }}
 
-          MapSet.member?(
-            seen,
-            record_id
-          ) ->
-            {:halt,
-             {
-               :error,
+            MapSet.member?(
+              seen,
+              record_id
+            ) ->
+              {:halt,
                {
-                 :duplicate_record_id,
-                 index
-               }
-             }}
+                 :error,
+                 {
+                   :duplicate_record_id,
+                   index
+                 }
+               }}
 
-          true ->
-            {:cont,
-             {
-               :ok,
-               MapSet.put(
-                 seen,
-                 record_id
-               )
-             }}
-        end
+            true ->
+              {:cont,
+               {
+                 :ok,
+                 MapSet.put(
+                   seen,
+                   record_id
+                 )
+               }}
+          end
       end
     )
     |> case do
@@ -469,7 +851,8 @@ defmodule Analysis.PgnBatchImporter do
     record_id_count =
       length(record_ids)
 
-    if game_count == record_id_count do
+    if game_count ==
+         record_id_count do
       :ok
     else
       {:error,
@@ -486,30 +869,47 @@ defmodule Analysis.PgnBatchImporter do
     |> Enum.zip(parsed_games)
     |> Enum.with_index(1)
     |> Enum.reduce_while(
-      {:ok, []},
-      fn {{record_id, parsed}, index}, {:ok, records} ->
-        case PgnImporter.import_parsed(
-               record_id,
-               parsed
-             ) do
-          {:ok, record} ->
-            {:cont,
-             {
-               :ok,
-               [record | records]
-             }}
-
-          {:error, reason} ->
-            {:halt,
-             {
-               :error,
+      {
+        :ok,
+        []
+      },
+      fn
+        {
+          {
+            record_id,
+            parsed
+          },
+          index
+        },
+        {
+          :ok,
+          records
+        } ->
+          case PgnImporter.import_parsed(
+                 record_id,
+                 parsed
+               ) do
+            {:ok, record} ->
+              {:cont,
                {
-                 :import_failed,
-                 index,
-                 reason
-               }
-             }}
-        end
+                 :ok,
+                 [
+                   record
+                   | records
+                 ]
+               }}
+
+            {:error, reason} ->
+              {:halt,
+               {
+                 :error,
+                 {
+                   :import_failed,
+                   index,
+                   reason
+                 }
+               }}
+          end
       end
     )
     |> case do
