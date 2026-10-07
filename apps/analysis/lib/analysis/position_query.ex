@@ -96,6 +96,33 @@ defmodule Analysis.PositionQuery do
   end
 
   @doc """
+  Searches the exact pawn structure together with every structure obtained
+  by removing exactly one pawn.
+
+  The relationship is directional. A query built from a structure containing
+  a pawn will find the otherwise-identical structure without that pawn. A query
+  built from the reduced structure does not implicitly add the missing pawn.
+  """
+  @spec pawn_structure_missing_pawn_neighborhood(
+          Position.t()
+          | PawnStructure.t()
+        ) ::
+          t()
+  def pawn_structure_missing_pawn_neighborhood(%Position{} = position) do
+    position
+    |> PawnStructure.from_position()
+    |> pawn_structure_missing_pawn_neighborhood()
+  end
+
+  def pawn_structure_missing_pawn_neighborhood(%PawnStructure{} = structure) do
+    [
+      structure
+      | PawnStructure.single_pawn_removals(structure)
+    ]
+    |> pawn_structures()
+  end
+
+  @doc """
   Searches the exact pawn structure and every direction-independent
   single-push neighbor under every supported pawn-structure symmetry.
 

@@ -203,6 +203,36 @@ defmodule Chess.PawnStructure do
   end
 
   @doc """
+  Returns every distinct pawn structure produced by removing exactly one pawn.
+
+  The transformation is directional: every returned structure contains exactly
+  one fewer pawn than the source structure. White pawns are considered before
+  Black pawns and squares are processed in ascending square order.
+
+  This is a structural transformation and does not model how the pawn
+  disappeared from the board.
+  """
+  @spec single_pawn_removals(t()) :: [t()]
+  def single_pawn_removals(%__MODULE__{} = structure) do
+    [
+      :white,
+      :black
+    ]
+    |> Enum.flat_map(fn color ->
+      structure
+      |> color_pawns(color)
+      |> pawn_squares()
+      |> Enum.map(fn square ->
+        remove_pawn(
+          structure,
+          color,
+          square
+        )
+      end)
+    end)
+  end
+
+  @doc """
   Returns the same pawn structure from the opposite color perspective.
 
   Colors are swapped and ranks are reflected:
@@ -293,6 +323,26 @@ defmodule Chess.PawnStructure do
             []
         end
       end
+    )
+  end
+
+  defp remove_pawn(structure, color, square) do
+    pawns =
+      structure
+      |> color_pawns(color)
+      |> band(
+        bnot(
+          bsl(
+            1,
+            square
+          )
+        )
+      )
+
+    put_color_pawns(
+      structure,
+      color,
+      pawns
     )
   end
 
