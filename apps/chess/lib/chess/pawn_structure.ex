@@ -13,6 +13,10 @@ defmodule Chess.PawnStructure do
   File reflection mirrors the structure across the vertical center line
   while preserving colors and ranks. For example, a White pawn on b4
   becomes a White pawn on g4.
+
+  Pawn shifts are structural transformations rather than chess moves.
+  They relocate one pawn between two squares without validating move
+  geometry or non-pawn occupancy.
   """
 
   import Bitwise
@@ -35,6 +39,15 @@ defmodule Chess.PawnStructure do
           black: non_neg_integer()
         }
 
+  @type color :: :white | :black
+
+  @type shift_error ::
+          :invalid_color
+          | :invalid_square
+          | :same_square
+          | :missing_pawn
+          | :target_has_pawn
+
   @spec from_position(Position.t()) :: t()
   def from_position(%Position{} = position) do
     position
@@ -48,6 +61,65 @@ defmodule Chess.PawnStructure do
       white: board.white_pawns,
       black: board.black_pawns
     }
+  end
+
+  @doc """
+  Relocates one pawn inside a pawn structure.
+
+  This is a structural transformation, not chess move validation.
+  The source square must contain a pawn of the requested color and
+  the destination square must not contain either color's pawn.
+
+  Non-pawn occupancy is intentionally unknown to a pawn structure.
+
+  This makes transformations such as `h2 -> h3` useful for constructing
+  exact searches for nearby pawn structures.
+  """
+  @spec shift_pawn(
+          t(),
+          color(),
+          Chess.Square.t(),
+          Chess.Square.t()
+        ) ::
+          {:ok, t()}
+          | {:error, shift_error()}
+  def shift_pawn(%__MODULE__{} = structure, color, from, to) do
+    cond do
+      color not in [
+        :white,
+        :black
+      ] ->
+        {:error, :invalid_color}
+
+      not valid_square?(from) or
+          not valid_square?(to) ->
+        {:error, :invalid_square}
+
+      from == to ->
+        {:error, :same_square}
+
+      not pawn_on?(
+        structure,
+        color,
+        from
+      ) ->
+        {:error, :missing_pawn}
+
+      pawn_on_any_color?(
+        structure,
+        to
+      ) ->
+        {:error, :target_has_pawn}
+
+      true ->
+        {:ok,
+         relocate_pawn(
+           structure,
+           color,
+           from,
+           to
+         )}
+    end
   end
 
   @doc """
@@ -122,6 +194,83 @@ defmodule Chess.PawnStructure do
     |> Enum.uniq()
   end
 
+  defp relocate_pawn(structure, color, from, to) do
+    pawns =
+      structure
+      |> color_pawns(color)
+      |> band(
+        bnot(
+          bsl(
+            1,
+            from
+          )
+        )
+      )
+      |> bor(
+        bsl(
+          1,
+          to
+        )
+      )
+
+    put_color_pawns(
+      structure,
+      color,
+      pawns
+    )
+  end
+
+  defp pawn_on?(structure, color, square) do
+    structure
+    |> color_pawns(color)
+    |> band(
+      bsl(
+        1,
+        square
+      )
+    )
+    |> Kernel.!=(0)
+  end
+
+  defp pawn_on_any_color?(%__MODULE__{white: white, black: black}, square) do
+    white
+    |> bor(black)
+    |> band(
+      bsl(
+        1,
+        square
+      )
+    )
+    |> Kernel.!=(0)
+  end
+
+  defp color_pawns(%__MODULE__{white: white}, :white) do
+    white
+  end
+
+  defp color_pawns(%__MODULE__{black: black}, :black) do
+    black
+  end
+
+  defp put_color_pawns(structure, :white, pawns) do
+    %{
+      structure
+      | white: pawns
+    }
+  end
+
+  defp put_color_pawns(structure, :black, pawns) do
+    %{
+      structure
+      | black: pawns
+    }
+  end
+
+  defp valid_square?(square) do
+    is_integer(square) and
+      square in 0..63
+  end
+
   defp flip_ranks(bitboard) do
     0..7
     |> Enum.reduce(
@@ -171,7 +320,10 @@ defmodule Chess.PawnStructure do
       fn file, reversed ->
         if band(
              byte,
-             bsl(1, file)
+             bsl(
+               1,
+               file
+             )
            ) == 0 do
           reversed
         else
