@@ -69,8 +69,12 @@ defmodule Analysis.PositionQuery do
   end
 
   @doc """
-  Searches the exact pawn structure together with every structure
-  produced by a single one-rank forward pawn shift.
+  Searches the exact pawn structure together with every structure that
+  differs by one single-rank pawn displacement.
+
+  The neighborhood is direction-independent: if one structure can be
+  reached from the other through one forward structural pawn shift, each
+  structure is in the other's neighborhood.
   """
   @spec pawn_structure_single_push_neighborhood(
           Position.t()
@@ -86,20 +90,19 @@ defmodule Analysis.PositionQuery do
   def pawn_structure_single_push_neighborhood(%PawnStructure{} = structure) do
     [
       structure
-      | PawnStructure.single_pushes(structure)
+      | PawnStructure.single_rank_neighbors(structure)
     ]
     |> pawn_structures()
   end
 
   @doc """
-  Searches the exact pawn structure and every single-push neighbor under
-  every supported pawn-structure symmetry.
+  Searches the exact pawn structure and every direction-independent
+  single-push neighbor under every supported pawn-structure symmetry.
 
   The bounded set contains the symmetries of:
 
     * the exact structure
-    * every structure produced by shifting exactly one pawn one rank
-      forward
+    * every structure differing by one single-rank pawn displacement
 
   Duplicate structures are removed before constructing the query.
   """
@@ -117,7 +120,7 @@ defmodule Analysis.PositionQuery do
   def pawn_structure_single_push_symmetry_neighborhood(%PawnStructure{} = structure) do
     [
       structure
-      | PawnStructure.single_pushes(structure)
+      | PawnStructure.single_rank_neighbors(structure)
     ]
     |> Enum.flat_map(&PawnStructure.symmetries/1)
     |> Enum.uniq()

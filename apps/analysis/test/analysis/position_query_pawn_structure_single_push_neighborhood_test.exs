@@ -6,7 +6,7 @@ defmodule Analysis.PositionQueryPawnStructureSinglePushNeighborhoodTest do
   alias Chess.Position
   alias Chess.Square
 
-  test "builds a bounded set containing the exact structure and every single push" do
+  test "builds a direction-independent bounded single-push neighborhood" do
     position =
       Position.new()
       |> Position.put_piece(
@@ -24,8 +24,11 @@ defmodule Analysis.PositionQueryPawnStructureSinglePushNeighborhoodTest do
     expected =
       [
         structure
-        | PawnStructure.single_pushes(structure)
+        | PawnStructure.single_rank_neighbors(structure)
       ]
+
+    assert length(expected) ==
+             5
 
     assert PositionQuery.pawn_structure_single_push_neighborhood(structure) ==
              {

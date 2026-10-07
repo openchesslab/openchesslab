@@ -6,7 +6,7 @@ defmodule Analysis.PositionQueryPawnStructureSinglePushSymmetryNeighborhoodTest 
   alias Chess.Position
   alias Chess.Square
 
-  test "builds the distinct symmetries of the exact structure and every single push" do
+  test "builds the distinct symmetries of the exact structure and every direction-independent neighbor" do
     position =
       Position.new()
       |> Position.put_piece(
@@ -24,13 +24,13 @@ defmodule Analysis.PositionQueryPawnStructureSinglePushSymmetryNeighborhoodTest 
     expected =
       [
         structure
-        | PawnStructure.single_pushes(structure)
+        | PawnStructure.single_rank_neighbors(structure)
       ]
       |> Enum.flat_map(&PawnStructure.symmetries/1)
       |> Enum.uniq()
 
     assert length(expected) ==
-             12
+             20
 
     assert PositionQuery.pawn_structure_single_push_symmetry_neighborhood(structure) ==
              {

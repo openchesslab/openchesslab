@@ -132,6 +132,9 @@ defmodule Chess.PawnStructure do
 
   These are structural transformations, not legal chess moves. Occupancy
   by non-pawn pieces is intentionally unknown.
+
+  This function is directional. Use `single_rank_neighbors/1` when the
+  relationship between two structures should be direction-independent.
   """
   @spec single_pushes(t()) :: [t()]
   def single_pushes(%__MODULE__{} = structure) do
@@ -144,24 +147,56 @@ defmodule Chess.PawnStructure do
       |> color_pawns(color)
       |> pawn_squares()
       |> Enum.flat_map(fn from ->
-        to =
-          from +
+        shift_variants(
+          structure,
+          color,
+          from,
+          [
             forward_step(color)
+          ]
+        )
+      end)
+    end)
+    |> Enum.uniq()
+  end
 
-        case shift_pawn(
-               structure,
-               color,
-               from,
-               to
-             ) do
-          {:ok, shifted} ->
-            [
-              shifted
-            ]
+  @doc """
+  Returns every distinct pawn structure that is one single-rank pawn
+  displacement away from the given structure.
 
-          {:error, _reason} ->
-            []
-        end
+  The relationship is direction-independent. If structure A can become
+  structure B through one forward structural pawn shift, then A is a
+  neighbor of B and B is a neighbor of A.
+
+  For each pawn this therefore considers both the pawn's normal forward
+  direction and the opposite direction. Variants whose destination lies
+  outside the board or already contains a pawn are omitted.
+
+  These are structural transformations, not legal chess moves.
+  """
+  @spec single_rank_neighbors(t()) :: [t()]
+  def single_rank_neighbors(%__MODULE__{} = structure) do
+    [
+      :white,
+      :black
+    ]
+    |> Enum.flat_map(fn color ->
+      structure
+      |> color_pawns(color)
+      |> pawn_squares()
+      |> Enum.flat_map(fn from ->
+        forward =
+          forward_step(color)
+
+        shift_variants(
+          structure,
+          color,
+          from,
+          [
+            forward,
+            -forward
+          ]
+        )
       end)
     end)
     |> Enum.uniq()
@@ -237,6 +272,28 @@ defmodule Chess.PawnStructure do
       color_reversed_and_file_reflected
     ]
     |> Enum.uniq()
+  end
+
+  defp shift_variants(structure, color, from, steps) do
+    Enum.flat_map(
+      steps,
+      fn step ->
+        case shift_pawn(
+               structure,
+               color,
+               from,
+               from + step
+             ) do
+          {:ok, shifted} ->
+            [
+              shifted
+            ]
+
+          {:error, _reason} ->
+            []
+        end
+      end
+    )
   end
 
   defp relocate_pawn(structure, color, from, to) do

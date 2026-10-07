@@ -148,7 +148,7 @@ defmodule OpenChessLab.Database.PawnStructureSinglePushNeighborhoodPostgresBench
       |> PositionQuery.any()
 
     optimized_query =
-      PositionQuery.pawn_structure_single_push_neighborhood(@source_structure)
+      PositionQuery.pawn_structures(structures)
 
     {
       generic_first_sql,
