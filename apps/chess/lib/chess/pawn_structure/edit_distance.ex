@@ -19,6 +19,8 @@ defmodule Chess.PawnStructure.EditDistance do
   arbitrarily large transformation neighborhoods.
   """
 
+  import Bitwise
+
   alias Chess.PawnStructure
   alias Chess.PawnStructure.Difference
 
@@ -41,6 +43,9 @@ defmodule Chess.PawnStructure.EditDistance do
 
   Because pawn removal is directional, the neighborhood is directional too:
   removing a pawn is an elementary edit, adding it again is not.
+
+  Neighborhood traversal uses raw pawn-bitboard keys internally so intermediate
+  candidates do not allocate complete `PawnStructure` structs.
   """
   @spec neighborhood(
           PawnStructure.t(),
@@ -54,103 +59,10 @@ defmodule Chess.PawnStructure.EditDistance do
   end
 
   def neighborhood(%PawnStructure{} = source, maximum_distance) when maximum_distance in 1..2 do
-    {
-      _seen,
-      _frontier,
-      result_reversed
-    } =
-      Enum.reduce(
-        1..maximum_distance,
-        {
-          MapSet.new([
-            source
-          ]),
-          [
-            source
-          ],
-          [
-            source
-          ]
-        },
-        fn
-          _distance,
-          {
-            seen,
-            frontier,
-            result_reversed
-          } ->
-            {
-              seen,
-              next_frontier_reversed,
-              result_reversed
-            } =
-              Enum.reduce(
-                frontier,
-                {
-                  seen,
-                  [],
-                  result_reversed
-                },
-                fn
-                  structure,
-                  {
-                    seen,
-                    next_frontier_reversed,
-                    result_reversed
-                  } ->
-                    Enum.reduce(
-                      elementary_neighbors(structure),
-                      {
-                        seen,
-                        next_frontier_reversed,
-                        result_reversed
-                      },
-                      fn
-                        neighbor,
-                        {
-                          seen,
-                          next_frontier_reversed,
-                          result_reversed
-                        } ->
-                          if MapSet.member?(
-                               seen,
-                               neighbor
-                             ) do
-                            {
-                              seen,
-                              next_frontier_reversed,
-                              result_reversed
-                            }
-                          else
-                            {
-                              MapSet.put(
-                                seen,
-                                neighbor
-                              ),
-                              [
-                                neighbor
-                                | next_frontier_reversed
-                              ],
-                              [
-                                neighbor
-                                | result_reversed
-                              ]
-                            }
-                          end
-                      end
-                    )
-                end
-              )
-
-            {
-              seen,
-              Enum.reverse(next_frontier_reversed),
-              result_reversed
-            }
-        end
-      )
-
-    Enum.reverse(result_reversed)
+    source
+    |> structure_key()
+    |> key_neighborhood(maximum_distance)
+    |> Enum.map(&structure_from_key/1)
   end
 
   @spec bounded(
@@ -224,6 +136,392 @@ defmodule Chess.PawnStructure.EditDistance do
       :beyond_limit ->
         false
     end
+  end
+
+  defp key_neighborhood(source, maximum_distance) do
+    {
+      _seen,
+      _frontier,
+      result_reversed
+    } =
+      Enum.reduce(
+        1..maximum_distance,
+        {
+          MapSet.new([
+            source
+          ]),
+          [
+            source
+          ],
+          [
+            source
+          ]
+        },
+        fn
+          _distance,
+          {
+            seen,
+            frontier,
+            result_reversed
+          } ->
+            {
+              seen,
+              next_frontier_reversed,
+              result_reversed
+            } =
+              Enum.reduce(
+                frontier,
+                {
+                  seen,
+                  [],
+                  result_reversed
+                },
+                fn
+                  structure,
+                  {
+                    seen,
+                    next_frontier_reversed,
+                    result_reversed
+                  } ->
+                    Enum.reduce(
+                      key_elementary_neighbors(structure),
+                      {
+                        seen,
+                        next_frontier_reversed,
+                        result_reversed
+                      },
+                      fn
+                        neighbor,
+                        {
+                          seen,
+                          next_frontier_reversed,
+                          result_reversed
+                        } ->
+                          if MapSet.member?(
+                               seen,
+                               neighbor
+                             ) do
+                            {
+                              seen,
+                              next_frontier_reversed,
+                              result_reversed
+                            }
+                          else
+                            {
+                              MapSet.put(
+                                seen,
+                                neighbor
+                              ),
+                              [
+                                neighbor
+                                | next_frontier_reversed
+                              ],
+                              [
+                                neighbor
+                                | result_reversed
+                              ]
+                            }
+                          end
+                      end
+                    )
+                end
+              )
+
+            {
+              seen,
+              Enum.reverse(next_frontier_reversed),
+              result_reversed
+            }
+        end
+      )
+
+    Enum.reverse(result_reversed)
+  end
+
+  defp key_elementary_neighbors(structure) do
+    key_rank_neighbors(structure) ++
+      key_capture_like_neighbors(structure) ++
+      key_pawn_removals(structure)
+  end
+
+  defp key_rank_neighbors(structure) do
+    [
+      :white,
+      :black
+    ]
+    |> Enum.flat_map(fn color ->
+      structure
+      |> key_color_pawns(color)
+      |> pawn_squares()
+      |> Enum.flat_map(fn from ->
+        forward =
+          forward_step(color)
+
+        [
+          forward,
+          -forward
+        ]
+        |> Enum.flat_map(fn step ->
+          key_shift_variant(
+            structure,
+            color,
+            from,
+            from + step
+          )
+        end)
+      end)
+    end)
+  end
+
+  defp key_capture_like_neighbors(structure) do
+    [
+      :white,
+      :black
+    ]
+    |> Enum.flat_map(fn color ->
+      structure
+      |> key_color_pawns(color)
+      |> pawn_squares()
+      |> Enum.flat_map(fn from ->
+        color
+        |> capture_like_destinations(from)
+        |> Enum.flat_map(fn to ->
+          key_shift_variant(
+            structure,
+            color,
+            from,
+            to
+          )
+        end)
+      end)
+    end)
+  end
+
+  defp key_pawn_removals(structure) do
+    [
+      :white,
+      :black
+    ]
+    |> Enum.flat_map(fn color ->
+      structure
+      |> key_color_pawns(color)
+      |> pawn_squares()
+      |> Enum.map(fn square ->
+        key_remove_pawn(
+          structure,
+          color,
+          square
+        )
+      end)
+    end)
+  end
+
+  defp key_shift_variant(structure, color, from, to) when to in 0..63 do
+    if key_pawn_on_any_color?(
+         structure,
+         to
+       ) do
+      []
+    else
+      [
+        key_relocate_pawn(
+          structure,
+          color,
+          from,
+          to
+        )
+      ]
+    end
+  end
+
+  defp key_shift_variant(_structure, _color, _from, _to) do
+    []
+  end
+
+  defp capture_like_destinations(color, square) do
+    file =
+      rem(
+        square,
+        8
+      )
+
+    rank =
+      div(
+        square,
+        8
+      )
+
+    rank_step =
+      forward_rank_step(color)
+
+    [
+      {
+        file - 1,
+        rank + rank_step
+      },
+      {
+        file + 1,
+        rank + rank_step
+      },
+      {
+        file - 1,
+        rank - rank_step
+      },
+      {
+        file + 1,
+        rank - rank_step
+      }
+    ]
+    |> Enum.flat_map(fn
+      {
+        destination_file,
+        destination_rank
+      }
+      when destination_file in 0..7 and
+             destination_rank in 0..7 ->
+        [
+          destination_rank * 8 +
+            destination_file
+        ]
+
+      _destination ->
+        []
+    end)
+  end
+
+  defp key_relocate_pawn({white, black}, :white, from, to) do
+    {
+      relocate_bit(
+        white,
+        from,
+        to
+      ),
+      black
+    }
+  end
+
+  defp key_relocate_pawn({white, black}, :black, from, to) do
+    {
+      white,
+      relocate_bit(
+        black,
+        from,
+        to
+      )
+    }
+  end
+
+  defp relocate_bit(pawns, from, to) do
+    pawns
+    |> band(
+      bnot(
+        bsl(
+          1,
+          from
+        )
+      )
+    )
+    |> bor(
+      bsl(
+        1,
+        to
+      )
+    )
+  end
+
+  defp key_remove_pawn({white, black}, :white, square) do
+    {
+      clear_bit(
+        white,
+        square
+      ),
+      black
+    }
+  end
+
+  defp key_remove_pawn({white, black}, :black, square) do
+    {
+      white,
+      clear_bit(
+        black,
+        square
+      )
+    }
+  end
+
+  defp clear_bit(pawns, square) do
+    band(
+      pawns,
+      bnot(
+        bsl(
+          1,
+          square
+        )
+      )
+    )
+  end
+
+  defp key_pawn_on_any_color?({white, black}, square) do
+    white
+    |> bor(black)
+    |> band(
+      bsl(
+        1,
+        square
+      )
+    )
+    |> Kernel.!=(0)
+  end
+
+  defp key_color_pawns({white, _black}, :white) do
+    white
+  end
+
+  defp key_color_pawns({_white, black}, :black) do
+    black
+  end
+
+  defp pawn_squares(pawns) do
+    for square <- 0..63,
+        band(
+          pawns,
+          bsl(
+            1,
+            square
+          )
+        ) != 0 do
+      square
+    end
+  end
+
+  defp forward_step(:white) do
+    8
+  end
+
+  defp forward_step(:black) do
+    -8
+  end
+
+  defp forward_rank_step(:white) do
+    1
+  end
+
+  defp forward_rank_step(:black) do
+    -1
+  end
+
+  defp structure_key(%PawnStructure{white: white, black: black}) do
+    {
+      white,
+      black
+    }
+  end
+
+  defp structure_from_key({white, black}) do
+    %PawnStructure{
+      white: white,
+      black: black
+    }
   end
 
   defp two_edits_reachable?(source, target) do
