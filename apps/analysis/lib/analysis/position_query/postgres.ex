@@ -75,6 +75,30 @@ defmodule Analysis.PositionQuery.Postgres do
     end
   end
 
+  defp do_compile_predicate({:pawn_structure_symmetries, structures}, parameters, next_parameter)
+       when is_list(structures) do
+    queries =
+      Enum.map(
+        structures,
+        fn structure ->
+          {
+            :property,
+            :pawn_structure,
+            structure
+          }
+        end
+      )
+
+    do_compile_predicate(
+      {
+        :or,
+        queries
+      },
+      parameters,
+      next_parameter
+    )
+  end
+
   defp do_compile_predicate({:property, property, value}, parameters, next_parameter) do
     case PositionPropertyKeyCodec.encode(
            property,

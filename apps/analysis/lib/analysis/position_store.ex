@@ -16,7 +16,7 @@ defmodule Analysis.PositionStore do
   alias Analysis.PositionPawnStructureCodec
   alias Analysis.PositionPropertyKeyCodec
   alias Analysis.PositionQuery
-  alias Analysis.PositionQuery.Postgres, as: PostgresQuery
+  alias Analysis.PositionQuery.PostgresPage
   alias Analysis.PositionQueryNormalizer
   alias Chess.PawnStructure
   alias Chess.Position
@@ -325,46 +325,10 @@ defmodule Analysis.PositionStore do
   end
 
   defp compile_first_page(query, limit) do
-    with {
-           :ok,
-           predicate,
-           parameters,
-           next_parameter
-         } <-
-           PostgresQuery.compile_predicate(
-             query,
-             1
-           ) do
-      limit_parameter =
-        next_parameter
-
-      sql = """
-      SELECT
-        COALESCE(
-          (
-            SELECT max(id)
-            FROM positions
-          ),
-          0
-        )::bigint AS maximum_position_id,
-        p.id
-      FROM positions AS p
-      WHERE
-        (#{predicate})
-      ORDER BY
-        p.id
-      LIMIT $#{limit_parameter}::bigint
-      """
-
-      {
-        :ok,
-        sql,
-        parameters ++
-          [
-            limit
-          ]
-      }
-    end
+    PostgresPage.compile_first(
+      query,
+      limit
+    )
   end
 
   defp compile_next_page(
@@ -372,50 +336,12 @@ defmodule Analysis.PositionStore do
          %Cursor{maximum_position_id: maximum_position_id, last_position_id: last_position_id},
          limit
        ) do
-    with {
-           :ok,
-           predicate,
-           parameters,
-           next_parameter
-         } <-
-           PostgresQuery.compile_predicate(
-             query,
-             1
-           ) do
-      maximum_parameter =
-        next_parameter
-
-      last_parameter =
-        maximum_parameter + 1
-
-      limit_parameter =
-        last_parameter + 1
-
-      sql = """
-      SELECT
-        $#{maximum_parameter}::bigint,
-        p.id
-      FROM positions AS p
-      WHERE
-        p.id > $#{last_parameter}::bigint
-        AND p.id <= $#{maximum_parameter}::bigint
-        AND (#{predicate})
-      ORDER BY
-        p.id
-      LIMIT $#{limit_parameter}::bigint
-      """
-
-      {
-        :ok,
-        sql,
-        parameters ++
-          [
-            maximum_position_id,
-            last_position_id,
-            limit
-          ]
-      }
-    end
+    PostgresPage.compile_next(
+      query,
+      maximum_position_id,
+      last_position_id,
+      limit
+    )
   end
 
   defp build_page(rows, limit) when length(rows) <= limit do

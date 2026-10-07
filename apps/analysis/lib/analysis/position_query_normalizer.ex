@@ -16,6 +16,19 @@ defmodule Analysis.PositionQueryNormalizer do
     query
   end
 
+  defp do_normalize({:pawn_structure_symmetries, structures}) when is_list(structures) do
+    case Enum.uniq(structures) do
+      [] ->
+        false
+
+      structures ->
+        {
+          :pawn_structure_symmetries,
+          structures
+        }
+    end
+  end
+
   defp do_normalize({:equivalent, _position} = query) do
     query
   end

@@ -13,6 +13,7 @@ defmodule Analysis.PositionQuery do
           true
           | false
           | {:property, atom(), term()}
+          | {:pawn_structure_symmetries, [PawnStructure.t()]}
           | {:equivalent, term()}
           | {:and, [t()]}
           | {:or, [t()]}
@@ -88,10 +89,10 @@ defmodule Analysis.PositionQuery do
   end
 
   def pawn_structure_symmetries(%PawnStructure{} = structure) do
-    structure
-    |> PawnStructure.symmetries()
-    |> Enum.map(&pawn_structure/1)
-    |> any()
+    {
+      :pawn_structure_symmetries,
+      PawnStructure.symmetries(structure)
+    }
   end
 
   @spec equivalent(term()) :: t()

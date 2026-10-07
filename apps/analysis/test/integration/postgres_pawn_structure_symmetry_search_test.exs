@@ -156,6 +156,95 @@ defmodule Analysis.PostgresPawnStructureSymmetrySearchTest do
              ]
   end
 
+  test "pages symmetry matches without crossing the captured high-water mark" do
+    exact =
+      position(
+        "b4",
+        "f6"
+      )
+
+    color_reversed =
+      position(
+        "f3",
+        "b5"
+      )
+
+    file_reflected =
+      position(
+        "g4",
+        "c6"
+      )
+
+    both =
+      position(
+        "c3",
+        "g5"
+      )
+
+    exact_id =
+      PositionStore.append(exact)
+
+    color_reversed_id =
+      PositionStore.append(color_reversed)
+
+    file_reflected_id =
+      PositionStore.append(file_reflected)
+
+    both_id =
+      PositionStore.append(both)
+
+    query =
+      Query.pawn_structure_symmetries(exact)
+
+    assert {
+             :ok,
+             %PositionStore.Page{
+               entries: [
+                 ^exact_id,
+                 ^color_reversed_id
+               ],
+               next: cursor
+             }
+           } =
+             PositionStore.page(
+               query,
+               limit: 2
+             )
+
+    late_match =
+      exact
+      |> Position.put_piece(
+        Square.from_algebraic("a1"),
+        {:white, :rook}
+      )
+
+    late_match_id =
+      PositionStore.append(late_match)
+
+    assert {
+             :ok,
+             %PositionStore.Page{
+               entries: [
+                 ^file_reflected_id,
+                 ^both_id
+               ],
+               next: nil
+             }
+           } =
+             PositionStore.page(
+               query,
+               limit: 2,
+               cursor: cursor
+             )
+
+    refute late_match_id in [
+             exact_id,
+             color_reversed_id,
+             file_reflected_id,
+             both_id
+           ]
+  end
+
   defp position(white_square, black_square) do
     Position.new()
     |> Position.put_piece(

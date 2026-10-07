@@ -6,8 +6,8 @@ defmodule Analysis.PositionQueryPawnStructureSymmetriesTest do
   alias Chess.Position
   alias Chess.Square
 
-  test "builds an OR query for every distinct symmetry" do
-    structure =
+  test "builds a dedicated query node containing every distinct symmetry" do
+    position =
       Position.new()
       |> Position.put_piece(
         Square.from_algebraic("b4"),
@@ -17,33 +17,44 @@ defmodule Analysis.PositionQueryPawnStructureSymmetriesTest do
         Square.from_algebraic("f6"),
         {:black, :pawn}
       )
-      |> PawnStructure.from_position()
 
-    expected_queries =
-      structure
-      |> PawnStructure.symmetries()
-      |> Enum.map(&PositionQuery.pawn_structure/1)
+    structure =
+      PawnStructure.from_position(position)
+
+    symmetries =
+      PawnStructure.symmetries(structure)
+
+    assert length(symmetries) ==
+             4
 
     assert PositionQuery.pawn_structure_symmetries(structure) ==
              {
-               :or,
-               expected_queries
+               :pawn_structure_symmetries,
+               symmetries
+             }
+
+    assert PositionQuery.pawn_structure_symmetries(position) ==
+             {
+               :pawn_structure_symmetries,
+               symmetries
              }
   end
 
-  test "does not produce duplicate predicates for a symmetric structure" do
+  test "keeps a collapsed symmetry class as one dedicated query node" do
     structure =
       Position.starting_position()
       |> PawnStructure.from_position()
 
-    query =
-      PositionQuery.pawn_structure(structure)
+    assert PawnStructure.symmetries(structure) ==
+             [
+               structure
+             ]
 
     assert PositionQuery.pawn_structure_symmetries(structure) ==
              {
-               :or,
+               :pawn_structure_symmetries,
                [
-                 query
+                 structure
                ]
              }
   end
