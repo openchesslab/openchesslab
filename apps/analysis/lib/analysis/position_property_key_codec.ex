@@ -105,6 +105,24 @@ defmodule Analysis.PositionPropertyKeyCodec do
     end
   end
 
+  def encode(:castling_right, right) do
+    case Map.fetch(
+           %{
+             white_kingside: 0,
+             white_queenside: 1,
+             black_kingside: 2,
+             black_queenside: 3
+           },
+           right
+         ) do
+      {:ok, right_id} ->
+        {:ok, <<7::unsigned-8, right_id::unsigned-8>>}
+
+      :error ->
+        {:error, :invalid_castling_right}
+    end
+  end
+
   def encode(:material, %{white: white, black: black}) when is_map(white) and is_map(black) do
     with {:ok, white_counts} <- encode_material_counts(white),
          {:ok, black_counts} <- encode_material_counts(black) do

@@ -788,6 +788,15 @@ defmodule Analysis.PositionStore do
 
     checks = PositionProperties.in_check(position)
 
+    castling_rights =
+      [
+        :white_kingside,
+        :white_queenside,
+        :black_kingside,
+        :black_queenside
+      ]
+      |> Enum.filter(&MapSet.member?(position.castling_rights, &1))
+
     properties =
       Enum.map(
         PositionProperties.open_files(position),
@@ -823,6 +832,7 @@ defmodule Analysis.PositionStore do
             end
           end
         ) ++
+        Enum.map(castling_rights, &{:castling_right, &1}) ++
         [
           {
             :material,

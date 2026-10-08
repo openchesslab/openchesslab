@@ -102,10 +102,10 @@ defmodule Analysis.PostgresPositionStoreTest do
         PositionProperties.material(position)
       )
 
-    assert material_property in properties
-
-    assert length(properties) ==
-             2
+    assert Enum.count(
+             properties,
+             &(&1 == material_property)
+           ) == 1
   end
 
   test "stores every open file as an independently searchable property" do
