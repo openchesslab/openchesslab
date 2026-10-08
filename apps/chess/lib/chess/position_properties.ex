@@ -10,6 +10,12 @@ defmodule Chess.PositionProperties do
 
   @files [:a, :b, :c, :d, :e, :f, :g, :h]
 
+  @board_mask 0xFFFFFFFFFFFFFFFF
+  @not_a_file 0xFEFEFEFEFEFEFEFE
+  @not_h_file 0x7F7F7F7F7F7F7F7F
+  @white_opponent_half 0xFFFFFFFF00000000
+  @black_opponent_half 0x00000000FFFFFFFF
+
   @file_masks %{
     a: 0x0101010101010101,
     b: 0x0202020202020202,
@@ -196,10 +202,24 @@ defmodule Chess.PositionProperties do
   def outposts(%Position{} = position) do
     board = Bitboard.from_position(position)
 
-    %{
-      white: outposts_for(board, :white),
-      black: outposts_for(board, :black)
-    }
+    white_control = pawn_attack_mask_from_pawns(board.white_pawns, :white)
+    black_control = pawn_attack_mask_from_pawns(board.black_pawns, :black)
+
+    white_outposts =
+      board.white_knights
+      |> Bitwise.band(@white_opponent_half)
+      |> Bitwise.band(white_control)
+      |> Bitwise.band(Bitwise.bnot(black_control))
+      |> squares_in()
+
+    black_outposts =
+      board.black_knights
+      |> Bitwise.band(@black_opponent_half)
+      |> Bitwise.band(black_control)
+      |> Bitwise.band(Bitwise.bnot(white_control))
+      |> squares_in()
+
+    %{white: white_outposts, black: black_outposts}
   end
 
   @doc """
@@ -277,22 +297,6 @@ defmodule Chess.PositionProperties do
     end)
   end
 
-  defp outposts_for(board, color) do
-    enemy_pawn_attacks = pawn_attack_mask(board, opposite(color))
-    own_pawn_attacks = pawn_attack_mask(board, color)
-
-    board
-    |> Bitboard.pieces()
-    |> Enum.filter(fn {_square, piece} -> piece == {color, :knight} end)
-    |> Enum.map(fn {square, _piece} -> square end)
-    |> Enum.filter(&opponent_half?(color, &1))
-    |> Enum.filter(fn square ->
-      not attacked_by?(enemy_pawn_attacks, square) and
-        attacked_by?(own_pawn_attacks, square)
-    end)
-    |> Enum.sort()
-  end
-
   defp space_for(board, color) do
     controlled =
       board
@@ -306,6 +310,20 @@ defmodule Chess.PositionProperties do
       |> Enum.filter(&opponent_half?(color, &1))
 
     %{controlled: length(controlled), pawn_space: length(pawn_space)}
+  end
+
+  defp pawn_attack_mask_from_pawns(pawns, :white) do
+    left = Bitwise.bsl(Bitwise.band(pawns, @not_a_file), 7)
+    right = Bitwise.bsl(Bitwise.band(pawns, @not_h_file), 9)
+
+    Bitwise.band(Bitwise.bor(left, right), @board_mask)
+  end
+
+  defp pawn_attack_mask_from_pawns(pawns, :black) do
+    left = Bitwise.bsr(Bitwise.band(pawns, @not_a_file), 9)
+    right = Bitwise.bsr(Bitwise.band(pawns, @not_h_file), 7)
+
+    Bitwise.bor(left, right)
   end
 
   defp pawn_attack_mask(board, color) do
