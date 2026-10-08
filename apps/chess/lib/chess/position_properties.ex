@@ -114,10 +114,14 @@ defmodule Chess.PositionProperties do
   @doc """
   Files with no pawns of `color` but at least one enemy pawn.
   """
-  @spec semi_open_files(Position.t()) :: %{white: [atom()], black: [atom()]}
+  @spec semi_open_files(Position.t() | Bitboard.t()) :: %{white: [atom()], black: [atom()]}
   def semi_open_files(%Position{} = position) do
-    board = Bitboard.from_position(position)
+    position
+    |> Bitboard.from_position()
+    |> semi_open_files()
+  end
 
+  def semi_open_files(%Bitboard{} = board) do
     %{
       white: semi_open_files_for(board, :white),
       black: semi_open_files_for(board, :black)
@@ -198,10 +202,14 @@ defmodule Chess.PositionProperties do
   knight, not attackable by an enemy pawn, and defended by a friendly
   pawn.
   """
-  @spec outposts(Position.t()) :: %{white: [0..63], black: [0..63]}
+  @spec outposts(Position.t() | Bitboard.t()) :: %{white: [0..63], black: [0..63]}
   def outposts(%Position{} = position) do
-    board = Bitboard.from_position(position)
+    position
+    |> Bitboard.from_position()
+    |> outposts()
+  end
 
+  def outposts(%Bitboard{} = board) do
     white_control = pawn_attack_mask_from_pawns(board.white_pawns, :white)
     black_control = pawn_attack_mask_from_pawns(board.black_pawns, :black)
 

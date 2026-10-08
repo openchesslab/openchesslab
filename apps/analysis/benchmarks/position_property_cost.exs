@@ -69,8 +69,15 @@ defmodule Analysis.PositionPropertyCostBenchmark do
          material = PositionProperties.material(p)
          material.white.pawn + material.black.pawn
        end},
-      {"combined derivation", &combined_score/1}
+      {"combined separate boards", &combined_score/1},
+      {"combined shared bitboard", &combined_shared_bitboard_score/1}
     ]
+
+    if !Enum.all?(positions, fn position ->
+         combined_score(position) == combined_shared_bitboard_score(position)
+       end) do
+      raise "Shared-bitboard derivation changed the result checksum"
+    end
 
     Enum.each(stages, fn {name, fun} ->
       profile_stage(name, fun, positions, count, runs)
@@ -118,6 +125,23 @@ defmodule Analysis.PositionPropertyCostBenchmark do
     outposts = PositionProperties.outposts(position)
     checked = PositionProperties.in_check(position)
     material = PositionProperties.material(position)
+
+    length(open) +
+      length(semi.white) + length(semi.black) +
+      length(outposts.white) + length(outposts.black) +
+      bool_count(checked.white) + bool_count(checked.black) +
+      material.white.pawn + material.black.pawn +
+      MapSet.size(position.castling_rights) +
+      bool_count(not is_nil(position.en_passant))
+  end
+
+  defp combined_shared_bitboard_score(position) do
+    board = Bitboard.from_position(position)
+    open = PositionProperties.open_files(board)
+    semi = PositionProperties.semi_open_files(board)
+    outposts = PositionProperties.outposts(board)
+    checked = PositionProperties.in_check(position)
+    material = PositionProperties.material(board)
 
     length(open) +
       length(semi.white) + length(semi.black) +

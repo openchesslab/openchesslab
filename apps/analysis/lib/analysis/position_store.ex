@@ -18,6 +18,7 @@ defmodule Analysis.PositionStore do
   alias Analysis.PositionQuery
   alias Analysis.PositionQuery.PostgresPage
   alias Analysis.PositionQueryNormalizer
+  alias Chess.Bitboard
   alias Chess.PawnStructure
   alias Chess.Position
   alias Chess.PositionCodec
@@ -781,10 +782,11 @@ defmodule Analysis.PositionStore do
   end
 
   defp encoded_properties(%Position{} = position) do
-    semi_open_files =
-      PositionProperties.semi_open_files(position)
+    board = Bitboard.from_position(position)
 
-    outposts = PositionProperties.outposts(position)
+    semi_open_files = PositionProperties.semi_open_files(board)
+
+    outposts = PositionProperties.outposts(board)
 
     checks = PositionProperties.in_check(position)
 
@@ -805,7 +807,7 @@ defmodule Analysis.PositionStore do
 
     properties =
       Enum.map(
-        PositionProperties.open_files(position),
+        PositionProperties.open_files(board),
         &{:open_files, &1}
       ) ++
         Enum.flat_map(
@@ -843,7 +845,7 @@ defmodule Analysis.PositionStore do
         [
           {
             :material,
-            PositionProperties.material(position)
+            PositionProperties.material(board)
           },
           {:side_to_move, position.side_to_move}
         ]
