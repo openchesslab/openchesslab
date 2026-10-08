@@ -781,11 +781,24 @@ defmodule Analysis.PositionStore do
   end
 
   defp encoded_properties(%Position{} = position) do
+    semi_open_files =
+      PositionProperties.semi_open_files(position)
+
     properties =
       Enum.map(
         PositionProperties.open_files(position),
         &{:open_files, &1}
       ) ++
+        Enum.flat_map(
+          [:white, :black],
+          fn color ->
+            semi_open_files
+            |> Map.fetch!(color)
+            |> Enum.map(fn file ->
+              {:semi_open_files, {color, file}}
+            end)
+          end
+        ) ++
         [
           {
             :material,

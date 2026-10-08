@@ -17,6 +17,11 @@ defmodule Analysis.PositionPropertyKeyCodec do
     h: 7
   }
 
+  @color_ids %{
+    white: 0,
+    black: 1
+  }
+
   @piece_types [
     :pawn,
     :knight,
@@ -35,27 +40,40 @@ defmodule Analysis.PositionPropertyKeyCodec do
           {:ok, binary()}
           | {:error, term()}
   def encode(:open_files, file) do
-    case Map.fetch(
-           @file_ids,
-           file
-         ) do
+    case Map.fetch(@file_ids, file) do
       {:ok, file_id} ->
-        {:ok,
-         <<
-           1::unsigned-8,
-           file_id::unsigned-8
-         >>}
+        {:ok, <<1::unsigned-8, file_id::unsigned-8>>}
 
       :error ->
         {:error, :invalid_open_file}
     end
   end
 
+  def encode(:semi_open_files, {color, file}) do
+    case {
+      Map.fetch(@color_ids, color),
+      Map.fetch(@file_ids, file)
+    } do
+      {{:ok, color_id}, {:ok, file_id}} ->
+        {:ok,
+         <<
+           3::unsigned-8,
+           color_id::unsigned-8,
+           file_id::unsigned-8
+         >>}
+
+      _other ->
+        {:error, :invalid_semi_open_file}
+    end
+  end
+
+  def encode(:semi_open_files, _value) do
+    {:error, :invalid_semi_open_file}
+  end
+
   def encode(:material, %{white: white, black: black}) when is_map(white) and is_map(black) do
-    with {:ok, white_counts} <-
-           encode_material_counts(white),
-         {:ok, black_counts} <-
-           encode_material_counts(black) do
+    with {:ok, white_counts} <- encode_material_counts(white),
+         {:ok, black_counts} <- encode_material_counts(black) do
       {:ok,
        <<
          2::unsigned-8,
@@ -78,14 +96,9 @@ defmodule Analysis.PositionPropertyKeyCodec do
       @piece_types,
       {:ok, <<>>},
       fn piece_type, {:ok, encoded} ->
-        case Map.fetch(
-               material,
-               piece_type
-             ) do
+        case Map.fetch(material, piece_type) do
           {:ok, count}
-          when is_integer(count) and
-                 count >= 0 and
-                 count <= 255 ->
+          when is_integer(count) and count >= 0 and count <= 255 ->
             {:cont,
              {:ok,
               <<
