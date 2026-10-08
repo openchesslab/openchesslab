@@ -95,6 +95,16 @@ defmodule Analysis.PositionPropertyKeyCodec do
     end
   end
 
+  def encode(:in_check, color) do
+    case Map.fetch(@color_ids, color) do
+      {:ok, color_id} ->
+        {:ok, <<6::unsigned-8, color_id::unsigned-8>>}
+
+      :error ->
+        {:error, :invalid_in_check}
+    end
+  end
+
   def encode(:material, %{white: white, black: black}) when is_map(white) and is_map(black) do
     with {:ok, white_counts} <- encode_material_counts(white),
          {:ok, black_counts} <- encode_material_counts(black) do

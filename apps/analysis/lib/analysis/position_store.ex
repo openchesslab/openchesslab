@@ -786,6 +786,8 @@ defmodule Analysis.PositionStore do
 
     outposts = PositionProperties.outposts(position)
 
+    checks = PositionProperties.in_check(position)
+
     properties =
       Enum.map(
         PositionProperties.open_files(position),
@@ -809,6 +811,16 @@ defmodule Analysis.PositionStore do
             |> Enum.map(fn square ->
               {:outposts, {color, square}}
             end)
+          end
+        ) ++
+        Enum.flat_map(
+          [:white, :black],
+          fn color ->
+            if Map.fetch!(checks, color) do
+              [{:in_check, color}]
+            else
+              []
+            end
           end
         ) ++
         [
