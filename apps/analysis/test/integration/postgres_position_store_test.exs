@@ -105,7 +105,7 @@ defmodule Analysis.PostgresPositionStoreTest do
     assert material_property in properties
 
     assert length(properties) ==
-             1
+             2
   end
 
   test "stores every open file as an independently searchable property" do

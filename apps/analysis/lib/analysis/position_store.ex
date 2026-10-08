@@ -815,7 +815,8 @@ defmodule Analysis.PositionStore do
           {
             :material,
             PositionProperties.material(position)
-          }
+          },
+          {:side_to_move, position.side_to_move}
         ]
 
     properties
