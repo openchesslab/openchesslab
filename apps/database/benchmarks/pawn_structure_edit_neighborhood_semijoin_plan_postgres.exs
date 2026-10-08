@@ -112,7 +112,12 @@ defmodule OpenChessLab.Database.PawnStructureEditNeighborhoodSemiJoinPlanPostgre
     Maximum position ID: #{maximum_position_id}
     Second-page cursor:  #{last_position_id}
 
-    No fixture creation, schema changes or timed benchmark loops.
+    Comparing:
+      * production pair relation
+      * normal EXISTS semi-join
+      * EXISTS with nested loops disabled locally
+
+    No fixture creation, schema changes or timed benchmarks.
     """)
 
     show_plan(
@@ -127,6 +132,12 @@ defmodule OpenChessLab.Database.PawnStructureEditNeighborhoodSemiJoinPlanPostgre
       pair_first_params
     )
 
+    show_plan_without_nested_loops(
+      "EXISTS without nested loops: first page",
+      semijoin_first_sql(),
+      pair_first_params
+    )
+
     show_plan(
       "Production pair relation: second page",
       pair_second_sql,
@@ -135,6 +146,12 @@ defmodule OpenChessLab.Database.PawnStructureEditNeighborhoodSemiJoinPlanPostgre
 
     show_plan(
       "EXISTS semi-join: second page",
+      semijoin_second_sql(),
+      pair_second_params
+    )
+
+    show_plan_without_nested_loops(
+      "EXISTS without nested loops: second page",
       semijoin_second_sql(),
       pair_second_params
     )
@@ -203,6 +220,21 @@ defmodule OpenChessLab.Database.PawnStructureEditNeighborhoodSemiJoinPlanPostgre
       sql,
       parameters
     ).rows
+  end
+
+  defp show_plan_without_nested_loops(label, sql, parameters) do
+    {:ok, :ok} =
+      Repo.transaction(fn ->
+        SQL.query!(
+          Repo,
+          "SET LOCAL enable_nestloop = off",
+          []
+        )
+
+        show_plan(label, sql, parameters)
+      end)
+
+    :ok
   end
 
   defp show_plan(label, sql, parameters) do
