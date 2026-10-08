@@ -140,7 +140,7 @@ defmodule Analysis.PositionPropertyCostBenchmark do
     open = PositionProperties.open_files(board)
     semi = PositionProperties.semi_open_files(board)
     outposts = PositionProperties.outposts(board)
-    checked = PositionProperties.in_check(position)
+    checked = PositionProperties.in_check(board)
     material = PositionProperties.material(board)
 
     length(open) +

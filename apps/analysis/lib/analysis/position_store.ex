@@ -788,7 +788,7 @@ defmodule Analysis.PositionStore do
 
     outposts = PositionProperties.outposts(board)
 
-    checks = PositionProperties.in_check(position)
+    checks = PositionProperties.in_check(board)
 
     castling_rights =
       [

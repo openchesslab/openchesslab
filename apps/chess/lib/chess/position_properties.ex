@@ -189,11 +189,17 @@ defmodule Chess.PositionProperties do
   The rule itself lives in `Chess.Position.in_check?/2`; this is the
   position-property view of it for the insights endpoint.
   """
-  @spec in_check(Position.t()) :: %{white: boolean(), black: boolean()}
+  @spec in_check(Position.t() | Bitboard.t()) :: %{white: boolean(), black: boolean()}
   def in_check(%Position{} = position) do
+    position
+    |> Bitboard.from_position()
+    |> in_check()
+  end
+
+  def in_check(%Bitboard{} = board) do
     %{
-      white: Position.in_check?(position, :white),
-      black: Position.in_check?(position, :black)
+      white: king_attacked?(board.white_king, board, :black),
+      black: king_attacked?(board.black_king, board, :white)
     }
   end
 
@@ -249,6 +255,23 @@ defmodule Chess.PositionProperties do
   end
 
   # --- Implementation ---------------------------------------------------
+
+  defp king_attacked?(0, _board, _attacking_color), do: false
+
+  defp king_attacked?(kings, board, attacking_color) do
+    # Board.pieces/1 visits squares in ascending order. Preserve the
+    # first-king semantics of Position.in_check?/2 for edited positions
+    # containing more than one king of the same color.
+    Bitboard.attacked?(board, attacking_color, first_set_square(kings, 0))
+  end
+
+  defp first_set_square(mask, square) do
+    if Bitwise.band(mask, 1) == 1 do
+      square
+    else
+      first_set_square(Bitwise.bsr(mask, 1), square + 1)
+    end
+  end
 
   defp semi_open_files_for(board, color) do
     own_pawns = pawns(board, color)
