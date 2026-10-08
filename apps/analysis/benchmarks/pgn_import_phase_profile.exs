@@ -167,6 +167,28 @@ defmodule Analysis.PgnImportPhaseProfile do
     end
   end
 
+  def profile_file_import_parallel(path, game_count, run_id, workers) do
+    {elapsed_seconds, result} =
+      measure(fn ->
+        PgnBatchImporter.import_file_parallel(
+          path,
+          fn index -> record_id("parallel-#{workers}", run_id, index) end,
+          workers
+        )
+      end)
+
+    case result do
+      {:ok, %PgnBatchImporter.ParallelImportResult{imported_count: ^game_count, failures: []}} ->
+        %{elapsed_seconds: elapsed_seconds}
+
+      {:ok, result} ->
+        raise "Parallel import with #{workers} workers produced unexpected result: #{inspect(result)}"
+
+      {:error, reason} ->
+        raise "Parallel import with #{workers} workers failed: #{inspect(reason)}"
+    end
+  end
+
   def cleanup do
     Repo.query!(
       """
@@ -471,6 +493,21 @@ fixture_mode =
       """
   end
 
+worker_counts =
+  System.get_env("PGN_IMPORT_PHASE_WORKERS", "2,4,8")
+  |> String.split(",", trim: true)
+  |> Enum.map(fn raw ->
+    case Integer.parse(String.trim(raw)) do
+      {number, ""} when number > 0 -> number
+      _ -> raise "Invalid PGN_IMPORT_PHASE_WORKERS value: #{inspect(raw)}"
+    end
+  end)
+  |> Enum.uniq()
+
+if worker_counts == [] do
+  raise "PGN_IMPORT_PHASE_WORKERS must contain at least one positive integer"
+end
+
 if game_count <= 0 do
   raise "PGN_IMPORT_PHASE_GAMES must be positive"
 end
@@ -545,11 +582,32 @@ try do
             run_id
           )
 
+        parallel_times =
+          Map.new(worker_counts, fn workers ->
+            :ok = Profile.cleanup()
+
+            parallel =
+              Profile.profile_file_import_parallel(
+                path,
+                game_count,
+                run_id,
+                workers
+              )
+
+            IO.puts(
+              "  parallel #{workers} workers: #{Profile.format_seconds(parallel.elapsed_seconds)} | " <>
+                Profile.format_rate(game_count, parallel.elapsed_seconds)
+            )
+
+            {workers, parallel.elapsed_seconds}
+          end)
+
         result = %{
           run: run,
           parse_seconds: parse.elapsed_seconds,
           persist_seconds: persist.elapsed_seconds,
-          end_to_end_seconds: end_to_end.elapsed_seconds
+          end_to_end_seconds: end_to_end.elapsed_seconds,
+          parallel_times: parallel_times
         }
 
         IO.puts("""
@@ -615,6 +673,25 @@ try do
     max:         #{Profile.format_seconds(Profile.maximum(end_to_end_times))}
     median rate: #{Profile.format_rate(game_count, end_to_end_median)}
   """)
+
+  IO.puts(
+    "Parallel end-to-end results (sequential baseline median #{Profile.format_seconds(end_to_end_median)}):"
+  )
+
+  Enum.each(worker_counts, fn workers ->
+    elapsed_times =
+      Enum.map(results, fn result ->
+        Map.fetch!(result.parallel_times, workers)
+      end)
+
+    median_seconds = Profile.median(elapsed_times)
+
+    IO.puts(
+      "  #{workers} workers: median #{Profile.format_seconds(median_seconds)} | " <>
+        "#{Profile.format_rate(game_count, median_seconds)} | " <>
+        "#{Float.round(end_to_end_median / median_seconds, 2)}x vs sequential"
+    )
+  end)
 after
   Profile.cleanup()
   File.rm(path)
