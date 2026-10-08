@@ -784,6 +784,8 @@ defmodule Analysis.PositionStore do
     semi_open_files =
       PositionProperties.semi_open_files(position)
 
+    outposts = PositionProperties.outposts(position)
+
     properties =
       Enum.map(
         PositionProperties.open_files(position),
@@ -796,6 +798,16 @@ defmodule Analysis.PositionStore do
             |> Map.fetch!(color)
             |> Enum.map(fn file ->
               {:semi_open_files, {color, file}}
+            end)
+          end
+        ) ++
+        Enum.flat_map(
+          [:white, :black],
+          fn color ->
+            outposts
+            |> Map.fetch!(color)
+            |> Enum.map(fn square ->
+              {:outposts, {color, square}}
             end)
           end
         ) ++

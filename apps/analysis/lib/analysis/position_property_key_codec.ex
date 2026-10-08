@@ -71,6 +71,20 @@ defmodule Analysis.PositionPropertyKeyCodec do
     {:error, :invalid_semi_open_file}
   end
 
+  def encode(:outposts, {color, square}) when is_integer(square) and square in 0..63 do
+    case Map.fetch(@color_ids, color) do
+      {:ok, color_id} ->
+        {:ok, <<4::unsigned-8, color_id::unsigned-8, square::unsigned-8>>}
+
+      :error ->
+        {:error, :invalid_outpost}
+    end
+  end
+
+  def encode(:outposts, _value) do
+    {:error, :invalid_outpost}
+  end
+
   def encode(:material, %{white: white, black: black}) when is_map(white) and is_map(black) do
     with {:ok, white_counts} <- encode_material_counts(white),
          {:ok, black_counts} <- encode_material_counts(black) do
