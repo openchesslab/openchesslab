@@ -123,6 +123,14 @@ defmodule Analysis.PositionPropertyKeyCodec do
     end
   end
 
+  def encode(:en_passant_target, square) when is_integer(square) and square in 0..63 do
+    {:ok, <<8::unsigned-8, square::unsigned-8>>}
+  end
+
+  def encode(:en_passant_target, _square) do
+    {:error, :invalid_en_passant_target}
+  end
+
   def encode(:material, %{white: white, black: black}) when is_map(white) and is_map(black) do
     with {:ok, white_counts} <- encode_material_counts(white),
          {:ok, black_counts} <- encode_material_counts(black) do

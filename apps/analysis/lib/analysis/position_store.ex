@@ -797,6 +797,12 @@ defmodule Analysis.PositionStore do
       ]
       |> Enum.filter(&MapSet.member?(position.castling_rights, &1))
 
+    en_passant_properties =
+      case position.en_passant do
+        nil -> []
+        square -> [{:en_passant_target, square}]
+      end
+
     properties =
       Enum.map(
         PositionProperties.open_files(position),
@@ -833,6 +839,7 @@ defmodule Analysis.PositionStore do
           end
         ) ++
         Enum.map(castling_rights, &{:castling_right, &1}) ++
+        en_passant_properties ++
         [
           {
             :material,
