@@ -98,7 +98,19 @@ defmodule Features.Catalogue.Evaluation do
     ]
   end
 
-  defp diffs(board) do
+  @doc """
+  The advantage-component map shared by every feature in this section.
+  `Features.extract/2` computes it once and stashes it on the board's
+  `evaluation_cache` field; this reader reuses it.
+  """
+  @spec workspace(Board.t()) :: map()
+  def workspace(%Board{evaluation_cache: cache}) when is_map(cache), do: cache
+  def workspace(board), do: build_diffs(board)
+
+  defp diffs(%Board{evaluation_cache: cache}) when is_map(cache), do: cache
+  defp diffs(board), do: build_diffs(board)
+
+  defp build_diffs(board) do
     material = Support.material_value(board, :white) - Support.material_value(board, :black)
 
     %{

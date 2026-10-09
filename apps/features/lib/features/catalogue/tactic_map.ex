@@ -39,7 +39,7 @@ defmodule Features.Catalogue.TacticMap do
       |> pseudo_moves(color)
       |> Enum.filter(fn move ->
         after_board = Board.apply_move(board, move)
-        AttackMap.attackers(after_board, king, color) >= 1
+        Board.attacked?(after_board, king, color)
       end)
     end
   end

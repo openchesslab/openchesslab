@@ -34,6 +34,8 @@ defmodule Features.Catalogue do
 
   alias Features.Feature
 
+  @pkey {__MODULE__, :features}
+
   @sections [
     State,
     Material,
@@ -61,7 +63,15 @@ defmodule Features.Catalogue do
   @doc "All features, in section order."
   @spec all() :: [Feature.t()]
   def all do
-    Enum.flat_map(@sections, & &1.features())
+    case :persistent_term.get(@pkey, nil) do
+      nil ->
+        features = Enum.flat_map(@sections, & &1.features())
+        :persistent_term.put(@pkey, features)
+        features
+
+      features ->
+        features
+    end
   end
 
   @doc "All features of one spec section."

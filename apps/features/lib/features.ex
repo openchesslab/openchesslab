@@ -9,7 +9,7 @@ defmodule Features do
   """
 
   alias Features.Catalogue
-  alias Features.Catalogue.Similarity
+  alias Features.Catalogue.{AttackMap, Evaluation, Similarity}
   alias Features.Chess.{Board, FEN}
   alias Features.Result
 
@@ -30,8 +30,8 @@ defmodule Features do
   """
   @spec extract(String.t() | Board.t(), keyword()) :: Result.t()
   def extract(position, opts \\ []) do
-    board = if is_binary(position), do: FEN.parse(position), else: position
     sections = Keyword.get(opts, :sections)
+    board = to_workspace(position, sections)
 
     features =
       Catalogue.all()
@@ -63,4 +63,26 @@ defmodule Features do
 
   defp maybe_sections(features, nil), do: features
   defp maybe_sections(features, sections), do: Enum.filter(features, &(&1.section in sections))
+
+  @spec to_cached_board(String.t() | Board.t()) :: Board.t()
+  defp to_cached_board(%Board{} = board), do: %{board | attack_table: AttackMap.build(board)}
+  defp to_cached_board(fen) when is_binary(fen), do: to_cached_board(FEN.parse(fen))
+
+  @spec to_workspace(String.t() | Board.t(), keyword() | nil) :: Board.t()
+  defp to_workspace(position, sections) do
+    %Board{} = board = to_cached_board(position)
+
+    board =
+      if sections == nil or 20 in sections do
+        %{board | evaluation_cache: Evaluation.workspace(board)}
+      else
+        board
+      end
+
+    if sections == nil or 21 in sections do
+      %{board | similarity_cache: Similarity.digests(board)}
+    else
+      board
+    end
+  end
 end

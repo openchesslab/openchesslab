@@ -17,6 +17,7 @@ defmodule Features.Catalogue.Similarity do
   alias Features.Feature
 
   @default_reference FEN.start_fen()
+  @reference_digests_key {__MODULE__, :reference_digests}
 
   @attack_digest_ids ~w(
     goals.kingside_attack goals.queenside_attack goals.central_attack goals.pawn_storm
@@ -28,7 +29,10 @@ defmodule Features.Catalogue.Similarity do
     reference = to_board(@default_reference)
 
     Enum.map(similarity_features(), fn {id, claim, fun} ->
-      Feature.new(id, 21, [{21, claim}], fn board -> fun.(reference, to_board(board)) end)
+      Feature.new(id, 21, [{21, claim}], fn board ->
+        b = to_board(board)
+        fun.(%{a: reference, b: b, a_digests: reference_digests(), b_digests: digests(b)})
+      end)
     end)
   end
 
@@ -41,98 +45,109 @@ defmodule Features.Catalogue.Similarity do
     a = to_board(reference)
     b = to_board(position)
 
-    Map.new(similarity_features(), fn {id, _claim, fun} -> {id, fun.(a, b)} end)
+    frame = %{a: a, b: b, a_digests: digests(a), b_digests: digests(b)}
+
+    Map.new(similarity_features(), fn {id, _claim, fun} -> {id, fun.(frame)} end)
   end
+
+  @doc """
+  Section 21 digest maps for a position, as attached to the board's
+  `similarity_cache` field by `Features.extract/2`.
+  """
+  @spec digests(Board.t()) :: map()
+  def digests(%Board{similarity_cache: cache}) when is_map(cache), do: cache
+  def digests(board), do: build_digests(board)
 
   defp similarity_features do
     [
-      {"similarity.exact_same_position", "exact dezelfde positie", &exact_same_position?/2},
+      {"similarity.exact_same_position", "exact dezelfde positie", &exact_same_position?/1},
       {"similarity.same_position_other_side", "dezelfde positie met andere side to move",
-       &same_position_other_side?/2},
+       &same_position_other_side?/1},
       {"similarity.color_swapped_position", "kleurverwisselde positie",
-       &color_swapped_position?/2},
-      {"similarity.mirrored_position", "horizontaal/verticaal gespiegeld", &mirrored_position?/2},
-      {"similarity.same_pawn_structure", "dezelfde pawn structure", &same_pawn_structure?/2},
+       &color_swapped_position?/1},
+      {"similarity.mirrored_position", "horizontaal/verticaal gespiegeld", &mirrored_position?/1},
+      {"similarity.same_pawn_structure", "dezelfde pawn structure", &same_pawn_structure?/1},
       {"similarity.comparable_pawn_structure", "vergelijkbare pawn structure",
-       &comparable_pawn_structure?/2},
+       &comparable_pawn_structure?/1},
       {"similarity.same_material_distribution", "dezelfde materiaalverdeling",
-       &same_material_distribution?/2},
+       &same_material_distribution?/1},
       {"similarity.comparable_material_distribution", "vergelijkbare materiaalverdeling",
-       &comparable_material_distribution?/2},
+       &comparable_material_distribution?/1},
       {"similarity.same_piece_placement_patterns", "dezelfde stukplaatsingspatronen",
-       &same_piece_placement_patterns?/2},
+       &same_piece_placement_patterns?/1},
       {"similarity.same_strategic_structure", "dezelfde strategische structuur",
-       &same_strategic_structure?/2},
+       &same_strategic_structure?/1},
       {"similarity.same_king_safety_structure", "dezelfde king-safetystructuur",
-       &same_king_safety_structure?/2},
+       &same_king_safety_structure?/1},
       {"similarity.same_tactical_geometry", "dezelfde tactische geometrie",
-       &same_tactical_geometry?/2},
+       &same_tactical_geometry?/1},
       {"similarity.comparable_attack_plan", "vergelijkbaar aanvalsplan",
-       &comparable_attack_plan?/2},
+       &comparable_attack_plan?/1},
       {"similarity.structural_distance", "structurele afstand tussen posities",
-       &structural_distance/2},
-      {"similarity.pawn_edit_distance", "pawn-edit distance", &pawn_edit_distance/2},
-      {"similarity.one_pawn_shifted", "één pion verschoven", &one_pawn_shifted?/2},
+       &structural_distance/1},
+      {"similarity.pawn_edit_distance", "pawn-edit distance", &pawn_edit_distance/1},
+      {"similarity.one_pawn_shifted", "één pion verschoven", &one_pawn_shifted?/1},
       {"similarity.bishop_knight_substitution", "bishop ↔ knight substitution",
-       &bishop_knight_substitution?/2},
+       &bishop_knight_substitution?/1},
       {"similarity.two_rooks_queen_substitution", "twee rooks ↔ queen substitution",
-       &two_rooks_queen_substitution?/2}
+       &two_rooks_queen_substitution?/1}
     ]
   end
 
   defp to_board(%Board{} = board), do: board
   defp to_board(fen) when is_binary(fen), do: FEN.parse(fen)
 
-  defp exact_same_position?(a, b), do: position_key(a) == position_key(b)
+  defp exact_same_position?(%{a: a, b: b}), do: position_key(a) == position_key(b)
 
-  defp same_position_other_side?(a, b) do
+  defp same_position_other_side?(%{a: a, b: b}) do
     position_key(%{a | side_to_move: Board.opposite(a.side_to_move)}) == position_key(b)
   end
 
-  defp color_swapped_position?(a, b), do: position_key(color_swapped(a)) == position_key(b)
+  defp color_swapped_position?(%{a: a, b: b}),
+    do: position_key(color_swapped(a)) == position_key(b)
 
-  defp mirrored_position?(a, b) do
+  defp mirrored_position?(%{a: a, b: b}) do
     position_key(mirror(a, :horizontal)) == position_key(b) or
       position_key(mirror(a, :vertical)) == position_key(b)
   end
 
-  defp same_pawn_structure?(a, b), do: pawn_structure(a) == pawn_structure(b)
+  defp same_pawn_structure?(%{a: a, b: b}), do: pawn_structure(a) == pawn_structure(b)
 
-  defp comparable_pawn_structure?(a, b), do: pawn_edit_distance(a, b) <= 2
+  defp comparable_pawn_structure?(%{a: a, b: b}), do: pawn_edit_distance(a, b) <= 2
 
-  defp same_material_distribution?(a, b) do
+  defp same_material_distribution?(%{a: a, b: b}) do
     Support.piece_counts(a, :white) == Support.piece_counts(b, :white) and
       Support.piece_counts(a, :black) == Support.piece_counts(b, :black)
   end
 
-  defp comparable_material_distribution?(a, b) do
+  defp comparable_material_distribution?(%{a: a, b: b}) do
     abs(total_material(a) - total_material(b)) <= 2
   end
 
-  defp same_piece_placement_patterns?(a, b) do
+  defp same_piece_placement_patterns?(%{a: a, b: b}) do
     Enum.all?([:knights, :bishops, :rooks, :queens, :kings], fn type ->
       same_piece_set?(a, b, type)
     end)
   end
 
-  defp same_strategic_structure?(a, b),
-    do: digest(a, [3, 4, 7, 9, 11]) == digest(b, [3, 4, 7, 9, 11])
+  defp same_strategic_structure?(frame),
+    do: frame.a_digests.strategic == frame.b_digests.strategic
 
-  defp same_king_safety_structure?(a, b), do: digest(a, [11]) == digest(b, [11])
-  defp same_tactical_geometry?(a, b), do: digest(a, [12]) == digest(b, [12])
+  defp same_king_safety_structure?(frame),
+    do: frame.a_digests.king_safety == frame.b_digests.king_safety
 
-  defp comparable_attack_plan?(a, b) do
-    Features.extract(a, sections: [15]).features
-    |> Map.take(@attack_digest_ids) ==
-      Features.extract(b, sections: [15]).features |> Map.take(@attack_digest_ids)
-  end
+  defp same_tactical_geometry?(frame), do: frame.a_digests.tactical == frame.b_digests.tactical
 
-  defp structural_distance(a, b) do
+  defp comparable_attack_plan?(frame), do: frame.a_digests.attack == frame.b_digests.attack
+
+  defp structural_distance(%{a: a, b: b}) do
     pawn_edit_distance(a, b) +
       placement_distance(a, b) +
       king_safety_distance(a, b) +
       material_distance(a, b)
   end
+
+  defp pawn_edit_distance(%{a: a, b: b}), do: pawn_edit_distance(a, b)
 
   defp pawn_edit_distance(a, b) do
     Enum.count(0..7, fn file ->
@@ -143,11 +158,11 @@ defmodule Features.Catalogue.Similarity do
     end)
   end
 
-  defp one_pawn_shifted?(a, b) do
+  defp one_pawn_shifted?(%{a: a, b: b}) do
     Enum.any?(Board.colors(), &one_color_pawn_shift?(a, b, &1))
   end
 
-  defp bishop_knight_substitution?(a, b) do
+  defp bishop_knight_substitution?(%{a: a, b: b}) do
     Enum.any?(Board.colors(), fn color ->
       delta_bishops =
         Support.piece_count(a, color, :bishops) - Support.piece_count(b, color, :bishops)
@@ -160,7 +175,7 @@ defmodule Features.Catalogue.Similarity do
     end)
   end
 
-  defp two_rooks_queen_substitution?(a, b) do
+  defp two_rooks_queen_substitution?(%{a: a, b: b}) do
     Enum.any?(Board.colors(), fn color ->
       delta_rooks = Support.piece_count(a, color, :rooks) - Support.piece_count(b, color, :rooks)
 
@@ -188,7 +203,26 @@ defmodule Features.Catalogue.Similarity do
     end)
   end
 
-  defp digest(board, sections), do: Features.extract(board, sections: sections).features
+  defp reference_digests do
+    case :persistent_term.get(@reference_digests_key, nil) do
+      nil ->
+        digests = build_digests(to_board(@default_reference))
+        :persistent_term.put(@reference_digests_key, digests)
+        digests
+
+      digests ->
+        digests
+    end
+  end
+
+  defp build_digests(board) do
+    %{
+      strategic: Features.extract(board, sections: [3, 4, 7, 9, 11]).features,
+      king_safety: Features.extract(board, sections: [11]).features,
+      tactical: Features.extract(board, sections: [12]).features,
+      attack: Features.extract(board, sections: [15]).features |> Map.take(@attack_digest_ids)
+    }
+  end
 
   defp placement_distance(a, b) do
     Enum.reduce(Board.colors(), 0, fn color, acc ->

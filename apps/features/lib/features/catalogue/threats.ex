@@ -98,9 +98,11 @@ defmodule Features.Catalogue.Threats do
         [{13, "check/capture/threat-mogelijkheden"}],
         fn board ->
           per_color(board, fn board, color ->
+            checks = MapSet.new(TacticMap.checks(board, color), &move_key/1)
+
             board
             |> TacticMap.pseudo_moves(color)
-            |> Enum.count(&check_capture_threat?(board, &1, color))
+            |> Enum.count(&check_capture_threat?(board, &1, color, checks))
           end)
         end
       )
@@ -191,12 +193,11 @@ defmodule Features.Catalogue.Threats do
     |> MapSet.size()
   end
 
-  defp check_capture_threat?(board, move, color) do
+  defp check_capture_threat?(board, move, color, checks) do
     enemy_bb = TacticMap.enemy_piece_bb(board, color)
     threatens_bb = TacticMap.post_move_attack(board, move, color) &&& enemy_bb
 
     captures = 1 <<< move.to &&& enemy_bb
-    checks = MapSet.new(TacticMap.checks(board, color), &move_key/1)
 
     captures != 0 or threatens_bb != 0 or MapSet.member?(checks, move_key(move))
   end

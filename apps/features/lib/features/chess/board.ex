@@ -29,12 +29,18 @@ defmodule Features.Chess.Board do
             castling: 0,
             en_passant: nil,
             halfmove_clock: 0,
-            fullmove_number: 1
+            fullmove_number: 1,
+            attack_table: nil,
+            evaluation_cache: nil,
+            similarity_cache: nil
 
   @type color :: :white | :black
   @type piece_type :: :pawns | :knights | :bishops | :rooks | :queens | :kings
   @type piece :: {color(), piece_type()}
   @type castling :: 0..15
+  @type attack_table :: %{color() => {map(), non_neg_integer()}} | nil
+  @type evaluation_cache :: map() | nil
+  @type similarity_cache :: map() | nil
 
   @type t :: %__MODULE__{
           pieces: %{piece() => non_neg_integer()},
@@ -44,7 +50,10 @@ defmodule Features.Chess.Board do
           castling: castling(),
           en_passant: 0..63 | nil,
           halfmove_clock: non_neg_integer(),
-          fullmove_number: pos_integer()
+          fullmove_number: pos_integer(),
+          attack_table: attack_table(),
+          evaluation_cache: evaluation_cache(),
+          similarity_cache: similarity_cache()
         }
 
   @doc "The standard starting position."
@@ -162,7 +171,10 @@ defmodule Features.Chess.Board do
         halfmove_clock:
           if(type == :pawns or captured != nil, do: 0, else: board.halfmove_clock + 1),
         fullmove_number:
-          if(color == :black, do: board.fullmove_number + 1, else: board.fullmove_number)
+          if(color == :black, do: board.fullmove_number + 1, else: board.fullmove_number),
+        attack_table: nil,
+        evaluation_cache: nil,
+        similarity_cache: nil
     }
   end
 
