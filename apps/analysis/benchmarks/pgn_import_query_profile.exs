@@ -1,16 +1,23 @@
 alias Analysis.PgnImportQueryProfile, as: Profile
 
+Code.require_file(Path.join(__DIR__, "pgn_long_game_fixture.exs"))
+
 Logger.configure(level: :warning)
 
 defmodule Analysis.PgnImportQueryProfile do
   @moduledoc false
 
   alias Analysis.PgnBatchImporter
+  alias Analysis.PgnLongGameFixture
   alias Chess.Notation.SAN
   alias Chess.Position
   alias OpenChessLab.Repo
 
   @unique_game_plies 4
+
+  def build_long_fixture(path, game_count, plies, duplicate_percent) do
+    PgnLongGameFixture.build_fixture(path, game_count, plies, duplicate_percent)
+  end
 
   def build_fixture(path, game_count, :duplicate) do
     File.open!(
@@ -207,6 +214,22 @@ defmodule Analysis.PgnImportQueryProfile do
       unique fixture expected #{game_count} game records,
       got #{counts.game_records}
       """
+    end
+
+    :ok
+  end
+
+  def validate_long_counts!(game_count, plies, duplicate_percent, counts) do
+    expected_games = game_count - div(game_count * duplicate_percent, 100)
+    expected_occurrences = expected_games * (plies + 1)
+
+    if counts.games != expected_games or
+         counts.game_occurrences != expected_occurrences or
+         counts.game_records != game_count or
+         counts.position_features != counts.positions do
+      raise "Long-game database counts differ from expectation: " <>
+              "#{inspect(counts)}; expected #{expected_games} games, " <>
+              "#{expected_occurrences} occurrences and #{game_count} records"
     end
 
     :ok
@@ -647,6 +670,10 @@ _database_url =
         ecto://openchesslab:openchesslab@localhost/openchesslab_bench
     """
 
+if URI.parse(_database_url).path != "/openchesslab_bench" do
+  raise "This destructive benchmark requires DATABASE_URL to target openchesslab_bench"
+end
+
 game_count =
   System.get_env(
     "PGN_IMPORT_PROFILE_GAMES",
@@ -665,15 +692,36 @@ fixture_mode =
     "unique" ->
       :unique
 
+    "long" ->
+      :long
+
     fixture ->
       raise """
-      PGN_IMPORT_PROFILE_FIXTURE must be "duplicate" or "unique",
+      PGN_IMPORT_PROFILE_FIXTURE must be "duplicate", "unique" or "long",
       got #{inspect(fixture)}
       """
   end
 
+long_plies =
+  System.get_env("PGN_IMPORT_PROFILE_PLIES", "40")
+  |> String.to_integer()
+
+long_duplicate_percent =
+  System.get_env("PGN_IMPORT_PROFILE_DUPLICATE_PERCENT", "0")
+  |> String.to_integer()
+
 if game_count <= 0 do
   raise "PGN_IMPORT_PROFILE_GAMES must be positive"
+end
+
+if fixture_mode == :long do
+  if long_plies < 2 or long_plies > 120 do
+    raise "PGN_IMPORT_PROFILE_PLIES must be between 2 and 120"
+  end
+
+  if long_duplicate_percent < 0 or long_duplicate_percent >= 100 do
+    raise "PGN_IMPORT_PROFILE_DUPLICATE_PERCENT must be between 0 and 99"
+  end
 end
 
 path =
@@ -700,11 +748,20 @@ try do
   """)
 
   file_size =
-    Profile.build_fixture(
-      path,
-      game_count,
-      fixture_mode
+    if fixture_mode == :long do
+      Profile.build_long_fixture(path, game_count, long_plies, long_duplicate_percent)
+    else
+      Profile.build_fixture(path, game_count, fixture_mode)
+    end
+
+  if fixture_mode == :long do
+    unique_count = game_count - div(game_count * long_duplicate_percent, 100)
+
+    IO.puts(
+      "Long fixture: #{long_plies} plies/game, #{unique_count} unique games, " <>
+        "#{game_count - unique_count} duplicates"
     )
+  end
 
   IO.puts("""
   fixture size: #{Profile.format_bytes(file_size)}
@@ -723,11 +780,11 @@ try do
     Profile.database_counts()
 
   :ok =
-    Profile.validate_counts!(
-      fixture_mode,
-      game_count,
-      counts
-    )
+    if fixture_mode == :long do
+      Profile.validate_long_counts!(game_count, long_plies, long_duplicate_percent, counts)
+    else
+      Profile.validate_counts!(fixture_mode, game_count, counts)
+    end
 
   IO.puts("""
   PGN import PostgreSQL query profile
