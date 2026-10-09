@@ -366,31 +366,21 @@ defmodule Chess.Bitboard do
     king_attackers =
       king_attacks(square)
 
-    rook_attack =
-      ray_attacked?(
-        board,
-        occupied,
-        square,
-        [8, -8, 1, -1],
-        color,
-        [:rook, :queen]
-      )
-
-    bishop_attack =
-      ray_attacked?(
-        board,
-        occupied,
-        square,
-        [9, 7, -7, -9],
-        color,
-        [:bishop, :queen]
-      )
-
     (pawn_attackers &&& color_pawns(board, color)) != 0 or
       (knight_attackers &&& color_knights(board, color)) != 0 or
       (king_attackers &&& color_king(board, color)) != 0 or
-      rook_attack or
-      bishop_attack
+      ray_attacked?(
+        occupied,
+        square,
+        [8, -8, 1, -1],
+        bor(color_rooks(board, color), color_queens(board, color))
+      ) or
+      ray_attacked?(
+        occupied,
+        square,
+        [9, 7, -7, -9],
+        bor(color_bishops(board, color), color_queens(board, color))
+      )
   end
 
   defp color_pawns(board, :white), do: board.white_pawns
@@ -402,37 +392,22 @@ defmodule Chess.Bitboard do
   defp color_king(board, :white), do: board.white_king
   defp color_king(board, :black), do: board.black_king
 
-  defp ray_attacked?(board, occupied, square, steps, color, piece_types) do
+  defp ray_attacked?(occupied, square, steps, attackers) do
     Enum.any?(steps, fn step ->
-      first_piece_on_ray(board, occupied, square, step, color, piece_types)
+      first_piece_on_ray(occupied, square, step, attackers)
     end)
   end
 
-  defp first_piece_on_ray(board, occupied, square, step, color, piece_types) do
+  defp first_piece_on_ray(occupied, square, step, attackers) do
     next = square + step
 
     if valid_ray_square?(square, next, step) do
-      if (occupied &&& 1 <<< next) == 0 do
-        first_piece_on_ray(
-          board,
-          occupied,
-          next,
-          step,
-          color,
-          piece_types
-        )
+      mask = 1 <<< next
+
+      if (occupied &&& mask) == 0 do
+        first_piece_on_ray(occupied, next, step, attackers)
       else
-        mask = 1 <<< next
-
-        case piece_types do
-          [:rook, :queen] ->
-            band(color_rooks(board, color), mask) != 0 or
-              band(color_queens(board, color), mask) != 0
-
-          [:bishop, :queen] ->
-            band(color_bishops(board, color), mask) != 0 or
-              band(color_queens(board, color), mask) != 0
-        end
+        (attackers &&& mask) != 0
       end
     else
       false

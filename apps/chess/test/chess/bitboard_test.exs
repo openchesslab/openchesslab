@@ -769,6 +769,46 @@ defmodule Chess.BitboardTest do
       assert Bitboard.attacked?(board, :black, square("d7"))
     end
 
+    test "a blocker prevents both colors from attacking beyond it" do
+      for color <- [:white, :black] do
+        other_color = if color == :white, do: :black, else: :white
+
+        board =
+          Bitboard.empty()
+          |> put_piece("d4", {color, :rook})
+          |> put_piece("d6", {other_color, :pawn})
+
+        assert Bitboard.attacked?(board, color, square("d5"))
+        assert Bitboard.attacked?(board, color, square("d6"))
+        refute Bitboard.attacked?(board, color, square("d7"))
+      end
+    end
+
+    test "does not wrap sliding attacks around board edges" do
+      board =
+        Bitboard.empty()
+        |> put_piece("h1", {:white, :rook})
+        |> put_piece("a8", {:black, :bishop})
+
+      assert Bitboard.attacked?(board, :white, square("a1"))
+      assert Bitboard.attacked?(board, :white, square("h8"))
+      refute Bitboard.attacked?(board, :white, square("a2"))
+      assert Bitboard.attacked?(board, :black, square("h1"))
+      refute Bitboard.attacked?(board, :black, square("h2"))
+    end
+
+    test "combines knight attacks with blocked and open rook rays" do
+      board =
+        Bitboard.empty()
+        |> put_piece("d4", {:white, :knight})
+        |> put_piece("a1", {:white, :rook})
+        |> put_piece("b1", {:white, :pawn})
+
+      assert Bitboard.attacked?(board, :white, square("f5"))
+      assert Bitboard.attacked?(board, :white, square("a5"))
+      refute Bitboard.attacked?(board, :white, square("c1"))
+    end
+
     test "an empty board has no attacks" do
       board = Bitboard.empty()
 
