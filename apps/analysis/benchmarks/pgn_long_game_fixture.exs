@@ -38,15 +38,19 @@ defmodule Analysis.PgnLongGameFixture do
       games
       |> Enum.with_index(1)
       |> Enum.each(fn {movetext, index} ->
-        IO.write(io, """
-        [Event "PGN long-game profile #{index}"]
-        [White "Alice"]
-        [Black "Bob"]
-        [Result "*"]
+        IO.write(
+          io,
+          """
+          [Event "PGN long-game profile #{index}"]
+          [White "Alice"]
+          [Black "Bob"]
+          [Result "*"]
 
-        #{movetext}
+          #{movetext}
 
-        """)
+          """
+          |> String.replace("\r\n", "\n")
+        )
       end)
     end)
 
