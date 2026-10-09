@@ -236,6 +236,54 @@ defmodule Chess.PositionTest do
   end
 
   describe "legal_moves/1" do
+    test "preserves ascending source and destination ordering in the starting position" do
+      position = Position.starting_position()
+
+      expected =
+        [
+          {"b1", "a3"},
+          {"b1", "c3"},
+          {"g1", "f3"},
+          {"g1", "h3"},
+          {"a2", "a3"},
+          {"a2", "a4"},
+          {"b2", "b3"},
+          {"b2", "b4"},
+          {"c2", "c3"},
+          {"c2", "c4"},
+          {"d2", "d3"},
+          {"d2", "d4"},
+          {"e2", "e3"},
+          {"e2", "e4"},
+          {"f2", "f3"},
+          {"f2", "f4"},
+          {"g2", "g3"},
+          {"g2", "g4"},
+          {"h2", "h3"},
+          {"h2", "h4"}
+        ]
+        |> Enum.map(fn {from, to} -> Move.new(square(from), square(to)) end)
+
+      assert Position.legal_moves(position) == expected
+    end
+
+    test "preserves promotion ordering when enumerating destination bits" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e7"), {:white, :pawn})
+        |> Position.put_piece(square("e1"), {:white, :king})
+
+      promotions =
+        position
+        |> Position.legal_moves()
+        |> Enum.filter(&(&1.from == square("e7") and &1.to == square("e8")))
+
+      assert promotions ==
+               Enum.map([:queen, :rook, :bishop, :knight], fn piece_type ->
+                 Move.new(square("e7"), square("e8"), piece_type)
+               end)
+    end
+
     test "starting position has 20 legal moves" do
       position = Position.starting_position()
 

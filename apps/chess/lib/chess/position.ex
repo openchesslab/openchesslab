@@ -179,34 +179,34 @@ defmodule Chess.Position do
       |> Enum.flat_map(fn {from, destinations} ->
         piece = piece_at(position, from)
 
-        for_result =
-          for to <- 0..63,
-              Bitwise.band(destinations, Bitwise.bsl(1, to)) != 0 do
-            promotion =
-              if promotion_move?(piece, from) do
-                [:queen, :rook, :bishop, :knight]
-              else
-                [nil]
-              end
-
-            for promotion_piece <- promotion do
-              move = Move.new(from, to, promotion_piece)
-
-              if legal_pseudo_move?(
-                   bitboard,
-                   side,
-                   king_square,
-                   move,
-                   piece
-                 ) do
-                move
-              end
-            end
+        promotion_pieces =
+          if promotion_move?(piece, from) do
+            [:queen, :rook, :bishop, :knight]
+          else
+            [nil]
           end
 
-        for_result
-        |> List.flatten()
-        |> Enum.reject(&is_nil/1)
+        destinations
+        |> destination_squares()
+        |> Enum.flat_map(fn to ->
+          promotion_pieces
+          |> Enum.reduce([], fn promotion_piece, acc ->
+            move = Move.new(from, to, promotion_piece)
+
+            if legal_pseudo_move?(
+                 bitboard,
+                 side,
+                 king_square,
+                 move,
+                 piece
+               ) do
+              [move | acc]
+            else
+              acc
+            end
+          end)
+          |> Enum.reverse()
+        end)
       end)
 
     special_moves =
@@ -217,6 +217,23 @@ defmodule Chess.Position do
       end)
 
     pseudo_moves ++ special_moves
+  end
+
+  # Enumerate set bits, stopping after the highest set destination.
+  # Preserve ascending squares for SAN and other callers of legal_moves/1.
+  defp destination_squares(mask), do: destination_squares(mask, 0, [])
+
+  defp destination_squares(0, _square, reversed), do: Enum.reverse(reversed)
+
+  defp destination_squares(mask, square, reversed) do
+    reversed =
+      if Bitwise.band(mask, 1) == 0 do
+        reversed
+      else
+        [square | reversed]
+      end
+
+    destination_squares(Bitwise.bsr(mask, 1), square + 1, reversed)
   end
 
   @spec validate(t()) :: :ok | {:error, [atom()]}
