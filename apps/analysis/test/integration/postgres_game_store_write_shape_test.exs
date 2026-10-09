@@ -66,7 +66,7 @@ defmodule Analysis.PostgresGameStoreWriteShapeTest do
         normalized_queries,
         &String.starts_with?(
           &1,
-          "WITH inserted_game AS"
+          "WITH existing_game AS MATERIALIZED"
         )
       )
 

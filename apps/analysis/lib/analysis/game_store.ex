@@ -31,15 +31,28 @@ defmodule Analysis.GameStore do
   SELECT pg_advisory_xact_lock($1)
   """
 
-  @insert_game_with_occurrences_sql """
-  WITH inserted_game AS (
+  # The fingerprint advisory lock is acquired in a preceding statement.
+  # Under READ COMMITTED, this statement sees the prior lock holder's commit.
+  # A fingerprint is only a lookup bucket; complete content defines identity.
+  @find_or_insert_game_sql """
+  WITH existing_game AS MATERIALIZED (
+    SELECT id
+    FROM games
+    WHERE fingerprint = $1
+      AND content = $2
+    ORDER BY id
+    LIMIT 1
+  ),
+  inserted_game AS (
     INSERT INTO games (
       fingerprint,
       content
     )
-    VALUES (
-      $1,
-      $2
+    SELECT
+      $1::bytea,
+      $2::bytea
+    WHERE NOT EXISTS (
+      SELECT 1 FROM existing_game
     )
     RETURNING id
   ),
@@ -62,11 +75,20 @@ defmodule Analysis.GameStore do
   )
   SELECT
     inserted_game.id,
+    TRUE AS inserted,
     (
       SELECT count(*)
       FROM inserted_occurrences
     )::bigint AS occurrence_count
   FROM inserted_game
+
+  UNION ALL
+
+  SELECT
+    existing_game.id,
+    FALSE AS inserted,
+    0::bigint AS occurrence_count
+  FROM existing_game
   """
 
   @find_sql """
@@ -133,7 +155,7 @@ defmodule Analysis.GameStore do
       transact(fn ->
         with :ok <-
                lock_fingerprint(fingerprint) do
-          put_game(
+          find_or_insert_game(
             fingerprint,
             encoded_content,
             position_ids
@@ -346,71 +368,24 @@ defmodule Analysis.GameStore do
     false
   end
 
-  defp put_game(fingerprint, encoded_content, position_ids) do
-    case find_record(
-           fingerprint,
-           encoded_content
-         ) do
-      {:ok, game_id} ->
-        {:ok, game_id}
-
-      :not_found ->
-        insert_game(
-          fingerprint,
-          encoded_content,
-          position_ids
-        )
-
-      {:error, _reason} = error ->
-        error
-    end
-  end
-
-  defp insert_game(fingerprint, encoded_content, position_ids) do
-    expected_count =
-      length(position_ids)
+  defp find_or_insert_game(fingerprint, encoded_content, position_ids) do
+    expected_count = length(position_ids)
 
     case Repo.query(
-           @insert_game_with_occurrences_sql,
-           [
-             fingerprint,
-             encoded_content,
-             position_ids
-           ]
+           @find_or_insert_game_sql,
+           [fingerprint, encoded_content, position_ids]
          ) do
-      {:ok,
-       %{
-         rows: [
-           [
-             game_id,
-             ^expected_count
-           ]
-         ]
-       }} ->
+      {:ok, %{rows: [[game_id, true, ^expected_count]]}} ->
         {:ok, game_id}
 
-      {:ok,
-       %{
-         rows: [
-           [
-             _game_id,
-             actual_count
-           ]
-         ]
-       }} ->
-        {:error,
-         {
-           :unexpected_occurrence_count,
-           expected_count,
-           actual_count
-         }}
+      {:ok, %{rows: [[game_id, false, 0]]}} ->
+        {:ok, game_id}
+
+      {:ok, %{rows: [[_game_id, true, actual_count]]}} ->
+        {:error, {:unexpected_occurrence_count, expected_count, actual_count}}
 
       {:ok, %{rows: rows}} ->
-        {:error,
-         {
-           :unexpected_game_insert_result,
-           rows
-         }}
+        {:error, {:unexpected_game_insert_result, rows}}
 
       {:error, reason} ->
         {:error, reason}
