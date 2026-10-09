@@ -15,11 +15,14 @@ defmodule Features.Catalogue do
     Lines,
     Material,
     Mobility,
+    Motifs,
     Pawns,
     Placement,
     Space,
     Squares,
-    State
+    State,
+    Tactics,
+    Threats
   }
 
   alias Features.Feature
@@ -35,7 +38,10 @@ defmodule Features.Catalogue do
     Squares,
     Lines,
     Attacks,
-    King
+    King,
+    Tactics,
+    Threats,
+    Motifs
   ]
 
   @doc "All features, in section order."

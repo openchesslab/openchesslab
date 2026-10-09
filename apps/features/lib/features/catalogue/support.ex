@@ -36,6 +36,10 @@ defmodule Features.Catalogue.Support do
   @spec values() :: %{atom() => number()}
   def values, do: @values
 
+  @doc "Pawn-unit value of a stored piece type atom (kings count 0)."
+  @spec value(atom()) :: number()
+  def value(type), do: Map.fetch!(@values, Map.fetch!(@singular, type))
+
   @doc "Singular English name for a stored piece type atom."
   @spec type_name(atom()) :: String.t()
   def type_name(type), do: Map.fetch!(@type_names, type)
