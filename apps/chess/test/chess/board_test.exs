@@ -67,6 +67,46 @@ defmodule Chess.BoardTest do
   end
 
   describe "pieces/1" do
+    test "lists occupied squares in ascending order" do
+      board =
+        Board.empty()
+        |> Board.put(63, {:black, :king})
+        |> Board.put(0, {:white, :rook})
+        |> Board.put(19, {:white, :bishop})
+
+      assert Board.pieces(board) == [
+               {0, {:white, :rook}},
+               {19, {:white, :bishop}},
+               {63, {:black, :king}}
+             ]
+    end
+
+    test "matches direct square enumeration on sparse and dense boards" do
+      for stride <- [1, 2, 3, 5, 8, 64] do
+        board =
+          Enum.reduce(0..63, Board.empty(), fn square, acc ->
+            if rem(square, stride) == 0 do
+              piece =
+                if rem(square, 2) == 0,
+                  do: {:white, :knight},
+                  else: {:black, :pawn}
+
+              Board.put(acc, square, piece)
+            else
+              acc
+            end
+          end)
+
+        expected =
+          for square <- 0..63,
+              piece = Board.get(board, square),
+              not is_nil(piece),
+              do: {square, piece}
+
+        assert Board.pieces(board) == expected
+      end
+    end
+
     test "returns all pieces with their squares" do
       e1_square = Square.from_algebraic("e1")
       e4_square = Square.from_algebraic("e4")
