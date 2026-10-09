@@ -72,6 +72,7 @@ defmodule Analysis.PgnBatchImporter do
           | :game_headers_required
           | :invalid_record_id_provider
           | {:invalid_max_concurrency, term()}
+          | {:invalid_window_size, term()}
           | {:parallel_worker_exit, term()}
 
   @type parallel_file_import_error ::
@@ -179,10 +180,30 @@ defmodule Analysis.PgnBatchImporter do
         ) ::
           {:ok, ParallelImportResult.t()}
           | {:error, parallel_import_error()}
-  def import_stream_parallel(lines, record_id_for_index, max_concurrency)
+  def import_stream_parallel(lines, record_id_for_index, max_concurrency) do
+    import_stream_parallel(lines, record_id_for_index, max_concurrency, max_concurrency)
+  end
+
+  @doc """
+  Parallel import with a bounded game window, independent of worker count.
+
+  A larger window lets idle workers start another queued game instead of
+  waiting for the slowest game in a worker-sized wave. At most
+  `max_concurrency` games run simultaneously; at most `window_size` PGNs
+  are retained in the pending window.
+  """
+  @spec import_stream_parallel(
+          Enumerable.t(),
+          (pos_integer() -> GameRecord.id()),
+          pos_integer(),
+          pos_integer()
+        ) ::
+          {:ok, ParallelImportResult.t()}
+          | {:error, parallel_import_error()}
+  def import_stream_parallel(lines, record_id_for_index, max_concurrency, window_size)
       when is_function(record_id_for_index, 1) do
-    with :ok <-
-           validate_max_concurrency(max_concurrency) do
+    with :ok <- validate_max_concurrency(max_concurrency),
+         :ok <- validate_window_size(window_size, max_concurrency) do
       initial_state = %{
         pending: [],
         imported_count: 0,
@@ -198,23 +219,18 @@ defmodule Analysis.PgnBatchImporter do
                  index,
                  state,
                  record_id_for_index,
-                 max_concurrency
+                 max_concurrency,
+                 window_size
                )
              end
            ) do
         {:ok, state} ->
-          case flush_parallel_games(
-                 state,
-                 record_id_for_index,
-                 max_concurrency
-               ) do
+          case flush_parallel_games(state, record_id_for_index, max_concurrency) do
             {:ok, state} ->
               {:ok,
                %ParallelImportResult{
                  imported_count: state.imported_count,
-                 failures:
-                   state.failures
-                   |> Enum.sort_by(&parallel_failure_index/1)
+                 failures: Enum.sort_by(state.failures, &parallel_failure_index/1)
                }}
 
             {:error, _reason} = error ->
@@ -227,7 +243,7 @@ defmodule Analysis.PgnBatchImporter do
     end
   end
 
-  def import_stream_parallel(_lines, _record_id_for_index, _max_concurrency) do
+  def import_stream_parallel(_lines, _record_id_for_index, _max_concurrency, _window_size) do
     {:error, :invalid_record_id_provider}
   end
 
@@ -279,45 +295,50 @@ defmodule Analysis.PgnBatchImporter do
         ) ::
           {:ok, ParallelImportResult.t()}
           | {:error, parallel_file_import_error()}
-  def import_file_parallel(path, record_id_for_index, max_concurrency)
+  def import_file_parallel(path, record_id_for_index, max_concurrency) do
+    import_file_parallel(path, record_id_for_index, max_concurrency, max_concurrency)
+  end
+
+  @spec import_file_parallel(
+          String.t(),
+          (pos_integer() -> GameRecord.id()),
+          pos_integer(),
+          pos_integer()
+        ) ::
+          {:ok, ParallelImportResult.t()}
+          | {:error, parallel_file_import_error()}
+  def import_file_parallel(path, record_id_for_index, max_concurrency, window_size)
       when is_binary(path) and byte_size(path) > 0 and is_function(record_id_for_index, 1) do
-    with :ok <-
-           validate_max_concurrency(max_concurrency) do
+    with :ok <- validate_max_concurrency(max_concurrency),
+         :ok <- validate_window_size(window_size, max_concurrency) do
       case File.open(
              path,
              [:read, :utf8],
              fn io ->
                io
                |> IO.stream(:line)
-               |> import_stream_parallel(
-                 record_id_for_index,
-                 max_concurrency
-               )
+               |> import_stream_parallel(record_id_for_index, max_concurrency, window_size)
              end
            ) do
         {:ok, result} ->
           result
 
         {:error, reason} ->
-          {:error,
-           {
-             :file,
-             reason
-           }}
+          {:error, {:file, reason}}
       end
     end
   end
 
-  def import_file_parallel(path, _record_id_for_index, _max_concurrency)
+  def import_file_parallel(path, _record_id_for_index, _max_concurrency, _window_size)
       when not is_binary(path) do
     {:error, :invalid_path}
   end
 
-  def import_file_parallel("", _record_id_for_index, _max_concurrency) do
+  def import_file_parallel("", _record_id_for_index, _max_concurrency, _window_size) do
     {:error, :invalid_path}
   end
 
-  def import_file_parallel(_path, _record_id_for_index, _max_concurrency) do
+  def import_file_parallel(_path, _record_id_for_index, _max_concurrency, _window_size) do
     {:error, :invalid_record_id_provider}
   end
 
@@ -581,7 +602,7 @@ defmodule Analysis.PgnBatchImporter do
     end
   end
 
-  defp queue_parallel_game(game, index, state, record_id_for_index, max_concurrency) do
+  defp queue_parallel_game(game, index, state, record_id_for_index, max_concurrency, window_size) do
     state = %{
       state
       | pending: [
@@ -593,8 +614,7 @@ defmodule Analysis.PgnBatchImporter do
         ]
     }
 
-    if length(state.pending) >=
-         max_concurrency do
+    if length(state.pending) >= window_size do
       flush_parallel_games(
         state,
         record_id_for_index,
@@ -779,6 +799,15 @@ defmodule Analysis.PgnBatchImporter do
        :invalid_max_concurrency,
        max_concurrency
      }}
+  end
+
+  defp validate_window_size(window_size, max_concurrency)
+       when is_integer(window_size) and window_size >= max_concurrency do
+    :ok
+  end
+
+  defp validate_window_size(window_size, _max_concurrency) do
+    {:error, {:invalid_window_size, window_size}}
   end
 
   defp validate_record_ids(record_ids) do

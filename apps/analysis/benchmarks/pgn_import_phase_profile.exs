@@ -167,13 +167,16 @@ defmodule Analysis.PgnImportPhaseProfile do
     end
   end
 
-  def profile_file_import_parallel(path, game_count, run_id, workers) do
+  def profile_file_import_parallel(path, game_count, run_id, workers, window_factor) do
+    window_size = workers * window_factor
+
     {elapsed_seconds, result} =
       measure(fn ->
         PgnBatchImporter.import_file_parallel(
           path,
-          fn index -> record_id("parallel-#{workers}", run_id, index) end,
-          workers
+          fn index -> record_id("parallel-#{workers}-window-#{window_factor}", run_id, index) end,
+          workers,
+          window_size
         )
       end)
 
@@ -182,10 +185,10 @@ defmodule Analysis.PgnImportPhaseProfile do
         %{elapsed_seconds: elapsed_seconds}
 
       {:ok, result} ->
-        raise "Parallel import with #{workers} workers produced unexpected result: #{inspect(result)}"
+        raise "Parallel import with #{workers} workers and #{window_size} window produced unexpected result: #{inspect(result)}"
 
       {:error, reason} ->
-        raise "Parallel import with #{workers} workers failed: #{inspect(reason)}"
+        raise "Parallel import with #{workers} workers and #{window_size} window failed: #{inspect(reason)}"
     end
   end
 
@@ -508,6 +511,21 @@ if worker_counts == [] do
   raise "PGN_IMPORT_PHASE_WORKERS must contain at least one positive integer"
 end
 
+window_factors =
+  System.get_env("PGN_IMPORT_PHASE_WINDOW_FACTORS", "1")
+  |> String.split(",", trim: true)
+  |> Enum.map(fn raw ->
+    case Integer.parse(String.trim(raw)) do
+      {number, ""} when number > 0 -> number
+      _ -> raise "Invalid PGN_IMPORT_PHASE_WINDOW_FACTORS value: #{inspect(raw)}"
+    end
+  end)
+  |> Enum.uniq()
+
+if window_factors == [] do
+  raise "PGN_IMPORT_PHASE_WINDOW_FACTORS must contain at least one positive integer"
+end
+
 if game_count <= 0 do
   raise "PGN_IMPORT_PHASE_GAMES must be positive"
 end
@@ -583,7 +601,9 @@ try do
           )
 
         parallel_times =
-          Map.new(worker_counts, fn workers ->
+          for workers <- worker_counts,
+              window_factor <- window_factors,
+              into: %{} do
             :ok = Profile.cleanup()
 
             parallel =
@@ -591,16 +611,18 @@ try do
                 path,
                 game_count,
                 run_id,
-                workers
+                workers,
+                window_factor
               )
 
             IO.puts(
-              "  parallel #{workers} workers: #{Profile.format_seconds(parallel.elapsed_seconds)} | " <>
+              "  parallel #{workers} workers / window #{window_factor}x: " <>
+                "#{Profile.format_seconds(parallel.elapsed_seconds)} | " <>
                 Profile.format_rate(game_count, parallel.elapsed_seconds)
             )
 
-            {workers, parallel.elapsed_seconds}
-          end)
+            {{workers, window_factor}, parallel.elapsed_seconds}
+          end
 
         result = %{
           run: run,
@@ -678,20 +700,21 @@ try do
     "Parallel end-to-end results (sequential baseline median #{Profile.format_seconds(end_to_end_median)}):"
   )
 
-  Enum.each(worker_counts, fn workers ->
+  for workers <- worker_counts, window_factor <- window_factors do
     elapsed_times =
       Enum.map(results, fn result ->
-        Map.fetch!(result.parallel_times, workers)
+        Map.fetch!(result.parallel_times, {workers, window_factor})
       end)
 
     median_seconds = Profile.median(elapsed_times)
 
     IO.puts(
-      "  #{workers} workers: median #{Profile.format_seconds(median_seconds)} | " <>
+      "  #{workers} workers / window #{window_factor}x: " <>
+        "median #{Profile.format_seconds(median_seconds)} | " <>
         "#{Profile.format_rate(game_count, median_seconds)} | " <>
         "#{Float.round(end_to_end_median / median_seconds, 2)}x vs sequential"
     )
-  end)
+  end
 after
   Profile.cleanup()
   File.rm(path)
