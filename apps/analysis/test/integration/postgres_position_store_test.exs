@@ -494,6 +494,63 @@ defmodule Analysis.PostgresPositionStoreTest do
            )
   end
 
+  test "append_many writes features once for new positions, preserving individual property arrays" do
+    first = Position.starting_position()
+    {:ok, second} = Position.apply_move(first, move("e2", "e4"))
+    empty = Position.new()
+    positions = [first, second, empty, first]
+
+    queries =
+      capture_queries(fn ->
+        assert {:ok, [first_id, second_id, empty_id, repeated_id]} =
+                 PositionStore.append_many(positions)
+
+        assert repeated_id == first_id
+        assert length(Enum.uniq([first_id, second_id, empty_id])) == 3
+      end)
+
+    assert Enum.count(queries, &String.contains?(&1, "INSERT INTO position_features")) == 1
+
+    assert [[3]] = Repo.query!("SELECT count(*) FROM positions", []).rows
+    assert [[3]] = Repo.query!("SELECT count(*) FROM position_features", []).rows
+
+    assert {:ok, [first_id, second_id, empty_id, repeated_id]} =
+             PositionStore.append_many(positions)
+
+    assert repeated_id == first_id
+
+    assert [[first_properties]] =
+             Repo.query!("SELECT properties FROM position_features WHERE position_id = $1", [
+               first_id
+             ]).rows
+
+    assert [[second_properties]] =
+             Repo.query!("SELECT properties FROM position_features WHERE position_id = $1", [
+               second_id
+             ]).rows
+
+    assert [[empty_properties]] =
+             Repo.query!("SELECT properties FROM position_features WHERE position_id = $1", [
+               empty_id
+             ]).rows
+
+    {:ok, white_key} = PositionPropertyKeyCodec.encode(:side_to_move, :white)
+    {:ok, black_key} = PositionPropertyKeyCodec.encode(:side_to_move, :black)
+
+    assert white_key in first_properties
+    assert black_key in second_properties
+    refute Enum.empty?(empty_properties)
+    refute first_properties == empty_properties
+
+    repeated_queries =
+      capture_queries(fn ->
+        assert {:ok, [^first_id, ^second_id, ^empty_id, ^first_id]} =
+                 PositionStore.append_many(positions)
+      end)
+
+    refute Enum.any?(repeated_queries, &String.contains?(&1, "INSERT INTO position_features"))
+  end
+
   test "concurrent exact position stores reuse one canonical position" do
     position =
       Position.starting_position()

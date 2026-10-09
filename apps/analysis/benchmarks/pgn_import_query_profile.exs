@@ -657,7 +657,7 @@ defmodule Analysis.PgnImportQueryProfile do
   end
 end
 
-_database_url =
+database_url =
   System.get_env("DATABASE_URL") ||
     raise """
     DATABASE_URL is required.
@@ -670,7 +670,7 @@ _database_url =
         ecto://openchesslab:openchesslab@localhost/openchesslab_bench
     """
 
-if URI.parse(_database_url).path != "/openchesslab_bench" do
+if URI.parse(database_url).path != "/openchesslab_bench" do
   raise "This destructive benchmark requires DATABASE_URL to target openchesslab_bench"
 end
 
