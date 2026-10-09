@@ -95,9 +95,21 @@ defmodule Chess.Bitboard do
   def remove(board, square) when square in 0..63 do
     mask = bnot(1 <<< square)
 
-    Enum.reduce(piece_fields(), board, fn {_color, _type, field}, board ->
-      Map.update!(board, field, &band(&1, mask))
-    end)
+    %{
+      board
+      | white_pawns: band(board.white_pawns, mask),
+        white_knights: band(board.white_knights, mask),
+        white_bishops: band(board.white_bishops, mask),
+        white_rooks: band(board.white_rooks, mask),
+        white_queens: band(board.white_queens, mask),
+        white_king: band(board.white_king, mask),
+        black_pawns: band(board.black_pawns, mask),
+        black_knights: band(board.black_knights, mask),
+        black_bishops: band(board.black_bishops, mask),
+        black_rooks: band(board.black_rooks, mask),
+        black_queens: band(board.black_queens, mask),
+        black_king: band(board.black_king, mask)
+    }
   end
 
   @spec pieces(t()) :: [{Chess.Square.t(), piece()}]

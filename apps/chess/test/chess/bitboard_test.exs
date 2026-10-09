@@ -84,6 +84,60 @@ defmodule Chess.BitboardTest do
 
       assert Bitboard.get(updated, square) == nil
     end
+
+    test "clears the target bit from every field without changing other squares" do
+      target_square = Square.from_algebraic("e4")
+      target = 1 <<< target_square
+      retained = 1 <<< Square.from_algebraic("b7")
+      both = target ||| retained
+
+      board = %Bitboard{
+        white_pawns: both,
+        white_knights: both,
+        white_bishops: both,
+        white_rooks: both,
+        white_queens: both,
+        white_king: both,
+        black_pawns: both,
+        black_knights: both,
+        black_bishops: both,
+        black_rooks: both,
+        black_queens: both,
+        black_king: both
+      }
+
+      updated = Bitboard.remove(board, target_square)
+
+      assert updated == %Bitboard{
+               white_pawns: retained,
+               white_knights: retained,
+               white_bishops: retained,
+               white_rooks: retained,
+               white_queens: retained,
+               white_king: retained,
+               black_pawns: retained,
+               black_knights: retained,
+               black_bishops: retained,
+               black_rooks: retained,
+               black_queens: retained,
+               black_king: retained
+             }
+
+      assert Bitboard.remove(updated, target_square) == updated
+      assert board.white_pawns == both
+    end
+
+    test "removes every piece type on every square" do
+      piece_types = [:pawn, :knight, :bishop, :rook, :queen, :king]
+
+      for square <- 0..63,
+          color <- [:white, :black],
+          piece_type <- piece_types do
+        board = Bitboard.put(Bitboard.empty(), square, {color, piece_type})
+
+        assert Bitboard.remove(board, square) == Bitboard.empty()
+      end
+    end
   end
 
   describe "pieces/1" do
