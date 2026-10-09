@@ -1,5 +1,7 @@
 alias Analysis.PgnImportPhaseProfile, as: Profile
 
+Code.require_file(Path.join(__DIR__, "pgn_long_game_fixture.exs"))
+
 Logger.configure(level: :warning)
 
 defmodule Analysis.PgnImportPhaseProfile do
@@ -7,11 +9,42 @@ defmodule Analysis.PgnImportPhaseProfile do
 
   alias Analysis.PgnBatchImporter
   alias Analysis.PgnImporter
+  alias Analysis.PgnLongGameFixture
   alias Chess.Notation.SAN
   alias Chess.Position
   alias OpenChessLab.Repo
 
   @unique_game_plies 4
+
+  def build_long_fixture(path, game_count, plies, duplicate_percent) do
+    PgnLongGameFixture.build_fixture(path, game_count, plies, duplicate_percent)
+  end
+
+  def validate_long_counts!(game_count, plies, duplicate_percent) do
+    expected_games = game_count - div(game_count * duplicate_percent, 100)
+    expected_occurrences = expected_games * (plies + 1)
+
+    rows =
+      Repo.query!(
+        """
+        SELECT
+          (SELECT count(*) FROM games),
+          (SELECT count(*) FROM game_occurrences),
+          (SELECT count(*) FROM game_records)
+        """,
+        []
+      ).rows
+
+    case rows do
+      [[^expected_games, ^expected_occurrences, ^game_count]] ->
+        :ok
+
+      _ ->
+        raise "Unexpected long-game durable row counts: #{inspect(rows)}; " <>
+                "expected #{expected_games} games, #{expected_occurrences} occurrences, " <>
+                "#{game_count} records"
+    end
+  end
 
   def build_fixture(path, game_count, :duplicate) do
     File.open!(
@@ -489,12 +522,23 @@ fixture_mode =
     "unique" ->
       :unique
 
+    "long" ->
+      :long
+
     fixture ->
       raise """
       PGN_IMPORT_PHASE_FIXTURE must be "duplicate" or "unique",
       got #{inspect(fixture)}
       """
   end
+
+long_plies =
+  System.get_env("PGN_IMPORT_PHASE_PLIES", "60")
+  |> String.to_integer()
+
+long_duplicate_percent =
+  System.get_env("PGN_IMPORT_PHASE_DUPLICATE_PERCENT", "0")
+  |> String.to_integer()
 
 worker_counts =
   System.get_env("PGN_IMPORT_PHASE_WORKERS", "2,4,8")
@@ -534,6 +578,16 @@ if run_count <= 0 do
   raise "PGN_IMPORT_PHASE_RUNS must be positive"
 end
 
+if fixture_mode == :long do
+  if long_plies < 2 or long_plies > 120 do
+    raise "PGN_IMPORT_PHASE_PLIES must be between 2 and 120"
+  end
+
+  if long_duplicate_percent < 0 or long_duplicate_percent >= 100 do
+    raise "PGN_IMPORT_PHASE_DUPLICATE_PERCENT must be between 0 and 99"
+  end
+end
+
 path =
   Path.join(
     System.tmp_dir!(),
@@ -549,12 +603,21 @@ try do
   fixture: #{fixture_mode}
   """)
 
-  file_size =
-    Profile.build_fixture(
-      path,
-      game_count,
-      fixture_mode
+  if fixture_mode == :long do
+    unique_count = game_count - div(game_count * long_duplicate_percent, 100)
+
+    IO.puts(
+      "Long fixture: #{long_plies} plies/game, #{unique_count} unique games, " <>
+        "#{game_count - unique_count} duplicates"
     )
+  end
+
+  file_size =
+    if fixture_mode == :long do
+      Profile.build_long_fixture(path, game_count, long_plies, long_duplicate_percent)
+    else
+      Profile.build_fixture(path, game_count, fixture_mode)
+    end
 
   pgn =
     File.read!(path)
@@ -585,6 +648,10 @@ try do
             run_id
           )
 
+        if fixture_mode == :long do
+          Profile.validate_long_counts!(game_count, long_plies, long_duplicate_percent)
+        end
+
         parse =
           Profile.profile_parse(
             pgn,
@@ -600,6 +667,10 @@ try do
             run_id
           )
 
+        if fixture_mode == :long do
+          Profile.validate_long_counts!(game_count, long_plies, long_duplicate_percent)
+        end
+
         parallel_times =
           for workers <- worker_counts,
               window_factor <- window_factors,
@@ -614,6 +685,10 @@ try do
                 workers,
                 window_factor
               )
+
+            if fixture_mode == :long do
+              Profile.validate_long_counts!(game_count, long_plies, long_duplicate_percent)
+            end
 
             IO.puts(
               "  parallel #{workers} workers / window #{window_factor}x: " <>
