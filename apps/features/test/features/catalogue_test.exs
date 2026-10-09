@@ -7,11 +7,23 @@ defmodule Features.CatalogueTest do
 
   @spec_path Path.expand("../../../../docs/POSITION_FEATURES.md", __DIR__)
 
-  @section_prefix %{1 => "state.", 2 => "material.", 3 => "pawns."}
+  @section_prefix %{
+    1 => "state.",
+    2 => "material.",
+    3 => "pawns.",
+    4 => "placement.",
+    5 => "mobility.",
+    6 => "center.",
+    7 => "space.",
+    8 => "squares.",
+    9 => "lines.",
+    10 => "attacks.",
+    11 => "king."
+  }
 
   # Sections the catalogue implements so far; grow this list per milestone
   # until it covers the whole spec (last section wins).
-  @sections_done [1, 2, 3]
+  @sections_done [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 
   test "feature ids are unique" do
     ids = Enum.map(Catalogue.all(), & &1.id)

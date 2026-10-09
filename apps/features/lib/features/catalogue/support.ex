@@ -52,6 +52,36 @@ defmodule Features.Catalogue.Support do
     |> Enum.map(&Square.to_string/1)
   end
 
+  @doc "Bitboard of one file (0 = a .. 7 = h)."
+  @spec file_bb(0..7) :: non_neg_integer()
+  def file_bb(file), do: 0x0101010101010101 <<< file
+
+  @doc "Bitboard of one rank (0 = first .. 7 = eighth)."
+  @spec rank_bb(0..7) :: non_neg_integer()
+  def rank_bb(rank), do: 0xFF <<< (rank * 8)
+
+  @doc "Bitboard of the half of the board `color` attacks into."
+  @spec enemy_half_bb(atom()) :: non_neg_integer()
+  def enemy_half_bb(:white), do: 0xFFFFFFFF00000000
+  def enemy_half_bb(:black), do: 0x00000000FFFFFFFF
+
+  @doc "Bitboard of the big center c3-f6."
+  @spec center_bb() :: non_neg_integer()
+  def center_bb do
+    Enum.reduce(2..5, 0, fn file, files -> files ||| file_bb(file) end) &&&
+      Enum.reduce(2..5, 0, fn rank, ranks -> ranks ||| rank_bb(rank) end)
+  end
+
+  @doc "Bitboard of the four key central squares d4, e4, d5, e5."
+  @spec key_center_bb() :: non_neg_integer()
+  def key_center_bb do
+    (rank_bb(3) ||| rank_bb(4)) &&& (file_bb(3) ||| file_bb(4))
+  end
+
+  @doc "Lowercase file letter for a file index."
+  @spec file_letter(0..7) :: String.t()
+  def file_letter(file), do: <<?a + file>>
+
   @doc "Number of set bits."
   @spec popcount(non_neg_integer()) :: non_neg_integer()
   def popcount(bitboard), do: length(Bitboard.squares(bitboard))

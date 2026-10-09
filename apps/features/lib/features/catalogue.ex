@@ -8,10 +8,35 @@ defmodule Features.Catalogue do
   this in both directions.
   """
 
-  alias Features.Catalogue.{Material, Pawns, State}
+  alias Features.Catalogue.{
+    Attacks,
+    Center,
+    King,
+    Lines,
+    Material,
+    Mobility,
+    Pawns,
+    Placement,
+    Space,
+    Squares,
+    State
+  }
+
   alias Features.Feature
 
-  @sections [State, Material, Pawns]
+  @sections [
+    State,
+    Material,
+    Pawns,
+    Placement,
+    Mobility,
+    Center,
+    Space,
+    Squares,
+    Lines,
+    Attacks,
+    King
+  ]
 
   @doc "All features, in section order."
   @spec all() :: [Feature.t()]
