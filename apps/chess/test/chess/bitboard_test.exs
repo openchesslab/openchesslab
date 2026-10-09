@@ -49,6 +49,45 @@ defmodule Chess.BitboardTest do
 
       assert Bitboard.get(board, Square.from_algebraic("e4")) == {:white, :pawn}
     end
+
+    test "returns nil on every square of an empty board" do
+      board = Bitboard.empty()
+
+      for square <- 0..63 do
+        assert Bitboard.get(board, square) == nil
+      end
+    end
+
+    test "finds every color and piece type on every square" do
+      empty = Bitboard.empty()
+
+      for square <- 0..63,
+          color <- [:white, :black],
+          type <- [:pawn, :knight, :bishop, :rook, :queen, :king] do
+        board = Bitboard.put(empty, square, {color, type})
+
+        assert Bitboard.get(board, square) == {color, type}
+        assert Bitboard.get(board, rem(square + 1, 64)) == nil
+      end
+    end
+
+    test "preserves piece priority on overlapping bitboards" do
+      empty = Bitboard.empty()
+      square = Square.from_algebraic("e4")
+      mask = 1 <<< square
+
+      assert Bitboard.get(%{empty | white_pawns: mask, black_king: mask}, square) ==
+               {:white, :pawn}
+
+      assert Bitboard.get(%{empty | white_knights: mask, white_rooks: mask}, square) ==
+               {:white, :knight}
+
+      assert Bitboard.get(%{empty | white_king: mask, black_pawns: mask}, square) ==
+               {:white, :king}
+
+      assert Bitboard.get(%{empty | black_bishops: mask, black_king: mask}, square) ==
+               {:black, :bishop}
+    end
   end
 
   describe "put/3" do

@@ -77,11 +77,21 @@ defmodule Chess.Bitboard do
   def get(board, square) when square in 0..63 do
     mask = 1 <<< square
 
-    Enum.find_value(piece_fields(), fn {color, type, field} ->
-      if band(Map.fetch!(board, field), mask) != 0 do
-        {color, type}
-      end
-    end)
+    cond do
+      (board.white_pawns &&& mask) != 0 -> {:white, :pawn}
+      (board.white_knights &&& mask) != 0 -> {:white, :knight}
+      (board.white_bishops &&& mask) != 0 -> {:white, :bishop}
+      (board.white_rooks &&& mask) != 0 -> {:white, :rook}
+      (board.white_queens &&& mask) != 0 -> {:white, :queen}
+      (board.white_king &&& mask) != 0 -> {:white, :king}
+      (board.black_pawns &&& mask) != 0 -> {:black, :pawn}
+      (board.black_knights &&& mask) != 0 -> {:black, :knight}
+      (board.black_bishops &&& mask) != 0 -> {:black, :bishop}
+      (board.black_rooks &&& mask) != 0 -> {:black, :rook}
+      (board.black_queens &&& mask) != 0 -> {:black, :queen}
+      (board.black_king &&& mask) != 0 -> {:black, :king}
+      true -> nil
+    end
   end
 
   @spec put(t(), Chess.Square.t(), piece()) :: t()
@@ -590,23 +600,6 @@ defmodule Chess.Bitboard do
 
   defp set_piece(board, square, :black, :king) do
     %{board | black_king: bor(board.black_king, 1 <<< square)}
-  end
-
-  defp piece_fields do
-    [
-      {:white, :pawn, :white_pawns},
-      {:white, :knight, :white_knights},
-      {:white, :bishop, :white_bishops},
-      {:white, :rook, :white_rooks},
-      {:white, :queen, :white_queens},
-      {:white, :king, :white_king},
-      {:black, :pawn, :black_pawns},
-      {:black, :knight, :black_knights},
-      {:black, :bishop, :black_bishops},
-      {:black, :rook, :black_rooks},
-      {:black, :queen, :black_queens},
-      {:black, :king, :black_king}
-    ]
   end
 
   defp popcount(0), do: 0
