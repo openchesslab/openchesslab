@@ -27,7 +27,8 @@ defmodule Features.CatalogueTest do
     17 => "quality.",
     18 => "initiative.",
     19 => "position.",
-    20 => "evaluation."
+    20 => "evaluation.",
+    21 => "similarity."
   }
 
   # Sections the catalogue implements so far; grow this list per milestone
@@ -52,7 +53,8 @@ defmodule Features.CatalogueTest do
     17,
     18,
     19,
-    20
+    20,
+    21
   ]
 
   test "feature ids are unique" do

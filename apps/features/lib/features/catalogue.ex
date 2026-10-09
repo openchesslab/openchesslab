@@ -23,6 +23,7 @@ defmodule Features.Catalogue do
     Placement,
     Position,
     Quality,
+    Similarity,
     Space,
     Squares,
     State,
@@ -53,7 +54,8 @@ defmodule Features.Catalogue do
     Quality,
     Initiative,
     Position,
-    Evaluation
+    Evaluation,
+    Similarity
   ]
 
   @doc "All features, in section order."
