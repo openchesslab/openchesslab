@@ -134,7 +134,7 @@ defmodule Features.Catalogue.Attacks do
 
             defended >= 2 and Map.get(enemy_attacks, square, 0) >= 1
           end)
-          |> Enum.map(fn {_type, square} -> Square.to_string(square) end)
+          |> Enum.map(fn {_type, square} -> square end)
           |> to_alg()
         end)
       end),

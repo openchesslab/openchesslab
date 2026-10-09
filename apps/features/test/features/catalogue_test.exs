@@ -21,12 +21,39 @@ defmodule Features.CatalogueTest do
     11 => "king.",
     12 => "tactics.",
     13 => "threats.",
-    14 => "motifs."
+    14 => "motifs.",
+    15 => "goals.",
+    16 => "tension.",
+    17 => "quality.",
+    18 => "initiative.",
+    19 => "position.",
+    20 => "evaluation."
   }
 
   # Sections the catalogue implements so far; grow this list per milestone
   # until it covers the whole spec (last section wins).
-  @sections_done [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+  @sections_done [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20
+  ]
 
   test "feature ids are unique" do
     ids = Enum.map(Catalogue.all(), & &1.id)

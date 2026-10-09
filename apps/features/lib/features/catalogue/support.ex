@@ -130,6 +130,18 @@ defmodule Features.Catalogue.Support do
     |> MapSet.new(&square_color/1)
   end
 
+  @doc "Number of `color`'s own pawns standing on squares of a bishop's board color."
+  @spec bishop_pawn_conflict(Board.t(), non_neg_integer()) :: non_neg_integer()
+  def bishop_pawn_conflict(board, square) do
+    {color, :bishops} = Board.piece_at(board, square)
+    bishop_color = square_color(square)
+
+    board
+    |> Board.piece_bb(color, :pawns)
+    |> Bitboard.squares()
+    |> Enum.count(&(square_color(&1) == bishop_color))
+  end
+
   @doc "Whether `square` is attacked by a pawn of `color`."
   @spec attacked_by_pawn?(Board.t(), non_neg_integer(), atom()) :: boolean()
   def attacked_by_pawn?(board, square, color) do
@@ -173,6 +185,54 @@ defmodule Features.Catalogue.Support do
         abs(enemy_file - file) > 1 or not ahead?(enemy_rank, rank, color)
       end)
     end)
+  end
+
+  @doc "Squares of `color`'s pawns."
+  @spec pawn_squares(Board.t(), atom()) :: [non_neg_integer()]
+  def pawn_squares(board, color) do
+    board
+    |> Board.piece_bb(color, :pawns)
+    |> Bitboard.squares()
+  end
+
+  @doc "Board-space step of one square in the direction `color` pawns advance."
+  @spec step(atom()) :: 8 | -8
+  def step(color), do: if(color == :white, do: 8, else: -8)
+
+  @doc "Isolated pawns of `color`: no own pawn on either adjacent file."
+  @spec isolated_pawns(Board.t(), atom()) :: [non_neg_integer()]
+  def isolated_pawns(board, color) do
+    files = board |> pawns_by_file(color) |> Map.keys() |> MapSet.new()
+
+    pawn_squares(board, color)
+    |> Enum.filter(fn square ->
+      file = Square.file(square)
+      not (MapSet.member?(files, file - 1) or MapSet.member?(files, file + 1))
+    end)
+    |> Enum.sort()
+  end
+
+  @doc """
+  Backward pawns of `color`: a non-passed pawn whose advance square is
+  attacked by an enemy pawn and not defended by an own pawn.
+  """
+  @spec backward_pawns(Board.t(), atom()) :: [non_neg_integer()]
+  def backward_pawns(board, color) do
+    enemy = Board.opposite(color)
+    advance = step(color)
+    passed = passed_pawns(board, color) |> MapSet.new()
+
+    pawn_squares(board, color)
+    |> Enum.filter(fn square ->
+      target = square + advance
+
+      target in 0..63 and
+        Board.piece_at(board, target) == nil and
+        attacked_by_pawn?(board, target, enemy) and
+        not attacked_by_pawn?(board, target, color) and
+        not MapSet.member?(passed, square)
+    end)
+    |> Enum.sort()
   end
 
   @doc "Whether a pawn of `color` can advance one or two squares (ignoring king safety)."

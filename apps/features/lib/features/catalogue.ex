@@ -11,6 +11,9 @@ defmodule Features.Catalogue do
   alias Features.Catalogue.{
     Attacks,
     Center,
+    Evaluation,
+    Goals,
+    Initiative,
     King,
     Lines,
     Material,
@@ -18,10 +21,13 @@ defmodule Features.Catalogue do
     Motifs,
     Pawns,
     Placement,
+    Position,
+    Quality,
     Space,
     Squares,
     State,
     Tactics,
+    Tension,
     Threats
   }
 
@@ -41,7 +47,13 @@ defmodule Features.Catalogue do
     King,
     Tactics,
     Threats,
-    Motifs
+    Motifs,
+    Goals,
+    Tension,
+    Quality,
+    Initiative,
+    Position,
+    Evaluation
   ]
 
   @doc "All features, in section order."
