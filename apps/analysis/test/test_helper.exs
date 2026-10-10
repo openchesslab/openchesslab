@@ -8,6 +8,7 @@ OpenChessLab.Repo.query!(
     game_records,
     game_occurrences,
     games,
+    position_feature_vectors,
     position_features,
     positions
   RESTART IDENTITY

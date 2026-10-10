@@ -26,6 +26,7 @@ defmodule Analysis.MixProject do
     [
       {:chess, in_umbrella: true},
       {:database, in_umbrella: true},
+      {:features, in_umbrella: true},
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.3.0"},
       {:horde, "~> 0.10"},
