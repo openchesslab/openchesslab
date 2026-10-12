@@ -68,9 +68,21 @@ defmodule Chess.Bitboard do
 
   @spec from_position(Chess.Position.t()) :: t()
   def from_position(%Chess.Position{board: board}) do
-    board
-    |> Chess.Board.pieces()
-    |> Enum.reduce(empty(), &put_piece/2)
+    convert_position_board(board, 0, empty())
+  end
+
+  # Each square in Chess.Board contains at most one piece. Build its bitboard
+  # directly, without clearing twelve bitboards or allocating a pieces list.
+  defp convert_position_board(_board, 64, result), do: result
+
+  defp convert_position_board(board, square, result) do
+    result =
+      case elem(board, square) do
+        nil -> result
+        {color, type} -> set_piece(result, square, color, type)
+      end
+
+    convert_position_board(board, square + 1, result)
   end
 
   @spec get(t(), Chess.Square.t()) :: piece() | nil
@@ -548,10 +560,6 @@ defmodule Chess.Bitboard do
 
   defp valid_ray_square?(from, to, -9) do
     to in 0..63 and rem(to, 8) == rem(from, 8) - 1
-  end
-
-  defp put_piece({square, piece}, board) do
-    put(board, square, piece)
   end
 
   defp set_piece(board, square, :white, :pawn) do

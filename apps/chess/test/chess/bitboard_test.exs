@@ -249,6 +249,36 @@ defmodule Chess.BitboardTest do
   end
 
   describe "from_position/1" do
+    test "preserves every color and piece type on all 64 squares" do
+      for square <- 0..63,
+          color <- [:white, :black],
+          type <- [:pawn, :knight, :bishop, :rook, :queen, :king] do
+        piece = {color, type}
+        position = Position.new() |> Position.put_piece(square, piece)
+        expected = Bitboard.empty() |> Bitboard.put(square, piece)
+
+        assert Bitboard.from_position(position) == expected
+      end
+    end
+
+    test "preserves different pieces across a completely occupied board" do
+      piece_types = [:pawn, :knight, :bishop, :rook, :queen, :king]
+
+      {position, expected} =
+        Enum.reduce(0..63, {Position.new(), Bitboard.empty()}, fn square, {position, expected} ->
+          color = if rem(square, 2) == 0, do: :white, else: :black
+          type = Enum.at(piece_types, rem(div(square, 2), length(piece_types)))
+          piece = {color, type}
+
+          {
+            Position.put_piece(position, square, piece),
+            Bitboard.put(expected, square, piece)
+          }
+        end)
+
+      assert Bitboard.from_position(position) == expected
+    end
+
     test "converts a position to a bitboard" do
       position = Position.starting_position()
 
