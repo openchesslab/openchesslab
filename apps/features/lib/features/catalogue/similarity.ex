@@ -8,6 +8,12 @@ defmodule Features.Catalogue.Similarity do
   reference (the starting position); use `Features.compare/2` or pass a
   `:reference` option to `Features.extract/2` to compare against any
   other position.
+
+  `similarity.pawn_edit_distance` is a symmetric minimum number of pawn
+  occupancy edits: each insertion, removal, single-rank push or single-rank
+  diagonal displacement costs one. It does not validate legal moves. This
+  differs from the directional and bounded pawn-edit neighborhood search
+  in `Chess.PawnStructure.EditDistance`.
   """
 
   import Bitwise
@@ -149,13 +155,63 @@ defmodule Features.Catalogue.Similarity do
 
   defp pawn_edit_distance(%{a: a, b: b}), do: pawn_edit_distance(a, b)
 
+  # Symmetric minimum edit count over pawn occupancies, per color.
+  # One insertion, removal, one-rank push (either direction), or one-rank
+  # diagonal displacement costs one edit. Edits ignore non-pawn occupancy
+  # and move legality. Unlike the directional, bounded Chess.PawnStructure
+  # search API, insertions are allowed here so compare(a, b) == compare(b, a).
+  #
+  # Start with the cost of removing and adding every different pawn. Every
+  # possible one-step relocation saves one edit. Maximum bipartite matching
+  # avoids counting the same source or destination pawn more than once.
   defp pawn_edit_distance(a, b) do
-    Enum.count(0..7, fn file ->
-      mask = Support.file_bb(file)
+    Enum.reduce(Board.colors(), 0, fn color, distance ->
+      original = pawn_bb(a, color)
+      updated = pawn_bb(b, color)
 
-      (pawn_bb(a, :white) &&& mask) != (pawn_bb(b, :white) &&& mask) or
-        (pawn_bb(a, :black) &&& mask) != (pawn_bb(b, :black) &&& mask)
+      removed = Bitboard.squares(original &&& bnot(updated))
+      added = Bitboard.squares(updated &&& bnot(original))
+      matched = maximum_one_step_matches(removed, added)
+
+      distance + length(removed) + length(added) - matched
     end)
+  end
+
+  defp maximum_one_step_matches(removed, added) do
+    Enum.reduce(removed, %{}, fn source, matches ->
+      case augment_pawn_match(source, added, matches, []) do
+        {:ok, updated} -> updated
+        :no_match -> matches
+      end
+    end)
+    |> map_size()
+  end
+
+  defp augment_pawn_match(source, added, matches, visited) do
+    Enum.reduce_while(added, :no_match, fn destination, _acc ->
+      if one_step_displacement?(source, destination) and destination not in visited do
+        case Map.fetch(matches, destination) do
+          :error ->
+            {:halt, {:ok, Map.put(matches, destination, source)}}
+
+          {:ok, previous_source} ->
+            case augment_pawn_match(previous_source, added, matches, [destination | visited]) do
+              {:ok, updated} ->
+                {:halt, {:ok, Map.put(updated, destination, source)}}
+
+              :no_match ->
+                {:cont, :no_match}
+            end
+        end
+      else
+        {:cont, :no_match}
+      end
+    end)
+  end
+
+  defp one_step_displacement?(source, destination) do
+    abs(Square.rank(source) - Square.rank(destination)) == 1 and
+      abs(Square.file(source) - Square.file(destination)) <= 1
   end
 
   defp one_pawn_shifted?(%{a: a, b: b}) do

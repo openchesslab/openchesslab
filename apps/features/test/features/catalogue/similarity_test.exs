@@ -58,17 +58,75 @@ defmodule Features.Catalogue.SimilarityTest do
     assert features["similarity.mirrored_position"] == true
   end
 
-  test "a single shifted pawn" do
+  test "a two-rank pawn advance takes two elementary edits" do
     e4 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1"
 
     features = compare(@start, e4)
 
     assert features["similarity.one_pawn_shifted"] == true
-    assert features["similarity.pawn_edit_distance"] == 1
-    assert features["similarity.structural_distance"] == 1
+    assert features["similarity.pawn_edit_distance"] == 2
+    assert features["similarity.structural_distance"] == 2
     assert features["similarity.same_pawn_structure"] == false
     assert features["similarity.comparable_pawn_structure"] == true
     assert features["similarity.exact_same_position"] == false
+  end
+
+  test "one-rank pawn displacement costs one edit" do
+    before = "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1"
+    after_shift = "4k3/8/8/8/8/4P3/8/4K3 w - - 0 1"
+
+    result = compare(before, after_shift)
+    assert result["similarity.pawn_edit_distance"] == 1
+    assert result["similarity.structural_distance"] == 1
+    assert result["similarity.comparable_pawn_structure"]
+  end
+
+  test "three pawn shifts on the same file cost three edits, not one changed file" do
+    before = "4k3/8/P7/8/P7/8/P7/4K3 w - - 0 1"
+    after_shift = "4k3/P7/8/P7/8/P7/8/4K3 w - - 0 1"
+
+    result = compare(before, after_shift)
+    reverse = compare(after_shift, before)
+
+    assert result["similarity.pawn_edit_distance"] == 3
+    assert reverse["similarity.pawn_edit_distance"] == 3
+    assert result["similarity.structural_distance"] == 3
+    refute result["similarity.comparable_pawn_structure"]
+  end
+
+  test "one-rank diagonal relocation counts as one edit" do
+    before = "4k3/8/8/8/4P3/8/8/4K3 w - - 0 1"
+    after_shift = "4k3/8/8/3P4/8/8/8/4K3 w - - 0 1"
+
+    assert compare(before, after_shift)["similarity.pawn_edit_distance"] == 1
+    assert compare(after_shift, before)["similarity.pawn_edit_distance"] == 1
+  end
+
+  test "simultaneous white and black edits on one file count separately" do
+    before = "4k3/p7/8/8/8/8/P7/4K3 w - - 0 1"
+    after_shift = "4k3/8/p7/8/8/P7/8/4K3 w - - 0 1"
+
+    assert compare(before, after_shift)["similarity.pawn_edit_distance"] == 2
+    assert compare(after_shift, before)["similarity.pawn_edit_distance"] == 2
+  end
+
+  test "removal and insertion are symmetric and never change pawn color for free" do
+    white = "4k3/8/8/8/8/8/P7/4K3 w - - 0 1"
+    black = "4k3/8/8/8/8/8/p7/4K3 w - - 0 1"
+    empty = "4k3/8/8/8/8/8/8/4K3 w - - 0 1"
+
+    assert compare(white, empty)["similarity.pawn_edit_distance"] == 1
+    assert compare(empty, white)["similarity.pawn_edit_distance"] == 1
+    assert compare(white, black)["similarity.pawn_edit_distance"] == 2
+  end
+
+  test "a remote displacement takes two edits, not one local shift" do
+    before = "4k3/8/8/8/8/8/P7/4K3 w - - 0 1"
+    after_shift = "4k3/7P/8/8/8/8/8/4K3 w - - 0 1"
+
+    result = compare(before, after_shift)
+    assert result["similarity.pawn_edit_distance"] == 2
+    refute result["similarity.one_pawn_shifted"]
   end
 
   test "bishop for knight substitution" do
