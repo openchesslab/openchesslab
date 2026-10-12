@@ -152,7 +152,7 @@ defmodule Chess.Notation.SAN do
   # moves determine the canonical SAN disambiguation, including pinned pieces.
   # Castling is represented as O-O/O-O-O and retains the reference path.
   defp parse_piece_move(position, san, letter) do
-    case Regex.run(@destination_regex, san, capture: :all_but_first) do
+    case Regex.run(@destination_regex, remove_check_suffix(san), capture: :all_but_first) do
       [destination] ->
         to = Square.from_algebraic(destination)
         type = san_piece(<<letter>>)
@@ -165,7 +165,7 @@ defmodule Chess.Notation.SAN do
             {from, {^color, ^type}} ->
               move = Move.new(from, to)
 
-              if type == :king and abs(from - to) == 2 do
+              if from == to or (type == :king and abs(from - to) == 2) do
                 []
               else
                 case Position.apply_move(position, move) do

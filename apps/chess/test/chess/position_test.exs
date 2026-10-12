@@ -66,6 +66,19 @@ defmodule Chess.PositionTest do
     end
   end
 
+  test "rejects stationary rook moves without traversing a ray" do
+    for color <- [:white, :black] do
+      position =
+        Position.new(side_to_move: color)
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :king})
+        |> Position.put_piece(square("h4"), {color, :rook})
+
+      stationary_move = Move.new(square("h4"), square("h4"))
+      assert Position.apply_move(position, stationary_move) == {:error, :illegal_move}
+    end
+  end
+
   describe "position identity" do
     test "en passant is part of the position" do
       position1 =

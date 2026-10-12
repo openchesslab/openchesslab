@@ -733,7 +733,7 @@ defmodule Chess.Position do
     same_file = rem(from, 8) == rem(to, 8)
     same_rank = div(from, 8) == div(to, 8)
 
-    if same_file or same_rank do
+    if from != to and (same_file or same_rank) do
       if path_clear?(position, from, to) do
         case piece_at(position, to) do
           {^color, _piece} ->

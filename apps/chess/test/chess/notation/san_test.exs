@@ -351,6 +351,27 @@ defmodule Chess.Notation.SANTest do
     end
   end
 
+  test "targeted piece parser accepts the exact check and checkmate suffixes" do
+    checking =
+      Position.new()
+      |> Position.put_piece(square("e1"), {:white, :king})
+      |> Position.put_piece(square("a8"), {:black, :king})
+      |> Position.put_piece(square("h1"), {:white, :rook})
+
+    assert SAN.parse(checking, "Rh8+") == {:ok, move("h1", "h8")}
+    assert SAN.parse(checking, "Rh8") == {:error, :invalid_san}
+    assert SAN.parse(checking, "Rh8#") == {:error, :invalid_san}
+
+    mating =
+      Position.new()
+      |> Position.put_piece(square("f6"), {:white, :king})
+      |> Position.put_piece(square("g6"), {:white, :queen})
+      |> Position.put_piece(square("h8"), {:black, :king})
+
+    assert SAN.parse(mating, "Qg7#") == {:ok, move("g6", "g7")}
+    assert SAN.parse(mating, "Qg7+") == {:error, :invalid_san}
+  end
+
   test "formats a pawn move" do
     position = Position.starting_position()
 
