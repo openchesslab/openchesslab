@@ -6,6 +6,90 @@ defmodule Chess.Notation.SANTest do
   alias Chess.Position
   alias Chess.Square
 
+  test "resolves ordinary pawn advances without changing canonical SAN rules" do
+    start = Position.starting_position()
+    assert SAN.parse(start, "e4") == {:ok, move("e2", "e4")}
+    assert SAN.parse(start, "e3") == {:ok, move("e2", "e3")}
+    assert SAN.parse(start, "e5") == {:error, :invalid_san}
+    assert SAN.parse(start, "e4+") == {:error, :invalid_san}
+    assert SAN.parse(start, "e4#") == {:error, :invalid_san}
+
+    {:ok, after_e4} = Position.apply_move(start, move("e2", "e4"))
+    assert SAN.parse(after_e4, "e5") == {:ok, move("e7", "e5")}
+
+    blocked = Position.put_piece(start, square("e3"), {:white, :knight})
+    assert SAN.parse(blocked, "e4") == {:error, :invalid_san}
+
+    occupied = Position.put_piece(start, square("e4"), {:black, :knight})
+    assert SAN.parse(occupied, "e4") == {:error, :invalid_san}
+  end
+
+  test "a pinned pawn cannot make an illegal quiet advance" do
+    position =
+      Position.new()
+      |> Position.put_piece(square("b2"), {:white, :king})
+      |> Position.put_piece(square("h8"), {:black, :king})
+      |> Position.put_piece(square("c3"), {:white, :pawn})
+      |> Position.put_piece(square("d4"), {:black, :bishop})
+
+    assert SAN.parse(position, "c4") == {:error, :invalid_san}
+  end
+
+  test "accepts a canonical pawn check suffix and rejects other suffixes" do
+    position =
+      Position.new()
+      |> Position.put_piece(square("a1"), {:white, :king})
+      |> Position.put_piece(square("d5"), {:black, :king})
+      |> Position.put_piece(square("e3"), {:white, :pawn})
+
+    assert SAN.format(position, move("e3", "e4")) == {:ok, "e4+"}
+    assert SAN.parse(position, "e4+") == {:ok, move("e3", "e4")}
+    assert SAN.parse(position, "e4") == {:error, :invalid_san}
+    assert SAN.parse(position, "e4#") == {:error, :invalid_san}
+  end
+
+  test "quiet pawn parsing agrees with legal move SAN over representative positions" do
+    start = Position.starting_position()
+    {:ok, after_e4} = Position.apply_move(start, move("e2", "e4"))
+    {:ok, after_e5} = Position.apply_move(after_e4, move("e7", "e5"))
+    {:ok, after_nf3} = Position.apply_move(after_e5, move("g1", "f3"))
+
+    pawn_check =
+      Position.new()
+      |> Position.put_piece(square("a1"), {:white, :king})
+      |> Position.put_piece(square("d5"), {:black, :king})
+      |> Position.put_piece(square("e3"), {:white, :pawn})
+
+    for position <- [start, after_e4, after_e5, after_nf3, pawn_check] do
+      canonical =
+        position
+        |> Position.legal_moves()
+        |> Map.new(fn move ->
+          {:ok, san} = SAN.format(position, move)
+          {san, move}
+        end)
+
+      for square <- 0..63, suffix <- ["", "+", "#"] do
+        notation = Square.to_algebraic(square) <> suffix
+
+        expected =
+          case Map.fetch(canonical, notation) do
+            {:ok, move} -> {:ok, move}
+            :error -> {:error, :invalid_san}
+          end
+
+        assert SAN.parse(position, notation) == expected,
+               "Mismatch parsing #{notation} for #{inspect(position)}"
+      end
+    end
+  end
+
+  test "keeps non-pawn SAN parsing on the existing path" do
+    position = Position.starting_position()
+    assert SAN.parse(position, "Nf3") == {:ok, move("g1", "f3")}
+    assert SAN.parse(position, "Nbd2") == {:error, :invalid_san}
+  end
+
   test "formats a pawn move" do
     position = Position.starting_position()
 

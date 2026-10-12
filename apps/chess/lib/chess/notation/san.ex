@@ -40,36 +40,65 @@ defmodule Chess.Notation.SAN do
   @spec parse(Position.t(), String.t()) ::
           {:ok, Move.t()} | {:error, :invalid_san}
   def parse(%Position{} = position, san) when is_binary(san) do
-    legal_moves =
-      Position.legal_moves(position)
-
-    candidate_moves =
-      candidate_moves(
-        position,
-        san,
-        legal_moves
-      )
-
-    case Enum.find(
-           candidate_moves,
-           fn move ->
-             format_legal_move(
-               position,
-               move,
-               legal_moves
-             ) == san
-           end
-         ) do
-      %Move{} = move ->
-        {:ok, move}
-
-      nil ->
-        {:error, :invalid_san}
+    case quiet_pawn_destination(san) do
+      {:ok, to} -> parse_quiet_pawn(position, san, to)
+      :other -> parse_with_legal_moves(position, san)
     end
   end
 
   def parse(%Position{}, _san) do
     {:error, :invalid_san}
+  end
+
+  # A non-capturing pawn SAN has only a destination and optional check suffix.
+  # Captures, promotions, castling, and piece moves retain the reference parser.
+  defp quiet_pawn_destination(<<file, rank>>) when file in ?a..?h and rank in ?1..?8 do
+    {:ok, (rank - ?1) * 8 + file - ?a}
+  end
+
+  defp quiet_pawn_destination(<<file, rank, suffix>>)
+       when file in ?a..?h and rank in ?1..?8 and suffix in [?+, ?#] do
+    {:ok, (rank - ?1) * 8 + file - ?a}
+  end
+
+  defp quiet_pawn_destination(_san), do: :other
+
+  defp parse_quiet_pawn(position, san, to) do
+    if Position.piece_at(position, to) == nil do
+      color = position.side_to_move
+      advance = if color == :white, do: 8, else: -8
+
+      # One-step first, then initial-rank double-step. A pawn on the one-step
+      # origin also blocks a pawn on the double-step origin.
+      Enum.find_value([to - advance, to - 2 * advance], {:error, :invalid_san}, fn from ->
+        if from in 0..63 and Position.piece_at(position, from) == {color, :pawn} do
+          move = Move.new(from, to)
+
+          case Position.apply_move(position, move) do
+            {:ok, next_position} ->
+              canonical = Square.to_algebraic(to) <> check_suffix_after_move(next_position)
+              if canonical == san, do: {:ok, move}
+
+            {:error, :illegal_move} ->
+              nil
+          end
+        end
+      end)
+    else
+      {:error, :invalid_san}
+    end
+  end
+
+  defp parse_with_legal_moves(position, san) do
+    legal_moves = Position.legal_moves(position)
+    candidate_moves = candidate_moves(position, san, legal_moves)
+
+    case Enum.find(candidate_moves, fn move ->
+           format_legal_move(position, move, legal_moves) == san
+         end) do
+      %Move{} = move -> {:ok, move}
+      nil -> {:error, :invalid_san}
+    end
   end
 
   defp candidate_moves(position, san, legal_moves) do
@@ -407,30 +436,17 @@ defmodule Chess.Notation.SAN do
   end
 
   defp check_suffix(position, move) do
-    {:ok, next_position} =
-      Position.apply_move(
-        position,
-        move
-      )
+    {:ok, next_position} = Position.apply_move(position, move)
+    check_suffix_after_move(next_position)
+  end
 
-    opponent =
-      next_position.side_to_move
+  defp check_suffix_after_move(next_position) do
+    opponent = next_position.side_to_move
 
     cond do
-      Position.checkmate?(
-        next_position,
-        opponent
-      ) ->
-        "#"
-
-      Position.in_check?(
-        next_position,
-        opponent
-      ) ->
-        "+"
-
-      true ->
-        ""
+      Position.checkmate?(next_position, opponent) -> "#"
+      Position.in_check?(next_position, opponent) -> "+"
+      true -> ""
     end
   end
 
