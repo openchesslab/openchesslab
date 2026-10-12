@@ -113,6 +113,34 @@ defmodule Analysis.GameRecords do
     {:error, :invalid_record_id}
   end
 
+  @type replayed_batch_entry ::
+          {GameRecord.id(), Position.t(), [Move.t()], GameStart.t(), GameRecord.metadata(),
+           [GameReplay.occurrence()]}
+
+  @doc """
+  Atomically persists a bounded group of already-validated game replays.
+
+  Each entry has the same six arguments as `create_replayed/6`, packaged in a
+  tuple. All positions are inserted in one shared batch, then canonical games
+  and concrete records are written in input order in the same transaction.
+
+  The return order matches the input order. Failures associated with an entry
+  are returned as `{:error, {one_based_index, reason}}` and roll back the entire
+  group. A shared position-batch failure is returned without an entry index.
+  This is a different transaction boundary from `create_replayed/6`.
+  """
+  @spec create_replayed_many([replayed_batch_entry()]) ::
+          {:ok, [GameRecord.t()]} | {:error, term()}
+  def create_replayed_many([]), do: {:ok, []}
+
+  def create_replayed_many(entries) when is_list(entries) do
+    with {:ok, prepared} <- prepare_replayed_batch(entries) do
+      Repo.transaction(fn -> persist_replayed_batch!(prepared) end)
+    end
+  end
+
+  def create_replayed_many(_entries), do: {:error, :invalid_batch}
+
   @spec get(GameRecord.id()) ::
           {:ok, GameRecord.t()}
           | :not_found
@@ -145,6 +173,102 @@ defmodule Analysis.GameRecords do
            :game_record_store,
            reason
          }}
+    end
+  end
+
+  defp prepare_replayed_batch(entries) do
+    entries
+    |> Enum.with_index(1)
+    |> Enum.reduce_while({:ok, MapSet.new(), []}, fn {entry, index}, {:ok, seen_ids, prepared} ->
+      case prepare_replayed_entry(entry) do
+        {:ok, %{record_id: record_id} = item} ->
+          if MapSet.member?(seen_ids, record_id) do
+            {:halt, {:error, {index, :duplicate_record_id}}}
+          else
+            {:cont, {:ok, MapSet.put(seen_ids, record_id), [item | prepared]}}
+          end
+
+        {:error, reason} ->
+          {:halt, {:error, {index, reason}}}
+      end
+    end)
+    |> case do
+      {:ok, _seen_ids, prepared} -> {:ok, Enum.reverse(prepared)}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  defp prepare_replayed_entry(
+         {record_id, %Position{} = initial_position, moves, %GameStart{} = start, metadata,
+          replay}
+       )
+       when is_list(moves) and is_list(replay) do
+    cond do
+      not (is_binary(record_id) and byte_size(record_id) > 0) ->
+        {:error, :invalid_record_id}
+
+      not GameRecord.valid_metadata?(metadata) ->
+        {:error, :invalid_metadata}
+
+      true ->
+        case validate_replay(moves, replay) do
+          {:ok, replay_positions} ->
+            {:ok,
+             %{
+               record_id: record_id,
+               moves: moves,
+               start: start,
+               metadata: metadata,
+               positions: [initial_position | replay_positions]
+             }}
+
+          {:error, _reason} = error ->
+            error
+        end
+    end
+  end
+
+  defp prepare_replayed_entry(_entry), do: {:error, :invalid_replayed_game}
+
+  defp persist_replayed_batch!(prepared) do
+    positions = Enum.flat_map(prepared, & &1.positions)
+
+    case append_positions(positions) do
+      {:ok, position_ids} ->
+        {records, remaining_ids} =
+          prepared
+          |> Enum.with_index(1)
+          |> Enum.map_reduce(position_ids, fn {entry, index}, remaining_ids ->
+            expected_count = length(entry.positions)
+            {ids, rest} = Enum.split(remaining_ids, expected_count)
+
+            if length(ids) != expected_count do
+              Repo.rollback({index, :unexpected_position_count})
+            end
+
+            [initial_id | _] = ids
+            content = GameContent.new(initial_id, entry.moves)
+
+            result =
+              with {:ok, fingerprint} <- fingerprint(content),
+                   {:ok, game_id} <- store_canonical_game(fingerprint, content, ids) do
+                store_game_record(entry.record_id, game_id, entry.start, entry.metadata)
+              end
+
+            case result do
+              {:ok, record} -> {record, rest}
+              {:error, reason} -> Repo.rollback({index, reason})
+            end
+          end)
+
+        if remaining_ids != [] do
+          Repo.rollback({:unexpected_position_count, length(remaining_ids)})
+        end
+
+        records
+
+      {:error, reason} ->
+        Repo.rollback(reason)
     end
   end
 
