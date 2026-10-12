@@ -52,7 +52,7 @@ defmodule Features.Catalogue.Pawns do
 
           squares_of(board, color)
           |> Enum.filter(fn square ->
-            Square.file(square) <= 3 and isolated?(square, groups)
+            Square.file(square) == 3 and isolated?(square, groups)
           end)
           |> to_alg()
         end)

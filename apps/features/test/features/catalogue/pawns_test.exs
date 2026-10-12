@@ -70,17 +70,38 @@ defmodule Features.Catalogue.PawnsTest do
     assert features["pawns.color_mirrored"]
   end
 
-  test "isolated pawns, islands and IQPs" do
+  test "isolated a- and c-file pawns are not IQPs" do
     features = extract("4k3/8/8/8/8/8/P1P5/4K3 w - - 0 1")
 
     assert features["pawns.isolated"]["white"] == ~w(a2 c2)
-    assert features["pawns.iqp"]["white"] == ~w(a2 c2)
+    assert features["pawns.iqp"]["white"] == []
     assert features["pawns.islands"] == %{"white" => 2, "black" => 0}
     assert features["pawns.weak"]["white"] == ~w(a2 c2)
     assert features["pawns.backward"]["white"] == ~w(a2 c2)
     assert features["pawns.structure_gap"] == nil
     assert features["pawns.count_anomaly"] == %{"white" => 6, "black" => 8}
     refute features["pawns.color_mirrored"]
+  end
+
+  test "a white isolated d-file pawn is an IQP, but an isolated a-pawn is not" do
+    features = extract("4k3/8/8/8/3P4/8/P7/4K3 w - - 0 1")
+
+    assert features["pawns.isolated"]["white"] == ~w(a2 d4)
+    assert features["pawns.iqp"] == %{"white" => ["d4"], "black" => []}
+  end
+
+  test "a black isolated d-file pawn is an IQP, but an isolated a-pawn is not" do
+    features = extract("4k3/p7/8/3p4/8/8/8/4K3 b - - 0 1")
+
+    assert features["pawns.isolated"]["black"] == ~w(d5 a7)
+    assert features["pawns.iqp"] == %{"white" => [], "black" => ["d5"]}
+  end
+
+  test "a d-file pawn with a pawn on an adjacent file is not an IQP" do
+    features = extract("4k3/8/8/8/3P4/4P3/8/4K3 w - - 0 1")
+
+    assert features["pawns.iqp"] == %{"white" => [], "black" => []}
+    refute "d4" in features["pawns.isolated"]["white"]
   end
 
   test "doubled and tripled pawns" do
