@@ -211,4 +211,19 @@ defmodule Features.Catalogue.PawnsTest do
     assert features["pawns.structure"]["white"][2] == [2]
     assert features["pawns.structure"]["black"][2] == [4]
   end
+
+  test "separate diagonal pawn chains stay separate for both colors" do
+    features =
+      Features.extract("4k3/1p3p2/2p3p1/8/8/2P3P1/1P3P2/4K3 w - - 0 1", sections: [3]).features
+
+    assert features["pawns.chains"] == %{
+             "white" => [["b2", "c3"], ["f2", "g3"]],
+             "black" => [["b7", "c6"], ["f7", "g6"]]
+           }
+
+    assert features["pawns.chain_bases"] == %{
+             "white" => ["b2", "f2"],
+             "black" => ["b7", "f7"]
+           }
+  end
 end

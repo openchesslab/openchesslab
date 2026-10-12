@@ -472,13 +472,15 @@ defmodule Features.Catalogue.Pawns do
     graph =
       Map.new(squares, fn square -> {square, Enum.filter(squares, &paired?(square, &1))} end)
 
+    # There are at most eight pawns per color in a legal position. Lists keep
+    # the connected-component traversal simple and avoid MapSet opacity issues.
     {components, _seen} =
-      Enum.reduce(squares, {[], MapSet.new()}, fn square, {components, seen} ->
-        if MapSet.member?(seen, square) do
+      Enum.reduce(squares, {[], []}, fn square, {components, seen} ->
+        if square in seen do
           {components, seen}
         else
           component = component(square, graph)
-          {[component | components], MapSet.union(seen, component)}
+          {[component | components], component ++ seen}
         end
       end)
 
@@ -487,17 +489,15 @@ defmodule Features.Catalogue.Pawns do
     |> Enum.sort()
   end
 
-  defp component(start, graph) do
-    do_component([start], MapSet.new(), graph)
-  end
+  defp component(start, graph), do: do_component([start], [], graph)
 
   defp do_component([], visited, _graph), do: visited
 
   defp do_component([square | rest], visited, graph) do
-    if MapSet.member?(visited, square) do
+    if square in visited do
       do_component(rest, visited, graph)
     else
-      do_component(graph[square] ++ rest, MapSet.put(visited, square), graph)
+      do_component(graph[square] ++ rest, [square | visited], graph)
     end
   end
 

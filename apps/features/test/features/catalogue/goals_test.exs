@@ -86,4 +86,10 @@ defmodule Features.Catalogue.GoalsTest do
     assert features["goals.blockade_isolated_pawn"] == %{"white" => ~w(f3), "black" => []}
     assert features["goals.blockade_passed_pawn"] == %{"white" => ~w(f2), "black" => []}
   end
+
+  test "rook lift squares are the third and fourth ranks for white and fifth and sixth for black" do
+    features = Features.extract("4k3/8/7r/8/8/R7/8/4K3 w - - 0 1", sections: [15]).features
+
+    assert features["goals.rook_lift"] == %{"white" => ["a3"], "black" => ["h6"]}
+  end
 end

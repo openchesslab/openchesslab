@@ -474,12 +474,12 @@ defmodule Features.Catalogue.Goals do
   end
 
   defp rook_lifts(board, color) do
-    ranks = if color == :white, do: MapSet.new([2, 3]), else: MapSet.new([4, 5])
+    ranks = if color == :white, do: 2..3, else: 4..5
 
     board
     |> Board.piece_bb(color, :rooks)
     |> Bitboard.squares()
-    |> Enum.filter(&MapSet.member?(ranks, Square.rank(&1)))
+    |> Enum.filter(&Enum.member?(ranks, Square.rank(&1)))
     |> to_alg()
   end
 
