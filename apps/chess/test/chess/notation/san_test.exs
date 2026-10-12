@@ -90,6 +90,119 @@ defmodule Chess.Notation.SANTest do
     assert SAN.parse(position, "Nbd2") == {:error, :invalid_san}
   end
 
+  test "resolves pawn captures with canonical SAN and rejects noncanonical suffixes" do
+    white =
+      Position.new()
+      |> Position.put_piece(square("e1"), {:white, :king})
+      |> Position.put_piece(square("e8"), {:black, :king})
+      |> Position.put_piece(square("e4"), {:white, :pawn})
+      |> Position.put_piece(square("d5"), {:black, :pawn})
+
+    expected = move("e4", "d5")
+    assert SAN.format(white, expected) == {:ok, "exd5"}
+    assert SAN.parse(white, "exd5") == {:ok, expected}
+    assert SAN.parse(white, "exd5+") == {:error, :invalid_san}
+    assert SAN.parse(white, "exd5#") == {:error, :invalid_san}
+    assert SAN.parse(white, "fxd5") == {:error, :invalid_san}
+    assert SAN.parse(white, "exh5") == {:error, :invalid_san}
+
+    black =
+      Position.new(side_to_move: :black)
+      |> Position.put_piece(square("e1"), {:white, :king})
+      |> Position.put_piece(square("e8"), {:black, :king})
+      |> Position.put_piece(square("d5"), {:black, :pawn})
+      |> Position.put_piece(square("e4"), {:white, :pawn})
+
+    assert SAN.format(black, move("d5", "e4")) == {:ok, "dxe4"}
+    assert SAN.parse(black, "dxe4") == {:ok, move("d5", "e4")}
+  end
+
+  test "resolves en passant captures in both directions" do
+    white =
+      Position.new(side_to_move: :white, en_passant: square("d6"))
+      |> Position.put_piece(square("e1"), {:white, :king})
+      |> Position.put_piece(square("e8"), {:black, :king})
+      |> Position.put_piece(square("e5"), {:white, :pawn})
+      |> Position.put_piece(square("d5"), {:black, :pawn})
+
+    assert SAN.format(white, move("e5", "d6")) == {:ok, "exd6"}
+    assert SAN.parse(white, "exd6") == {:ok, move("e5", "d6")}
+
+    without_en_passant = %{white | en_passant: nil}
+    assert SAN.parse(without_en_passant, "exd6") == {:error, :invalid_san}
+
+    black =
+      Position.new(side_to_move: :black, en_passant: square("e3"))
+      |> Position.put_piece(square("e1"), {:white, :king})
+      |> Position.put_piece(square("e8"), {:black, :king})
+      |> Position.put_piece(square("d4"), {:black, :pawn})
+      |> Position.put_piece(square("e4"), {:white, :pawn})
+
+    assert SAN.format(black, move("d4", "e3")) == {:ok, "dxe3"}
+    assert SAN.parse(black, "dxe3") == {:ok, move("d4", "e3")}
+  end
+
+  test "rejects a capture that exposes the moving side's king" do
+    position =
+      Position.new()
+      |> Position.put_piece(square("e1"), {:white, :king})
+      |> Position.put_piece(square("a8"), {:black, :king})
+      |> Position.put_piece(square("e8"), {:black, :rook})
+      |> Position.put_piece(square("e4"), {:white, :pawn})
+      |> Position.put_piece(square("d5"), {:black, :pawn})
+
+    assert SAN.parse(position, "exd5") == {:error, :invalid_san}
+  end
+
+  test "promotion captures still use the reference SAN parser" do
+    position =
+      Position.new()
+      |> Position.put_piece(square("e1"), {:white, :king})
+      |> Position.put_piece(square("h8"), {:black, :king})
+      |> Position.put_piece(square("e7"), {:white, :pawn})
+      |> Position.put_piece(square("d8"), {:black, :rook})
+
+    promotion = Move.new(square("e7"), square("d8"), :queen)
+    assert {:ok, notation} = SAN.format(position, promotion)
+    assert SAN.parse(position, notation) == {:ok, promotion}
+  end
+
+  test "pawn capture parsing agrees with canonical formatting on representative positions" do
+    start = Position.starting_position()
+    {:ok, after_e4} = Position.apply_move(start, move("e2", "e4"))
+    {:ok, after_e5} = Position.apply_move(after_e4, move("e7", "e5"))
+
+    white =
+      Position.new()
+      |> Position.put_piece(square("e1"), {:white, :king})
+      |> Position.put_piece(square("e8"), {:black, :king})
+      |> Position.put_piece(square("e4"), {:white, :pawn})
+      |> Position.put_piece(square("d5"), {:black, :pawn})
+
+    for position <- [start, after_e4, after_e5, white] do
+      canonical =
+        position
+        |> Position.legal_moves()
+        |> Map.new(fn move ->
+          {:ok, notation} = SAN.format(position, move)
+          {notation, move}
+        end)
+
+      for source_file <- ?a..?h, destination <- 0..63, suffix <- ["", "+", "#"] do
+        notation = <<source_file, ?x>> <> Square.to_algebraic(destination) <> suffix
+
+        expected =
+          case Map.fetch(canonical, notation) do
+            {:ok, move} -> {:ok, move}
+            :error -> {:error, :invalid_san}
+          end
+
+        assert SAN.parse(position, notation) == expected,
+               "Capture mismatch for #{notation}: #{inspect(position)}"
+      end
+    end
+  end
+
   test "formats a pawn move" do
     position = Position.starting_position()
 

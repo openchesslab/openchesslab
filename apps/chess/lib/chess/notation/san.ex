@@ -41,8 +41,14 @@ defmodule Chess.Notation.SAN do
           {:ok, Move.t()} | {:error, :invalid_san}
   def parse(%Position{} = position, san) when is_binary(san) do
     case quiet_pawn_destination(san) do
-      {:ok, to} -> parse_quiet_pawn(position, san, to)
-      :other -> parse_with_legal_moves(position, san)
+      {:ok, to} ->
+        parse_quiet_pawn(position, san, to)
+
+      :other ->
+        case pawn_capture_destination(san) do
+          {:ok, source_file, to} -> parse_pawn_capture(position, san, source_file, to)
+          :other -> parse_with_legal_moves(position, san)
+        end
     end
   end
 
@@ -62,6 +68,49 @@ defmodule Chess.Notation.SAN do
   end
 
   defp quiet_pawn_destination(_san), do: :other
+
+  # Pawn captures always identify the source file. Promotions continue to
+  # use the reference SAN parser in this slice.
+  defp pawn_capture_destination(<<from_file, ?x, to_file, rank>>)
+       when from_file in ?a..?h and to_file in ?a..?h and rank in ?1..?8 do
+    {:ok, from_file, (rank - ?1) * 8 + to_file - ?a}
+  end
+
+  defp pawn_capture_destination(<<from_file, ?x, to_file, rank, suffix>>)
+       when from_file in ?a..?h and to_file in ?a..?h and rank in ?1..?8 and suffix in [?+, ?#] do
+    {:ok, from_file, (rank - ?1) * 8 + to_file - ?a}
+  end
+
+  defp pawn_capture_destination(_san), do: :other
+
+  defp parse_pawn_capture(position, san, source_file, to) do
+    color = position.side_to_move
+    destination_file = rem(to, 8)
+    origin_rank = div(to, 8) + if(color == :white, do: -1, else: 1)
+    file = source_file - ?a
+
+    if origin_rank in 0..7 and abs(file - destination_file) == 1 do
+      from = origin_rank * 8 + file
+
+      if Position.piece_at(position, from) == {color, :pawn} do
+        move = Move.new(from, to)
+
+        case Position.apply_move(position, move) do
+          {:ok, next_position} ->
+            base = <<source_file, ?x>> <> Square.to_algebraic(to)
+            canonical = base <> check_suffix_after_move(next_position)
+            if canonical == san, do: {:ok, move}, else: {:error, :invalid_san}
+
+          {:error, :illegal_move} ->
+            {:error, :invalid_san}
+        end
+      else
+        {:error, :invalid_san}
+      end
+    else
+      {:error, :invalid_san}
+    end
+  end
 
   defp parse_quiet_pawn(position, san, to) do
     if Position.piece_at(position, to) == nil do
