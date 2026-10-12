@@ -144,7 +144,7 @@ defmodule Analysis.KingSquareComparison do
 
       verify!([position])
 
-      unless candidate(position, color) == 0 do
+      if candidate(position, color) != 0 do
         raise "Direct scan failed to preserve first-matching-king behavior"
       end
     end

@@ -149,15 +149,7 @@ defmodule Chess.Position do
   end
 
   def in_check?(position, color) when color in [:white, :black] do
-    king_square =
-      position.board
-      |> Board.pieces()
-      |> Enum.find_value(fn
-        {square, {^color, :king}} -> square
-        _ -> nil
-      end)
-
-    case king_square do
+    case king_square(position, color) do
       nil ->
         false
 
@@ -470,13 +462,18 @@ defmodule Chess.Position do
     end
   end
 
-  defp king_square(position, color) do
-    position.board
-    |> Board.pieces()
-    |> Enum.find_value(fn
-      {square, {^color, :king}} -> square
-      _ -> nil
-    end)
+  defp king_square(%__MODULE__{board: board}, color) do
+    find_king_square(board, color, 0)
+  end
+
+  # Match Board.pieces/1 semantics: the lowest matching square is returned.
+  defp find_king_square(_board, _color, 64), do: nil
+
+  defp find_king_square(board, color, square) do
+    case elem(board, square) do
+      {^color, :king} -> square
+      _ -> find_king_square(board, color, square + 1)
+    end
   end
 
   defp special_candidate_moves(position) do

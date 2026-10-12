@@ -152,6 +152,33 @@ defmodule Chess.PositionTest do
   end
 
   describe "in_check?/2" do
+    test "returns false if the requested color has no king" do
+      position =
+        Position.new()
+        |> Position.put_piece(square("e8"), {:black, :rook})
+
+      refute Position.in_check?(position, :white)
+      refute Position.in_check?(position, :black)
+    end
+
+    test "checks the first matching king by ascending square, even with extra kings" do
+      first_king_safe =
+        Position.new()
+        |> Position.put_piece(square("a1"), {:white, :king})
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :rook})
+
+      refute Position.in_check?(first_king_safe, :white)
+
+      first_king_attacked =
+        Position.new()
+        |> Position.put_piece(square("e1"), {:white, :king})
+        |> Position.put_piece(square("h7"), {:white, :king})
+        |> Position.put_piece(square("e8"), {:black, :rook})
+
+      assert Position.in_check?(first_king_attacked, :white)
+    end
+
     test "white is in check when its king is attacked" do
       position =
         Position.new()
