@@ -9,10 +9,11 @@ defmodule Analysis.PgnBatchImporter do
   batch is parsed before persistence starts, so parse errors never create
   partial durable imports.
 
-  `import_stream/2` consumes an enumerable of lines one game at a time.
-  It retains only the current PGN game in memory and persists each valid
-  game before continuing. A later parse or persistence failure therefore
-  leaves the successfully imported prefix durable.
+  `import_stream/2` consumes an enumerable of lines in bounded groups of
+  ten parsed games. Successful groups commit atomically. On a group failure,
+  it retries individual games in source order, preserving the original
+  successful-prefix and one-based failure-index semantics. The group size is
+  configurable through `import_stream/3`; size one uses the original path.
 
   `import_file/2` is the file-backed entry point for strict ordered imports.
 
@@ -34,8 +35,10 @@ defmodule Analysis.PgnBatchImporter do
   """
 
   alias Analysis.GameRecord
+  alias Analysis.GameRecords
   alias Analysis.PgnImporter
 
+  @stream_batch_size 10
   @header_line_regex ~r/^\s*\[[A-Za-z0-9_]+\s+"(?:\\.|[^"])*"\]\s*$/
 
   @type parse_error ::
@@ -53,6 +56,7 @@ defmodule Analysis.PgnBatchImporter do
   @type stream_import_error ::
           parse_error()
           | :invalid_record_id_provider
+          | {:invalid_batch_size, term()}
           | {:invalid_record_id, pos_integer()}
           | {:import_failed, pos_integer(), PgnImporter.import_error()}
 
@@ -154,23 +158,57 @@ defmodule Analysis.PgnBatchImporter do
         ) ::
           {:ok, non_neg_integer()}
           | {:error, stream_import_error()}
-  def import_stream(lines, record_id_for_index) when is_function(record_id_for_index, 1) do
-    reduce_games(
-      lines,
-      0,
-      fn game, index, imported_count ->
-        import_stream_game(
-          game,
-          index,
-          imported_count,
-          record_id_for_index
-        )
-      end
-    )
+  def import_stream(lines, record_id_for_index) do
+    import_stream(lines, record_id_for_index, @stream_batch_size)
   end
 
-  def import_stream(_lines, _record_id_for_index) do
+  @doc """
+  Strict ordered streaming import with a bounded persistence group.
+
+  A size of one uses the original per-game persistence path and is retained
+  as a measurable reference. Sizes 2..10 use the atomic replay batch API.
+  A failed group is replayed individually to commit exactly the successful
+  prefix and report the first failure at its global game index.
+  """
+  @spec import_stream(
+          Enumerable.t(),
+          (pos_integer() -> GameRecord.id()),
+          pos_integer()
+        ) ::
+          {:ok, non_neg_integer()}
+          | {:error, stream_import_error()}
+  def import_stream(lines, record_id_for_index, 1) when is_function(record_id_for_index, 1) do
+    reduce_games(lines, 0, fn game, index, imported_count ->
+      import_stream_game(game, index, imported_count, record_id_for_index)
+    end)
+  end
+
+  def import_stream(lines, record_id_for_index, batch_size)
+      when is_function(record_id_for_index, 1) and is_integer(batch_size) and batch_size > 1 and
+             batch_size <= @stream_batch_size do
+    initial = %{pending: [], imported_count: 0}
+
+    case reduce_games(lines, initial, fn game, index, state ->
+           queue_stream_game(game, index, state, record_id_for_index, batch_size)
+         end) do
+      {:ok, state} ->
+        case flush_stream_games(state) do
+          {:ok, final_state} -> {:ok, final_state.imported_count}
+          {:error, _reason} = error -> error
+        end
+
+      {:error, _reason} = error ->
+        error
+    end
+  end
+
+  def import_stream(_lines, record_id_for_index, _batch_size)
+      when not is_function(record_id_for_index, 1) do
     {:error, :invalid_record_id_provider}
+  end
+
+  def import_stream(_lines, _record_id_for_index, batch_size) do
+    {:error, {:invalid_batch_size, batch_size}}
   end
 
   @spec import_stream_parallel(
@@ -600,6 +638,83 @@ defmodule Analysis.PgnBatchImporter do
          index
        }}
     end
+  end
+
+  # Parsing and record-ID validation happen in source order. A later error
+  # first flushes the preceding successful candidates: a persistence error in
+  # that prefix must win over a parse/ID error at a later index.
+  defp queue_stream_game(game, index, state, record_id_for_index, batch_size) do
+    case PgnImporter.parse(game) do
+      {:ok, parsed} ->
+        record_id = record_id_for_index.(index)
+
+        if is_binary(record_id) and byte_size(record_id) > 0 do
+          next_state = %{
+            state
+            | pending: [{index, record_id, parsed} | state.pending]
+          }
+
+          if length(next_state.pending) == batch_size do
+            flush_stream_games(next_state)
+          else
+            {:ok, next_state}
+          end
+        else
+          flush_before_stream_error(state, {:invalid_record_id, index})
+        end
+
+      {:error, {:invalid_pgn, _message} = reason} ->
+        flush_before_stream_error(state, {:invalid_game, index, reason})
+    end
+  end
+
+  defp flush_before_stream_error(state, reason) do
+    case flush_stream_games(state) do
+      {:ok, _state} -> {:error, reason}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  defp flush_stream_games(%{pending: []} = state), do: {:ok, state}
+
+  defp flush_stream_games(state) do
+    # Only one bounded group is materialized at a time; no result records are
+    # retained after a successful commit.
+    pending = Enum.reverse(state.pending)
+    entries = Enum.map(pending, &replayed_entry/1)
+
+    case GameRecords.create_replayed_many(entries) do
+      {:ok, records} ->
+        {:ok,
+         %{
+           state
+           | pending: [],
+             imported_count: state.imported_count + length(records)
+         }}
+
+      {:error, _reason} ->
+        # The atomic group rolled back. Persist the same candidates one by
+        # one until the first failure, preserving pre-batch semantics.
+        Enum.reduce_while(pending, {:ok, %{state | pending: []}}, fn
+          {index, record_id, parsed}, {:ok, current} ->
+            case PgnImporter.import_parsed(record_id, parsed) do
+              {:ok, _record} ->
+                {:cont, {:ok, %{current | imported_count: current.imported_count + 1}}}
+
+              {:error, reason} ->
+                {:halt, {:error, {:import_failed, index, reason}}}
+            end
+        end)
+    end
+  end
+
+  defp replayed_entry({_index, record_id, parsed}) do
+    metadata =
+      Map.new(parsed.headers, fn {key, value} ->
+        {Macro.underscore(key), value}
+      end)
+
+    {record_id, parsed.initial_position, parsed.moves, parsed.start, metadata, parsed.replay}
   end
 
   defp queue_parallel_game(game, index, state, record_id_for_index, max_concurrency, window_size) do
