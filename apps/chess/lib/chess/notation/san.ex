@@ -46,8 +46,17 @@ defmodule Chess.Notation.SAN do
 
       :other ->
         case pawn_capture_destination(san) do
-          {:ok, source_file, to} -> parse_pawn_capture(position, san, source_file, to)
-          :other -> parse_with_legal_moves(position, san)
+          {:ok, source_file, to} ->
+            parse_pawn_capture(position, san, source_file, to)
+
+          :other ->
+            case san do
+              <<letter, _::binary>> when letter in [?K, ?Q, ?R, ?B, ?N] ->
+                parse_piece_move(position, san, letter)
+
+              _ ->
+                parse_with_legal_moves(position, san)
+            end
         end
     end
   end
@@ -135,6 +144,80 @@ defmodule Chess.Notation.SAN do
       end)
     else
       {:error, :invalid_san}
+    end
+  end
+
+  # Ordinary piece SAN identifies a destination and piece type. Only pieces of
+  # that type are tested for legal moves to the destination. Legal competing
+  # moves determine the canonical SAN disambiguation, including pinned pieces.
+  # Castling is represented as O-O/O-O-O and retains the reference path.
+  defp parse_piece_move(position, san, letter) do
+    case Regex.run(@destination_regex, san, capture: :all_but_first) do
+      [destination] ->
+        to = Square.from_algebraic(destination)
+        type = san_piece(<<letter>>)
+        color = position.side_to_move
+
+        candidates =
+          position
+          |> Position.pieces()
+          |> Enum.flat_map(fn
+            {from, {^color, ^type}} ->
+              move = Move.new(from, to)
+
+              if type == :king and abs(from - to) == 2 do
+                []
+              else
+                case Position.apply_move(position, move) do
+                  {:ok, next_position} -> [{move, next_position}]
+                  {:error, :illegal_move} -> []
+                end
+              end
+
+            _ ->
+              []
+          end)
+
+        Enum.find_value(candidates, {:error, :invalid_san}, fn {move, next_position} ->
+          disambiguation = piece_candidate_disambiguation(move, candidates)
+          capture_marker = if Position.piece_at(position, to) == nil, do: "", else: "x"
+
+          canonical =
+            <<letter>> <>
+              disambiguation <>
+              capture_marker <>
+              destination <>
+              check_suffix_after_move(next_position)
+
+          if canonical == san, do: {:ok, move}
+        end)
+
+      _ ->
+        {:error, :invalid_san}
+    end
+  end
+
+  defp piece_candidate_disambiguation(move, candidates) do
+    alternatives = Enum.reject(candidates, fn {candidate, _next} -> candidate == move end)
+
+    case alternatives do
+      [] ->
+        ""
+
+      _ ->
+        source = Square.to_algebraic(move.from)
+
+        same_file? =
+          Enum.any?(alternatives, fn {other, _} -> rem(other.from, 8) == rem(move.from, 8) end)
+
+        same_rank? =
+          Enum.any?(alternatives, fn {other, _} -> div(other.from, 8) == div(move.from, 8) end)
+
+        cond do
+          not same_file? -> String.first(source)
+          not same_rank? -> String.last(source)
+          true -> source
+        end
     end
   end
 

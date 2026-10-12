@@ -203,6 +203,154 @@ defmodule Chess.Notation.SANTest do
     end
   end
 
+  test "resolves ordinary piece SAN and rejects noncanonical checks and captures" do
+    start = Position.starting_position()
+    assert SAN.parse(start, "Nf3") == {:ok, move("g1", "f3")}
+    assert SAN.parse(start, "Nf3+") == {:error, :invalid_san}
+    assert SAN.parse(start, "Nf3#") == {:error, :invalid_san}
+    assert SAN.parse(start, "Nxf3") == {:error, :invalid_san}
+    assert SAN.parse(start, "Ng3") == {:error, :invalid_san}
+
+    {:ok, after_e4} = Position.apply_move(start, move("e2", "e4"))
+    {:ok, after_e5} = Position.apply_move(after_e4, move("e7", "e5"))
+    assert SAN.parse(after_e5, "Bc4") == {:ok, move("f1", "c4")}
+
+    queen =
+      Position.new()
+      |> Position.put_piece(square("a1"), {:white, :king})
+      |> Position.put_piece(square("a8"), {:black, :king})
+      |> Position.put_piece(square("d1"), {:white, :queen})
+
+    assert SAN.format(queen, move("d1", "h5")) == {:ok, "Qh5"}
+    assert SAN.parse(queen, "Qh5") == {:ok, move("d1", "h5")}
+
+    rook =
+      Position.new()
+      |> Position.put_piece(square("a1"), {:white, :king})
+      |> Position.put_piece(square("a8"), {:black, :king})
+      |> Position.put_piece(square("h1"), {:white, :rook})
+
+    assert SAN.format(rook, move("h1", "h3")) == {:ok, "Rh3"}
+    assert SAN.parse(rook, "Rh3") == {:ok, move("h1", "h3")}
+
+    king =
+      Position.new()
+      |> Position.put_piece(square("e1"), {:white, :king})
+      |> Position.put_piece(square("a8"), {:black, :king})
+
+    assert SAN.format(king, move("e1", "e2")) == {:ok, "Ke2"}
+    assert SAN.parse(king, "Ke2") == {:ok, move("e1", "e2")}
+  end
+
+  test "uses only legal competitors for piece SAN disambiguation" do
+    knights =
+      Position.new()
+      |> Position.put_piece(square("e1"), {:white, :king})
+      |> Position.put_piece(square("e8"), {:black, :king})
+      |> Position.put_piece(square("b1"), {:white, :knight})
+      |> Position.put_piece(square("f1"), {:white, :knight})
+
+    assert SAN.parse(knights, "Nbd2") == {:ok, move("b1", "d2")}
+    assert SAN.parse(knights, "Nfd2") == {:ok, move("f1", "d2")}
+    assert SAN.parse(knights, "Nd2") == {:error, :invalid_san}
+    assert SAN.parse(knights, "Nb1d2") == {:error, :invalid_san}
+
+    rooks =
+      Position.new()
+      |> Position.put_piece(square("e1"), {:white, :king})
+      |> Position.put_piece(square("e8"), {:black, :king})
+      |> Position.put_piece(square("a1"), {:white, :rook})
+      |> Position.put_piece(square("a3"), {:white, :rook})
+
+    assert SAN.parse(rooks, "R1a2") == {:ok, move("a1", "a2")}
+    assert SAN.parse(rooks, "R3a2") == {:ok, move("a3", "a2")}
+    assert SAN.parse(rooks, "Ra2") == {:error, :invalid_san}
+
+    both =
+      Position.new()
+      |> Position.put_piece(square("e1"), {:white, :king})
+      |> Position.put_piece(square("e8"), {:black, :king})
+      |> Position.put_piece(square("b1"), {:white, :knight})
+      |> Position.put_piece(square("b3"), {:white, :knight})
+      |> Position.put_piece(square("f1"), {:white, :knight})
+
+    assert SAN.parse(both, "Nb1d2") == {:ok, move("b1", "d2")}
+    assert SAN.parse(both, "Nbd2") == {:error, :invalid_san}
+
+    pinned =
+      Position.new()
+      |> Position.put_piece(square("e1"), {:white, :king})
+      |> Position.put_piece(square("e2"), {:white, :knight})
+      |> Position.put_piece(square("c2"), {:white, :knight})
+      |> Position.put_piece(square("e8"), {:black, :rook})
+      |> Position.put_piece(square("a8"), {:black, :king})
+
+    assert SAN.parse(pinned, "Nd4") == {:ok, move("c2", "d4")}
+    assert SAN.parse(pinned, "Ncd4") == {:error, :invalid_san}
+  end
+
+  test "keeps piece captures, checkmate and castling canonical" do
+    capture =
+      Position.new()
+      |> Position.put_piece(square("e1"), {:white, :king})
+      |> Position.put_piece(square("e8"), {:black, :king})
+      |> Position.put_piece(square("f3"), {:white, :knight})
+      |> Position.put_piece(square("e5"), {:black, :pawn})
+
+    assert SAN.parse(capture, "Nxe5") == {:ok, move("f3", "e5")}
+    assert SAN.parse(capture, "Ne5") == {:error, :invalid_san}
+
+    mate =
+      Position.new()
+      |> Position.put_piece(square("f6"), {:white, :king})
+      |> Position.put_piece(square("g6"), {:white, :queen})
+      |> Position.put_piece(square("h8"), {:black, :king})
+
+    assert SAN.parse(mate, "Qg7#") == {:ok, move("g6", "g7")}
+    assert SAN.parse(mate, "Qg7+") == {:error, :invalid_san}
+
+    castle =
+      Position.new(castling_rights: MapSet.new([:white_kingside]))
+      |> Position.put_piece(square("e1"), {:white, :king})
+      |> Position.put_piece(square("h1"), {:white, :rook})
+      |> Position.put_piece(square("e8"), {:black, :king})
+
+    assert SAN.parse(castle, "O-O") == {:ok, move("e1", "g1")}
+    assert SAN.parse(castle, "Kg1") == {:error, :invalid_san}
+  end
+
+  test "piece parsing agrees with canonical move formatting for representative positions" do
+    start = Position.starting_position()
+    {:ok, after_e4} = Position.apply_move(start, move("e2", "e4"))
+    {:ok, after_e5} = Position.apply_move(after_e4, move("e7", "e5"))
+    {:ok, after_nf3} = Position.apply_move(after_e5, move("g1", "f3"))
+
+    positions = [start, after_e4, after_e5, after_nf3]
+
+    for position <- positions do
+      canonical =
+        position
+        |> Position.legal_moves()
+        |> Map.new(fn move ->
+          {:ok, notation} = SAN.format(position, move)
+          {notation, move}
+        end)
+
+      for piece <- ["K", "Q", "R", "B", "N"], destination <- 0..63, suffix <- ["", "+", "#"] do
+        notation = piece <> Square.to_algebraic(destination) <> suffix
+
+        expected =
+          case Map.fetch(canonical, notation) do
+            {:ok, move} -> {:ok, move}
+            :error -> {:error, :invalid_san}
+          end
+
+        assert SAN.parse(position, notation) == expected,
+               "Piece SAN mismatch for #{notation} at #{inspect(position)}"
+      end
+    end
+  end
+
   test "formats a pawn move" do
     position = Position.starting_position()
 
