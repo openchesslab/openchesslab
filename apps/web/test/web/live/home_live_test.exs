@@ -22,20 +22,18 @@ defmodule Web.HomeLiveTest do
     assert {:error, {:live_redirect, %{to: first_path}}} =
              render_submit(first, "create-room", %{})
 
+    first_code = String.replace_prefix(first_path, "/rooms/", "")
+    on_exit(fn -> Analysis.Rooms.stop_room(first_code) end)
+
     {:ok, second, _html} = live(build_conn(), "/")
 
     assert {:error, {:live_redirect, %{to: second_path}}} =
              render_submit(second, "create-room", %{})
 
-    refute first_path == second_path
-
-    first_code = String.replace_prefix(first_path, "/rooms/", "")
     second_code = String.replace_prefix(second_path, "/rooms/", "")
+    on_exit(fn -> Analysis.Rooms.stop_room(second_code) end)
 
-    on_exit(fn ->
-      Analysis.Rooms.stop_room(first_code)
-      Analysis.Rooms.stop_room(second_code)
-    end)
+    refute first_path == second_path
 
     assert {:ok, _room} = Analysis.Rooms.get(first_code)
     assert {:ok, _room} = Analysis.Rooms.get(second_code)
@@ -45,6 +43,10 @@ defmodule Web.HomeLiveTest do
     {:ok, view, _html} = live(conn, "/")
 
     assert {:error, {:live_redirect, %{to: path}}} = render_submit(view, "create-room", %{})
+
+    code = String.replace_prefix(path, "/rooms/", "")
+    on_exit(fn -> Analysis.Rooms.stop_room(code) end)
+
     assert path =~ ~r|^/rooms/[A-HJ-NP-Z2-9]{6}$|
   end
 end

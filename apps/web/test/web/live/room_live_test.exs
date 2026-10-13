@@ -35,6 +35,56 @@ defmodule Web.RoomLiveTest do
     assert {:ok, _analysis, _revision} = Analyses.get(analysis_id)
   end
 
+  test "saved analysis links restore moves after their room worker stops", %{
+    conn: conn,
+    code: code
+  } do
+    {:ok, first_view, _html} = live(conn, "/rooms/#{code}")
+    render_click(first_view, "create-analysis", %{})
+
+    first_view
+    |> element("#chess-board")
+    |> render_hook("board-move", %{"from" => 12, "to" => 28})
+
+    analysis_id = room_analysis_id!(code)
+    saved_url = "/rooms/#{code}?a=#{analysis_id}"
+
+    [{worker, _value}] = Horde.Registry.lookup(Analysis.RoomRegistry, code)
+    ref = Process.monitor(worker)
+    assert :ok = Horde.DynamicSupervisor.terminate_child(Analysis.RoomSupervisor, worker)
+    assert_receive {:DOWN, ^ref, :process, ^worker, _reason}, 1_000
+    assert :ok = wait_until_room_unregistered(code)
+
+    {:ok, restored_view, html} = live(build_conn(), saved_url)
+
+    # Analysis deep links select the analysis, but start at its root position.
+    assert html =~ ~s(data-move-path="0")
+    assert html =~ ~s(aria-label="occupied by white pawn e2")
+
+    # Selecting the saved move must display its durable resulting position.
+    html = render_click(restored_view, "last-move", %{})
+    assert html =~ ~s(aria-label="occupied by white pawn e4")
+    assert html =~ "1/1"
+
+    assert {:ok, restored_room} = Rooms.get(code)
+    assert analysis_id in Analysis.Room.analysis_ids(restored_room)
+  end
+
+  test "unknown room links never create durable rooms", %{conn: conn} do
+    code = "UN" <> Base.encode16(:crypto.strong_rand_bytes(2))
+    on_exit(fn -> Rooms.stop_room(code) end)
+    assert :not_found = Rooms.get(code)
+    assert :not_found = Analysis.RoomStore.get(code)
+
+    {:ok, view, html} = live(conn, "/rooms/#{code}")
+    assert html =~ "OpenChessLab"
+    refute html =~ ~s(id="room-shell")
+
+    assert :not_found = Rooms.get(code)
+    assert :not_found = Analysis.RoomStore.get(code)
+    assert render(view) =~ "OpenChessLab"
+  end
+
   test "a completed board drag is validated and persisted as a move", %{conn: conn, code: code} do
     {:ok, view, _html} = live(conn, "/rooms/#{code}")
     _html = render_click(view, "create-analysis", %{})
@@ -763,6 +813,21 @@ defmodule Web.RoomLiveTest do
          ) do
       [style] -> style
       _ -> flunk("no highlight style found for square #{square}")
+    end
+  end
+
+  defp wait_until_room_unregistered(code, attempts \\ 100)
+
+  defp wait_until_room_unregistered(_code, 0), do: {:error, :room_still_registered}
+
+  defp wait_until_room_unregistered(code, attempts) do
+    case Horde.Registry.lookup(Analysis.RoomRegistry, code) do
+      [] ->
+        :ok
+
+      _workers ->
+        Process.sleep(10)
+        wait_until_room_unregistered(code, attempts - 1)
     end
   end
 
