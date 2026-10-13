@@ -154,9 +154,19 @@ Migration `20261013180000_create_lichess_oauth_attempts.exs` stores only SHA-256
 
 These are protocol primitives, not installed cookies or HTTP routes. Future controllers must initiate via CSRF-protected POST, set the encrypted browser token in an HttpOnly/Secure/SameSite=Lax cookie, read it only from that cookie (never callback parameters), and clear it on callback. Consume before token exchange, including on denial; a failed exchange requires a fresh attempt. Client ID and redirect URI must come from trusted configuration and match the original request. This flow does not yet verify a Lichess identity, create a user session or support account linking.
 
-### Not implemented: provider exchange and web authentication/access control
+### Implemented after `071d3e3`: provider exchange and identity verification
 
-- No OAuth2 authorization/callback endpoints, provider profile verification, browser login/logout, browser identity plug, protected LiveView mount, account-grant storage, or Lichess library import/sync. Session storage and state/PKCE primitives now exist as described above.
+`Web.LichessOAuth.verify_callback/4` consumes a pending attempt before any HTTP request, exchanges its code/verifier with `POST https://lichess.org/api/token`, and retrieves the authenticated account using `GET https://lichess.org/api/account`. Its configuration argument must be supplied by trusted server code and contain the client ID and exact redirect URI used at authorization; there is no callback-parameter configuration or runtime OAuth enablement yet. The optional fifth argument is an HTTP test seam. The caller must obtain the browser token from its protected cookie; provider denial still uses the attempt module's `cancel/2`.
+
+The client validates successful JSON responses, bearer token metadata and the account `id`. It returns only `%{provider: "lichess", subject: id}`; it never substitutes the display username. The returned subject is transient verified provider data and must be HMAC'd by `Analysis.Accounts` before persistence. The rest of the profile is discarded, including any names. No users, account links or sessions are created by this operation.
+
+Once a syntactically usable access token is received, the client calls `DELETE https://lichess.org/api/token` even when profile/metadata validation fails. Successful verification requires a 204 revocation response. Errors contain only fixed atoms, not provider responses, codes, tokens or profile data. Network failures/process termination can still leave a Lichess grant alive; this implementation does not persist credentials to retry revocation and cannot guarantee remote revocation in those cases.
+
+The existing OTP `:httpc` client is used; `:inets` and `:ssl` are declared runtime applications, with no new Hex dependency. Provider URLs are fixed HTTPS origins, certificate/hostname verification is enabled, redirects and Retry-After retries are disabled, connection/request timeouts are 5/10 seconds, and response headers/body are limited to 8/64 KiB. Non-loopback HTTP redirect URIs are rejected; local development callbacks may use HTTP. Tests use controlled responses and a loopback HTTP provider fixture, not a real Lichess account or a live OAuth grant. Browser integration and atomic internal-user resolution remain separate slices.
+
+### Not implemented: user resolution and web authentication/access control
+
+- No OAuth2 authorization/callback endpoints, atomic first-login user resolution, browser login/logout, browser identity plug, protected LiveView mount, account-grant storage, or Lichess library import/sync. Session storage, state/PKCE primitives and provider verification now exist as described above.
 - `user_sessions` now exists as described above; `account_grants` remains a proposal. Avoid assuming Better Auth (a different ecosystem) is installed; **User → multiple Accounts is the adopted *model***, not a library dependency.
 - Users should not see unrelated users' analyses by default once ownership/scoping is introduced. Existing room collaboration remains link-based, guest-capable; future policy must define who can view, edit, claim or share analyses, and how anonymous work joins authenticated libraries. No automatic linkage based on matching email addresses.
 
