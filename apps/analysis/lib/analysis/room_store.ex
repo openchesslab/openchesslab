@@ -15,6 +15,13 @@ defmodule Analysis.RoomStore do
   ON CONFLICT (id) DO NOTHING
   """
 
+  @create_unique_sql """
+  INSERT INTO rooms (id)
+  VALUES ($1)
+  ON CONFLICT (id) DO NOTHING
+  RETURNING id
+  """
+
   @get_sql """
   SELECT
     rooms.id,
@@ -43,6 +50,15 @@ defmodule Analysis.RoomStore do
   @delete_sql """
   DELETE FROM rooms WHERE id = $1
   """
+
+  @doc "Atomically reserve a fresh room code without joining an existing room."
+  @spec create(String.t()) :: :ok | {:error, :already_exists}
+  def create(id) when is_binary(id) and byte_size(id) > 0 do
+    case Repo.query!(@create_unique_sql, [id]).rows do
+      [[^id]] -> :ok
+      [] -> {:error, :already_exists}
+    end
+  end
 
   @spec ensure(String.t()) :: :ok
   def ensure(id) when is_binary(id) and byte_size(id) > 0 do

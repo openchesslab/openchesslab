@@ -15,6 +15,22 @@ defmodule Analysis.Rooms do
 
   @type options :: [option()]
 
+  @doc "Create a new room; unlike `start_room/2`, never reuse an existing code."
+  @spec create_room(Room.id(), options()) ::
+          {:ok, Room.t()} | {:error, :already_exists | :not_found}
+  def create_room(room_id, opts \\ []) do
+    case RoomStore.create(room_id) do
+      :ok ->
+        case lookup(registry(opts), room_id, opts) do
+          {:ok, pid} -> {:ok, RoomServer.get(pid)}
+          :not_found -> {:error, :not_found}
+        end
+
+      {:error, :already_exists} = error ->
+        error
+    end
+  end
+
   @spec start_room(
           Room.id(),
           options()

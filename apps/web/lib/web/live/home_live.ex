@@ -5,6 +5,7 @@ defmodule Web.HomeLive do
 
   @room_code_alphabet ~c"ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
   @room_code_length 6
+  @room_create_attempts 5
 
   @impl true
   def mount(_params, session, socket) do
@@ -106,19 +107,28 @@ defmodule Web.HomeLive do
   def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   defp create_room do
-    code = new_room_code()
-
-    case Rooms.start_room(code) do
-      {:ok, _room} -> {:ok, code}
-    end
+    create_room(@room_create_attempts)
   rescue
     error -> {:error, error}
   end
 
+  defp create_room(0), do: {:error, :room_code_collisions}
+
+  defp create_room(attempts) do
+    code = new_room_code()
+
+    case Rooms.create_room(code) do
+      {:ok, _room} -> {:ok, code}
+      {:error, :already_exists} -> create_room(attempts - 1)
+      {:error, _reason} = error -> error
+    end
+  end
+
+  # 32 symbols: each secure random byte maps to one symbol without bias.
   defp new_room_code do
-    for _ <- 1..@room_code_length,
-        into: "",
-        do: <<Enum.at(@room_code_alphabet, :rand.uniform(length(@room_code_alphabet)) - 1)>>
+    for <<byte <- :crypto.strong_rand_bytes(@room_code_length)>>,
+      into: "",
+      do: <<Enum.at(@room_code_alphabet, rem(byte, length(@room_code_alphabet)))>>
   end
 
   defp normalize_code(code) when is_binary(code) do

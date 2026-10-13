@@ -48,6 +48,32 @@ defmodule Analysis.RoomsTest do
     assert room.analysis_ids == []
   end
 
+  test "creating a new room never reuses an existing room code", %{
+    room_id: room_id,
+    rooms_options: rooms_options
+  } do
+    assert {:ok, created} = Rooms.create_room(room_id, rooms_options)
+    assert created.id == room_id
+    assert :ok = Rooms.add_analysis(room_id, "analysis-1", rooms_options)
+
+    assert {:error, :already_exists} = Rooms.create_room(room_id, rooms_options)
+    assert {:ok, existing} = Rooms.get(room_id, rooms_options)
+    assert existing.analysis_ids == ["analysis-1"]
+  end
+
+  test "only one concurrent creator can claim a room code", %{room_id: room_id} do
+    results =
+      1..8
+      |> Task.async_stream(fn _ -> RoomStore.create(room_id) end,
+        max_concurrency: 8,
+        timeout: 5_000
+      )
+      |> Enum.map(fn {:ok, result} -> result end)
+
+    assert Enum.count(results, &(&1 == :ok)) == 1
+    assert Enum.count(results, &(&1 == {:error, :already_exists})) == 7
+  end
+
   test "starting an existing room is idempotent", %{
     room_id: room_id,
     rooms_options: rooms_options
