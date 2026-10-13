@@ -23,6 +23,7 @@ COPY mix.exs mix.lock ./
 COPY apps/analysis/mix.exs apps/analysis/mix.exs
 COPY apps/chess/mix.exs apps/chess/mix.exs
 COPY apps/database/mix.exs apps/database/mix.exs
+COPY apps/features/mix.exs apps/features/mix.exs
 COPY apps/web/mix.exs apps/web/mix.exs
 
 COPY config config
