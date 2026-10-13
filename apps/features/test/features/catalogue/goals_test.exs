@@ -115,6 +115,41 @@ defmodule Features.Catalogue.GoalsTest do
     assert features["goals.attack_isolated_pawn"] == %{"white" => [], "black" => ["e4"]}
   end
 
+  test "backward pawns without attackers are not active attack targets" do
+    fen = "6k1/8/4p3/8/3P4/8/2P5/6K1 w - - 0 1"
+    board = Features.Chess.FEN.parse(fen)
+
+    white_backward = Features.Catalogue.Support.backward_pawns(board, :white)
+    black_backward = Features.Catalogue.Support.backward_pawns(board, :black)
+
+    assert Enum.map(white_backward, &Features.Chess.Square.to_string/1) == ["d4"]
+    assert Enum.map(black_backward, &Features.Chess.Square.to_string/1) == ["e6"]
+
+    features = Features.extract(fen, sections: [15]).features
+    assert features["goals.attack_backward_pawn"] == %{"white" => [], "black" => []}
+  end
+
+  test "white rook attacks a black backward pawn on its square" do
+    fen = "6k1/8/4p3/8/3P4/8/2P5/4R1K1 w - - 0 1"
+    features = Features.extract(fen, sections: [15]).features
+
+    assert features["goals.attack_backward_pawn"] == %{"white" => ["e6"], "black" => []}
+  end
+
+  test "black rook attacks a white backward pawn on its square" do
+    fen = "3r2k1/8/4p3/8/3P4/8/2P5/6K1 b - - 0 1"
+    features = Features.extract(fen, sections: [15]).features
+
+    assert features["goals.attack_backward_pawn"] == %{"white" => [], "black" => ["d4"]}
+  end
+
+  test "a friendly blocker prevents a rook from attacking a backward pawn" do
+    fen = "3r2k1/8/3np3/8/3P4/8/2P5/6K1 b - - 0 1"
+    features = Features.extract(fen, sections: [15]).features
+
+    assert features["goals.attack_backward_pawn"] == %{"white" => [], "black" => []}
+  end
+
   test "rook lift squares are the third and fourth ranks for white and fifth and sixth for black" do
     features = Features.extract("4k3/8/7r/8/8/R7/8/4K3 w - - 0 1", sections: [15]).features
 

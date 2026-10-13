@@ -220,9 +220,13 @@ defmodule Features.Catalogue.Goals do
     |> to_alg()
   end
 
+  # A backward pawn is a potential weakness, not necessarily an attacked target.
   defp attack_backward_pawn(board, color) do
+    attackers = AttackMap.attack_counts(board, color)
+
     board
     |> Support.backward_pawns(Board.opposite(color))
+    |> Enum.filter(&Map.has_key?(attackers, &1))
     |> to_alg()
   end
 
