@@ -37,6 +37,7 @@ defmodule Web.Router do
 
     post("/auth/lichess", LichessAuthController, :create)
     get("/auth/lichess/callback", LichessAuthController, :callback)
+    post("/auth/logout", SessionController, :delete)
 
     live("/", HomeLive, :index)
     live("/rooms/:code", RoomLive, :show)

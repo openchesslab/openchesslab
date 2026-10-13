@@ -233,9 +233,15 @@ Starting from clean `main` at `43a0ca666f147b746ab5f3815f53f524fbf349b0`, connec
 
 Starting from clean `main` at `a6636d38e9f7a363f64d988241b79c880f124904`, replace hexadecimal `Guest` labels with the user's Blunderfest-style curated adjective/animal/two-digit generator in `Web.DisplayName`. Keep labels ephemeral and independent of OAuth, with existing participant IDs supplying identity rather than name uniqueness. Tests check curated output and real LiveView presence/chat author integration. No schema change, provider data or dependency is added. This visible room improvement can be deployed while production Lichess configuration remains absent; complete public authentication still needs logout, cleanup and authenticated UI/access handling.
 
+The user reported a manual deployment after `118a47b` on 2026-10-13.
+
+### Browser logout slice — 2026-10-13
+
+Starting from clean `main` at `118a47bb930c70acba335b4eadc7ee38c92276b2`, add CSRF-protected `POST /auth/logout`. Revoke the protected browser's credential before clearing session/CSRF state and expiring both session and OAuth-attempt cookies. Tests verify isolation from other sessions/users, real CSRF enforcement, safe anonymous/repeated/expired logout and a retained encrypted cookie whose revoked credential fails PostgreSQL resolution. Architecture section 6 records the contract and pending LiveView authorization/disconnection work. No dependency, migration or deployment is introduced.
+
 **Near-term (next green vertical slices):**
 
-- **OAuth security foundation:** login initiation/callback and browser session issuance exist; next add logout and expired-session cleanup, then the authenticated UI/access boundary. Provision the stable production HMAC secret and review external callback/access logging before enabling login in production.
+- **OAuth security foundation:** login initiation/callback, logout and browser session issuance exist; next add expired-session cleanup, then the authenticated UI/access boundary. Provision the stable production HMAC secret and review external callback/access logging before enabling login in production.
 - **Lichess first-provider login:** complete real provider exchange and subject verification, resolve/create internal User, protect linking from cross-account takeover, add logout/session tests. Distinguish provider account linking from requesting study/game scopes.
 - **Library access in LiveView:** authenticate user server-side, save/list/remove references, ensure users do not see others' private libraries, preserve shared-analysis behavior.
 - **Tests / infra:** update auth/migration/release coverage, health/readiness where relevant, and test helpers for new tables; check app scopes and prevents accidental access to other users. Keep manual production deployment.

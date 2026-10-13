@@ -206,9 +206,17 @@ The Phoenix cookie now uses encryption and signing, explicit HttpOnly/SameSite=L
 
 Tests exercise actual router/cookie round trips with the provider client's trusted `:web, :lichess_oauth_request` HTTP test seam. Production runtime configuration supplies no replacement transport. They cover identity/session creation, repeat-login renewal, switching identities, denial, provider failures, missing/wrong/query-supplied cookies, replay/expiry, sanitized logging and an injected PostgreSQL session-insert failure. Logout, expired-session cleanup, authenticated LiveView access and the public login UI remain separate slices; production OAuth deployment is not yet recommended.
 
+### Implemented after `118a47b`: browser logout
+
+`POST /auth/logout` uses the browser pipeline's real CSRF protection. `Web.SessionController.delete/2` revokes only the credential read from the protected Phoenix session, before clearing the browser session and CSRF state. It deletes the session cookie and pending Lichess attempt cookie at their original paths and redirects to `/`, with no-store/no-referrer headers. Request parameters cannot choose a credential, User, all-session revocation or external redirect. The endpoint works for anonymous, malformed, expired or already-revoked sessions, independently of whether Lichess is configured. Other credentials for the same User remain valid.
+
+Cookie deletion removes the pending attempt from the normal browser flow; its database hashes remain subject to the existing five-minute expiry/pruning. A retained encrypted session cookie can still decrypt after logout, but its credential no longer resolves in PostgreSQL. Future authenticated requests, LiveView mounts and events must use that resolution, rather than infer authentication from cookie contents. Active authenticated LiveView disconnection remains to be implemented with that boundary; current rooms are anonymous.
+
+Tests obtain actual session cookies/CSRF tokens, verify missing/wrong/cross-browser CSRF rejection, GET rejection, session isolation, ignored request parameters, replay of an old encrypted cookie, browser/CSRF cleanup, anonymous/repeated logout and deletion of expired session rows. There is still no public login/logout UI, protected library route or scheduled expired-session cleanup.
+
 ### Not implemented: web authentication/access control
 
-- No browser logout, browser identity plug, protected LiveView mount, account-grant storage, or Lichess library import/sync. Login initiation/callback, browser session issuance, state/PKCE primitives, provider verification and atomic user resolution now exist as described above.
+- No browser identity plug, protected LiveView mount, account-grant storage, or Lichess library import/sync. Login initiation/callback, logout, browser session issuance, state/PKCE primitives, provider verification and atomic user resolution now exist as described above.
 - `user_sessions` now exists as described above; `account_grants` remains a proposal. Avoid assuming Better Auth (a different ecosystem) is installed; **User → multiple Accounts is the adopted *model***, not a library dependency.
 - Users should not see unrelated users' analyses by default once ownership/scoping is introduced. Existing room collaboration remains link-based, guest-capable; future policy must define who can view, edit, claim or share analyses, and how anonymous work joins authenticated libraries. No automatic linkage based on matching email addresses.
 
