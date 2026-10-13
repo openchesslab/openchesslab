@@ -161,6 +161,7 @@ defmodule Web.RoomLive do
 
     path =
       cond do
+        is_binary(params["p"]) -> parse_path(params["p"])
         selected_id == socket.assigns.selected_analysis_id -> socket.assigns.current_path
         is_list(socket.assigns.pending_path) -> socket.assigns.pending_path
         true -> []
@@ -941,7 +942,12 @@ defmodule Web.RoomLive do
   end
 
   def handle_event("copy-room-link", _params, socket) do
-    url = analysis_url(socket.assigns.room_code, socket.assigns.selected_analysis_id)
+    url =
+      analysis_url(
+        socket.assigns.room_code,
+        socket.assigns.selected_analysis_id,
+        socket.assigns.current_path
+      )
 
     {:noreply,
      push_event(socket, "copy-text", %{
@@ -1891,6 +1897,14 @@ defmodule Web.RoomLive do
 
   defp analysis_url(code, nil), do: "/rooms/#{URI.encode(code)}"
   defp analysis_url(code, id), do: "/rooms/#{URI.encode(code)}?a=#{URI.encode(id)}"
+
+  defp analysis_url(code, nil, _path), do: analysis_url(code, nil)
+  defp analysis_url(code, id, []), do: analysis_url(code, id)
+
+  defp analysis_url(code, id, path) when is_list(path) do
+    analysis_url(code, id) <> "&p=" <> URI.encode(Enum.join(path, ","))
+  end
+
   defp room_topic(code), do: "room:#{code}"
 
   defp participant_id, do: "lv-" <> Base.encode16(:crypto.strong_rand_bytes(8))

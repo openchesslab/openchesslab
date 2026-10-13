@@ -70,6 +70,55 @@ defmodule Web.RoomLiveTest do
     assert analysis_id in Analysis.Room.analysis_ids(restored_room)
   end
 
+  test "sharing a selected move creates a deep link that restores its position", %{
+    conn: conn,
+    code: code
+  } do
+    {:ok, first, _html} = live(conn, "/rooms/#{code}")
+    render_click(first, "create-analysis", %{})
+
+    first
+    |> element("#chess-board")
+    |> render_hook("board-move", %{"from" => 12, "to" => 28})
+
+    assert render(first) =~ ~s(aria-label="occupied by white pawn e4")
+    analysis_id = room_analysis_id!(code)
+    url = "/rooms/#{code}?a=#{analysis_id}&p=0"
+
+    render_click(first, "copy-room-link", %{})
+
+    copied_notice = Web.I18n.t("common.copied", "en")
+
+    assert_push_event(first, "copy-text", %{
+      text: ^url,
+      notice: ^copied_notice
+    })
+
+    {:ok, restored, html} = live(build_conn(), url)
+    assert html =~ ~s(aria-label="occupied by white pawn e4")
+    assert html =~ "1/1"
+    assert render(restored) =~ ~s(data-move-path="0")
+  end
+
+  test "a move link with an invalid path falls back to the root position", %{
+    conn: conn,
+    code: code
+  } do
+    {:ok, first, _html} = live(conn, "/rooms/#{code}")
+    render_click(first, "create-analysis", %{})
+
+    first
+    |> element("#chess-board")
+    |> render_hook("board-move", %{"from" => 12, "to" => 28})
+
+    analysis_id = room_analysis_id!(code)
+    {:ok, _restored, html} = live(build_conn(), "/rooms/#{code}?a=#{analysis_id}&p=999")
+
+    assert html =~ ~s(aria-label="occupied by white pawn e2")
+    assert html =~ "0/1"
+    assert html =~ ~s(data-move-path="0")
+  end
+
   test "unknown room links never create durable rooms", %{conn: conn} do
     code = "UN" <> Base.encode16(:crypto.strong_rand_bytes(2))
     on_exit(fn -> Rooms.stop_room(code) end)
