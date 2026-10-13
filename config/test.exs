@@ -11,6 +11,9 @@ database_name =
   |> URI.parse()
   |> Map.fetch!(:path)
 
+# Deliberately non-production test key. Production OAuth will require its own secret.
+config :analysis, account_subject_hmac_key: String.duplicate("test-only-hmac-key-", 3)
+
 # Print only warnings and errors during test
 config :logger, level: :warning
 

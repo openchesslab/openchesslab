@@ -9,26 +9,30 @@ database_url =
 # For development, we disable any cache and enable
 # debugging and code reloading.
 #
+
+# Local-only development key. Never reuse in production.
 # The watchers configuration can be used to run external
 # watchers to your application. For example, we can use it
 # to bundle .js and .css sources.
+config :analysis, account_subject_hmac_key: String.duplicate("dev-only-hmac-key-", 3)
+
 config :database, OpenChessLab.Repo, url: database_url
 
 # Do not include metadata nor timestamps in development logs
-config :logger, :default_formatter, format: "[$level] $message\n"
 # Binding to loopback ipv4 address prevents access from other machines.
 # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
-# Initialize plugs at runtime for faster development compilation
-config :phoenix, :plug_init_mode, :runtime
+# Compile the LiveView hooks and Tailwind stylesheet while developing.
+config :logger, :default_formatter, format: "[$level] $message\n"
 
+# Initialize plugs at runtime for faster development compilation
+# Include debug annotations and locations in rendered markup.
 # Set a higher stacktrace during development. Avoid configuring such
+# Changing this configuration will require mix clean and a full recompile.
+config :phoenix, :plug_init_mode, :runtime
 # in production as building large stacktraces may be expensive.
 config :phoenix, :stacktrace_depth, 20
 
 config :phoenix_live_view,
-  # Compile the LiveView hooks and Tailwind stylesheet while developing.
-  # Include debug annotations and locations in rendered markup.
-  # Changing this configuration will require mix clean and a full recompile.
   debug_heex_annotations: true,
   debug_attributes: true,
   # Enable helpful, but potentially expensive runtime checks
