@@ -188,6 +188,37 @@ defmodule Features.Catalogue.SimilarityTest do
     %{board | similarity_cache: %{digests | attack: Map.merge(digests.attack, overrides)}}
   end
 
+  test "same strategic structure permits a rook to move along the same open file" do
+    rook_on_c1 = "4k3/p7/8/8/8/8/P7/2R1K3 w - - 0 1"
+    rook_on_c3 = "4k3/p7/8/8/8/2R5/P7/4K3 w - - 0 1"
+
+    result = compare(rook_on_c1, rook_on_c3)
+
+    assert result["similarity.same_pawn_structure"]
+    assert result["similarity.same_strategic_structure"]
+    assert compare(rook_on_c3, rook_on_c1)["similarity.same_strategic_structure"]
+    refute result["similarity.same_piece_placement_patterns"]
+  end
+
+  test "same strategic structure distinguishes rook access to an open file" do
+    rook_on_open_file = "4k3/p7/8/8/8/8/P7/2R1K3 w - - 0 1"
+    rook_behind_pawn = "4k3/p7/8/8/8/8/P7/R3K3 w - - 0 1"
+
+    result = compare(rook_on_open_file, rook_behind_pawn)
+
+    assert result["similarity.same_pawn_structure"]
+    refute result["similarity.same_strategic_structure"]
+  end
+
+  test "same strategic structure distinguishes pawn shape and king placement" do
+    original = "4k3/p7/8/8/8/8/P7/2R1K3 w - - 0 1"
+    different_pawns = "4k3/p7/8/8/8/8/1P6/2R1K3 w - - 0 1"
+    different_king = "4k3/p7/8/8/8/8/P7/2R2K2 w - - 0 1"
+
+    refute compare(original, different_pawns)["similarity.same_strategic_structure"]
+    refute compare(original, different_king)["similarity.same_strategic_structure"]
+  end
+
   test "bishop for knight substitution" do
     features = compare(@start, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RBBQKBNR w KQkq - 0 1")
 

@@ -20,6 +20,12 @@ defmodule Features.Catalogue.Similarity do
   The currently compared indicators are kingside, queenside and central
   attacks, pawn storms and piece transfers toward either wing. This is an
   indicator-based comparison, not proof of a plan carried out in a game.
+
+  `similarity.same_strategic_structure` compares exact pawn occupancy,
+  open/semi-open file geometry, rook use of those files, and coarse king
+  placement/exposure indicators. It deliberately ignores irrelevant exact
+  piece coordinates; this is a defined structural signature, not an
+  assertion that two full positions have identical strategic prospects.
   """
 
   import Bitwise
@@ -34,6 +40,14 @@ defmodule Features.Catalogue.Similarity do
   @attack_digest_ids ~w(
     goals.kingside_attack goals.queenside_attack goals.central_attack goals.pawn_storm
     goals.transfer_pieces_to_kingside goals.transfer_pieces_to_queenside
+  )
+
+  @strategic_digest_ids ~w(
+    pawns.structure
+    lines.open_files lines.semi_open_files
+    lines.rook_open_file lines.rook_semi_open_file
+    king.uncastled king.castled_kingside king.castled_queenside
+    king.open_file king.semi_open_file
   )
 
   @spec features() :: [Feature.t()]
@@ -291,7 +305,9 @@ defmodule Features.Catalogue.Similarity do
 
   defp build_digests(board) do
     %{
-      strategic: Features.extract(board, sections: [3, 4, 7, 9, 11]).features,
+      strategic:
+        Features.extract(board, sections: [3, 9, 11]).features
+        |> Map.take(@strategic_digest_ids),
       king_safety: Features.extract(board, sections: [11]).features,
       tactical: Features.extract(board, sections: [12]).features,
       attack: Features.extract(board, sections: [15]).features |> Map.take(@attack_digest_ids)
