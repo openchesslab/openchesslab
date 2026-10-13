@@ -1,13 +1,16 @@
 defmodule Web.Endpoint do
   use Phoenix.Endpoint, otp_app: :web
 
-  # The session will be stored in the cookie and signed,
-  # this means its contents can be read but not tampered with.
-  # Set :encryption_salt if you would also like to encrypt it.
+  # Encrypt/sign the browser session. Authentication is an opaque credential
+  # whose hash, expiration and revocation are authoritative in PostgreSQL.
   @session_options [
     store: :cookie,
     key: "_web_key",
     signing_salt: "3afc4cc97cfdd88a2e57b7b628e59b47",
+    encryption_salt: "openchesslab-browser-session",
+    http_only: true,
+    secure: Application.compile_env!(:web, :secure_session_cookie),
+    max_age: 86_400,
     same_site: "Lax"
   ]
 

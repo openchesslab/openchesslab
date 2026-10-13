@@ -36,6 +36,7 @@ defmodule Web.Router do
     pipe_through(:browser)
 
     post("/auth/lichess", LichessAuthController, :create)
+    get("/auth/lichess/callback", LichessAuthController, :callback)
 
     live("/", HomeLive, :index)
     live("/rooms/:code", RoomLive, :show)

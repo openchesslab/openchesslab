@@ -32,6 +32,10 @@ config :logger, :default_formatter,
 
 config :mime, :types, %{"application/x-chess-pgn" => ["pgn"]}
 
+config :phoenix,
+       :filter_parameters,
+       ~w(password secret code state code_verifier access_token user_token browser_token error_description)
+
 config :phoenix, :json_library, Jason
 
 config :phoenix_live_view,
@@ -54,5 +58,8 @@ config :web, Web.Endpoint,
   ],
   pubsub_server: Web.PubSub,
   live_view: [signing_salt: "3afc4cc97cfdd88a2e57b7b628e59b47"]
+
+# Secure even behind an HTTP reverse proxy; dev/test permit local HTTP.
+config :web, :secure_session_cookie, config_env() == :prod
 
 import_config "#{config_env()}.exs"
