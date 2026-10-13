@@ -234,6 +234,65 @@ defmodule Features.Catalogue.SimilarityTest do
     refute compare(e_file_pin, c_file_pin)["similarity.exact_same_position"]
   end
 
+  test "tactical geometry distinguishes the kind of attacking slider in a pin" do
+    rook_pin = "4r2k/8/8/8/4N3/8/8/4K3 b - - 0 1"
+    bishop_pin = "7k/8/8/8/1b6/2N5/3K4/8 b - - 0 1"
+
+    rook_roles =
+      rook_pin
+      |> Features.Chess.FEN.parse()
+      |> Features.Catalogue.Similarity.digests()
+      |> Map.fetch!(:pin_roles)
+
+    bishop_roles =
+      bishop_pin
+      |> Features.Chess.FEN.parse()
+      |> Features.Catalogue.Similarity.digests()
+      |> Map.fetch!(:pin_roles)
+
+    assert rook_roles[:white] == [{:rooks, :knights, :kings, :absolute}]
+    assert bishop_roles[:white] == [{:bishops, :knights, :kings, :absolute}]
+
+    assert Features.extract(rook_pin, sections: [12]).features["tactics.absolute_pin"]["white"] ==
+             ["e4"]
+
+    assert Features.extract(bishop_pin, sections: [12]).features["tactics.absolute_pin"]["white"] ==
+             ["c3"]
+
+    refute compare(rook_pin, bishop_pin)["similarity.same_tactical_geometry"]
+    refute compare(bishop_pin, rook_pin)["similarity.same_tactical_geometry"]
+  end
+
+  test "tactical geometry distinguishes which piece is pinned" do
+    pinned_knight = "4r2k/8/8/8/4N3/8/8/4K3 b - - 0 1"
+    pinned_bishop = "4r2k/8/8/8/4B3/8/8/4K3 b - - 0 1"
+
+    refute compare(pinned_knight, pinned_bishop)["similarity.same_tactical_geometry"]
+    refute compare(pinned_bishop, pinned_knight)["similarity.same_tactical_geometry"]
+  end
+
+  test "tactical geometry distinguishes the anchor of a relative pin" do
+    queen_anchor = "4r2k/8/8/8/4N3/8/4Q3/4K3 b - - 0 1"
+    rook_anchor = "4r2k/8/8/8/4N3/8/4R3/4K3 b - - 0 1"
+
+    queen_roles =
+      queen_anchor
+      |> Features.Chess.FEN.parse()
+      |> Features.Catalogue.Similarity.digests()
+      |> Map.fetch!(:pin_roles)
+
+    rook_roles =
+      rook_anchor
+      |> Features.Chess.FEN.parse()
+      |> Features.Catalogue.Similarity.digests()
+      |> Map.fetch!(:pin_roles)
+
+    assert queen_roles[:white] == [{:rooks, :knights, :queens, :relative}]
+    assert rook_roles[:white] == [{:rooks, :knights, :rooks, :relative}]
+    refute compare(queen_anchor, rook_anchor)["similarity.same_tactical_geometry"]
+    refute compare(rook_anchor, queen_anchor)["similarity.same_tactical_geometry"]
+  end
+
   test "tactical geometry distinguishes a pin from a fork" do
     pinned_knight = "4r2k/8/8/8/4N3/8/8/4K3 b - - 0 1"
     forked_rooks = "7k/8/8/8/8/8/3n4/1R2KR2 b - - 0 1"

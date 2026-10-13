@@ -29,16 +29,17 @@ defmodule Features.Catalogue.Similarity do
 
   `similarity.same_tactical_geometry` compares a deliberately limited tactical
   motif profile per color: the counts of absolute/relative pins, skewers,
-  forks and double attacks, plus double-check and battery indicators. Exact
-  board squares are ignored. Different motif-free positions are not treated
-  as matching tactical patterns; identical piece occupancy still matches.
-  This is a coarse motif signature, not full attacker-target geometry or
+  forks and double attacks, plus double-check and battery indicators. It also
+  compares typed pin relations (attacker, pinned piece, anchor, absolute or
+  relative). Exact board squares are ignored. Different motif-free positions
+  are not treated as matching tactical patterns; identical piece occupancy
+  still matches. This is a coarse tactical signature, not full geometry or
   proof that a tactic can be executed legally.
   """
 
   import Bitwise
 
-  alias Features.Catalogue.Support
+  alias Features.Catalogue.{Support, TacticMap}
   alias Features.Chess.{Bitboard, Board, FEN, Square}
   alias Features.Feature
 
@@ -183,6 +184,7 @@ defmodule Features.Catalogue.Similarity do
     candidate = tactical_motif_profile(frame.b_digests.tactical)
 
     reference == candidate and
+      frame.a_digests.pin_roles == frame.b_digests.pin_roles and
       (active_tactical_motif?(reference) or same_piece_occupancy?(a, b))
   end
 
@@ -360,8 +362,26 @@ defmodule Features.Catalogue.Similarity do
       tactical:
         Features.extract(board, sections: [12]).features
         |> Map.take(@tactical_digest_ids),
+      pin_roles: pin_role_signature(board),
       attack: Features.extract(board, sections: [15]).features |> Map.take(@attack_digest_ids)
     }
+  end
+
+  # One tuple for every distinct geometric pin relation. Keep multiplicity
+  # and the pinned color, but discard coordinates so translated motifs match.
+  # Compute this once per extracted position, not on each comparison.
+  defp pin_role_signature(board) do
+    Map.new(Board.colors(), fn color ->
+      roles =
+        board
+        |> TacticMap.pin_relations(color)
+        |> Enum.map(fn relation ->
+          {relation.attacker_type, relation.pinned_type, relation.anchor_type, relation.kind}
+        end)
+        |> Enum.sort()
+
+      {color, roles}
+    end)
   end
 
   defp placement_distance(a, b) do
