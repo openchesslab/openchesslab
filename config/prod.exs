@@ -1,5 +1,8 @@
 import Config
 
+# Automatically clean up rooms older than 30 days that have no analyses.
+config :analysis, :room_pruning_enabled, true
+
 # Do not print debug messages in production
 config :logger, level: :info
 

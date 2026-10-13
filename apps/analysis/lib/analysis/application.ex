@@ -26,7 +26,15 @@ defmodule Analysis.Application do
         Horde.DynamicSupervisor,
         name: Analysis.RoomSupervisor, strategy: :one_for_one, members: :auto
       }
-    ]
+    ] ++ room_pruner_children()
+  end
+
+  defp room_pruner_children do
+    if Application.get_env(:analysis, :room_pruning_enabled, false) do
+      [Analysis.RoomPruner]
+    else
+      []
+    end
   end
 
   defp dns_cluster_child do

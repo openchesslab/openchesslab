@@ -127,6 +127,17 @@ defmodule Analysis.ApplicationTest do
            } in AnalysisApplication.children()
   end
 
+  test "starts the room pruner only when enabled" do
+    previous = Application.get_env(:analysis, :room_pruning_enabled, :not_configured)
+    on_exit(fn -> restore_config(:room_pruning_enabled, previous) end)
+
+    Application.put_env(:analysis, :room_pruning_enabled, false)
+    refute Analysis.RoomPruner in AnalysisApplication.children()
+
+    Application.put_env(:analysis, :room_pruning_enabled, true)
+    assert Analysis.RoomPruner in AnalysisApplication.children()
+  end
+
   defp restore_config(key, :not_configured) do
     Application.delete_env(
       :analysis,
