@@ -1,9 +1,24 @@
 defmodule Features.Catalogue.TacticsTest do
   use ExUnit.Case, async: true
 
+  alias Features.Catalogue.TacticMap
+  alias Features.Chess.{FEN, Square}
+
   @start "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
   defp extract(fen), do: Features.extract(fen).features
+
+  defp pin_relation(kind, attacker_type, attacker, pinned_type, pinned, anchor_type, anchor) do
+    %{
+      kind: kind,
+      attacker_type: attacker_type,
+      attacker: Square.parse(attacker),
+      pinned_type: pinned_type,
+      pinned: Square.parse(pinned),
+      anchor_type: anchor_type,
+      anchor: Square.parse(anchor)
+    }
+  end
 
   test "start position" do
     features = extract(@start)
@@ -55,6 +70,50 @@ defmodule Features.Catalogue.TacticsTest do
              "white" => ~w(a1 c1 d1 f1 h1),
              "black" => ~w(a8 c8 d8 f8 h8)
            }
+  end
+
+  test "absolute pin relation retains the attacker, pinned piece and king anchor" do
+    fen = "4r2k/8/8/8/4N3/8/8/4K3 b - - 0 1"
+
+    assert TacticMap.pin_relations(FEN.parse(fen), :white) == [
+             pin_relation(:absolute, :rooks, "e8", :knights, "e4", :kings, "e1")
+           ]
+
+    assert TacticMap.pins(FEN.parse(fen), :white) == %{Square.parse("e4") => :absolute}
+    assert extract(fen)["tactics.absolute_pin"]["white"] == ["e4"]
+  end
+
+  test "relative pin relation keeps a queen anchor distinct from a king" do
+    fen = "4r2k/8/8/8/4N3/8/4Q3/4K3 b - - 0 1"
+
+    assert TacticMap.pin_relations(FEN.parse(fen), :white) == [
+             pin_relation(:relative, :rooks, "e8", :knights, "e4", :queens, "e2")
+           ]
+
+    assert extract(fen)["tactics.relative_pin"]["white"] == ["e4"]
+    assert extract(fen)["tactics.absolute_pin"]["white"] == []
+  end
+
+  test "pin relations work for diagonal sliders and for black pinned pieces" do
+    bishop_pin = "7k/8/8/8/1b6/2N5/3K4/8 b - - 0 1"
+    rook_pin = "4k3/8/8/4n3/8/8/8/4R2K w - - 0 1"
+
+    assert TacticMap.pin_relations(FEN.parse(bishop_pin), :white) == [
+             pin_relation(:absolute, :bishops, "b4", :knights, "c3", :kings, "d2")
+           ]
+
+    assert TacticMap.pin_relations(FEN.parse(rook_pin), :black) == [
+             pin_relation(:absolute, :rooks, "e1", :knights, "e5", :kings, "e8")
+           ]
+
+    assert extract(rook_pin)["tactics.absolute_pin"]["black"] == ["e5"]
+  end
+
+  test "a piece belonging to the attacker prevents a pin relation" do
+    fen = "4r2k/8/8/8/4N3/8/4p3/4K3 b - - 0 1"
+
+    assert TacticMap.pin_relations(FEN.parse(fen), :white) == []
+    assert extract(fen)["tactics.pin"]["white"] == []
   end
 
   test "absolute pin: rook pins a knight to its king" do

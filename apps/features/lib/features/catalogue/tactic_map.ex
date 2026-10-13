@@ -66,26 +66,58 @@ defmodule Features.Catalogue.TacticMap do
         do: square
   end
 
-  @doc "Pinned pieces of `color`: %{square => :absolute | :relative}."
-  @spec pins(Board.t(), atom()) :: %{non_neg_integer() => atom()}
-  def pins(board, color) do
+  @type pin_relation :: %{
+          attacker: 0..63,
+          attacker_type: :rooks | :bishops | :queens,
+          pinned: 0..63,
+          pinned_type: Board.piece_type(),
+          anchor: 0..63,
+          anchor_type: Board.piece_type(),
+          kind: :absolute | :relative
+        }
+
+  @doc """
+  Return every slider/pinned-piece/anchor alignment for pieces of `color`.
+
+  Squares use the board's 0..63 indexing. `:absolute` means that the anchor
+  is the king; `:relative` means that the anchor is another friendly piece.
+  The latter describes geometric alignment, not whether moving the pinned
+  piece would lose material. This function does not establish move legality.
+  """
+  @spec pin_relations(Board.t(), Board.color()) :: [pin_relation()]
+  def pin_relations(board, color) do
     enemy = Board.opposite(color)
 
     sliders(board, enemy)
-    |> Enum.flat_map(fn {type, square} ->
-      Enum.map(ray_dirs(type), &blockers_on(board, square, &1))
-    end)
-    |> Enum.reduce(%{}, fn blockers, pins ->
-      case blockers do
-        [{sq, {^color, type}}, {_ksq, {^color, :kings}}] when type != :kings ->
-          Map.put(pins, sq, :absolute)
-
-        [{sq, {^color, type}}, {_sq2, {^color, _t2}}] when type != :kings ->
-          Map.put(pins, sq, :relative)
-
-        _ ->
-          pins
+    |> Enum.flat_map(fn {attacker_type, attacker} ->
+      for direction <- ray_dirs(attacker_type),
+          [{pinned, {^color, pinned_type}}, {anchor, {^color, anchor_type}}] <- [
+            blockers_on(board, attacker, direction)
+          ],
+          pinned_type != :kings do
+        %{
+          attacker: attacker,
+          attacker_type: attacker_type,
+          pinned: pinned,
+          pinned_type: pinned_type,
+          anchor: anchor,
+          anchor_type: anchor_type,
+          kind: if(anchor_type == :kings, do: :absolute, else: :relative)
+        }
       end
+    end)
+    |> Enum.sort_by(&{&1.pinned, &1.attacker, &1.anchor, &1.kind})
+  end
+
+  @doc "Pinned pieces of `color`: %{square => :absolute | :relative}."
+  @spec pins(Board.t(), atom()) :: %{non_neg_integer() => atom()}
+  def pins(board, color) do
+    board
+    |> pin_relations(color)
+    |> Enum.reduce(%{}, fn %{pinned: square, kind: kind}, pins ->
+      Map.update(pins, square, kind, fn existing ->
+        if existing == :absolute or kind == :absolute, do: :absolute, else: :relative
+      end)
     end)
   end
 
