@@ -6,8 +6,9 @@ defmodule Web.LichessOAuthAttempts do
   secret containing the verifier. PostgreSQL stores only hashes and timestamps.
   Encryption uses the endpoint's secret key base with a dedicated purpose salt.
 
-  The future HTTP boundary must put `browser_token` in an HttpOnly, Secure,
-  SameSite=Lax cookie, read it ONLY from that cookie, and clear it on callback.
+  The login-start controller puts `browser_token` in an HttpOnly, Secure,
+  SameSite=Lax cookie (local loopback HTTP development excepted). The callback
+  must read it ONLY from that cookie and clear it.
   Never accept it from callback parameters or put it in URLs, HTML or logs.
   Initiation must be CSRF-protected. Only `authorization_params` may go to
   Lichess, alongside the server-configured client ID and redirect URI.

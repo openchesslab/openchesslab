@@ -186,9 +186,17 @@ Without both Lichess variables, `:web, :lichess_oauth` is `nil`; providing only 
 
 Generate the identity key once in a trusted terminal with `elixir -e 'IO.puts(Base.encode64(:crypto.strong_rand_bytes(32)))'` (PowerShell and Bash). Store its output in the environment's secret manager, rather than in Git or logs; never regenerate it during a deploy. Runtime loading is implemented, but production secrets have not been provisioned by this slice and browser login routes remain pending. Tests evaluate the actual runtime file without starting a release or connecting to its configured database.
 
+### Implemented after `cfa146f`: browser-bound login initiation
+
+`POST /auth/lichess` runs through the existing browser pipeline with Plug CSRF protection. `Web.LichessAuthController.create/2` reads only trusted `:web, :lichess_oauth` configuration, creates an OAuth attempt and redirects to the fixed `https://lichess.org/oauth` authorization endpoint. The URL contains only the generated state/S256 challenge, `response_type=code`, configured client ID and configured callback URL. Request parameters cannot override them, add scopes or authenticate/link a supplied user ID. No User, Account or session is created.
+
+The encrypted verifier-bearing browser token is delivered only in the host-only `_ocl_lichess_attempt` cookie: path `/auth/lichess`, 300-second lifetime, HttpOnly, SameSite=Lax and Secure. Secure is disabled only when both the current browser and configured callback use HTTP on the same loopback hostname. Responses use `Cache-Control: no-store` and `Referrer-Policy: no-referrer`. A repeated start overwrites the browser cookie with a fresh attempt; the previous attempt cannot be consumed using the replacement cookie and its database hashes expire normally. There is no GET initiation route. Unconfigured login responds 404 without an attempt or attempt cookie.
+
+Controller tests enable the real CSRF check explicitly, obtain the signed session cookie/token from the home page and cover missing/wrong/cross-browser tokens, trusted parameters, cookie attributes, repeated starts and loopback development. This slice deliberately adds no login button: the callback, authenticated browser session, logout and expired-session cleanup still need implementation before public login can be enabled or production OAuth deployment recommended.
+
 ### Not implemented: web authentication/access control
 
-- No OAuth2 authorization/callback endpoints, browser login/logout, browser identity plug, protected LiveView mount, account-grant storage, or Lichess library import/sync. Session storage, state/PKCE primitives, provider verification and atomic user resolution now exist as described above.
+- No OAuth2 callback endpoint, completed browser login/logout, browser identity plug, protected LiveView mount, account-grant storage, or Lichess library import/sync. Login initiation, session storage, state/PKCE primitives, provider verification and atomic user resolution now exist as described above.
 - `user_sessions` now exists as described above; `account_grants` remains a proposal. Avoid assuming Better Auth (a different ecosystem) is installed; **User → multiple Accounts is the adopted *model***, not a library dependency.
 - Users should not see unrelated users' analyses by default once ownership/scoping is introduced. Existing room collaboration remains link-based, guest-capable; future policy must define who can view, edit, claim or share analyses, and how anonymous work joins authenticated libraries. No automatic linkage based on matching email addresses.
 
