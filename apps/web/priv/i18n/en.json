@@ -1,4 +1,8 @@
 {
+  "auth.login": "Log in",
+  "auth.loginWithLichess": "Log in with Lichess",
+  "auth.logout": "Log out",
+  "auth.loginFailed": "Lichess login failed. Please try again.",
   "theme.label": "Theme",
   "demo.label": "DEMO",
   "demo.engineNote": "Illustrative fixture only — this is not a chess engine.",

@@ -1,4 +1,8 @@
 {
+  "auth.login": "Inloggen",
+  "auth.loginWithLichess": "Inloggen met Lichess",
+  "auth.logout": "Uitloggen",
+  "auth.loginFailed": "Inloggen met Lichess is mislukt. Probeer het opnieuw.",
   "theme.label": "Thema",
   "demo.label": "DEMO",
   "demo.engineNote": "Alleen voorbeeldgegevens — dit is geen schaakengine.",

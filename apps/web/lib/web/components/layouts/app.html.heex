@@ -9,7 +9,7 @@
     href="#main-content"
     class="absolute -top-20 left-3 z-[100] rounded bg-accent px-3 py-2 text-white focus:top-3"
   >{Web.I18n.t("common.skipToContent", @locale)}</a>
-  <header class="sticky top-0 z-30 flex min-h-[3.4rem] items-center justify-between gap-3 border-b border-border bg-panel px-4 py-1">
+  <header class="sticky top-0 z-30 flex min-h-[3.4rem] flex-wrap items-center justify-between gap-3 border-b border-border bg-panel px-4 py-1">
     <.link
       navigate={~p"/"}
       class="flex min-w-0 items-center gap-2 font-semibold tracking-tight text-foreground no-underline"
@@ -30,6 +30,35 @@
       class="flex items-center gap-1"
       aria-label={Web.I18n.t("common.applicationSettings", @locale)}
     >
+      <.form
+        :if={@current_user}
+        for={%{}}
+        id="auth-logout"
+        action={~p"/auth/logout"}
+        method="post"
+      >
+        <button
+          type="submit"
+          class="inline-flex min-h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-md border border-border bg-transparent px-2 text-xs font-semibold text-foreground hover:bg-panel-hover"
+        >{Web.I18n.t("auth.logout", @locale)}</button>
+      </.form>
+      <.form
+        :if={!@current_user && @login_enabled}
+        for={%{}}
+        id="auth-login"
+        action={~p"/auth/lichess"}
+        method="post"
+      >
+        <button
+          type="submit"
+          class="inline-flex min-h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-md border border-border bg-transparent px-2 text-xs font-semibold text-foreground hover:bg-panel-hover"
+          aria-label={Web.I18n.t("auth.loginWithLichess", @locale)}
+          title={Web.I18n.t("auth.loginWithLichess", @locale)}
+        >
+          <span class="lg:hidden">{Web.I18n.t("auth.login", @locale)}</span>
+          <span class="hidden lg:inline">{Web.I18n.t("auth.loginWithLichess", @locale)}</span>
+        </button>
+      </.form>
       <button
         :if={@room_code}
         type="button"
@@ -183,6 +212,14 @@
       </button>
     </nav>
   </header>
+  <p
+    :if={Phoenix.Flash.get(@flash, :error)}
+    id="app-error"
+    role="alert"
+    class="m-4 rounded-md border border-border-strong bg-panel p-3 text-sm text-foreground"
+  >
+    {Phoenix.Flash.get(@flash, :error)}
+  </p>
   {@inner_content}
   <div
     :if={@ui_modal == "shortcuts"}

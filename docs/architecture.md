@@ -236,6 +236,12 @@ Authenticated HTTP requests and successful login callbacks set Phoenix's protect
 
 Phoenix closes all transports subscribed to that session, including other tabs; other sessions for the same User remain connected. Reconnection independently resolves PostgreSQL state. Revocation between HTTP rendering and socket subscription is still covered by connected-mount/event revalidation. Broadcasts are transient notifications, not durable authorization. Direct domain revocation, user deletion and natural expiry still rely on mount/event checks; no idle expiry timer or database notification mechanism is introduced. Tests exercise real Phoenix transport connect/init/disconnect callbacks, multiple connections, isolation, replacement login and failed-login rollback.
 
+### Implemented after `d958542`: login/logout interface
+
+The shared home/room header offers a native POST form to log in with Lichess only when server-side OAuth configuration is present. A resolved `current_user` instead receives a logout form, even if provider login is disabled. Phoenix generates CSRF fields for both forms; these are ordinary browser requests to the existing controllers, not LiveView authentication events. English is the default, Dutch labels are available, and compact labels/header wrapping accommodate smaller screens. The UI exposes no internal User ID, provider profile or session credential. Existing event-time revalidation updates the controls when a credential is revoked.
+
+The shared layout renders error flashes as an accessible alert; callback failures use a fixed translated message without provider details. Tests cover both routes/languages, configuration gating, revocation, privacy and actual POSTs with rendered CSRF fields. Login/logout still redirect to home; rooms remain guest-accessible. No personal library UI or private authorization policy is implied. Production enablement still requires stable HMAC/provider configuration and an external access-log review; deployment remains manual.
+
 ### Not implemented: private access control
 
 - No protected private LiveView route, account-grant storage, or Lichess library import/sync. Optional request/mount/event authentication, login initiation/callback, logout, browser session issuance, state/PKCE primitives, provider verification and atomic user resolution now exist as described above.

@@ -74,7 +74,7 @@ defmodule Web.LichessAuthController do
         else
           {:error, _reason} ->
             conn
-            |> put_flash(:error, "Lichess login failed. Please try again.")
+            |> put_flash(:error, Web.I18n.t("auth.loginFailed"))
             |> redirect(to: ~p"/")
         end
     end

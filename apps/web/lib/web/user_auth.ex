@@ -50,6 +50,7 @@ defmodule Web.UserAuth do
     socket =
       socket
       |> assign(:current_user, resolve(token))
+      |> assign(:login_enabled, not is_nil(Application.get_env(:web, :lichess_oauth)))
       |> attach_hook(:refresh_authentication, :handle_event, fn _event, _params, socket ->
         # Revalidate before the view's handler. A mount-time User assign is
         # insufficient after expiry/logout. Keep the credential out of assigns.
