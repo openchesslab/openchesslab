@@ -87,6 +87,34 @@ defmodule Features.Catalogue.GoalsTest do
     assert features["goals.blockade_passed_pawn"] == %{"white" => ~w(f2), "black" => []}
   end
 
+  test "an isolated pawn without an attacker is not an active attack target" do
+    fen = "6k1/8/8/3p4/8/8/8/6K1 w - - 0 1"
+    features = Features.extract(fen, sections: [15]).features
+
+    assert features["goals.attack_isolated_pawn"] == %{"white" => [], "black" => []}
+  end
+
+  test "a rook attacks an isolated pawn along an unobstructed file" do
+    fen = "6k1/8/8/3p4/8/8/8/3R2K1 w - - 0 1"
+    features = Features.extract(fen, sections: [15]).features
+
+    assert features["goals.attack_isolated_pawn"] == %{"white" => ["d5"], "black" => []}
+  end
+
+  test "a friendly blocker prevents a rook from attacking an isolated pawn" do
+    fen = "6k1/8/8/3p4/8/3N4/8/3R2K1 w - - 0 1"
+    features = Features.extract(fen, sections: [15]).features
+
+    assert features["goals.attack_isolated_pawn"] == %{"white" => [], "black" => []}
+  end
+
+  test "black can attack a white isolated pawn" do
+    fen = "4r1k1/8/8/8/4P3/8/8/6K1 b - - 0 1"
+    features = Features.extract(fen, sections: [15]).features
+
+    assert features["goals.attack_isolated_pawn"] == %{"white" => [], "black" => ["e4"]}
+  end
+
   test "rook lift squares are the third and fourth ranks for white and fifth and sixth for black" do
     features = Features.extract("4k3/8/7r/8/8/R7/8/4K3 w - - 0 1", sections: [15]).features
 

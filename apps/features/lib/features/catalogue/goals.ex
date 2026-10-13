@@ -200,9 +200,13 @@ defmodule Features.Catalogue.Goals do
     |> Enum.count(&(Square.file(&1) <= 2))
   end
 
+  # An isolated pawn is a potential weakness, not necessarily an attacked target.
   defp attack_isolated_pawn(board, color) do
+    attackers = AttackMap.attack_counts(board, color)
+
     board
     |> Support.isolated_pawns(Board.opposite(color))
+    |> Enum.filter(&Map.has_key?(attackers, &1))
     |> to_alg()
   end
 
