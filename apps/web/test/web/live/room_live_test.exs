@@ -100,6 +100,41 @@ defmodule Web.RoomLiveTest do
     assert render(restored) =~ ~s(data-move-path="0")
   end
 
+  test "playing and navigating moves keeps the room URL synchronized", %{
+    conn: conn,
+    code: code
+  } do
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    render_click(view, "create-analysis", %{})
+
+    analysis_id = room_analysis_id!(code)
+    root_url = "/rooms/#{code}?a=#{analysis_id}"
+    first_move_url = root_url <> "&p=0"
+
+    view
+    |> element("#chess-board")
+    |> render_hook("board-move", %{"from" => 12, "to" => 28})
+
+    assert_patch(view, first_move_url)
+    assert render(view) =~ ~s(aria-label="occupied by white pawn e4")
+
+    render_click(view, "first-move", %{})
+    assert_patch(view, root_url)
+    assert render(view) =~ ~s(aria-label="occupied by white pawn e2")
+
+    render_click(view, "next-move", %{})
+    assert_patch(view, first_move_url)
+    assert render(view) =~ ~s(aria-label="occupied by white pawn e4")
+
+    render_click(view, "previous-move", %{})
+    assert_patch(view, root_url)
+    assert render(view) =~ ~s(aria-label="occupied by white pawn e2")
+
+    # A fresh LiveView can always restore the current bookmarkable move link.
+    {:ok, _restored, html} = live(build_conn(), first_move_url)
+    assert html =~ ~s(aria-label="occupied by white pawn e4")
+  end
+
   test "a move link with an invalid path falls back to the root position", %{
     conn: conn,
     code: code

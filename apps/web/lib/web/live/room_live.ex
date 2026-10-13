@@ -52,7 +52,8 @@ defmodule Web.RoomLive do
       analysis_revision: nil,
       current_path: [],
       mainline_length: 0,
-      pending_path: nil,
+      url_analysis_id: nil,
+      url_path: nil,
       current_node: nil,
       position: nil,
       last_from: nil,
@@ -159,24 +160,22 @@ defmodule Web.RoomLive do
         true -> List.first(ids)
       end
 
-    path =
-      cond do
-        is_binary(params["p"]) -> parse_path(params["p"])
-        selected_id == socket.assigns.selected_analysis_id -> socket.assigns.current_path
-        is_list(socket.assigns.pending_path) -> socket.assigns.pending_path
-        true -> []
-      end
+    path = if is_binary(params["p"]), do: parse_path(params["p"]), else: []
 
     socket =
       socket
       |> subscribe_analysis(selected_id)
-      |> assign(:pending_path, nil)
+      |> assign(url_analysis_id: requested_id, url_path: params["p"])
       |> assign(:selected_analysis_id, selected_id)
       |> maybe_load_analysis(selected_id, path)
       |> refresh_presence()
 
     if selected_id && requested_id != selected_id do
-      {:noreply, push_patch(socket, to: analysis_url(socket.assigns.room_code, selected_id))}
+      {:noreply,
+       push_patch(socket,
+         to: analysis_url(socket.assigns.room_code, selected_id, socket.assigns.current_path),
+         replace: true
+       )}
     else
       {:noreply, socket}
     end
@@ -320,10 +319,7 @@ defmodule Web.RoomLive do
       if id == socket.assigns.selected_analysis_id do
         {:noreply, select_path(socket, path)}
       else
-        {:noreply,
-         socket
-         |> assign(:pending_path, path)
-         |> push_patch(to: analysis_url(socket.assigns.room_code, id))}
+        {:noreply, push_patch(socket, to: analysis_url(socket.assigns.room_code, id, path))}
       end
     else
       {:noreply, socket}
@@ -1029,7 +1025,10 @@ defmodule Web.RoomLive do
               do: socket,
               else: assign(socket, :annotations, [])
 
-          {:noreply, set_analysis(socket, analysis, revision, path)}
+          {:noreply,
+           socket
+           |> set_analysis(analysis, revision, path)
+           |> sync_position_url()}
 
         :not_found ->
           {:noreply, maybe_load_analysis(socket, analysis_id, socket.assigns.current_path)}
@@ -1270,6 +1269,7 @@ defmodule Web.RoomLive do
     |> refresh_room()
     |> assign(:selected_analysis_id, analysis.id)
     |> set_analysis(analysis, revision, path)
+    |> sync_position_url()
   end
 
   defp select_path(socket, path) do
@@ -1279,12 +1279,40 @@ defmodule Web.RoomLive do
           socket
           |> set_analysis(analysis, socket.assigns.analysis_revision, path)
           |> assign(:annotations, [])
+          |> sync_position_url()
         else
           socket
         end
 
       _ ->
         socket
+    end
+  end
+
+  # Replace the current history entry rather than adding one entry per move.
+  # handle_params/3 owns URL parsing; do not call this from handle_params/3.
+  defp sync_position_url(%{assigns: %{selected_analysis_id: nil}} = socket), do: socket
+
+  defp sync_position_url(socket) do
+    path =
+      case socket.assigns.current_path do
+        [] -> nil
+        steps -> Enum.join(steps, ",")
+      end
+
+    if socket.assigns.url_analysis_id == socket.assigns.selected_analysis_id and
+         socket.assigns.url_path == path do
+      socket
+    else
+      push_patch(socket,
+        to:
+          analysis_url(
+            socket.assigns.room_code,
+            socket.assigns.selected_analysis_id,
+            socket.assigns.current_path
+          ),
+        replace: true
+      )
     end
   end
 
