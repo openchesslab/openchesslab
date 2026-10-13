@@ -4,6 +4,7 @@ Logger.configure(level: :warning)
 OpenChessLab.Repo.query!(
   """
   TRUNCATE TABLE
+    lichess_oauth_attempts,
     user_sessions,
     user_analyses,
     accounts,

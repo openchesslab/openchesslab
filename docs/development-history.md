@@ -200,14 +200,18 @@ Official Lichess documentation checked on 2026-10-13: [authorization request](ht
 
 Implementation order after this slice:
 
-1. Short-lived OAuth attempts with independent state and PKCE verifier, browser binding, atomic single-use consumption and cleanup; test mismatch, expiry, denial and concurrent replay. Do not put the verifier in URLs or logs.
+1. **Implemented in the next slice below:** short-lived OAuth attempts with independent state and PKCE verifier, browser-token binding, atomic single-use consumption and cleanup. HTTP cookie/route integration remains in step 3.
 2. Provider token exchange and account verification, then transactional internal-user lookup/creation. Validate provider responses, avoid logging profiles/codes/tokens, discard the token after verification (revoke where practical), and configure the stable production account HMAC secret before enabling login.
 3. Integrate login/logout with the session store, session renewal against fixation, secure cookies, CSRF-protected initiation/logout and protected LiveView mounts/events. Add expired-session cleanup before public login. Account linking must require an existing authenticated session plus fresh provider verification; never merge by name/email.
 4. Personal library LiveView using the server-resolved user, with cross-user access tests. Keep guest rooms available. Request import scopes only in a later, separate consent flow.
 
+### OAuth attempt foundation slice — 2026-10-13
+
+Starting from clean `main` at `2ba37c20ee2533545301e267eb6d99afddcd5e99`, implement the pending Lichess login handshake in `Web.LichessOAuthAttempts`. Use existing Phoenix encryption for a browser-held verifier rather than retaining a decryptable verifier in PostgreSQL; keep PostgreSQL authoritative for single-use state. A single autocommitted deletion prevents concurrent callback replay, and consumption rejects surrounding transactions to prevent a later login rollback from restoring an attempt. Detailed contracts, five-minute expiry, cleanup and integration requirements are in architecture section 6. The official authorization-request specification above was rechecked for independent random state/verifier and S256. Provider exchange, public routes, actual cookies and account linking are still separate work.
+
 **Near-term (next green vertical slices):**
 
-- **OAuth security foundation:** decide session model, stable production HMAC secret management, PKCE state verifier storage and secure callback routes. Write verification tests before exposing endpoints.
+- **OAuth security foundation:** session storage and one-time PKCE/state primitives exist; next verify provider exchange and identity, provision the stable production HMAC secret, and integrate secure callback routes. Write boundary tests before exposing endpoints.
 - **Lichess first-provider login:** complete real provider exchange and subject verification, resolve/create internal User, protect linking from cross-account takeover, add logout/session tests. Distinguish provider account linking from requesting study/game scopes.
 - **Library access in LiveView:** authenticate user server-side, save/list/remove references, ensure users do not see others' private libraries, preserve shared-analysis behavior.
 - **Tests / infra:** update auth/migration/release coverage, health/readiness where relevant, and test helpers for new tables; check app scopes and prevents accidental access to other users. Keep manual production deployment.

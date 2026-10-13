@@ -144,9 +144,19 @@ Sessions expire after a fixed 24 hours using PostgreSQL statement time, without 
 
 This is a storage foundation only. `create/1` must only be called after independent authentication; accepting a browser-supplied user ID would be an authentication bypass. There is no browser login or protected route yet, and no active LiveView disconnection on revocation. Web integration must renew the session on login, use HttpOnly/Secure/SameSite cookies, enforce CSRF, validate tokens at protected mounts and events, and handle logout/disconnection. Anonymous rooms retain their existing behavior.
 
-### Not implemented: OAuth and web authentication/access control
+### Implemented after `2ba37c2`: single-use OAuth attempt primitives
 
-- No OAuth2 authorization/callback endpoints, PKCE challenge/state processing, provider profile verification, login/logout, persistent sessions, browser identity plug, protected LiveView mount, CSRF-specific OAuth flow, account-grant storage, or Lichess library import/sync in `51192f5`.
+`Web.LichessOAuthAttempts` owns the web protocol's pending login handshake, separate from `Analysis` user identities and sessions. `create/0` generates independent 256-bit state and PKCE verifier values and returns public S256 authorization parameters plus a private encrypted `browser_token`. Phoenix.Token encrypts the verifier using the existing endpoint secret key base and a dedicated purpose salt. No extra dependency or secret is introduced; changing that key invalidates outstanding attempts.
+
+Migration `20261013180000_create_lichess_oauth_attempts.exs` stores only SHA-256 state/browser-token hashes and UTC creation/expiry times, with hash-size/expiry constraints and an expiry index. The five-minute lifetime is checked both by token decryption and PostgreSQL. `consume/2` matches both hashes in one `DELETE ... RETURNING`, checks expiry after acquiring the row, and returns the verifier to at most one caller. `cancel/2` consumes a denied attempt without returning the verifier. Wrong state or browser tokens cannot consume another attempt. Consumption is forbidden inside a surrounding transaction so later login failures cannot roll it back. Queries disable logging; no verifier, raw browser token, provider identity or access token is sent to PostgreSQL.
+
+`prune_expired/0` deletes at most 1,000 expired rows with `SKIP LOCKED`; creation also invokes it. There is no idle timer: without new attempts or explicit pruning, expired hash records can remain stored but cannot be used.
+
+These are protocol primitives, not installed cookies or HTTP routes. Future controllers must initiate via CSRF-protected POST, set the encrypted browser token in an HttpOnly/Secure/SameSite=Lax cookie, read it only from that cookie (never callback parameters), and clear it on callback. Consume before token exchange, including on denial; a failed exchange requires a fresh attempt. Client ID and redirect URI must come from trusted configuration and match the original request. This flow does not yet verify a Lichess identity, create a user session or support account linking.
+
+### Not implemented: provider exchange and web authentication/access control
+
+- No OAuth2 authorization/callback endpoints, provider profile verification, browser login/logout, browser identity plug, protected LiveView mount, account-grant storage, or Lichess library import/sync. Session storage and state/PKCE primitives now exist as described above.
 - `user_sessions` now exists as described above; `account_grants` remains a proposal. Avoid assuming Better Auth (a different ecosystem) is installed; **User → multiple Accounts is the adopted *model***, not a library dependency.
 - Users should not see unrelated users' analyses by default once ownership/scoping is introduced. Existing room collaboration remains link-based, guest-capable; future policy must define who can view, edit, claim or share analyses, and how anonymous work joins authenticated libraries. No automatic linkage based on matching email addresses.
 
