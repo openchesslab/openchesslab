@@ -164,9 +164,17 @@ Once a syntactically usable access token is received, the client calls `DELETE h
 
 The existing OTP `:httpc` client is used; `:inets` and `:ssl` are declared runtime applications, with no new Hex dependency. Provider URLs are fixed HTTPS origins, certificate/hostname verification is enabled, redirects and Retry-After retries are disabled, connection/request timeouts are 5/10 seconds, and response headers/body are limited to 8/64 KiB. Non-loopback HTTP redirect URIs are rejected; local development callbacks may use HTTP. Tests use controlled responses and a loopback HTTP provider fixture, not a real Lichess account or a live OAuth grant. Browser integration and atomic internal-user resolution remain separate slices.
 
-### Not implemented: user resolution and web authentication/access control
+### Implemented after `a76b39e`: atomic verified-identity resolution
 
-- No OAuth2 authorization/callback endpoints, atomic first-login user resolution, browser login/logout, browser identity plug, protected LiveView mount, account-grant storage, or Lichess library import/sync. Session storage, state/PKCE primitives and provider verification now exist as described above.
+`Analysis.Accounts.resolve_verified/2` returns `{:ok, user_id}` for an independently verified provider/subject pair, creating a UUID User and HMAC-only Account when needed. This is a trusted domain operation, not verification of browser assertions. It accepts no target user ID and performs no automatic merging; explicit linking remains `link_verified/3` behind a future authenticated boundary.
+
+Resolution runs in a PostgreSQL transaction and participates in an enclosing transaction, so session issuance can commit or roll back with first-login user/account creation. Existing accounts are looked up by provider/HMAC. When competing requests both find no account, the unique constraint arbitrates `INSERT ... ON CONFLICT DO UPDATE`: the conflict branch deliberately retains the existing owner and returns that owner's UUID. Any unused candidate User is removed within the same transaction. This also preserves ownership if explicit linking wins the race. Raw subjects never enter SQL. Concurrent deletion can invalidate any returned user later; session creation still checks that the user exists.
+
+Tests force concurrent account inserts to overlap using a PostgreSQL table lock, verify no unused users remain, cover competing explicit linking, and roll back User/Account/session together. No schema change or new dependency is required. Production HMAC-key configuration and HTTP login integration are still pending; changing or losing that stable key would break account resolution.
+
+### Not implemented: web authentication/access control
+
+- No OAuth2 authorization/callback endpoints, browser login/logout, browser identity plug, protected LiveView mount, account-grant storage, or Lichess library import/sync. Session storage, state/PKCE primitives, provider verification and atomic user resolution now exist as described above.
 - `user_sessions` now exists as described above; `account_grants` remains a proposal. Avoid assuming Better Auth (a different ecosystem) is installed; **User → multiple Accounts is the adopted *model***, not a library dependency.
 - Users should not see unrelated users' analyses by default once ownership/scoping is introduced. Existing room collaboration remains link-based, guest-capable; future policy must define who can view, edit, claim or share analyses, and how anonymous work joins authenticated libraries. No automatic linkage based on matching email addresses.
 

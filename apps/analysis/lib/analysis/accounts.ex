@@ -11,6 +11,7 @@ defmodule Analysis.Accounts do
   unresolvable. Provision it before enabling an OAuth callback in production.
   """
 
+  alias Analysis.Users
   alias OpenChessLab.Repo
 
   @link_sql """
@@ -29,6 +30,58 @@ defmodule Analysis.Accounts do
   @list_sql """
   SELECT provider FROM accounts WHERE user_id = $1 ORDER BY provider, id
   """
+
+  # The unique constraint arbitrates races, including concurrent explicit links.
+  # The conflict branch MUST preserve the existing owner, never EXCLUDED.user_id.
+  @resolve_link_sql """
+  INSERT INTO accounts (user_id, provider, subject_hmac)
+  VALUES ($1, $2, $3)
+  ON CONFLICT (provider, subject_hmac)
+  DO UPDATE SET user_id = accounts.user_id
+  RETURNING user_id::text
+  """
+
+  @doc """
+  Find or create the internal user for an independently verified provider identity.
+
+  This is a trusted login operation, not OAuth verification or account linking.
+  Never call it with a browser's claimed provider subject. It does not accept a
+  target user ID and never merges users or moves an existing account.
+
+  User/account creation is atomic and participates in a caller's transaction,
+  allowing subsequent session issuance to roll back together. Concurrent first
+  logins converge on the unique account owner without leaving unused users.
+  Database failures raise and roll back; invalid identities return an error.
+  """
+  @spec resolve_verified(String.t(), String.t()) ::
+          {:ok, String.t()} | {:error, :invalid_identity}
+  def resolve_verified(provider, subject) when is_binary(provider) and is_binary(subject) do
+    with :ok <- valid_identity(provider, subject) do
+      digest = subject_digest(provider, subject)
+
+      Repo.transact(fn ->
+        case Repo.query!(@find_sql, [provider, digest], log: false).rows do
+          [[_account_id, user_id]] ->
+            {:ok, user_id}
+
+          [] ->
+            {:ok, candidate} = Users.create()
+
+            [[owner_id]] =
+              Repo.query!(
+                @resolve_link_sql,
+                [Ecto.UUID.dump!(candidate.id), provider, digest],
+                log: false
+              ).rows
+
+            if owner_id != candidate.id, do: Users.delete(candidate.id)
+            {:ok, owner_id}
+        end
+      end)
+    end
+  end
+
+  def resolve_verified(_, _), do: {:error, :invalid_identity}
 
   @doc "Link a provider subject already verified by a trusted OAuth flow."
   @spec link_verified(String.t(), String.t(), String.t()) ::

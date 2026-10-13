@@ -201,7 +201,7 @@ Official Lichess documentation checked on 2026-10-13: [authorization request](ht
 Implementation order after this slice:
 
 1. **Implemented in the next slice below:** short-lived OAuth attempts with independent state and PKCE verifier, browser-token binding, atomic single-use consumption and cleanup. HTTP cookie/route integration remains in step 3.
-2. **Provider exchange/verification now implemented below; user resolution remains next:** transactional internal-user lookup/creation and stable production account HMAC secret configuration before enabling login.
+2. **Provider exchange/verification and atomic user resolution now implemented below:** stable production account HMAC secret configuration remains required before enabling login.
 3. Integrate login/logout with the session store, session renewal against fixation, secure cookies, CSRF-protected initiation/logout and protected LiveView mounts/events. Add expired-session cleanup before public login. Account linking must require an existing authenticated session plus fresh provider verification; never merge by name/email.
 4. Personal library LiveView using the server-resolved user, with cross-user access tests. Keep guest rooms available. Request import scopes only in a later, separate consent flow.
 
@@ -213,9 +213,13 @@ Starting from clean `main` at `2ba37c20ee2533545301e267eb6d99afddcd5e99`, implem
 
 Starting from clean `main` at `071d3e3208af09e0eb96c6c89c85f9c3e11b01ee`, connect single-use attempts to Lichess token exchange, authenticated account-ID extraction and token revocation. Rechecked the official token/account schemas linked above and the [OTP HTTP client documentation](https://www.erlang.org/doc/apps/inets/httpc.html), including the installed OTP source. Use the existing OTP client with explicit security options instead of adding a Hex dependency. Require confirmed token revocation before returning a verified identity; failures return fixed error atoms. Test both controlled provider responses and the real HTTP client against a local fixture. Architecture section 6 records the complete contract and its limits. Public routes, browser authentication, account creation/linking and HMAC-secret provisioning are still separate work.
 
+### Atomic account-resolution slice — 2026-10-13
+
+Starting from clean `main` at `a76b39e0f87b5bc029d4a1c8f536a7c2a211f5f7`, add `Analysis.Accounts.resolve_verified/2`. Keep first-login user creation separate from explicit account linking and rely on the existing PostgreSQL unique constraint to arbitrate races. The conflicting insert returns the existing owner without transferring the account, and the unused candidate user is removed in the same transaction. Tests force eight concurrent first-login writes to overlap, check racing explicit linking, HMAC-only persistence, invalid input/configuration, and joint User/Account/session rollback. Architecture section 6 describes the contract. No new migration, provider API, authentication route or dependency is introduced.
+
 **Near-term (next green vertical slices):**
 
-- **OAuth security foundation:** session storage, one-time PKCE/state primitives and provider verification exist; next resolve/create the internal user atomically, provision the stable production HMAC secret, and integrate secure callback routes. Write boundary tests before exposing endpoints.
+- **OAuth security foundation:** session storage, one-time PKCE/state primitives, provider verification and atomic user resolution exist; next configure the stable production HMAC secret and integrate secure login/callback/logout routes. Write boundary tests before exposing endpoints.
 - **Lichess first-provider login:** complete real provider exchange and subject verification, resolve/create internal User, protect linking from cross-account takeover, add logout/session tests. Distinguish provider account linking from requesting study/game scopes.
 - **Library access in LiveView:** authenticate user server-side, save/list/remove references, ensure users do not see others' private libraries, preserve shared-analysis behavior.
 - **Tests / infra:** update auth/migration/release coverage, health/readiness where relevant, and test helpers for new tables; check app scopes and prevents accidental access to other users. Keep manual production deployment.
