@@ -219,6 +219,63 @@ defmodule Features.Catalogue.SimilarityTest do
     refute compare(original, different_king)["similarity.same_strategic_structure"]
   end
 
+  test "tactical geometry recognizes absolute pins on different files" do
+    e_file_pin = "4r2k/8/8/8/4N3/8/8/4K3 b - - 0 1"
+    c_file_pin = "2r4k/8/8/8/2N5/8/8/2K5 b - - 0 1"
+
+    assert Features.extract(e_file_pin, sections: [12]).features["tactics.absolute_pin"]["white"] ==
+             ["e4"]
+
+    assert Features.extract(c_file_pin, sections: [12]).features["tactics.absolute_pin"]["white"] ==
+             ["c4"]
+
+    assert compare(e_file_pin, c_file_pin)["similarity.same_tactical_geometry"]
+    assert compare(c_file_pin, e_file_pin)["similarity.same_tactical_geometry"]
+    refute compare(e_file_pin, c_file_pin)["similarity.exact_same_position"]
+  end
+
+  test "tactical geometry distinguishes a pin from a fork" do
+    pinned_knight = "4r2k/8/8/8/4N3/8/8/4K3 b - - 0 1"
+    forked_rooks = "7k/8/8/8/8/8/3n4/1R2KR2 b - - 0 1"
+
+    assert Features.extract(forked_rooks, sections: [12]).features["tactics.fork"]["black"] ==
+             ["d2"]
+
+    refute compare(pinned_knight, forked_rooks)["similarity.same_tactical_geometry"]
+  end
+
+  test "tactical geometry preserves the side and count of tactical motifs" do
+    white_pinned = "4r2k/8/8/8/4N3/8/8/4K3 b - - 0 1"
+    black_pinned = "4k3/8/8/4n3/8/8/8/K3R3 w - - 0 1"
+
+    one_pin = "7k/8/8/8/1b6/2N5/3K4/8 b - - 0 1"
+    two_pins = "7k/8/8/8/1b3b2/2N1N3/3K4/8 b - - 0 1"
+
+    assert Features.extract(black_pinned, sections: [12]).features["tactics.absolute_pin"][
+             "black"
+           ] ==
+             ["e5"]
+
+    assert Features.extract(two_pins, sections: [12]).features["tactics.absolute_pin"]["white"] ==
+             ~w(c3 e3)
+
+    refute compare(white_pinned, black_pinned)["similarity.same_tactical_geometry"]
+    refute compare(one_pin, two_pins)["similarity.same_tactical_geometry"]
+  end
+
+  test "matching absence of tactical motifs does not imply the same geometry" do
+    kings_only = "4k3/8/8/8/8/8/8/4K3 w - - 0 1"
+
+    refute compare(@start, kings_only)["similarity.same_tactical_geometry"]
+    assert compare(kings_only, kings_only)["similarity.same_tactical_geometry"]
+  end
+
+  test "the same pieces have the same geometry regardless of who moves" do
+    black_to_move = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1"
+
+    assert compare(@start, black_to_move)["similarity.same_tactical_geometry"]
+  end
+
   test "bishop for knight substitution" do
     features = compare(@start, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RBBQKBNR w KQkq - 0 1")
 

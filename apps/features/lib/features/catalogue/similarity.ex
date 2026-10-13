@@ -26,6 +26,14 @@ defmodule Features.Catalogue.Similarity do
   placement/exposure indicators. It deliberately ignores irrelevant exact
   piece coordinates; this is a defined structural signature, not an
   assertion that two full positions have identical strategic prospects.
+
+  `similarity.same_tactical_geometry` compares a deliberately limited tactical
+  motif profile per color: the counts of absolute/relative pins, skewers,
+  forks and double attacks, plus double-check and battery indicators. Exact
+  board squares are ignored. Different motif-free positions are not treated
+  as matching tactical patterns; identical piece occupancy still matches.
+  This is a coarse motif signature, not full attacker-target geometry or
+  proof that a tactic can be executed legally.
   """
 
   import Bitwise
@@ -48,6 +56,11 @@ defmodule Features.Catalogue.Similarity do
     lines.rook_open_file lines.rook_semi_open_file
     king.uncastled king.castled_kingside king.castled_queenside
     king.open_file king.semi_open_file
+  )
+
+  @tactical_digest_ids ~w(
+    tactics.absolute_pin tactics.relative_pin tactics.skewer tactics.fork
+    tactics.double_attack tactics.double_check tactics.battery
   )
 
   @spec features() :: [Feature.t()]
@@ -162,7 +175,42 @@ defmodule Features.Catalogue.Similarity do
   defp same_king_safety_structure?(frame),
     do: frame.a_digests.king_safety == frame.b_digests.king_safety
 
-  defp same_tactical_geometry?(frame), do: frame.a_digests.tactical == frame.b_digests.tactical
+  # Comparing raw square lists would reject the same motif on another file.
+  # Count only the selected tactical motifs and retain which color has them.
+  # An all-zero motif profile is not evidence of a shared tactical pattern.
+  defp same_tactical_geometry?(%{a: a, b: b} = frame) do
+    reference = tactical_motif_profile(frame.a_digests.tactical)
+    candidate = tactical_motif_profile(frame.b_digests.tactical)
+
+    reference == candidate and
+      (active_tactical_motif?(reference) or same_piece_occupancy?(a, b))
+  end
+
+  defp tactical_motif_profile(tactical) do
+    Map.new(@tactical_digest_ids, fn id ->
+      per_color = Map.fetch!(tactical, id)
+
+      {id,
+       %{
+         "white" => tactical_motif_count(Map.fetch!(per_color, "white")),
+         "black" => tactical_motif_count(Map.fetch!(per_color, "black"))
+       }}
+    end)
+  end
+
+  defp tactical_motif_count(motifs) when is_list(motifs), do: length(motifs)
+  defp tactical_motif_count(true), do: 1
+  defp tactical_motif_count(false), do: 0
+
+  defp active_tactical_motif?(profile) do
+    Enum.any?(profile, fn {_id, per_color} ->
+      per_color["white"] > 0 or per_color["black"] > 0
+    end)
+  end
+
+  defp same_piece_occupancy?(a, b) do
+    Enum.all?(Board.types(), &same_piece_set?(a, b, &1))
+  end
 
   # A shared absence of attacks is not a shared attack plan. Likewise,
   # matching activity for opposite colors is not the same plan.
@@ -309,7 +357,9 @@ defmodule Features.Catalogue.Similarity do
         Features.extract(board, sections: [3, 9, 11]).features
         |> Map.take(@strategic_digest_ids),
       king_safety: Features.extract(board, sections: [11]).features,
-      tactical: Features.extract(board, sections: [12]).features,
+      tactical:
+        Features.extract(board, sections: [12]).features
+        |> Map.take(@tactical_digest_ids),
       attack: Features.extract(board, sections: [15]).features |> Map.take(@attack_digest_ids)
     }
   end
