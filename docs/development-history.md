@@ -239,12 +239,17 @@ The user reported a manual deployment after `118a47b` on 2026-10-13.
 
 Starting from clean `main` at `118a47bb930c70acba335b4eadc7ee38c92276b2`, add CSRF-protected `POST /auth/logout`. Revoke the protected browser's credential before clearing session/CSRF state and expiring both session and OAuth-attempt cookies. Tests verify isolation from other sessions/users, real CSRF enforcement, safe anonymous/repeated/expired logout and a retained encrypted cookie whose revoked credential fails PostgreSQL resolution. Architecture section 6 records the contract and pending LiveView authorization/disconnection work. No dependency, migration or deployment is introduced.
 
+### Expired-session cleanup slice — 2026-10-13
+
+Starting from clean `main` at `766aafca17200869be0d43424722272976046bf7`, add PostgreSQL cleanup of at most 1,000 expired sessions per pass and the matching expiry/token-hash index migration. Supervise a production worker with a one-minute initial delay and hourly passes, keeping failures sanitized and scheduling recovery. Tests cover active-session preservation, locked rows, concurrent passes, bounded draining, timer replacement, migrated index and recovery after a database failure. Architecture section 6 records the cleanup contract and its retention limits. No provider grant, dependency or deployment is introduced.
+
 **Near-term (next green vertical slices):**
 
-- **OAuth security foundation:** login initiation/callback, logout and browser session issuance exist; next add expired-session cleanup, then the authenticated UI/access boundary. Provision the stable production HMAC secret and review external callback/access logging before enabling login in production.
+- **OAuth security foundation:** login initiation/callback, logout, browser session issuance and expired-session cleanup exist; next implement the authenticated UI/access boundary. Provision the stable production HMAC secret and review external callback/access logging before enabling login in production.
 - **Lichess first-provider login:** complete real provider exchange and subject verification, resolve/create internal User, protect linking from cross-account takeover, add logout/session tests. Distinguish provider account linking from requesting study/game scopes.
 - **Library access in LiveView:** authenticate user server-side, save/list/remove references, ensure users do not see others' private libraries, preserve shared-analysis behavior.
 - **Tests / infra:** update auth/migration/release coverage, health/readiness where relevant, and test helpers for new tables; check app scopes and prevents accidental access to other users. Keep manual production deployment.
+- **Accepted test backlog (2026-10-13):** investigate suite-dependent `:invalid_occurrences` failures in `Analysis.AnalysesTest` (`test/analysis/analyses_test.exs:122`) and `Analysis.PgnBatchImporterTest` (`test/analysis/pgn_batch_importer_test.exs:143`). Full analysis seed `938846` produced 588/589, then 587/589 passes; the isolated analysis test passed and both files together passed all 63 tests with that same seed. Full seed `824219` passed all 589. Shared PostgreSQL fixtures/reset order are suspected, but the cause is not established. The user explicitly requested putting a flaky test on the backlog. Do not suppress the tests or describe the failing seed as green. Reproduce from `apps/analysis` with `mix test --seed 938846`; compare `mix test test/analysis/analyses_test.exs test/analysis/pgn_batch_importer_test.exs --seed 938846` (same commands on Windows/Arch).
 
 **Subsequent design and scaling:**
 

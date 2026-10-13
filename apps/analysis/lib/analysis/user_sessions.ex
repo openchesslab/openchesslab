@@ -28,6 +28,24 @@ defmodule Analysis.UserSessions do
   WHERE token_hash = $1 AND expires_at > timezone('UTC', statement_timestamp())
   """
 
+  @prune_sql """
+  WITH expired AS (
+    SELECT token_hash FROM user_sessions
+    WHERE expires_at <= timezone('UTC', statement_timestamp())
+    ORDER BY expires_at, token_hash
+    LIMIT 1000
+    FOR UPDATE SKIP LOCKED
+  )
+  DELETE FROM user_sessions USING expired
+  WHERE user_sessions.token_hash = expired.token_hash
+  """
+
+  @doc "Remove at most 1,000 expired credentials, skipping rows locked by another transaction."
+  @spec prune_expired() :: non_neg_integer()
+  def prune_expired do
+    Repo.query!(@prune_sql, [], log: false).num_rows
+  end
+
   @doc "Issue a new credential only after trusted authentication."
   @spec create(String.t()) ::
           {:ok, %{token: String.t(), expires_at: NaiveDateTime.t()}}
