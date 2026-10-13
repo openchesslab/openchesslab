@@ -53,6 +53,56 @@ defmodule Web.SessionControllerTest do
     assert {:ok, ^user} = UserSessions.user_for_token(other_session.token)
   end
 
+  test "logout closes every transport for this credential but leaves other sessions alone", %{
+    user: user,
+    session: session
+  } do
+    {:ok, other} = UserSessions.create(user.id)
+    other_topic = Web.UserAuth.live_socket_id(other.token)
+    Web.Endpoint.subscribe(other_topic)
+    {browser, csrf} = browser(session.token)
+    topic = get_session(browser, :live_socket_id)
+    refute topic =~ session.token
+
+    supervisor = start_supervised!(Task.Supervisor)
+    owner = self()
+
+    transports =
+      for _tab <- 1..2 do
+        Task.Supervisor.async_nolink(supervisor, fn ->
+          {:ok, state} =
+            Phoenix.LiveView.Socket.connect(%{
+              endpoint: Web.Endpoint,
+              options: [serializer: [{Phoenix.Socket.V2.JSONSerializer, "~> 2.0.0"}]],
+              transport: :websocket,
+              params: %{"vsn" => "2.0.0"},
+              connect_info: %{session: get_session(browser)}
+            })
+
+          {:ok, state} = Phoenix.LiveView.Socket.init(state)
+          send(owner, {:transport_ready, self()})
+
+          receive do
+            %Phoenix.Socket.Broadcast{} = message ->
+              Phoenix.LiveView.Socket.handle_info(message, state)
+          end
+        end)
+      end
+
+    for %{pid: pid} <- transports, do: assert_receive({:transport_ready, ^pid})
+    logout(browser, csrf, %{"live_socket_id" => other_topic, "user_token" => other.token})
+
+    for task <- transports do
+      assert {:stop, {:shutdown, :disconnected}, 1001, _state} = Task.await(task)
+    end
+
+    refute_received %Phoenix.Socket.Broadcast{topic: ^other_topic, event: "disconnect"}
+    assert {:ok, ^user} = UserSessions.user_for_token(other.token)
+
+    {:ok, view, _html} = live(get(recycle(browser), @origin <> "/"))
+    assert :sys.get_state(view.pid).socket.assigns.current_user == nil
+  end
+
   test "request parameters cannot revoke another user or select a redirect", %{session: session} do
     {:ok, other_user} = Users.create()
     on_exit(fn -> Users.delete(other_user.id) end)

@@ -230,6 +230,12 @@ Before each LiveView event, a hook re-resolves the original protected credential
 
 Tests cover HTTP session resolution, bogus/User-ID/query assertions, retained revoked cookies, connected mounts including revocation after the initial render, event-time expiry/revocation and actual public router mounts/guest rooms. This is optional authentication, not permission to expose private library data: private routes/mounts/events still require an explicit authenticated guard and per-user scope. Live patches/handle_params and active logout disconnection need that separate boundary; no private route or login UI is added here.
 
+### Implemented after `4583a13`: active browser-session disconnection
+
+Authenticated HTTP requests and successful login callbacks set Phoenix's protected `live_socket_id` to a session-specific SHA-256 credential digest topic, never the bearer token or a user-wide topic. Logout revokes the credential before broadcasting Phoenix's `disconnect` event. A successful replacement login broadcasts for the previous credential only after the account/session transaction commits. Failed provider verification or database rollback leaves existing connections alone. The topic is derived from the protected credential; request parameters cannot choose another connection to disconnect.
+
+Phoenix closes all transports subscribed to that session, including other tabs; other sessions for the same User remain connected. Reconnection independently resolves PostgreSQL state. Revocation between HTTP rendering and socket subscription is still covered by connected-mount/event revalidation. Broadcasts are transient notifications, not durable authorization. Direct domain revocation, user deletion and natural expiry still rely on mount/event checks; no idle expiry timer or database notification mechanism is introduced. Tests exercise real Phoenix transport connect/init/disconnect callbacks, multiple connections, isolation, replacement login and failed-login rollback.
+
 ### Not implemented: private access control
 
 - No protected private LiveView route, account-grant storage, or Lichess library import/sync. Optional request/mount/event authentication, login initiation/callback, logout, browser session issuance, state/PKCE primitives, provider verification and atomic user resolution now exist as described above.

@@ -50,6 +50,10 @@ defmodule Web.UserAuthTest do
       |> get("/?user_id=#{context.other.id}&user_token=#{context.other_session.token}")
 
     assert conn.assigns.current_user == context.user
+
+    assert get_session(conn, :live_socket_id) ==
+             Web.UserAuth.live_socket_id(context.session.token)
+
     assert response(conn, 200)
   end
 
@@ -57,10 +61,15 @@ defmodule Web.UserAuthTest do
     for token <- [nil, "invalid", context.user.id] do
       conn =
         build_conn()
-        |> Plug.Test.init_test_session(%{user_token: token, user_id: context.user.id})
+        |> Plug.Test.init_test_session(%{
+          user_token: token,
+          user_id: context.user.id,
+          live_socket_id: "untrusted-topic"
+        })
         |> get("/")
 
       assert conn.assigns.current_user == nil
+      assert get_session(conn, :live_socket_id) == nil
       assert response(conn, 200)
     end
   end

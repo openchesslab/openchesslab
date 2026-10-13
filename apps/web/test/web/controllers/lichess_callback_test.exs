@@ -51,6 +51,7 @@ defmodule Web.LichessCallbackTest do
 
     assert Enum.sort(Map.keys(get_session(browser))) == [
              "_csrf_token",
+             "live_socket_id",
              "localize_locale",
              "user_token"
            ]
@@ -82,8 +83,14 @@ defmodule Web.LichessCallbackTest do
 
     stub_success()
     start = start_login(conn)
+    old_topic = get_session(start, :live_socket_id)
+    Web.Endpoint.subscribe(old_topic)
     old_csrf = get_session(start, :_csrf_token)
     completed = callback(start)
+    assert_receive %Phoenix.Socket.Broadcast{topic: ^old_topic, event: "disconnect"}
+    new_topic = get_session(completed, :live_socket_id)
+    refute new_topic == old_topic
+    assert new_topic == Web.UserAuth.live_socket_id(get_session(completed, :user_token))
     browser = get(recycle(completed), @origin <> "/")
     token = get_session(browser, :user_token)
 
@@ -192,12 +199,14 @@ defmodule Web.LichessCallbackTest do
       stub(responses)
       conn = Plug.Test.init_test_session(build_conn(), %{user_token: previous.token})
       start = start_login(conn)
+      Web.Endpoint.subscribe(get_session(start, :live_socket_id))
       before_counts = counts()
       failed = callback(start)
       assert cleared_attempt?(failed)
       assert get_session(failed, :user_token) == previous.token
       assert {:ok, ^user} = UserSessions.user_for_token(previous.token)
       assert before_counts == counts()
+      refute_received %Phoenix.Socket.Broadcast{event: "disconnect"}
 
       assert {:error, :invalid_attempt} =
                Attempts.consume(state(start), start.resp_cookies[@cookie].value)
@@ -205,8 +214,11 @@ defmodule Web.LichessCallbackTest do
   end
 
   test "database failure rolls back the new user and account without restoring the attempt" do
+    {:ok, user} = Users.create()
+    {:ok, previous} = UserSessions.create(user.id)
     stub_success()
-    start = start_login()
+    start = start_login(Plug.Test.init_test_session(build_conn(), %{user_token: previous.token}))
+    Web.Endpoint.subscribe(get_session(start, :live_socket_id))
     before_counts = counts()
 
     Repo.query!(
@@ -221,6 +233,8 @@ defmodule Web.LichessCallbackTest do
     end
 
     assert before_counts == counts()
+    assert {:ok, ^user} = UserSessions.user_for_token(previous.token)
+    refute_received %Phoenix.Socket.Broadcast{event: "disconnect"}
 
     assert {:error, :invalid_attempt} =
              Attempts.consume(state(start), start.resp_cookies[@cookie].value)

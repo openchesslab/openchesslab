@@ -10,7 +10,9 @@ defmodule Web.SessionController do
   def delete(conn, _params) do
     # Only the protected browser session supplies the credential. Request
     # parameters cannot select another user's session or trigger revoke_all.
-    :ok = UserSessions.revoke(get_session(conn, :user_token))
+    token = get_session(conn, :user_token)
+    :ok = UserSessions.revoke(token)
+    :ok = Web.UserAuth.disconnect_session(token)
     Plug.CSRFProtection.delete_csrf_token()
 
     conn

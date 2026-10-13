@@ -61,12 +61,15 @@ defmodule Web.LichessAuthController do
       config ->
         with {:ok, identity} <- verify_identity(params, browser_token, config),
              {:ok, session} <- issue_session(identity, get_session(conn, :user_token)) do
+          # Publish only after the transaction commits, never on a failed login.
+          Web.UserAuth.disconnect_session(get_session(conn, :user_token))
           Plug.CSRFProtection.delete_csrf_token()
 
           conn
           |> configure_session(renew: true)
           |> clear_session()
           |> put_session(:user_token, session.token)
+          |> put_session(:live_socket_id, Web.UserAuth.live_socket_id(session.token))
           |> redirect(to: ~p"/")
         else
           {:error, _reason} ->

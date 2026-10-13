@@ -15,8 +15,33 @@ defmodule Web.UserAuth do
   def init(opts), do: opts
 
   def call(conn, _opts) do
-    user = resolve(Plug.Conn.get_session(conn, :user_token))
+    token = Plug.Conn.get_session(conn, :user_token)
+    user = resolve(token)
+
+    conn =
+      if user do
+        Plug.Conn.put_session(conn, :live_socket_id, live_socket_id(token))
+      else
+        Plug.Conn.delete_session(conn, :live_socket_id)
+      end
+
     Plug.Conn.assign(conn, :current_user, user)
+  end
+
+  @doc "A session-specific Phoenix transport topic, containing no bearer credential."
+  def live_socket_id(token) when is_binary(token) and byte_size(token) == 43 do
+    "user_sessions:" <> Base.url_encode64(:crypto.hash(:sha256, token), padding: false)
+  end
+
+  def live_socket_id(_token), do: nil
+
+  @doc "Disconnect a browser credential only after its revocation has committed."
+  def disconnect_session(token) do
+    if topic = live_socket_id(token) do
+      Web.Endpoint.broadcast(topic, "disconnect", %{})
+    end
+
+    :ok
   end
 
   def on_mount(:default, _params, session, socket) do
