@@ -14,6 +14,12 @@ defmodule Features.Catalogue.Similarity do
   diagonal displacement costs one. It does not validate legal moves. This
   differs from the directional and bounded pawn-edit neighborhood search
   in `Chess.PawnStructure.EditDistance`.
+
+  `similarity.comparable_attack_plan` is true only when the positions share
+  at least one active positional attack indicator for the same color.
+  The currently compared indicators are kingside, queenside and central
+  attacks, pawn storms and piece transfers toward either wing. This is an
+  indicator-based comparison, not proof of a plan carried out in a game.
   """
 
   import Bitwise
@@ -144,7 +150,19 @@ defmodule Features.Catalogue.Similarity do
 
   defp same_tactical_geometry?(frame), do: frame.a_digests.tactical == frame.b_digests.tactical
 
-  defp comparable_attack_plan?(frame), do: frame.a_digests.attack == frame.b_digests.attack
+  # A shared absence of attacks is not a shared attack plan. Likewise,
+  # matching activity for opposite colors is not the same plan.
+  # Other indicators may differ: comparable is not identical.
+  defp comparable_attack_plan?(frame) do
+    Enum.any?(@attack_digest_ids, fn id ->
+      reference = Map.fetch!(frame.a_digests.attack, id)
+      candidate = Map.fetch!(frame.b_digests.attack, id)
+
+      Enum.any?(~w(white black), fn color ->
+        Map.get(reference, color) == true and Map.get(candidate, color) == true
+      end)
+    end)
+  end
 
   defp structural_distance(%{a: a, b: b}) do
     pawn_edit_distance(a, b) +

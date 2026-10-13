@@ -15,6 +15,7 @@ defmodule Features.Catalogue.SimilarityTest do
 
     assert features["similarity.pawn_edit_distance"] == 0
     assert features["similarity.structural_distance"] == 0
+    assert features["similarity.comparable_attack_plan"] == false
     assert features["similarity.one_pawn_shifted"] == false
     assert features["similarity.bishop_knight_substitution"] == false
     assert features["similarity.two_rooks_queen_substitution"] == false
@@ -28,8 +29,7 @@ defmodule Features.Catalogue.SimilarityTest do
         "same_piece_placement_patterns",
         "same_strategic_structure",
         "same_king_safety_structure",
-        "same_tactical_geometry",
-        "comparable_attack_plan"
+        "same_tactical_geometry"
       ],
       fn key -> assert features["similarity.#{key}"] == true end
     )
@@ -127,6 +127,65 @@ defmodule Features.Catalogue.SimilarityTest do
     result = compare(before, after_shift)
     assert result["similarity.pawn_edit_distance"] == 2
     refute result["similarity.one_pawn_shifted"]
+  end
+
+  test "an actual kingside attack is comparable to itself but not to no attack" do
+    attacking = "r1bq1rk1/ppp1p1pp/2np1n2/6NQ/2B1P3/2N5/PP6/R1B2RK1 b - - 0 1"
+
+    attack_features = Features.extract(attacking, sections: [15]).features
+    assert attack_features["goals.kingside_attack"]["white"]
+
+    assert compare(attacking, attacking)["similarity.comparable_attack_plan"]
+    refute compare(@start, attacking)["similarity.comparable_attack_plan"]
+    refute compare(attacking, @start)["similarity.comparable_attack_plan"]
+  end
+
+  test "two positions can share an active attack motif even if other motifs differ" do
+    board = Features.Chess.Board.startpos()
+    white_kingside = %{"white" => true, "black" => false}
+
+    first =
+      with_attack_signals(board, %{
+        "goals.kingside_attack" => white_kingside
+      })
+
+    second =
+      with_attack_signals(board, %{
+        "goals.kingside_attack" => white_kingside,
+        "goals.central_attack" => %{"white" => true, "black" => false}
+      })
+
+    assert compare(first, second)["similarity.comparable_attack_plan"]
+    assert compare(second, first)["similarity.comparable_attack_plan"]
+  end
+
+  test "opposite colors or different active motifs are not comparable attack plans" do
+    board = Features.Chess.Board.startpos()
+
+    white_kingside =
+      with_attack_signals(board, %{
+        "goals.kingside_attack" => %{"white" => true, "black" => false}
+      })
+
+    black_kingside =
+      with_attack_signals(board, %{
+        "goals.kingside_attack" => %{"white" => false, "black" => true}
+      })
+
+    white_queenside =
+      with_attack_signals(board, %{
+        "goals.queenside_attack" => %{"white" => true, "black" => false}
+      })
+
+    refute compare(white_kingside, black_kingside)["similarity.comparable_attack_plan"]
+    refute compare(white_kingside, white_queenside)["similarity.comparable_attack_plan"]
+  end
+
+  # Controlled, precomputed indicator maps isolate comparison semantics from
+  # the independent heuristic detectors tested in GoalsTest.
+  defp with_attack_signals(board, overrides) do
+    digests = Features.Catalogue.Similarity.digests(board)
+    %{board | similarity_cache: %{digests | attack: Map.merge(digests.attack, overrides)}}
   end
 
   test "bishop for knight substitution" do
