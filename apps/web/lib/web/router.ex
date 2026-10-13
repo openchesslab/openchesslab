@@ -4,6 +4,7 @@ defmodule Web.Router do
   pipeline :browser do
     plug(:accepts, ["html"])
     plug(:fetch_session)
+    plug(Web.UserAuth)
 
     plug(Localize.Plug.PutLocale,
       from: [:query, :session, :accept_language],
@@ -39,8 +40,10 @@ defmodule Web.Router do
     get("/auth/lichess/callback", LichessAuthController, :callback)
     post("/auth/logout", SessionController, :delete)
 
-    live("/", HomeLive, :index)
-    live("/rooms/:code", RoomLive, :show)
+    live_session :public, on_mount: {Web.UserAuth, :default} do
+      live("/", HomeLive, :index)
+      live("/rooms/:code", RoomLive, :show)
+    end
   end
 
   # Other scopes may use custom stacks.

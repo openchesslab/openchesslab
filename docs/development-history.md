@@ -243,9 +243,13 @@ Starting from clean `main` at `118a47bb930c70acba335b4eadc7ee38c92276b2`, add CS
 
 Starting from clean `main` at `766aafca17200869be0d43424722272976046bf7`, add PostgreSQL cleanup of at most 1,000 expired sessions per pass and the matching expiry/token-hash index migration. Supervise a production worker with a one-minute initial delay and hourly passes, keeping failures sanitized and scheduling recovery. Tests cover active-session preservation, locked rows, concurrent passes, bounded draining, timer replacement, migrated index and recovery after a database failure. Architecture section 6 records the cleanup contract and its retention limits. No provider grant, dependency or deployment is introduced.
 
+### Optional browser/LiveView authentication slice — 2026-10-13
+
+Starting from clean `main` at `e8422fa2fde7aedc74de7a3e25e8b13e7839cc96`, resolve protected session credentials into a server-side `current_user` on browser requests and independent LiveView mounts. A LiveView event hook rechecks PostgreSQL before each handler, so expiry/revocation clears the identity rather than trusting cached User data. Tests cover real router mounts, guest rooms, replayed cookies, disconnected-to-connected revocation and malicious request/event identity assertions. An import conflict in the test fixture was fixed by qualifying its Component assign calls. Architecture section 6 defines the contract and separates optional identity from future private authorization. No migration, dependency or public login UI is introduced.
+
 **Near-term (next green vertical slices):**
 
-- **OAuth security foundation:** login initiation/callback, logout, browser session issuance and expired-session cleanup exist; next implement the authenticated UI/access boundary. Provision the stable production HMAC secret and review external callback/access logging before enabling login in production.
+- **OAuth security foundation:** login initiation/callback, logout, session cleanup and optional request/LiveView authentication exist; next add the login/logout UI and active session disconnection, then guarded private routes/events. Provision the stable production HMAC secret and review external callback/access logging before enabling login in production.
 - **Lichess first-provider login:** complete real provider exchange and subject verification, resolve/create internal User, protect linking from cross-account takeover, add logout/session tests. Distinguish provider account linking from requesting study/game scopes.
 - **Library access in LiveView:** authenticate user server-side, save/list/remove references, ensure users do not see others' private libraries, preserve shared-analysis behavior.
 - **Tests / infra:** update auth/migration/release coverage, health/readiness where relevant, and test helpers for new tables; check app scopes and prevents accidental access to other users. Keep manual production deployment.

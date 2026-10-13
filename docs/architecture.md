@@ -222,9 +222,17 @@ Tests obtain actual session cookies/CSRF tokens, verify missing/wrong/cross-brow
 
 Tests verify the 1,000-row bound, active-session preservation, deterministically locked rows, concurrent passes without double-counting, repeated worker ticks, production supervision, the migrated index and recovery after an actual database-query failure. Development/test do not start the periodic worker automatically. Public login UI and authenticated LiveView authorization/disconnection remain pending.
 
-### Not implemented: web authentication/access control
+### Implemented after `e8422fa`: optional request/LiveView authentication
 
-- No browser identity plug, protected LiveView mount, account-grant storage, or Lichess library import/sync. Login initiation/callback, logout, browser session issuance, state/PKCE primitives, provider verification and atomic user resolution now exist as described above.
+`Web.UserAuth` runs after session fetching in the browser pipeline and supplies `conn.assigns.current_user` from `UserSessions.user_for_token/1`. The public LiveView session uses its `on_mount(:default, ...)` hook to independently resolve the protected session credential for disconnected and connected mounts. Assertions of a User ID or credentials in request/event parameters are ignored. Missing, malformed, expired, revoked or deleted-user credentials result in `nil`; database failures abort processing rather than retain an unverified User.
+
+Before each LiveView event, a hook re-resolves the original protected credential and updates `socket.assigns.current_user` before the view's handler. The credential stays in the hook's closure rather than public socket assigns. This prevents an event handler from relying on a stale mount-time identity after expiry/revocation. Public room events still work for guests. The session cookie may retain a revoked/expired credential so logout can remove its row; its presence alone never establishes authentication.
+
+Tests cover HTTP session resolution, bogus/User-ID/query assertions, retained revoked cookies, connected mounts including revocation after the initial render, event-time expiry/revocation and actual public router mounts/guest rooms. This is optional authentication, not permission to expose private library data: private routes/mounts/events still require an explicit authenticated guard and per-user scope. Live patches/handle_params and active logout disconnection need that separate boundary; no private route or login UI is added here.
+
+### Not implemented: private access control
+
+- No protected private LiveView route, account-grant storage, or Lichess library import/sync. Optional request/mount/event authentication, login initiation/callback, logout, browser session issuance, state/PKCE primitives, provider verification and atomic user resolution now exist as described above.
 - `user_sessions` now exists as described above; `account_grants` remains a proposal. Avoid assuming Better Auth (a different ecosystem) is installed; **User → multiple Accounts is the adopted *model***, not a library dependency.
 - Users should not see unrelated users' analyses by default once ownership/scoping is introduced. Existing room collaboration remains link-based, guest-capable; future policy must define who can view, edit, claim or share analyses, and how anonymous work joins authenticated libraries. No automatic linkage based on matching email addresses.
 
