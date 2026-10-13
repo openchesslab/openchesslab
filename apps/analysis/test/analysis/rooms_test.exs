@@ -2,6 +2,7 @@ defmodule Analysis.RoomsTest do
   use ExUnit.Case, async: false
 
   alias Analysis.Rooms
+  alias Analysis.RoomStore
 
   @registry Analysis.RoomsTest.Registry
   @supervisor Analysis.RoomsTest.Supervisor
@@ -24,6 +25,8 @@ defmodule Analysis.RoomsTest do
       registry: @registry,
       supervisor: @supervisor
     ]
+
+    on_exit(fn -> RoomStore.delete(room_id) end)
 
     %{
       room_id: room_id,
@@ -212,7 +215,7 @@ defmodule Analysis.RoomsTest do
              )
   end
 
-  test "restarts a crashed room with fresh ephemeral state", %{
+  test "restarts a crashed room with durable memberships and fresh ephemeral chat", %{
     room_id: room_id,
     rooms_options: rooms_options
   } do
@@ -257,7 +260,8 @@ defmodule Analysis.RoomsTest do
              )
 
     assert room.id == room_id
-    assert room.analysis_ids == []
+    assert room.analysis_ids == ["analysis-1"]
+    assert {:ok, []} = Rooms.chat(room_id, rooms_options)
 
     [{new_pid, _value}] =
       Horde.Registry.lookup(
@@ -266,6 +270,24 @@ defmodule Analysis.RoomsTest do
       )
 
     assert new_pid != pid
+  end
+
+  test "restores a room with its analysis links when no worker is running", %{
+    room_id: room_id,
+    rooms_options: rooms_options
+  } do
+    start_room_and_wait(room_id, rooms_options)
+    assert :ok = Rooms.add_analysis(room_id, "analysis-1", rooms_options)
+    assert :ok = Rooms.add_analysis(room_id, "analysis-2", rooms_options)
+
+    [{pid, _value}] = Horde.Registry.lookup(@registry, room_id)
+    assert :ok = Horde.DynamicSupervisor.terminate_child(@supervisor, pid)
+
+    assert {:ok, restored} = eventually_get_room(room_id, rooms_options)
+    assert restored.analysis_ids == ["analysis-1", "analysis-2"]
+
+    assert {:ok, restarted} = Rooms.start_room(room_id, rooms_options)
+    assert restarted.analysis_ids == restored.analysis_ids
   end
 
   test "does not restart an explicitly stopped room", %{
@@ -312,6 +334,8 @@ defmodule Analysis.RoomsTest do
                room_id,
                rooms_options
              )
+
+    assert :not_found = RoomStore.get(room_id)
   end
 
   test "sends and lists chat messages", %{

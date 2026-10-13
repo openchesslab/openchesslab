@@ -4,6 +4,7 @@ defmodule Analysis.Rooms do
   alias Analysis.Room
   alias Analysis.RoomChat
   alias Analysis.RoomServer
+  alias Analysis.RoomStore
 
   @default_registry Analysis.RoomRegistry
   @default_supervisor Analysis.RoomSupervisor
@@ -19,25 +20,10 @@ defmodule Analysis.Rooms do
           options()
         ) :: {:ok, Room.t()}
   def start_room(room_id, opts \\ []) do
-    registry = registry(opts)
-    supervisor = supervisor(opts)
-    room = Room.new(room_id)
+    :ok = RoomStore.ensure(room_id)
 
-    case Horde.DynamicSupervisor.start_child(
-           supervisor,
-           {
-             RoomServer,
-             {room, registry}
-           }
-         ) do
-      {:ok, pid} ->
-        {:ok, RoomServer.get(pid)}
-
-      {:error, {:already_started, pid}} ->
-        {:ok, RoomServer.get(pid)}
-
-      {:error, {:already_registered, pid}} ->
-        {:ok, RoomServer.get(pid)}
+    case lookup(registry(opts), room_id, opts) do
+      {:ok, pid} -> {:ok, RoomServer.get(pid)}
     end
   end
 
@@ -50,7 +36,8 @@ defmodule Analysis.Rooms do
   def get(room_id, opts \\ []) do
     case lookup(
            registry(opts),
-           room_id
+           room_id,
+           opts
          ) do
       {:ok, pid} ->
         {:ok, RoomServer.get(pid)}
@@ -70,7 +57,8 @@ defmodule Analysis.Rooms do
   def add_analysis(room_id, analysis_id, opts \\ []) do
     case lookup(
            registry(opts),
-           room_id
+           room_id,
+           opts
          ) do
       {:ok, pid} ->
         RoomServer.add_analysis(
@@ -93,7 +81,8 @@ defmodule Analysis.Rooms do
   def remove_analysis(room_id, analysis_id, opts \\ []) do
     case lookup(
            registry(opts),
-           room_id
+           room_id,
+           opts
          ) do
       {:ok, pid} ->
         RoomServer.remove_analysis(
@@ -115,7 +104,8 @@ defmodule Analysis.Rooms do
   def chat(room_id, opts \\ []) do
     case lookup(
            registry(opts),
-           room_id
+           room_id,
+           opts
          ) do
       {:ok, pid} ->
         {:ok, RoomServer.chat(pid)}
@@ -135,7 +125,8 @@ defmodule Analysis.Rooms do
   def send_message(room_id, attrs, opts \\ []) do
     case lookup(
            registry(opts),
-           room_id
+           room_id,
+           opts
          ) do
       {:ok, pid} ->
         RoomServer.send_message(
@@ -157,7 +148,8 @@ defmodule Analysis.Rooms do
   def region(room_id, opts \\ []) do
     case lookup(
            registry(opts),
-           room_id
+           room_id,
+           opts
          ) do
       {:ok, pid} ->
         {:ok, node_region(node(pid))}
@@ -172,10 +164,9 @@ defmodule Analysis.Rooms do
           options()
         ) :: :ok
   def stop_room(room_id, opts \\ []) do
-    case lookup(
-           registry(opts),
-           room_id
-         ) do
+    :ok = RoomStore.delete(room_id)
+
+    case lookup_process(registry(opts), room_id) do
       {:ok, pid} ->
         case Horde.DynamicSupervisor.terminate_child(
                supervisor(opts),
@@ -193,16 +184,36 @@ defmodule Analysis.Rooms do
     end
   end
 
-  defp lookup(registry, room_id) do
-    case Horde.Registry.lookup(
-           registry,
-           room_id
-         ) do
-      [{pid, _value}] ->
+  # Recreate a worker on demand after a machine restart; never create a
+  # previously unknown room from a read path.
+  defp lookup(registry, room_id, opts) do
+    case lookup_process(registry, room_id) do
+      {:ok, pid} ->
         {:ok, pid}
 
-      [] ->
-        :not_found
+      :not_found ->
+        case RoomStore.get(room_id) do
+          {:ok, room} -> start_worker(room, registry, supervisor(opts))
+          :not_found -> :not_found
+        end
+    end
+  end
+
+  defp start_worker(room, registry, supervisor) do
+    case Horde.DynamicSupervisor.start_child(
+           supervisor,
+           {RoomServer, {room, registry, :durable}}
+         ) do
+      {:ok, pid} -> {:ok, pid}
+      {:error, {:already_started, pid}} -> {:ok, pid}
+      {:error, {:already_registered, pid}} -> {:ok, pid}
+    end
+  end
+
+  defp lookup_process(registry, room_id) do
+    case Horde.Registry.lookup(registry, room_id) do
+      [{pid, _value}] -> {:ok, pid}
+      [] -> :not_found
     end
   end
 

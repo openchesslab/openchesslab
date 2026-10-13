@@ -6,6 +6,7 @@ defmodule Analysis.RoomServer do
   alias Analysis.Room
   alias Analysis.RoomChat
   alias Analysis.RoomEvents
+  alias Analysis.RoomStore
 
   @default_registry Analysis.RoomRegistry
 
@@ -14,10 +15,11 @@ defmodule Analysis.RoomServer do
 
   @type state :: %{
           room: Room.t(),
-          chat: RoomChat.t()
+          chat: RoomChat.t(),
+          durable: boolean()
         }
 
-  @spec child_spec(Room.t() | {Room.t(), registry()}) ::
+  @spec child_spec(Room.t() | {Room.t(), registry()} | {Room.t(), registry(), :durable}) ::
           Supervisor.child_spec()
   def child_spec(%Room{} = room) do
     child_spec({room, @default_registry})
@@ -35,7 +37,15 @@ defmodule Analysis.RoomServer do
     }
   end
 
-  @spec start_link(Room.t() | {Room.t(), registry()}) ::
+  def child_spec({%Room{} = room, registry, :durable}) when is_atom(registry) do
+    %{
+      id: {__MODULE__, Room.id(room)},
+      start: {__MODULE__, :start_link, [{room, registry, :durable}]},
+      restart: :permanent
+    }
+  end
+
+  @spec start_link(Room.t() | {Room.t(), registry()} | {Room.t(), registry(), :durable}) ::
           GenServer.on_start()
   def start_link(%Room{} = room) do
     start_link({room, @default_registry})
@@ -50,6 +60,14 @@ defmodule Analysis.RoomServer do
           registry,
           Room.id(room)
         )
+    )
+  end
+
+  def start_link({%Room{} = room, registry, :durable}) when is_atom(registry) do
+    GenServer.start_link(
+      __MODULE__,
+      {:durable, room},
+      name: via_tuple(registry, Room.id(room))
     )
   end
 
@@ -102,11 +120,19 @@ defmodule Analysis.RoomServer do
   end
 
   @impl true
+  def init({:durable, %Room{} = room}) do
+    case RoomStore.get(Room.id(room)) do
+      {:ok, persisted} -> {:ok, %{room: persisted, chat: RoomChat.new(), durable: true}}
+      :not_found -> {:stop, :room_not_found}
+    end
+  end
+
   def init(%Room{} = room) do
     {:ok,
      %{
        room: room,
-       chat: RoomChat.new()
+       chat: RoomChat.new(),
+       durable: false
      }}
   end
 
@@ -116,6 +142,8 @@ defmodule Analysis.RoomServer do
   end
 
   def handle_call({:add_analysis, analysis_id}, _from, %{room: room} = state) do
+    if state.durable, do: RoomStore.add_analysis(Room.id(room), analysis_id)
+
     updated_room =
       Room.add_analysis(
         room,
@@ -131,6 +159,8 @@ defmodule Analysis.RoomServer do
   end
 
   def handle_call({:remove_analysis, analysis_id}, _from, %{room: room} = state) do
+    if state.durable, do: RoomStore.remove_analysis(Room.id(room), analysis_id)
+
     updated_room =
       Room.remove_analysis(
         room,
