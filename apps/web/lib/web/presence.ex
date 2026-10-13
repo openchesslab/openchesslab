@@ -6,16 +6,16 @@ defmodule Web.Presence do
   The metadata is deliberately small and ephemeral:
 
       %{
-        display_name: "Guest 4F2A",
+        display_name: "Brave Otter 42",
         joined_at: 1_753_000_000,
         analysis_id: "analysis-1" | nil,
         path: [0, 1] | [],
         shapes: [] # board annotations, broadcast on drag end
       }
 
-  There is no user identity yet: the web layer generates a guest name
-  and the entry disappears when the LiveView process exits. When auth
-  lands this becomes the place to attach a real identity.
+  Room participation remains anonymous: the web layer generates a display
+  name independent of any provider profile, and the entry disappears when
+  the LiveView process exits. Display names are labels, not authorization.
   """
 
   use Phoenix.Presence,

@@ -317,9 +317,21 @@ defmodule Web.RoomLiveTest do
     assert render(first) =~ "2 people here"
     assert render(second) =~ "2 people here"
 
+    names =
+      "room:#{code}"
+      |> Web.Presence.list()
+      |> Map.values()
+      |> Enum.flat_map(& &1.metas)
+      |> Enum.map(& &1.display_name)
+
+    assert length(names) == 2
+    assert Enum.all?(names, &Regex.match?(~r/\A[A-Z][a-z]+ [A-Z][a-z]+ [1-9][0-9]\z/, &1))
+
     render_submit(first, "send-chat", %{"message" => "hello from LiveView"})
 
     assert render(second) =~ "hello from LiveView"
+    assert {:ok, messages} = Rooms.chat(code)
+    assert Enum.any?(messages, &(&1.text == "hello from LiveView" and &1.author in names))
   end
 
   test "analysis mutations arrive in other LiveViews sharing the room", %{conn: conn, code: code} do

@@ -15,6 +15,7 @@ defmodule Web.RoomLive do
   alias Chess.PositionDraft
   alias Web.AnalysisView
   alias Web.DemoData
+  alias Web.DisplayName
   alias Web.Presence
 
   @shape_colors ~w(yellow blue red orange purple)
@@ -75,7 +76,7 @@ defmodule Web.RoomLive do
       board_shapes: [],
       participants: %{},
       participant_id: participant_id(),
-      display_name: guest_name(),
+      display_name: DisplayName.generate(),
       joined_at: System.system_time(:second),
       chat_messages: [],
       chat_error: nil,
@@ -1936,7 +1937,6 @@ defmodule Web.RoomLive do
   defp room_topic(code), do: "room:#{code}"
 
   defp participant_id, do: "lv-" <> Base.encode16(:crypto.strong_rand_bytes(8))
-  defp guest_name, do: "Guest " <> Base.encode16(:crypto.strong_rand_bytes(2))
 
   defp to_fen(position) do
     board =

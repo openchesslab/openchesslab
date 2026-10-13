@@ -229,6 +229,10 @@ Starting from clean `main` at `cfa146f088d5884f1514b98ba708af6d26722d70`, add CS
 
 Starting from clean `main` at `43a0ca666f147b746ab5f3815f53f524fbf349b0`, connect the browser-bound callback to provider verification and transactional account/session resolution. Recheck the official token and authenticated-account specifications linked above. Renew/clear the browser session and CSRF state on success, revoke the previous session credential in the same transaction, encrypt the browser cookie and compile production Secure=true independently of proxy scheme. Filter sensitive OAuth parameter logs. Boundary tests include a real PostgreSQL insert constraint failure to prove joint rollback without restoring consumed state. Correct misplaced module aliases and the locale-key test assertion found by initial test runs. Architecture section 6 describes contracts and remaining deployment prerequisites.
 
+### Friendly room display-name slice — 2026-10-13
+
+Starting from clean `main` at `a6636d38e9f7a363f64d988241b79c880f124904`, replace hexadecimal `Guest` labels with the user's Blunderfest-style curated adjective/animal/two-digit generator in `Web.DisplayName`. Keep labels ephemeral and independent of OAuth, with existing participant IDs supplying identity rather than name uniqueness. Tests check curated output and real LiveView presence/chat author integration. No schema change, provider data or dependency is added. This visible room improvement can be deployed while production Lichess configuration remains absent; complete public authentication still needs logout, cleanup and authenticated UI/access handling.
+
 **Near-term (next green vertical slices):**
 
 - **OAuth security foundation:** login initiation/callback and browser session issuance exist; next add logout and expired-session cleanup, then the authenticated UI/access boundary. Provision the stable production HMAC secret and review external callback/access logging before enabling login in production.

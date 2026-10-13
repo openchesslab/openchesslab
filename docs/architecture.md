@@ -119,6 +119,8 @@ The catalogue covers exact state, material, pawns, placement, mobility, center, 
 
 `Web.HomeLive` creates/joins rooms; `Web.RoomLive` offers chessboard editing, variations, PGN import, position tools, shared session, presence/chat, orientation and analysis switching. Direct room link is `/rooms/<CODE>`. A selected analysis/move may be deep-linked with `?a=<analysis-id>&p=<index,index,...>`; `p` is omitted at root. Navigation/board play keep it synchronized, normally with URL replace to avoid one browser history entry per move. Tests verify restart restoration and invalid path fallback. Optimistic client interaction was added to mitigate cross-region LiveView round trips.
 
+**Implemented after `a6636d3`:** `Web.DisplayName.generate/0` supplies room participant labels such as `Brave Otter 42`, using curated English adjectives/animals and numbers 10–99. Presence, chat authors and annotation authors use the same server-assigned label during that LiveView lifetime. Names are generated afresh on mount and are not stored in the identity schema or derived from provider profiles. They need not be globally unique: the separate random participant ID identifies presence/chat participants. Room participation remains anonymous, including when a browser holds a login session.
+
 ### Room retention — implemented **current rule**
 
 - `rooms.created_at` is required; `Analysis.RoomInventory.summary/1` / `old_empty_rooms/2` provide counts/candidates.
