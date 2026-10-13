@@ -170,9 +170,11 @@ defmodule Web.LichessOAuth do
 
   defp valid_oauth_string?(_), do: false
 
-  defp validate_config(%{client_id: client_id, redirect_uri: redirect_uri})
-       when is_binary(client_id) and byte_size(client_id) in 1..256 and
-              is_binary(redirect_uri) and byte_size(redirect_uri) in 1..2048 do
+  @doc "Validate trusted OAuth configuration without making a provider request."
+  @spec validate_config(term()) :: :ok | {:error, :invalid_configuration}
+  def validate_config(%{client_id: client_id, redirect_uri: redirect_uri})
+      when is_binary(client_id) and byte_size(client_id) in 1..256 and
+             is_binary(redirect_uri) and byte_size(redirect_uri) in 1..2048 do
     with true <- String.valid?(client_id) and String.trim(client_id) != "",
          {:ok, uri} <- URI.new(redirect_uri),
          true <- is_binary(uri.host) and uri.host != "",
@@ -186,5 +188,5 @@ defmodule Web.LichessOAuth do
     end
   end
 
-  defp validate_config(_), do: {:error, :invalid_configuration}
+  def validate_config(_), do: {:error, :invalid_configuration}
 end

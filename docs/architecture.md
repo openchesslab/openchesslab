@@ -172,6 +172,20 @@ Resolution runs in a PostgreSQL transaction and participates in an enclosing tra
 
 Tests force concurrent account inserts to overlap using a PostgreSQL table lock, verify no unused users remain, cover competing explicit linking, and roll back User/Account/session together. No schema change or new dependency is required. Production HMAC-key configuration and HTTP login integration are still pending; changing or losing that stable key would break account resolution.
 
+### Implemented after `a0abd77`: authentication runtime configuration
+
+`config/runtime.exs` reads the following server-controlled environment variables, in development and releases:
+
+| Variable | Contract |
+|---|---|
+| `ACCOUNT_SUBJECT_HMAC_KEY` | Standard Base64 encoding of at least 32 secret bytes; decoded into `:analysis, :account_subject_hmac_key`. Generate independently of `SECRET_KEY_BASE`, keep stable and securely backed up, and use a separate value per environment. There is no generated fallback. |
+| `LICHESS_CLIENT_ID` | Application client identifier; validated together with the exact redirect URI by `Web.LichessOAuth.validate_config/1`. |
+| `LICHESS_REDIRECT_URI` | Absolute callback URL, without userinfo or fragment. HTTPS is mandatory in production; development permits HTTP only on loopback. |
+
+Without both Lichess variables, `:web, :lichess_oauth` is `nil`; providing only one or an invalid value raises at startup. Complete configuration produces `%{client_id: ..., redirect_uri: ...}` for future trusted controllers. Production Lichess configuration additionally requires the explicit HMAC secret. A supplied but malformed/short HMAC secret fails even when OAuth is unconfigured. Missing overrides preserve the separate development/test keys from their environment config. Error messages name configuration variables without including their values. No client secret, provider scopes, endpoint override or token storage setting is added.
+
+Generate the identity key once in a trusted terminal with `elixir -e 'IO.puts(Base.encode64(:crypto.strong_rand_bytes(32)))'` (PowerShell and Bash). Store its output in the environment's secret manager, rather than in Git or logs; never regenerate it during a deploy. Runtime loading is implemented, but production secrets have not been provisioned by this slice and browser login routes remain pending. Tests evaluate the actual runtime file without starting a release or connecting to its configured database.
+
 ### Not implemented: web authentication/access control
 
 - No OAuth2 authorization/callback endpoints, browser login/logout, browser identity plug, protected LiveView mount, account-grant storage, or Lichess library import/sync. Session storage, state/PKCE primitives, provider verification and atomic user resolution now exist as described above.

@@ -1,0 +1,132 @@
+defmodule Web.AuthRuntimeConfigTest do
+  use ExUnit.Case, async: false
+
+  @runtime Path.expand("../../../../config/runtime.exs", __DIR__)
+  @variables ~w(ACCOUNT_SUBJECT_HMAC_KEY LICHESS_CLIENT_ID LICHESS_REDIRECT_URI SECRET_KEY_BASE DATABASE_URL DNS_CLUSTER_QUERY PORT POOL_SIZE)
+  @key Base.encode64(String.duplicate("private-test-key", 3))
+
+  setup do
+    previous = Map.new(@variables, &{&1, System.get_env(&1)})
+    Enum.each(@variables, &System.delete_env/1)
+
+    System.put_env("SECRET_KEY_BASE", String.duplicate("endpoint-test-secret", 4))
+    System.put_env("DATABASE_URL", "ecto://unused:unused@localhost/openchesslab_test")
+
+    on_exit(fn ->
+      Enum.each(previous, fn
+        {name, nil} -> System.delete_env(name)
+        {name, value} -> System.put_env(name, value)
+      end)
+    end)
+
+    :ok
+  end
+
+  test "unconfigured authentication stays disabled without generating an identity key" do
+    config = read(:prod)
+    assert config[:web][:lichess_oauth] == nil
+    refute Keyword.has_key?(config[:analysis], :account_subject_hmac_key)
+  end
+
+  test "decodes a stable identity key without requiring OAuth configuration" do
+    System.put_env("ACCOUNT_SUBJECT_HMAC_KEY", @key)
+    assert read(:prod)[:analysis][:account_subject_hmac_key] == Base.decode64!(@key)
+    assert read(:prod)[:analysis][:account_subject_hmac_key] == Base.decode64!(@key)
+
+    minimum_key = String.duplicate("k", 32)
+    System.put_env("ACCOUNT_SUBJECT_HMAC_KEY", Base.encode64(minimum_key))
+    assert read(:prod)[:analysis][:account_subject_hmac_key] == minimum_key
+  end
+
+  test "rejects malformed and short secrets without disclosing their values" do
+    for value <- ["private-invalid!", "", Base.encode64(String.duplicate("k", 31))] do
+      System.put_env("ACCOUNT_SUBJECT_HMAC_KEY", value)
+      error = assert_raise RuntimeError, fn -> read(:prod) end
+
+      assert error.message ==
+               "ACCOUNT_SUBJECT_HMAC_KEY must be standard Base64 encoding at least 32 bytes"
+    end
+  end
+
+  test "complete production configuration loads the exact client ID and callback" do
+    configure("https://openchesslab.example/auth/lichess/callback")
+    System.put_env("ACCOUNT_SUBJECT_HMAC_KEY", @key)
+    config = read(:prod)
+
+    assert config[:web][:lichess_oauth] == %{
+             client_id: "openchesslab.example",
+             redirect_uri: "https://openchesslab.example/auth/lichess/callback"
+           }
+
+    assert config[:analysis][:account_subject_hmac_key] !=
+             config[:web][Web.Endpoint][:secret_key_base]
+  end
+
+  test "production OAuth requires the identity key and HTTPS even on loopback" do
+    configure("https://openchesslab.example/auth/lichess/callback")
+
+    assert_raise RuntimeError,
+                 "ACCOUNT_SUBJECT_HMAC_KEY is required for production Lichess authentication",
+                 fn ->
+                   read(:prod)
+                 end
+
+    System.put_env("ACCOUNT_SUBJECT_HMAC_KEY", @key)
+    configure("http://localhost:4000/auth/lichess/callback")
+
+    assert_raise RuntimeError, "LICHESS_REDIRECT_URI must use HTTPS in production", fn ->
+      read(:prod)
+    end
+  end
+
+  test "development permits loopback HTTP and retains its separately configured key" do
+    configure("http://localhost:4000/auth/lichess/callback")
+    config = read(:dev)
+
+    assert config[:web][:lichess_oauth][:redirect_uri] ==
+             "http://localhost:4000/auth/lichess/callback"
+
+    refute Keyword.has_key?(config[:analysis], :account_subject_hmac_key)
+  end
+
+  test "partial OAuth configuration fails instead of silently disabling authentication" do
+    for missing <- ["LICHESS_CLIENT_ID", "LICHESS_REDIRECT_URI"] do
+      configure("https://openchesslab.example/auth/lichess/callback")
+      System.delete_env(missing)
+      assert_invalid()
+    end
+  end
+
+  test "unsafe callback URLs and empty client IDs fail without exposing values" do
+    for uri <- [
+          "/callback",
+          "http://remote.example/callback",
+          "https://private:password@example.org/callback",
+          "https://example.org/callback#secret"
+        ] do
+      configure(uri)
+      assert_invalid()
+    end
+
+    configure("https://example.org/callback")
+    System.put_env("LICHESS_CLIENT_ID", " ")
+    assert_invalid()
+  end
+
+  defp configure(uri) do
+    System.put_env("LICHESS_CLIENT_ID", "openchesslab.example")
+    System.put_env("LICHESS_REDIRECT_URI", uri)
+  end
+
+  defp assert_invalid do
+    assert_raise RuntimeError,
+                 "LICHESS_CLIENT_ID and LICHESS_REDIRECT_URI must contain valid OAuth configuration",
+                 fn ->
+                   read(:prod)
+                 end
+  end
+
+  # Reads the real release configuration without starting an app or connecting
+  # to its configured database. Environment mutations are restored after tests.
+  defp read(env), do: Config.Reader.read!(@runtime, env: env, target: :host)
+end
