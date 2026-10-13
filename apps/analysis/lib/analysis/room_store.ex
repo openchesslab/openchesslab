@@ -51,6 +51,24 @@ defmodule Analysis.RoomStore do
   DELETE FROM rooms WHERE id = $1
   """
 
+  @prune_old_empty_sql """
+  WITH candidates AS (
+    SELECT rooms.id
+    FROM rooms
+    WHERE rooms.created_at < now() - ($1::integer * INTERVAL '1 day')
+      AND NOT EXISTS (
+        SELECT 1 FROM room_analyses WHERE room_analyses.room_id = rooms.id
+      )
+    ORDER BY rooms.created_at, rooms.id
+    LIMIT $2
+    FOR UPDATE OF rooms SKIP LOCKED
+  )
+  DELETE FROM rooms
+  USING candidates
+  WHERE rooms.id = candidates.id
+  RETURNING rooms.id
+  """
+
   @doc "Atomically reserve a fresh room code without joining an existing room."
   @spec create(String.t()) :: :ok | {:error, :already_exists}
   def create(id) when is_binary(id) and byte_size(id) > 0 do
@@ -86,6 +104,15 @@ defmodule Analysis.RoomStore do
   def remove_analysis(id, analysis_id) do
     Repo.query!(@remove_analysis_sql, [id, analysis_id])
     :ok
+  end
+
+  @doc "Atomically deletes a bounded batch of old rooms without analyses."
+  @spec prune_old_empty_rooms(non_neg_integer(), pos_integer()) :: [String.t()]
+  def prune_old_empty_rooms(older_than_days, limit)
+      when is_integer(older_than_days) and older_than_days >= 0 and is_integer(limit) and
+             limit >= 1 and limit <= 1_000 do
+    Repo.query!(@prune_old_empty_sql, [older_than_days, limit]).rows
+    |> Enum.map(fn [room_id] -> room_id end)
   end
 
   @spec delete(String.t()) :: :ok

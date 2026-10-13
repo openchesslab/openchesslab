@@ -230,6 +230,43 @@ defmodule Analysis.RoomsTest do
              )
   end
 
+  test "pruning an old empty room terminates its worker", %{
+    room_id: room_id,
+    rooms_options: rooms_options
+  } do
+    start_room_and_wait(room_id, rooms_options)
+
+    OpenChessLab.Repo.query!(
+      "UPDATE rooms SET created_at = now() - INTERVAL '40 days' WHERE id = $1",
+      [room_id]
+    )
+
+    [{pid, _value}] = Horde.Registry.lookup(@registry, room_id)
+    ref = Process.monitor(pid)
+
+    assert room_id in Rooms.prune_old_empty_rooms(30, 1_000, rooms_options)
+    assert_receive {:DOWN, ^ref, :process, ^pid, _reason}, 1_000
+    assert :not_found = RoomStore.get(room_id)
+    assert :not_found = Rooms.get(room_id, rooms_options)
+  end
+
+  test "pruning keeps rooms with analyses", %{
+    room_id: room_id,
+    rooms_options: rooms_options
+  } do
+    start_room_and_wait(room_id, rooms_options)
+    assert :ok = Rooms.add_analysis(room_id, "analysis-1", rooms_options)
+
+    OpenChessLab.Repo.query!(
+      "UPDATE rooms SET created_at = now() - INTERVAL '40 days' WHERE id = $1",
+      [room_id]
+    )
+
+    refute room_id in Rooms.prune_old_empty_rooms(30, 1_000, rooms_options)
+    assert {:ok, room} = Rooms.get(room_id, rooms_options)
+    assert room.analysis_ids == ["analysis-1"]
+  end
+
   test "stopping an unknown room is idempotent", %{
     room_id: room_id,
     rooms_options: rooms_options

@@ -175,13 +175,24 @@ defmodule Analysis.Rooms do
     end
   end
 
+  @doc "Prunes old empty rooms in a bounded batch and stops their workers."
+  @spec prune_old_empty_rooms(non_neg_integer(), pos_integer(), options()) :: [Room.id()]
+  def prune_old_empty_rooms(older_than_days \\ 30, limit \\ 100, opts \\ []) do
+    deleted_ids = RoomStore.prune_old_empty_rooms(older_than_days, limit)
+    Enum.each(deleted_ids, &terminate_room_worker(&1, opts))
+    deleted_ids
+  end
+
   @spec stop_room(
           Room.id(),
           options()
         ) :: :ok
   def stop_room(room_id, opts \\ []) do
     :ok = RoomStore.delete(room_id)
+    terminate_room_worker(room_id, opts)
+  end
 
+  defp terminate_room_worker(room_id, opts) do
     case lookup_process(registry(opts), room_id) do
       {:ok, pid} ->
         case Horde.DynamicSupervisor.terminate_child(

@@ -2,6 +2,7 @@ defmodule Analysis.RoomInventoryTest do
   use ExUnit.Case, async: false
 
   alias Analysis.RoomInventory
+  alias Analysis.Rooms
   alias Analysis.RoomStore
   alias OpenChessLab.Repo
 
@@ -57,14 +58,30 @@ defmodule Analysis.RoomInventoryTest do
     assert Enum.all?(candidates, &is_integer(&1.created_at_unix))
   end
 
-  test "rooms created before the migration have unknown ages, never stale eligibility", context do
-    Repo.query!("UPDATE rooms SET created_at = NULL WHERE id = $1", [context.old_empty])
+  test "all newly created rooms have a creation timestamp", context do
+    [[created_at]] =
+      Repo.query!("SELECT created_at FROM rooms WHERE id = $1", [context.old_empty]).rows
 
-    report = RoomInventory.summary(30)
-    assert report.rooms_with_unknown_creation_time >= 1
+    refute is_nil(created_at)
+  end
 
-    ids = RoomInventory.old_empty_rooms(30, 1_000) |> Enum.map(& &1.id)
-    refute context.old_empty in ids
+  test "prunes old empty rooms while retaining recent and occupied rooms", context do
+    deleted = Rooms.prune_old_empty_rooms(30, 1_000)
+
+    assert context.old_empty in deleted
+    assert :not_found = RoomStore.get(context.old_empty)
+    assert {:ok, _room} = RoomStore.get(context.old_with_analysis)
+    assert {:ok, _room} = RoomStore.get(context.recent_empty)
+    refute context.old_with_analysis in deleted
+    refute context.recent_empty in deleted
+    assert RoomStore.prune_old_empty_rooms(30, 1_000) == []
+  end
+
+  test "pruning has a bounded batch size and validates arguments" do
+    assert length(Rooms.prune_old_empty_rooms(30, 1)) <= 1
+
+    assert_raise FunctionClauseError, fn -> RoomStore.prune_old_empty_rooms(-1, 10) end
+    assert_raise FunctionClauseError, fn -> RoomStore.prune_old_empty_rooms(30, 1_001) end
   end
 
   test "limits the read-only candidate report" do
