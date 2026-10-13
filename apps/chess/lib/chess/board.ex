@@ -50,10 +50,18 @@ defmodule Chess.Board do
 
   @spec pieces(t()) :: [{Chess.Square.t(), piece()}]
   def pieces(board) do
-    board
-    |> Tuple.to_list()
-    |> Enum.with_index()
-    |> Enum.reject(fn {piece, _square} -> is_nil(piece) end)
-    |> Enum.map(fn {piece, square} -> {square, piece} end)
+    collect_pieces(board, 0, [])
+  end
+
+  defp collect_pieces(_board, @size, acc), do: Enum.reverse(acc)
+
+  defp collect_pieces(board, square, acc) do
+    case elem(board, square) do
+      nil ->
+        collect_pieces(board, square + 1, acc)
+
+      piece ->
+        collect_pieces(board, square + 1, [{square, piece} | acc])
+    end
   end
 end

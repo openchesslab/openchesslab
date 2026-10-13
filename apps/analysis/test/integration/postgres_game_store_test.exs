@@ -240,6 +240,37 @@ defmodule Analysis.PostgresGameStoreTest do
              ).rows
   end
 
+  test "concurrent distinct games with the same fingerprint retain separate identities" do
+    {first_content, first_positions} = one_move_game("e2", "e4")
+    {second_content, second_positions} = one_move_game("d2", "d4")
+
+    first_task =
+      Task.async(fn ->
+        GameStore.put(@collision_fingerprint, first_content, first_positions)
+      end)
+
+    second_task =
+      Task.async(fn ->
+        GameStore.put(@collision_fingerprint, second_content, second_positions)
+      end)
+
+    assert {:ok, first_id} = Task.await(first_task, 10_000)
+    assert {:ok, second_id} = Task.await(second_task, 10_000)
+    refute first_id == second_id
+
+    assert GameStore.put(@collision_fingerprint, first_content, first_positions) ==
+             {:ok, first_id}
+
+    assert GameStore.put(@collision_fingerprint, second_content, second_positions) ==
+             {:ok, second_id}
+
+    assert GameStore.find(@collision_fingerprint, first_content) == {:ok, first_id}
+    assert GameStore.find(@collision_fingerprint, second_content) == {:ok, second_id}
+
+    assert [[2]] = Repo.query!("SELECT count(*) FROM games", []).rows
+    assert [[4]] = Repo.query!("SELECT count(*) FROM game_occurrences", []).rows
+  end
+
   test "keeps distinct canonical games separate when fingerprints collide" do
     {first_content, first_position_ids} =
       one_move_game("e2", "e4")

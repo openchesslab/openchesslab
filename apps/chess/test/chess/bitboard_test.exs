@@ -49,6 +49,45 @@ defmodule Chess.BitboardTest do
 
       assert Bitboard.get(board, Square.from_algebraic("e4")) == {:white, :pawn}
     end
+
+    test "returns nil on every square of an empty board" do
+      board = Bitboard.empty()
+
+      for square <- 0..63 do
+        assert Bitboard.get(board, square) == nil
+      end
+    end
+
+    test "finds every color and piece type on every square" do
+      empty = Bitboard.empty()
+
+      for square <- 0..63,
+          color <- [:white, :black],
+          type <- [:pawn, :knight, :bishop, :rook, :queen, :king] do
+        board = Bitboard.put(empty, square, {color, type})
+
+        assert Bitboard.get(board, square) == {color, type}
+        assert Bitboard.get(board, rem(square + 1, 64)) == nil
+      end
+    end
+
+    test "preserves piece priority on overlapping bitboards" do
+      empty = Bitboard.empty()
+      square = Square.from_algebraic("e4")
+      mask = 1 <<< square
+
+      assert Bitboard.get(%{empty | white_pawns: mask, black_king: mask}, square) ==
+               {:white, :pawn}
+
+      assert Bitboard.get(%{empty | white_knights: mask, white_rooks: mask}, square) ==
+               {:white, :knight}
+
+      assert Bitboard.get(%{empty | white_king: mask, black_pawns: mask}, square) ==
+               {:white, :king}
+
+      assert Bitboard.get(%{empty | black_bishops: mask, black_king: mask}, square) ==
+               {:black, :bishop}
+    end
   end
 
   describe "put/3" do
@@ -83,6 +122,60 @@ defmodule Chess.BitboardTest do
       updated = Bitboard.remove(board, square)
 
       assert Bitboard.get(updated, square) == nil
+    end
+
+    test "clears the target bit from every field without changing other squares" do
+      target_square = Square.from_algebraic("e4")
+      target = 1 <<< target_square
+      retained = 1 <<< Square.from_algebraic("b7")
+      both = target ||| retained
+
+      board = %Bitboard{
+        white_pawns: both,
+        white_knights: both,
+        white_bishops: both,
+        white_rooks: both,
+        white_queens: both,
+        white_king: both,
+        black_pawns: both,
+        black_knights: both,
+        black_bishops: both,
+        black_rooks: both,
+        black_queens: both,
+        black_king: both
+      }
+
+      updated = Bitboard.remove(board, target_square)
+
+      assert updated == %Bitboard{
+               white_pawns: retained,
+               white_knights: retained,
+               white_bishops: retained,
+               white_rooks: retained,
+               white_queens: retained,
+               white_king: retained,
+               black_pawns: retained,
+               black_knights: retained,
+               black_bishops: retained,
+               black_rooks: retained,
+               black_queens: retained,
+               black_king: retained
+             }
+
+      assert Bitboard.remove(updated, target_square) == updated
+      assert board.white_pawns == both
+    end
+
+    test "removes every piece type on every square" do
+      piece_types = [:pawn, :knight, :bishop, :rook, :queen, :king]
+
+      for square <- 0..63,
+          color <- [:white, :black],
+          piece_type <- piece_types do
+        board = Bitboard.put(Bitboard.empty(), square, {color, piece_type})
+
+        assert Bitboard.remove(board, square) == Bitboard.empty()
+      end
     end
   end
 
@@ -156,6 +249,36 @@ defmodule Chess.BitboardTest do
   end
 
   describe "from_position/1" do
+    test "preserves every color and piece type on all 64 squares" do
+      for square <- 0..63,
+          color <- [:white, :black],
+          type <- [:pawn, :knight, :bishop, :rook, :queen, :king] do
+        piece = {color, type}
+        position = Position.new() |> Position.put_piece(square, piece)
+        expected = Bitboard.empty() |> Bitboard.put(square, piece)
+
+        assert Bitboard.from_position(position) == expected
+      end
+    end
+
+    test "preserves different pieces across a completely occupied board" do
+      piece_types = [:pawn, :knight, :bishop, :rook, :queen, :king]
+
+      {position, expected} =
+        Enum.reduce(0..63, {Position.new(), Bitboard.empty()}, fn square, {position, expected} ->
+          color = if rem(square, 2) == 0, do: :white, else: :black
+          type = Enum.at(piece_types, rem(div(square, 2), length(piece_types)))
+          piece = {color, type}
+
+          {
+            Position.put_piece(position, square, piece),
+            Bitboard.put(expected, square, piece)
+          }
+        end)
+
+      assert Bitboard.from_position(position) == expected
+    end
+
     test "converts a position to a bitboard" do
       position = Position.starting_position()
 
@@ -713,6 +836,46 @@ defmodule Chess.BitboardTest do
 
       refute Bitboard.attacked?(board, :white, square("d7"))
       assert Bitboard.attacked?(board, :black, square("d7"))
+    end
+
+    test "a blocker prevents both colors from attacking beyond it" do
+      for color <- [:white, :black] do
+        other_color = if color == :white, do: :black, else: :white
+
+        board =
+          Bitboard.empty()
+          |> put_piece("d4", {color, :rook})
+          |> put_piece("d6", {other_color, :pawn})
+
+        assert Bitboard.attacked?(board, color, square("d5"))
+        assert Bitboard.attacked?(board, color, square("d6"))
+        refute Bitboard.attacked?(board, color, square("d7"))
+      end
+    end
+
+    test "does not wrap sliding attacks around board edges" do
+      board =
+        Bitboard.empty()
+        |> put_piece("h1", {:white, :rook})
+        |> put_piece("a8", {:black, :bishop})
+
+      assert Bitboard.attacked?(board, :white, square("a1"))
+      assert Bitboard.attacked?(board, :white, square("h8"))
+      refute Bitboard.attacked?(board, :white, square("a2"))
+      assert Bitboard.attacked?(board, :black, square("h1"))
+      refute Bitboard.attacked?(board, :black, square("h2"))
+    end
+
+    test "combines knight attacks with blocked and open rook rays" do
+      board =
+        Bitboard.empty()
+        |> put_piece("d4", {:white, :knight})
+        |> put_piece("a1", {:white, :rook})
+        |> put_piece("b1", {:white, :pawn})
+
+      assert Bitboard.attacked?(board, :white, square("f5"))
+      assert Bitboard.attacked?(board, :white, square("a5"))
+      refute Bitboard.attacked?(board, :white, square("c1"))
     end
 
     test "an empty board has no attacks" do

@@ -68,20 +68,42 @@ defmodule Chess.Bitboard do
 
   @spec from_position(Chess.Position.t()) :: t()
   def from_position(%Chess.Position{board: board}) do
-    board
-    |> Chess.Board.pieces()
-    |> Enum.reduce(empty(), &put_piece/2)
+    convert_position_board(board, 0, empty())
+  end
+
+  # Each square in Chess.Board contains at most one piece. Build its bitboard
+  # directly, without clearing twelve bitboards or allocating a pieces list.
+  defp convert_position_board(_board, 64, result), do: result
+
+  defp convert_position_board(board, square, result) do
+    result =
+      case elem(board, square) do
+        nil -> result
+        {color, type} -> set_piece(result, square, color, type)
+      end
+
+    convert_position_board(board, square + 1, result)
   end
 
   @spec get(t(), Chess.Square.t()) :: piece() | nil
   def get(board, square) when square in 0..63 do
     mask = 1 <<< square
 
-    Enum.find_value(piece_fields(), fn {color, type, field} ->
-      if band(Map.fetch!(board, field), mask) != 0 do
-        {color, type}
-      end
-    end)
+    cond do
+      (board.white_pawns &&& mask) != 0 -> {:white, :pawn}
+      (board.white_knights &&& mask) != 0 -> {:white, :knight}
+      (board.white_bishops &&& mask) != 0 -> {:white, :bishop}
+      (board.white_rooks &&& mask) != 0 -> {:white, :rook}
+      (board.white_queens &&& mask) != 0 -> {:white, :queen}
+      (board.white_king &&& mask) != 0 -> {:white, :king}
+      (board.black_pawns &&& mask) != 0 -> {:black, :pawn}
+      (board.black_knights &&& mask) != 0 -> {:black, :knight}
+      (board.black_bishops &&& mask) != 0 -> {:black, :bishop}
+      (board.black_rooks &&& mask) != 0 -> {:black, :rook}
+      (board.black_queens &&& mask) != 0 -> {:black, :queen}
+      (board.black_king &&& mask) != 0 -> {:black, :king}
+      true -> nil
+    end
   end
 
   @spec put(t(), Chess.Square.t(), piece()) :: t()
@@ -95,9 +117,21 @@ defmodule Chess.Bitboard do
   def remove(board, square) when square in 0..63 do
     mask = bnot(1 <<< square)
 
-    Enum.reduce(piece_fields(), board, fn {_color, _type, field}, board ->
-      Map.update!(board, field, &band(&1, mask))
-    end)
+    %{
+      board
+      | white_pawns: band(board.white_pawns, mask),
+        white_knights: band(board.white_knights, mask),
+        white_bishops: band(board.white_bishops, mask),
+        white_rooks: band(board.white_rooks, mask),
+        white_queens: band(board.white_queens, mask),
+        white_king: band(board.white_king, mask),
+        black_pawns: band(board.black_pawns, mask),
+        black_knights: band(board.black_knights, mask),
+        black_bishops: band(board.black_bishops, mask),
+        black_rooks: band(board.black_rooks, mask),
+        black_queens: band(board.black_queens, mask),
+        black_king: band(board.black_king, mask)
+    }
   end
 
   @spec pieces(t()) :: [{Chess.Square.t(), piece()}]
@@ -354,31 +388,21 @@ defmodule Chess.Bitboard do
     king_attackers =
       king_attacks(square)
 
-    rook_attack =
-      ray_attacked?(
-        board,
-        occupied,
-        square,
-        [8, -8, 1, -1],
-        color,
-        [:rook, :queen]
-      )
-
-    bishop_attack =
-      ray_attacked?(
-        board,
-        occupied,
-        square,
-        [9, 7, -7, -9],
-        color,
-        [:bishop, :queen]
-      )
-
     (pawn_attackers &&& color_pawns(board, color)) != 0 or
       (knight_attackers &&& color_knights(board, color)) != 0 or
       (king_attackers &&& color_king(board, color)) != 0 or
-      rook_attack or
-      bishop_attack
+      ray_attacked?(
+        occupied,
+        square,
+        [8, -8, 1, -1],
+        bor(color_rooks(board, color), color_queens(board, color))
+      ) or
+      ray_attacked?(
+        occupied,
+        square,
+        [9, 7, -7, -9],
+        bor(color_bishops(board, color), color_queens(board, color))
+      )
   end
 
   defp color_pawns(board, :white), do: board.white_pawns
@@ -390,37 +414,22 @@ defmodule Chess.Bitboard do
   defp color_king(board, :white), do: board.white_king
   defp color_king(board, :black), do: board.black_king
 
-  defp ray_attacked?(board, occupied, square, steps, color, piece_types) do
+  defp ray_attacked?(occupied, square, steps, attackers) do
     Enum.any?(steps, fn step ->
-      first_piece_on_ray(board, occupied, square, step, color, piece_types)
+      first_piece_on_ray(occupied, square, step, attackers)
     end)
   end
 
-  defp first_piece_on_ray(board, occupied, square, step, color, piece_types) do
+  defp first_piece_on_ray(occupied, square, step, attackers) do
     next = square + step
 
     if valid_ray_square?(square, next, step) do
-      if (occupied &&& 1 <<< next) == 0 do
-        first_piece_on_ray(
-          board,
-          occupied,
-          next,
-          step,
-          color,
-          piece_types
-        )
+      mask = 1 <<< next
+
+      if (occupied &&& mask) == 0 do
+        first_piece_on_ray(occupied, next, step, attackers)
       else
-        mask = 1 <<< next
-
-        case piece_types do
-          [:rook, :queen] ->
-            band(color_rooks(board, color), mask) != 0 or
-              band(color_queens(board, color), mask) != 0
-
-          [:bishop, :queen] ->
-            band(color_bishops(board, color), mask) != 0 or
-              band(color_queens(board, color), mask) != 0
-        end
+        (attackers &&& mask) != 0
       end
     else
       false
@@ -553,10 +562,6 @@ defmodule Chess.Bitboard do
     to in 0..63 and rem(to, 8) == rem(from, 8) - 1
   end
 
-  defp put_piece({square, piece}, board) do
-    put(board, square, piece)
-  end
-
   defp set_piece(board, square, :white, :pawn) do
     %{board | white_pawns: bor(board.white_pawns, 1 <<< square)}
   end
@@ -603,23 +608,6 @@ defmodule Chess.Bitboard do
 
   defp set_piece(board, square, :black, :king) do
     %{board | black_king: bor(board.black_king, 1 <<< square)}
-  end
-
-  defp piece_fields do
-    [
-      {:white, :pawn, :white_pawns},
-      {:white, :knight, :white_knights},
-      {:white, :bishop, :white_bishops},
-      {:white, :rook, :white_rooks},
-      {:white, :queen, :white_queens},
-      {:white, :king, :white_king},
-      {:black, :pawn, :black_pawns},
-      {:black, :knight, :black_knights},
-      {:black, :bishop, :black_bishops},
-      {:black, :rook, :black_rooks},
-      {:black, :queen, :black_queens},
-      {:black, :king, :black_king}
-    ]
   end
 
   defp popcount(0), do: 0

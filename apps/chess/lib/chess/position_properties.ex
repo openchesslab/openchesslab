@@ -10,6 +10,12 @@ defmodule Chess.PositionProperties do
 
   @files [:a, :b, :c, :d, :e, :f, :g, :h]
 
+  @board_mask 0xFFFFFFFFFFFFFFFF
+  @not_a_file 0xFEFEFEFEFEFEFEFE
+  @not_h_file 0x7F7F7F7F7F7F7F7F
+  @white_opponent_half 0xFFFFFFFF00000000
+  @black_opponent_half 0x00000000FFFFFFFF
+
   @file_masks %{
     a: 0x0101010101010101,
     b: 0x0202020202020202,
@@ -108,10 +114,14 @@ defmodule Chess.PositionProperties do
   @doc """
   Files with no pawns of `color` but at least one enemy pawn.
   """
-  @spec semi_open_files(Position.t()) :: %{white: [atom()], black: [atom()]}
+  @spec semi_open_files(Position.t() | Bitboard.t()) :: %{white: [atom()], black: [atom()]}
   def semi_open_files(%Position{} = position) do
-    board = Bitboard.from_position(position)
+    position
+    |> Bitboard.from_position()
+    |> semi_open_files()
+  end
 
+  def semi_open_files(%Bitboard{} = board) do
     %{
       white: semi_open_files_for(board, :white),
       black: semi_open_files_for(board, :black)
@@ -179,11 +189,17 @@ defmodule Chess.PositionProperties do
   The rule itself lives in `Chess.Position.in_check?/2`; this is the
   position-property view of it for the insights endpoint.
   """
-  @spec in_check(Position.t()) :: %{white: boolean(), black: boolean()}
+  @spec in_check(Position.t() | Bitboard.t()) :: %{white: boolean(), black: boolean()}
   def in_check(%Position{} = position) do
+    position
+    |> Bitboard.from_position()
+    |> in_check()
+  end
+
+  def in_check(%Bitboard{} = board) do
     %{
-      white: Position.in_check?(position, :white),
-      black: Position.in_check?(position, :black)
+      white: king_attacked?(board.white_king, board, :black),
+      black: king_attacked?(board.black_king, board, :white)
     }
   end
 
@@ -192,14 +208,32 @@ defmodule Chess.PositionProperties do
   knight, not attackable by an enemy pawn, and defended by a friendly
   pawn.
   """
-  @spec outposts(Position.t()) :: %{white: [0..63], black: [0..63]}
+  @spec outposts(Position.t() | Bitboard.t()) :: %{white: [0..63], black: [0..63]}
   def outposts(%Position{} = position) do
-    board = Bitboard.from_position(position)
+    position
+    |> Bitboard.from_position()
+    |> outposts()
+  end
 
-    %{
-      white: outposts_for(board, :white),
-      black: outposts_for(board, :black)
-    }
+  def outposts(%Bitboard{} = board) do
+    white_control = pawn_attack_mask_from_pawns(board.white_pawns, :white)
+    black_control = pawn_attack_mask_from_pawns(board.black_pawns, :black)
+
+    white_outposts =
+      board.white_knights
+      |> Bitwise.band(@white_opponent_half)
+      |> Bitwise.band(white_control)
+      |> Bitwise.band(Bitwise.bnot(black_control))
+      |> squares_in()
+
+    black_outposts =
+      board.black_knights
+      |> Bitwise.band(@black_opponent_half)
+      |> Bitwise.band(black_control)
+      |> Bitwise.band(Bitwise.bnot(white_control))
+      |> squares_in()
+
+    %{white: white_outposts, black: black_outposts}
   end
 
   @doc """
@@ -221,6 +255,23 @@ defmodule Chess.PositionProperties do
   end
 
   # --- Implementation ---------------------------------------------------
+
+  defp king_attacked?(0, _board, _attacking_color), do: false
+
+  defp king_attacked?(kings, board, attacking_color) do
+    # Board.pieces/1 visits squares in ascending order. Preserve the
+    # first-king semantics of Position.in_check?/2 for edited positions
+    # containing more than one king of the same color.
+    Bitboard.attacked?(board, attacking_color, first_set_square(kings, 0))
+  end
+
+  defp first_set_square(mask, square) do
+    if Bitwise.band(mask, 1) == 1 do
+      square
+    else
+      first_set_square(Bitwise.bsr(mask, 1), square + 1)
+    end
+  end
 
   defp semi_open_files_for(board, color) do
     own_pawns = pawns(board, color)
@@ -277,22 +328,6 @@ defmodule Chess.PositionProperties do
     end)
   end
 
-  defp outposts_for(board, color) do
-    enemy_pawn_attacks = pawn_attack_mask(board, opposite(color))
-    own_pawn_attacks = pawn_attack_mask(board, color)
-
-    board
-    |> Bitboard.pieces()
-    |> Enum.filter(fn {_square, piece} -> piece == {color, :knight} end)
-    |> Enum.map(fn {square, _piece} -> square end)
-    |> Enum.filter(&opponent_half?(color, &1))
-    |> Enum.filter(fn square ->
-      not attacked_by?(enemy_pawn_attacks, square) and
-        attacked_by?(own_pawn_attacks, square)
-    end)
-    |> Enum.sort()
-  end
-
   defp space_for(board, color) do
     controlled =
       board
@@ -306,6 +341,20 @@ defmodule Chess.PositionProperties do
       |> Enum.filter(&opponent_half?(color, &1))
 
     %{controlled: length(controlled), pawn_space: length(pawn_space)}
+  end
+
+  defp pawn_attack_mask_from_pawns(pawns, :white) do
+    left = Bitwise.bsl(Bitwise.band(pawns, @not_a_file), 7)
+    right = Bitwise.bsl(Bitwise.band(pawns, @not_h_file), 9)
+
+    Bitwise.band(Bitwise.bor(left, right), @board_mask)
+  end
+
+  defp pawn_attack_mask_from_pawns(pawns, :black) do
+    left = Bitwise.bsr(Bitwise.band(pawns, @not_a_file), 9)
+    right = Bitwise.bsr(Bitwise.band(pawns, @not_h_file), 7)
+
+    Bitwise.bor(left, right)
   end
 
   defp pawn_attack_mask(board, color) do

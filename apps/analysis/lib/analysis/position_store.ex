@@ -18,6 +18,7 @@ defmodule Analysis.PositionStore do
   alias Analysis.PositionQuery
   alias Analysis.PositionQuery.PostgresPage
   alias Analysis.PositionQueryNormalizer
+  alias Chess.Bitboard
   alias Chess.PawnStructure
   alias Chess.Position
   alias Chess.PositionCodec
@@ -146,6 +147,20 @@ defmodule Analysis.PositionStore do
     $1,
     $2::bytea[]
   )
+  ON CONFLICT (position_id) DO NOTHING
+  """
+
+  @insert_features_many_sql """
+  INSERT INTO position_features (
+    position_id,
+    properties
+  )
+  SELECT
+    input.position_id,
+    array_agg(input.property ORDER BY input.ordinality)
+  FROM unnest($1::bigint[], $2::bytea[])
+    WITH ORDINALITY AS input(position_id, property, ordinality)
+  GROUP BY input.position_id
   ON CONFLICT (position_id) DO NOTHING
   """
 
@@ -709,45 +724,47 @@ defmodule Analysis.PositionStore do
   end
 
   defp put_inserted_features(inserted_rows, positions_by_record) do
-    Enum.reduce_while(
-      inserted_rows,
-      :ok,
-      fn
-        [
-          position_id,
-          record
-        ],
-        :ok ->
-          with {:ok, position} <-
-                 Map.fetch(
-                   positions_by_record,
-                   record
-                 ),
-               {:ok, properties} <-
-                 encoded_properties(position),
-               :ok <-
-                 put_features(
-                   position_id,
-                   properties
-                 ) do
-            {:cont, :ok}
-          else
-            :error ->
-              {:halt,
-               {
-                 :error,
-                 :inserted_position_not_in_batch
-               }}
+    inserted_rows
+    |> Enum.reduce_while({:ok, []}, fn [position_id, record], {:ok, feature_rows} ->
+      with {:ok, position} <- Map.fetch(positions_by_record, record),
+           {:ok, properties} <- encoded_properties(position) do
+        {:cont, {:ok, [{position_id, properties} | feature_rows]}}
+      else
+        :error ->
+          {:halt, {:error, :inserted_position_not_in_batch}}
 
-            {:error, reason} ->
-              {:halt,
-               {
-                 :error,
-                 reason
-               }}
-          end
+        {:error, reason} ->
+          {:halt, {:error, reason}}
       end
-    )
+    end)
+    |> case do
+      {:ok, feature_rows} ->
+        feature_rows
+        |> Enum.reverse()
+        |> put_features_many()
+
+      {:error, _reason} = error ->
+        error
+    end
+  end
+
+  defp put_features_many([]), do: :ok
+
+  defp put_features_many(feature_rows) do
+    flattened =
+      Enum.flat_map(feature_rows, fn {position_id, properties} ->
+        Enum.map(properties, &{position_id, &1})
+      end)
+
+    {position_ids, properties} = Enum.unzip(flattened)
+
+    case Repo.query(@insert_features_many_sql, [position_ids, properties]) do
+      {:ok, _result} ->
+        :ok
+
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 
   defp put_features_if_needed(position, position_id, :inserted) do
@@ -781,16 +798,72 @@ defmodule Analysis.PositionStore do
   end
 
   defp encoded_properties(%Position{} = position) do
+    board = Bitboard.from_position(position)
+
+    semi_open_files = PositionProperties.semi_open_files(board)
+
+    outposts = PositionProperties.outposts(board)
+
+    checks = PositionProperties.in_check(board)
+
+    castling_rights =
+      [
+        :white_kingside,
+        :white_queenside,
+        :black_kingside,
+        :black_queenside
+      ]
+      |> Enum.filter(&MapSet.member?(position.castling_rights, &1))
+
+    en_passant_properties =
+      case position.en_passant do
+        nil -> []
+        square -> [{:en_passant_target, square}]
+      end
+
     properties =
       Enum.map(
-        PositionProperties.open_files(position),
+        PositionProperties.open_files(board),
         &{:open_files, &1}
       ) ++
+        Enum.flat_map(
+          [:white, :black],
+          fn color ->
+            semi_open_files
+            |> Map.fetch!(color)
+            |> Enum.map(fn file ->
+              {:semi_open_files, {color, file}}
+            end)
+          end
+        ) ++
+        Enum.flat_map(
+          [:white, :black],
+          fn color ->
+            outposts
+            |> Map.fetch!(color)
+            |> Enum.map(fn square ->
+              {:outposts, {color, square}}
+            end)
+          end
+        ) ++
+        Enum.flat_map(
+          [:white, :black],
+          fn color ->
+            if Map.fetch!(checks, color) do
+              [{:in_check, color}]
+            else
+              []
+            end
+          end
+        ) ++
+        Enum.map(castling_rights, &{:castling_right, &1}) ++
+        en_passant_properties ++
         [
           {
             :material,
-            PositionProperties.material(position)
-          }
+            PositionProperties.material(board)
+          },
+          {:side_to_move, position.side_to_move}
         ]
 
     properties

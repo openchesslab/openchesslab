@@ -940,7 +940,7 @@ row_count =
 selectivities =
   System.get_env(
     "PAWN_PACKED_FILTER_SELECTIVITY_BENCH_SELECTIVITIES",
-    "10,100,1000"
+    "150,200,300,500"
   )
   |> String.split(
     ",",

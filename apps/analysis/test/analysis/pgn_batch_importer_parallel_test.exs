@@ -322,7 +322,8 @@ defmodule Analysis.PgnBatchImporterParallelTest do
                record_ids,
                &1
              ),
-             2
+             2,
+             4
            ) ==
              {:ok,
               %ParallelImportResult{
@@ -359,6 +360,67 @@ defmodule Analysis.PgnBatchImporterParallelTest do
                 :file,
                 :enoent
               }}
+  end
+
+  test "a larger bounded window preserves successful imports and indexed failures" do
+    record_ids = Map.new(1..4, fn index -> {index, unique_record_id()} end)
+
+    source =
+      lines("""
+      [Event "First"]
+
+      1. e4 *
+
+      [Event "Broken"]
+
+      1. d4 ThisIsNotSAN *
+
+      [Event "Third"]
+
+      1. c4 *
+
+      [Event "Fourth"]
+
+      1. Nf3 *
+      """)
+
+    assert {:ok,
+            %ParallelImportResult{
+              imported_count: 3,
+              failures: [{:invalid_game, 2, {:invalid_pgn, message}}]
+            }} =
+             PgnBatchImporter.import_stream_parallel(
+               source,
+               &Map.fetch!(record_ids, &1),
+               2,
+               4
+             )
+
+    assert message =~ "Could not parse move"
+    assert {:ok, _} = GameRecords.get(record_ids[1])
+    assert :not_found = GameRecords.get(record_ids[2])
+    assert {:ok, _} = GameRecords.get(record_ids[3])
+    assert {:ok, _} = GameRecords.get(record_ids[4])
+  end
+
+  test "invalid window size is rejected before consuming the input" do
+    caller = self()
+
+    source =
+      ["[Event \"First\"]", "", "1. e4 *"]
+      |> Stream.map(fn line ->
+        send(caller, :input_consumed)
+        line
+      end)
+
+    assert PgnBatchImporter.import_stream_parallel(
+             source,
+             fn index -> "window-#{index}" end,
+             2,
+             1
+           ) == {:error, {:invalid_window_size, 1}}
+
+    refute_received :input_consumed
   end
 
   defp lines(pgn) do
