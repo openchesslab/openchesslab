@@ -5,6 +5,7 @@ defmodule Web.Router do
     plug(:accepts, ["html"])
     plug(:fetch_session)
     plug(Web.UserAuth)
+    plug(Web.BrowserPreferences)
 
     plug(Localize.Plug.PutLocale,
       from: [:query, :session, :accept_language],

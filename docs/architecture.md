@@ -242,6 +242,12 @@ The shared home/room header offers a native POST form to log in with Lichess onl
 
 The shared layout renders error flashes as an accessible alert; callback failures use a fixed translated message without provider details. Tests cover both routes/languages, configuration gating, revocation, privacy and actual POSTs with rendered CSRF fields. Login/logout still redirect to home; rooms remain guest-accessible. No personal library UI or private authorization policy is implied. Production enablement still requires stable HMAC/provider configuration and an external access-log review; deployment remains manual.
 
+### Browser preferences before authentication redirects
+
+`Web.BrowserPreferences` reads presentation-only `_ocl_theme` (`system`/`light`/`dark`) and `_ocl_locale` (`en`/`nl`) cookies before locale negotiation. Values are allowlisted; they never establish identity. The selected theme is copied into the protected LiveView session for both home and room mounts, and the document root carries it before CSS renders. Theme variables apply at the document root so the body background follows the same choice. Explicit locale query parameters retain precedence over the saved preference.
+
+The browser mirrors its existing local theme/language preferences into host-only, one-year, SameSite=Lax cookies (Secure over HTTPS), both when restoring them and when the user changes them. These cookies intentionally permit JavaScript updates and contain no credentials. Login/session renewal and logout/session deletion leave them intact, so the next HTTP response already uses the selected theme and language. Existing localStorage-only preferences acquire their cookie mirror when the updated client first mounts; that initial visit still needs client restoration. If cookies are blocked, local restoration remains available but initial server rendering cannot know the saved preference. Tests check initial HTML and connected mounts on both public routes, successful callback/logout with session clearing, invalid values, cookie attributes and blocked storage.
+
 ### Not implemented: private access control
 
 - No protected private LiveView route, account-grant storage, or Lichess library import/sync. Optional request/mount/event authentication, login initiation/callback, logout, browser session issuance, state/PKCE primitives, provider verification and atomic user resolution now exist as described above.

@@ -257,6 +257,12 @@ Starting from clean `main` at `d9585422a8f2d6ca06b932d153780d831f4258d9`, add na
 
 Validation: disconnection slice 30 targeted / 141 full web tests passed; UI slice 16 targeted / 146 full web tests passed. `mix assets.build`, root formatter verification and `git diff --check` passed. A sandbox hard-link permission error prevented one Mix invocation from starting; the same command completed outside the sandbox. The analysis suite was not rerun for these web-only changes; its accepted flaky-test backlog remains below. Provider responses were fixtures; a real Lichess login and production deployment were not performed.
 
+### Authentication redirect preference rendering — 2026-10-13
+
+The user deployed `49385c1` and verified production login, logout and disconnection across tabs after the three Fly authentication settings were provisioned. The user then reported light-to-dark and English-to-Dutch flashes on login/logout. The initial HTTP render had no access to localStorage and both LiveViews mounted with the system theme. Add allowlisted presentation cookie mirrors that survive authentication session resets, initialize mounts from those preferences, and apply theme variables to the document root. Initial regression assertions incorrectly assumed Phoenix omitted its `phx-r` root attribute; replace exact opening-tag matching with parsed DOM attribute checks. No schema or authentication-policy change is required; deployment of this fix remains a separate manual action.
+
+Validation: 25 targeted and 150 full web tests passed, plus four Node tests for preference cookie persistence/validation and blocked storage. Asset build, formatter verification and `git diff --check` passed. As in the previous slice, the asset build required execution outside the sandbox after Mix's hard-link lock was denied.
+
 **Near-term (next green vertical slices):**
 
 - **OAuth security foundation:** login initiation/callback, logout, session cleanup, optional request/LiveView authentication, active browser logout/replacement disconnection and the login/logout UI exist; next design guarded private routes/events. Provision the stable production HMAC secret and review external callback/access logging before enabling login in production.

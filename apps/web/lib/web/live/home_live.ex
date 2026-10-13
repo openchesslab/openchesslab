@@ -15,7 +15,7 @@ defmodule Web.HomeLive do
      assign(socket,
        page_title: "OpenChessLab",
        locale: locale,
-       theme: "system",
+       theme: Web.BrowserPreferences.theme_from_session(session),
        piece_set: "merida",
        room_code: nil,
        ui_modal: nil,

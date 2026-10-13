@@ -17,7 +17,15 @@ defmodule Web.SessionControllerTest do
   test "logout revokes the current token, clears browser cookies and resets CSRF", %{
     session: session
   } do
-    {browser, csrf} = browser(session.token)
+    home =
+      build_conn()
+      |> Plug.Test.init_test_session(%{user_token: session.token})
+      |> put_req_cookie("_ocl_theme", "dark")
+      |> put_req_cookie("_ocl_locale", "nl")
+      |> get(@origin <> "/")
+
+    [_, csrf] = Regex.run(~r/<meta name="csrf-token" content="([^"]+)"/, html_response(home, 200))
+    browser = home
     browser = put_req_cookie(recycle(browser), "_ocl_lichess_attempt", "pending-browser-token")
     result = logout(browser, csrf)
 
@@ -38,6 +46,10 @@ defmodule Web.SessionControllerTest do
 
     home = get(recycle(result), @origin <> "/")
     assert get_session(home, :user_token) == nil
+    root = home |> html_response(200) |> LazyHTML.from_document() |> LazyHTML.query("html")
+    assert LazyHTML.attribute(root, "lang") == ["nl"]
+    assert LazyHTML.attribute(root, "data-theme") == ["dark"]
+    assert html_response(home, 200) =~ "Kamer aanmaken"
 
     [_, next_csrf] =
       Regex.run(~r/<meta name="csrf-token" content="([^"]+)"/, html_response(home, 200))

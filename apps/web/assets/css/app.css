@@ -48,7 +48,7 @@
   --board-legal: rgba(20, 30, 20, .35);
 }
 
-#app-shell[data-theme="light"] {
+:root[data-theme="light"] {
   color-scheme: light;
   --canvas: #f4f4f4;
   --panel: #fff;
@@ -65,7 +65,7 @@
 }
 
 @media (prefers-color-scheme: light) {
-  #app-shell[data-theme="system"] {
+  :root[data-theme="system"] {
     color-scheme: light;
     --canvas: #f4f4f4;
     --panel: #fff;

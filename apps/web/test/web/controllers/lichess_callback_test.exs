@@ -36,7 +36,13 @@ defmodule Web.LichessCallbackTest do
 
   test "verified callback creates HMAC account and an encrypted revocable browser session" do
     stub_success()
-    start = start_login()
+
+    start =
+      build_conn()
+      |> put_req_cookie("_ocl_theme", "dark")
+      |> put_req_cookie("_ocl_locale", "nl")
+      |> start_login()
+
     completed = callback(start, %{"user_id" => Ecto.UUID.generate(), "subject" => "unverified"})
     assert redirected_to(completed) == "/"
     assert cleared_attempt?(completed)
@@ -44,6 +50,10 @@ defmodule Web.LichessCallbackTest do
     assert get_resp_header(completed, "referrer-policy") == ["no-referrer"]
 
     browser = get(recycle(completed), @origin <> "/")
+    root = browser |> html_response(200) |> LazyHTML.from_document() |> LazyHTML.query("html")
+    assert LazyHTML.attribute(root, "lang") == ["nl"]
+    assert LazyHTML.attribute(root, "data-theme") == ["dark"]
+    assert html_response(browser, 200) =~ "Kamer aanmaken"
     token = get_session(browser, :user_token)
     assert {:ok, user} = UserSessions.user_for_token(token)
     assert {:ok, user.id} == Accounts.user_for_verified_identity("lichess", @subject)
@@ -53,6 +63,7 @@ defmodule Web.LichessCallbackTest do
              "_csrf_token",
              "live_socket_id",
              "localize_locale",
+             "ui_theme",
              "user_token"
            ]
 

@@ -37,7 +37,7 @@ defmodule Web.RoomLive do
     base_assigns = %{
       page_title: Web.I18n.t("room.label", locale) <> " " <> code,
       locale: locale,
-      theme: "system",
+      theme: Web.BrowserPreferences.theme_from_session(session),
       piece_set: "merida",
       shape_colors: @shape_colors,
       castling_rights: @castling_rights,

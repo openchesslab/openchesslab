@@ -1,5 +1,6 @@
 import { Socket } from "phoenix";
 import { LiveSocket } from "phoenix_live_view";
+import { persistBrowserPreference } from "./browser_preferences.mjs";
 
 const COLORS = ["yellow", "blue", "red", "orange", "purple"];
 
@@ -1058,20 +1059,12 @@ const AppUI = {
     this.handleEvent("set-theme", ({ theme }) => {
       document.documentElement.dataset.theme = theme;
       this.el.dataset.theme = theme;
-      try {
-        localStorage.setItem("openchesslab:theme", theme);
-      } catch (_) {
-        /* optional */
-      }
+      persistBrowserPreference("theme", theme);
     });
 
     this.handleEvent("set-locale", ({ locale }) => {
       document.documentElement.lang = locale;
-      try {
-        localStorage.setItem("openchesslab:locale", locale);
-      } catch (_) {
-        /* optional */
-      }
+      persistBrowserPreference("locale", locale);
     });
 
     this.handleEvent("set-piece-set", ({ piece_set }) => {
@@ -1143,10 +1136,12 @@ const AppUI = {
       /* optional */
     }
     if (["system", "light", "dark"].includes(preferences.theme)) {
+      persistBrowserPreference("theme", preferences.theme);
       this.el.dataset.theme = preferences.theme;
       document.documentElement.dataset.theme = preferences.theme;
     }
     if (["en", "nl"].includes(preferences.locale)) {
+      persistBrowserPreference("locale", preferences.locale);
       document.documentElement.lang = preferences.locale;
     }
     this.pushEvent("restore-preferences", preferences);
