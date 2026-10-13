@@ -3,6 +3,7 @@ ExUnit.start()
 OpenChessLab.Repo.query!(
   """
   TRUNCATE TABLE
+    user_sessions,
     user_analyses,
     accounts,
     users,

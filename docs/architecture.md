@@ -136,10 +136,18 @@ The catalogue covers exact state, material, pawns, placement, mobility, center, 
 - `config/dev.exs` and `config/test.exs` contain separate **non-production development/test HMAC keys**. The key is loaded at runtime by `Accounts` using `Application.fetch_env!(:analysis, :account_subject_hmac_key)` and requires ≥32 bytes. **Production HMAC key has not been configured in `config/runtime.exs` at baseline**; do so via a stable secret before calling account resolution/linking in a production OAuth flow. Losing/rotating the key naively breaks lookup of existing account links; design key rotation deliberately.
 - Tests in `apps/analysis/test/analysis/user_identity_test.exs` cover UUID-only user shape, no raw subject in account table, distinct providers, linking conflicts, shared libraries, deletes and FK behavior. No authentication/authorization is enforced by these raw domain APIs; add it at trusted boundary.
 
-### Not implemented: authentication and access control
+### Implemented after the baseline: revocable session storage
+
+`Analysis.UserSessions` provides trusted `create/1`, bearer-token resolution with `user_for_token/1`, and idempotent `revoke/1` / `revoke_all/1`. Migration `20261013170000_create_user_sessions.exs` adds `user_sessions`: a 32-byte SHA-256 token hash primary key, UUID user FK with cascading deletion, UTC creation/expiry timestamps, and a user index. PostgreSQL enforces hash size and expiry after creation. Credentials contain 256 random bits and use unpadded base64url; raw credentials never enter SQL. Session queries disable parameter logging.
+
+Sessions expire after a fixed 24 hours using PostgreSQL statement time, without sliding renewal. Every resolution checks expiry and current database state; deleting a user removes all sessions. Issuance participates in the caller's transaction. A SHA-256 hash is sufficient for these high-entropy random credentials; this is separate from the stable keyed HMAC needed for guessable provider identities. There are no provider identifiers, OAuth tokens, IP addresses or user-agent fields in this table. Expired rows are rejected but not automatically pruned yet; cleanup must be added before enabling public login.
+
+This is a storage foundation only. `create/1` must only be called after independent authentication; accepting a browser-supplied user ID would be an authentication bypass. There is no browser login or protected route yet, and no active LiveView disconnection on revocation. Web integration must renew the session on login, use HttpOnly/Secure/SameSite cookies, enforce CSRF, validate tokens at protected mounts and events, and handle logout/disconnection. Anonymous rooms retain their existing behavior.
+
+### Not implemented: OAuth and web authentication/access control
 
 - No OAuth2 authorization/callback endpoints, PKCE challenge/state processing, provider profile verification, login/logout, persistent sessions, browser identity plug, protected LiveView mount, CSRF-specific OAuth flow, account-grant storage, or Lichess library import/sync in `51192f5`.
-- `user_sessions` and `account_grants` were **discussed as possible future structures**, NOT created by current migrations. Avoid assuming Better Auth (a different ecosystem) is installed; **User → multiple Accounts is the adopted *model***, not a library dependency.
+- `user_sessions` now exists as described above; `account_grants` remains a proposal. Avoid assuming Better Auth (a different ecosystem) is installed; **User → multiple Accounts is the adopted *model***, not a library dependency.
 - Users should not see unrelated users' analyses by default once ownership/scoping is introduced. Existing room collaboration remains link-based, guest-capable; future policy must define who can view, edit, claim or share analyses, and how anonymous work joins authenticated libraries. No automatic linkage based on matching email addresses.
 
 ### Decisions for future Lichess integration

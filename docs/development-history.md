@@ -192,6 +192,19 @@ Do **not** extrapolate from one run to maximum throughput; production grouped im
 
 ## 7. Open work, in suggested order
 
+### First authentication foundation slice — 2026-10-13
+
+Starting from clean local `main` at `f1ed0a006dbdee299da1eb74d8315b2c9378b75b`, add revocable PostgreSQL user sessions before exposing OAuth routes. This makes expiration, logout invalidation, user deletion and transactional issuance independently testable. The implemented contract and privacy limits are in architecture section 6. No new dependency, browser authentication, OAuth grant storage or account linking endpoint is introduced.
+
+Official Lichess documentation checked on 2026-10-13: [authorization request](https://github.com/lichess-org/api/blob/master/doc/specs/tags/oauth/oauth.yaml), [token exchange/revocation](https://github.com/lichess-org/api/blob/master/doc/specs/tags/oauth/api-token.yaml), [authenticated profile](https://github.com/lichess-org/api/blob/master/doc/specs/tags/account/api-account.yaml), and [authentication overview](https://github.com/lichess-org/api/blob/master/doc/specs/lichess-api.yaml). The documented flow uses `https://lichess.org/oauth`, S256 PKCE and independent random state; form-encoded `POST https://lichess.org/api/token` requires the original client ID, redirect URI and verifier. `GET https://lichess.org/api/account` accepts an OAuth bearer token without additional scopes. Lichess supports public clients without a client secret; refresh tokens are not supported. Authenticate with no extra scopes; study/game import remains separate.
+
+Implementation order after this slice:
+
+1. Short-lived OAuth attempts with independent state and PKCE verifier, browser binding, atomic single-use consumption and cleanup; test mismatch, expiry, denial and concurrent replay. Do not put the verifier in URLs or logs.
+2. Provider token exchange and account verification, then transactional internal-user lookup/creation. Validate provider responses, avoid logging profiles/codes/tokens, discard the token after verification (revoke where practical), and configure the stable production account HMAC secret before enabling login.
+3. Integrate login/logout with the session store, session renewal against fixation, secure cookies, CSRF-protected initiation/logout and protected LiveView mounts/events. Add expired-session cleanup before public login. Account linking must require an existing authenticated session plus fresh provider verification; never merge by name/email.
+4. Personal library LiveView using the server-resolved user, with cross-user access tests. Keep guest rooms available. Request import scopes only in a later, separate consent flow.
+
 **Near-term (next green vertical slices):**
 
 - **OAuth security foundation:** decide session model, stable production HMAC secret management, PKCE state verifier storage and secure callback routes. Write verification tests before exposing endpoints.

@@ -4,6 +4,7 @@ Logger.configure(level: :warning)
 OpenChessLab.Repo.query!(
   """
   TRUNCATE TABLE
+    user_sessions,
     user_analyses,
     accounts,
     users,
