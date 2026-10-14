@@ -36,13 +36,13 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- Slice gereed: `Add readable titles to personal library analyses`, start op schone `561ed67`.
+- Slice afgerond en gepusht: `Add readable titles to personal library analyses`, commit `cc392f3`, start op schone `561ed67`.
   Persoonlijke titel op `user_analyses`, hernoemen in bibliotheek en tonen boven privé-editor.
   Dev/test-migratie `20261014150000` uitgevoerd. Eerste gerichte domeinrun 9/13 doordat ik tests
   vóór de door Mix-lock geblokkeerde testmigratie startte; migratie uitgevoerd, dezelfde seed `96633` daarna 13/13.
   Gericht: 23 webtests; database: 4 tests incl. release-migratie-idempotentie geslaagd.
   Volledig: analyse **602 geslaagd** (seed `398267`), web **179 geslaagd** (seed `511632`).
-  Assetbuild, formatter en diffcontrole geslaagd. Commit/push volgen; **niet gedeployed**.
+  Assetbuild, formatter en diffcontrole geslaagd. Commit/push geverifieerd; **niet gedeployed**.
   Deze slice bevat één nieuwe migratie; normale release-migratie voert die bij deployment uit.
 
 - Infra-slice: `Reduce Fly app memory to 512 MB`, expliciet gevraagd door gebruiker.
@@ -55,7 +55,7 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   Configuratie en deze overdracht reizen samen in de infra-commit; controleer HEAD/origin na pull.
 
 - Remote: `git@github.com:openchesslab/openchesslab.git`; branch `main`.
-- Laatste geverifieerde implementatiecommit: `7c24777`, gepusht op main (homepage).
+- Laatste geverifieerde implementatiecommit: `cc392f3`, gepusht op main (bibliotheektitels).
 - De gebruiker bevestigde op 2026-10-14 deployment van de laatste wijzigingen (header, privé-editor en homepage).
 - Afgeronde slice: `Allow private editing of personal analysis copies`, commit/push `05c3cf6`.
 - Privéroute `/library/:id`: bord, varianten, opmerkingen/NAGs, revisionconflicten en toegang per event/navigatie.
@@ -75,8 +75,8 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Eerstvolgende productwerk
 
-Header, privé-editor en homepage zijn afgerond en gepusht. Bibliotheektitels zijn nu groen;
-controleer de commit/push-status hierboven voor voortzetting.
+Header, privé-editor, homepage en bibliotheektitels zijn afgerond en gepusht.
+Er is geen openstaande implementatie; bibliotheektitels zijn nog niet gedeployed.
 De privé-editor vereist een eigen bibliotheeklink zonder roomlidmaatschap of andere gebruikerslink.
 Geen room wordt aangemaakt of gekoppeld. Controleer de actuele werkboom en tests voor voortzetting.
 Vervolg: privé-position setup/tools. Expliciet terugdelen
@@ -178,5 +178,5 @@ Header is gepusht in `15562fc`; privé-editor in `05c3cf6`; homepage in `7c24777
 Controleer na pull de werkelijke HEAD en werkboom; commit/push staan afzonderlijk hierboven.
 Deployment van de laatste wijzigingen is op 2026-10-14 door de gebruiker bevestigd.
 Geen resterende controles of implementatie voor deze twee slices.
-Bibliotheektitels zijn groen; commit/push-status bovenaan. Deze nieuwe slice is niet gedeployed.
+Bibliotheektitels zijn groen en gepusht in `cc392f3`; deze nieuwe slice is niet gedeployed.
 Expliciet terugdelen, gewijzigde roomretentie en privé-position setup/tools blijven later werk.
