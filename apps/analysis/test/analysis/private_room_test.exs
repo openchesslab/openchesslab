@@ -19,6 +19,41 @@ defmodule Analysis.PrivateRoomTest do
     %{owner: owner, other: other, code: code}
   end
 
+  test "the member list shows names and removal respects the owner's authority", ctx do
+    assert {:ok, room} =
+             Rooms.create_room(ctx.code,
+               owner: ctx.owner.id,
+               owner_display_name: "Wise Otter 42"
+             )
+
+    {:ok, token} = Rooms.create_invite(ctx.code)
+    assert {:ok, :joined} = Rooms.consume_invite(ctx.code, ctx.other.id, token, "Keen Rhino 44")
+
+    # The list is oldest-join first with the owner at the top.
+    [owner_member, joined_member] = Rooms.members(ctx.code)
+    assert owner_member.display_name == "Wise Otter 42"
+    assert joined_member.display_name == "Keen Rhino 44"
+
+    # Legacy rows without a stored name get a stable fallback label.
+    Repo.query!("UPDATE room_members SET display_name = NULL WHERE room_id = $1", [ctx.code])
+    [%{display_name: fallback_name} | _] = Rooms.members(ctx.code)
+    assert fallback_name =~ ~r/^Member [0-9A-F]{4}$/
+
+    # Only the owner may remove; their own membership is immutable.
+    assert {:error, :not_owner} = Rooms.remove_member(ctx.code, ctx.other.id, ctx.other.id)
+    assert {:error, :owner_immutable} = Rooms.remove_member(ctx.code, ctx.owner.id, ctx.owner.id)
+
+    # Removal takes effect and cannot be repeated; the removed user may still
+    # rejoin through an active invite link.
+    assert :ok = Rooms.remove_member(ctx.code, ctx.owner.id, ctx.other.id)
+    refute Rooms.member?(ctx.code, ctx.other.id)
+    assert {:error, :member_not_found} = Rooms.remove_member(ctx.code, ctx.owner.id, ctx.other.id)
+    assert {:ok, :joined} = Rooms.consume_invite(ctx.code, ctx.other.id, token)
+    assert Rooms.member?(ctx.code, ctx.other.id)
+
+    assert room.owner_user_id == ctx.owner.id
+  end
+
   test "creating a private room makes the owner its first and only member", ctx do
     assert {:ok, room} = Rooms.create_room(ctx.code, owner: ctx.owner.id)
     assert room.owner_user_id == ctx.owner.id

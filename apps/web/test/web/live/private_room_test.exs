@@ -43,7 +43,7 @@ defmodule Web.PrivateRoomTest do
     # Creating with the toggle lands the owner in a private room of their own.
     html = render_click(signed_in, "create-room", %{"private" => "true"})
     {:ok, room_view, _room_html} = follow_redirect(html, authenticated(ctx.owner_session.token))
-    assert has_element?(room_view, "#invite-button")
+    assert has_element?(room_view, "#members-button")
     refute has_element?(room_view, "button[phx-click='copy-room-code']")
   end
 
@@ -79,11 +79,11 @@ defmodule Web.PrivateRoomTest do
 
     # No copy-code button in a private room; the owner gets the Invite button.
     refute has_element?(view, "button[phx-click='copy-room-code']")
-    assert has_element?(view, "#invite-button", "Invite")
+    assert has_element?(view, "#members-button", "Members")
     refute html =~ ctx.analysis_id
 
-    render_click(view, "open-invite")
-    assert has_element?(view, "#invite-title")
+    render_click(view, "open-members")
+    assert has_element?(view, "#members-title")
     assert has_element?(view, "button[phx-click='generate-invite']")
 
     # Generating shows the full URL exactly once and activates the link.
@@ -121,7 +121,7 @@ defmodule Web.PrivateRoomTest do
 
     assert has_element?(view, "#chess-board")
     assert html =~ ctx.analysis_id
-    refute has_element?(view, "#invite-button")
+    refute has_element?(view, "#members-button")
 
     # Multi-use: the same link admits another member later.
     {:ok, third} = Users.create()
@@ -160,6 +160,62 @@ defmodule Web.PrivateRoomTest do
     # the events exist, then a signed-in member-forger cannot touch invites.
     render_click(view, "generate-invite", %{"user_id" => ctx.owner.id})
     refute Rooms.invite_active?(ctx.code)
+  end
+
+  test "the members list shows names; removal kicks the member immediately", ctx do
+    assert {:ok, _room} = Rooms.create_room(ctx.code, owner: ctx.owner.id)
+    {:ok, token} = Rooms.create_invite(ctx.code)
+
+    assert {:ok, :joined} =
+             Rooms.consume_invite(ctx.code, ctx.other.id, token, "Keen Rhino 44")
+
+    [owner_member, joined_member] = Rooms.members(ctx.code)
+    {:ok, removed_view, _} = live(authenticated(ctx.other_session.token), "/rooms/#{ctx.code}")
+
+    {:ok, view, _} = live(authenticated(ctx.owner_session.token), "/rooms/#{ctx.code}")
+    render_click(view, "open-members")
+    assert has_element?(view, "#members-title", "Members")
+    assert has_element?(view, "#member-#{owner_member.user_id}", "Owner")
+    assert has_element?(view, "#member-#{joined_member.user_id}", "Keen Rhino 44")
+
+    # The owner cannot be removed; the member can.
+    refute has_element?(view, "#member-#{owner_member.user_id} button[phx-click='remove-member']")
+
+    assert has_element?(
+             view,
+             "#member-#{joined_member.user_id} button[phx-click='remove-member']"
+           )
+
+    render_click(view, "remove-member", %{"user_id" => joined_member.user_id})
+    refute Rooms.member?(ctx.code, joined_member.user_id)
+    refute has_element?(view, "#member-#{joined_member.user_id}")
+
+    # The removed member's connected view is cut off immediately with a message.
+    # The removed member's connected view is cut off immediately.
+    assert_redirect(removed_view, ~p"/rooms/#{ctx.code}")
+
+    {:ok, gated, _} = live(authenticated(ctx.other_session.token), "/rooms/#{ctx.code}")
+
+    assert has_element?(gated, "#private-room-gate")
+  end
+
+  test "non-owner members cannot forge member management", ctx do
+    assert {:ok, _room} = Rooms.create_room(ctx.code, owner: ctx.owner.id)
+    {:ok, token} = Rooms.create_invite(ctx.code)
+    assert {:ok, :joined} = Rooms.consume_invite(ctx.code, ctx.other.id, token)
+
+    {:ok, view, _} = live(authenticated(ctx.other_session.token), "/rooms/#{ctx.code}")
+
+    refute has_element?(view, "#members-button")
+    render_click(view, "open-members", %{"user_id" => ctx.owner.id})
+    render_click(view, "remove-member", %{"user_id" => ctx.owner.id})
+    render_click(view, "generate-invite", %{"user_id" => ctx.owner.id})
+    render_click(view, "revoke-invite", %{"user_id" => ctx.owner.id})
+
+    assert Rooms.members(ctx.code) |> length() == 2
+
+    # The forged revoke left the active invite untouched.
+    assert Rooms.invite_active?(ctx.code)
   end
 
   defp authenticated(token),

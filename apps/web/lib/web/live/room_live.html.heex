@@ -60,12 +60,12 @@
             <button
               :if={@current_user && @room.owner_user_id == @current_user.id}
               type="button"
-              id="invite-button"
+              id="members-button"
               class="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold hover:bg-panel-hover"
-              phx-click="open-invite"
+              phx-click="open-members"
             >
               <.icon name="person" class="h-3.5 w-3.5" />
-              {Web.I18n.t("room.invite", @locale)}
+              {Web.I18n.t("room.members", @locale)}
             </button>
           </div>
         </header>
@@ -1199,19 +1199,19 @@
   </div>
 
   <div
-    :if={@ui_modal == "invite"}
+    :if={@ui_modal == "members"}
     class="fixed inset-0 z-[60] grid place-items-center bg-transparent p-4 backdrop-blur-xs backdrop-saturate-[.9]"
   >
     <section
       class="max-h-[90dvh] w-full max-w-lg overflow-auto rounded-xl border border-border-strong bg-panel p-5 shadow-2xl"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="invite-title"
+      aria-labelledby="members-title"
       phx-click-away="close-modal"
     >
       <header class="mb-4 flex items-center justify-between gap-4">
-        <h2 id="invite-title" class="m-0 text-lg font-semibold">
-          {Web.I18n.t("room.invite", @locale)}
+        <h2 id="members-title" class="m-0 text-lg font-semibold">
+          {Web.I18n.t("room.members", @locale)}
         </h2>
 
         <button
@@ -1250,7 +1250,7 @@
         )}
       </p>
 
-      <div class="flex flex-wrap gap-2">
+      <div class="mb-6 flex flex-wrap gap-2">
         <button
           type="button"
           class="rounded-md border border-accent-strong bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-strong"
@@ -1263,6 +1263,39 @@
           phx-click="revoke-invite"
         >{Web.I18n.t("room.revokeInvite", @locale)}</button>
       </div>
+
+      <h3 class="mb-3 text-sm font-semibold">{Web.I18n.t("room.memberList", @locale)}</h3>
+      <ul id="room-members" class="m-0 flex list-none flex-col gap-2 p-0">
+        <li
+          :for={member <- @members}
+          id={"member-#{member.user_id}"}
+          class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-panel p-3"
+        >
+          <div class="min-w-0">
+            <p class="m-0 text-sm font-semibold">
+              {member.display_name}
+              <span
+                :if={@room.owner_user_id == member.user_id}
+                class="ml-1.5 rounded-full bg-panel-hover px-2 py-0.5 text-[.65rem] font-semibold text-muted"
+              >{Web.I18n.t("room.owner", @locale)}</span>
+            </p>
+            <p class="mt-1 text-xs text-muted">
+              {Web.I18n.t("room.memberJoined", @locale)}
+              <time datetime={NaiveDateTime.to_iso8601(member.joined_at) <> "Z"}>{Calendar.strftime(
+                member.joined_at,
+                "%Y-%m-%d"
+              )}</time>
+            </p>
+          </div>
+          <button
+            :if={@room.owner_user_id != member.user_id}
+            type="button"
+            class="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-panel-hover"
+            phx-click="remove-member"
+            phx-value-user_id={member.user_id}
+          >{Web.I18n.t("room.removeMember", @locale)}</button>
+        </li>
+      </ul>
     </section>
   </div>
 

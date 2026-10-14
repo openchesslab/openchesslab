@@ -3,6 +3,7 @@ defmodule Analysis.Rooms do
 
   alias Analysis.Room
   alias Analysis.RoomChat
+  alias Analysis.RoomEvents
   alias Analysis.RoomServer
   alias Analysis.RoomStore
 
@@ -13,6 +14,7 @@ defmodule Analysis.Rooms do
           {:registry, atom()}
           | {:supervisor, atom()}
           | {:owner, Room.owner_user_id()}
+          | {:owner_display_name, String.t()}
 
   @type options :: [option()]
 
@@ -21,15 +23,19 @@ defmodule Analysis.Rooms do
 
   With `owner:` the room is private: the room code alone never grants entry,
   and the owner becomes its first member. The caller authenticates the owner
-  user first; this is not an authorization boundary.
+  user first; this is not an authorization boundary. `owner_display_name` is
+  a server-generated, non-PII label shown in the member list.
   """
   @spec create_room(Room.id(), options()) ::
           {:ok, Room.t()} | {:error, :already_exists | :not_found | :invalid_owner}
   def create_room(room_id, opts \\ []) do
     created =
       case Keyword.get(opts, :owner) do
-        nil -> RoomStore.create(room_id)
-        owner_user_id -> RoomStore.create_private(room_id, owner_user_id)
+        nil ->
+          RoomStore.create(room_id)
+
+        owner_user_id ->
+          RoomStore.create_private(room_id, owner_user_id, Keyword.get(opts, :owner_display_name))
       end
 
     case created do
@@ -53,14 +59,62 @@ defmodule Analysis.Rooms do
     RoomStore.member?(room_id, user_id)
   end
 
-  @doc "Admit a user through a raw invite token; returns the token only once elsewhere."
-  @spec consume_invite(Room.id(), String.t(), String.t()) ::
-          {:ok, :joined} | {:error, :invalid_invite}
-  def consume_invite(room_id, user_id, token) when is_binary(token) do
-    RoomStore.consume_invite(room_id, user_id, :crypto.hash(:sha256, token))
+  @doc """
+  The durable member list, oldest join first. Display names are server
+  generated labels without personal data.
+  """
+  @spec members(Room.id()) :: [
+          %{user_id: String.t(), display_name: String.t(), joined_at: NaiveDateTime.t()}
+        ]
+  def members(room_id), do: RoomStore.members(room_id)
+
+  @doc "This member's display name for private-room presence; guests never match."
+  @spec member_display_name(Room.id(), String.t() | nil) :: {:ok, String.t()} | :not_found
+  def member_display_name(room_id, user_id) when is_binary(user_id),
+    do: RoomStore.member_display_name(room_id, user_id)
+
+  def member_display_name(_room_id, _user_id), do: :not_found
+
+  @doc """
+  Remove one member of a private room; only the owner may remove, and the
+  owner's own membership is immutable (ownership itself is never transferable
+  here). Every connected member view is notified, so a removed member's
+  session is cut off immediately. The caller authenticates the owner first.
+  """
+  @spec remove_member(Room.id(), String.t(), String.t()) ::
+          :ok | {:error, :not_owner | :member_not_found | :owner_immutable}
+  def remove_member(room_id, owner_user_id, target_user_id)
+      when is_binary(room_id) and is_binary(owner_user_id) and is_binary(target_user_id) do
+    case RoomStore.get(room_id) do
+      {:ok, %Room{owner_user_id: ^owner_user_id} = room} when not is_nil(owner_user_id) ->
+        if target_user_id == room.owner_user_id do
+          {:error, :owner_immutable}
+        else
+          case RoomStore.remove_member(room_id, target_user_id) do
+            :ok ->
+              RoomEvents.publish_membership_changed(room_id)
+              :ok
+
+            :not_found ->
+              {:error, :member_not_found}
+          end
+        end
+
+      _ ->
+        {:error, :not_owner}
+    end
   end
 
-  def consume_invite(_, _, _), do: {:error, :invalid_invite}
+  @doc "Admit a user through a raw invite token; returns the token only once elsewhere."
+  @spec consume_invite(Room.id(), String.t(), String.t(), String.t() | nil) ::
+          {:ok, :joined} | {:error, :invalid_invite}
+  def consume_invite(room_id, user_id, token, display_name \\ nil)
+
+  def consume_invite(room_id, user_id, token, display_name) when is_binary(token) do
+    RoomStore.consume_invite(room_id, user_id, :crypto.hash(:sha256, token), display_name)
+  end
+
+  def consume_invite(_, _, _, _), do: {:error, :invalid_invite}
 
   @doc """
   Generate a fresh multi-use invite link for the room, rotating any older one.

@@ -10,6 +10,7 @@ defmodule Web.RoomInviteController do
   use Web, :controller
 
   alias Analysis.Rooms
+  alias Web.DisplayName
 
   def join(conn, %{"code" => code, "token" => token}) do
     code = String.upcase(code)
@@ -20,7 +21,7 @@ defmodule Web.RoomInviteController do
       |> put_resp_header("referrer-policy", "no-referrer")
 
     if user = conn.assigns.current_user do
-      case Rooms.consume_invite(code, user.id, token) do
+      case Rooms.consume_invite(code, user.id, token, DisplayName.generate()) do
         {:ok, :joined} ->
           redirect(conn, to: ~p"/rooms/#{code}")
 

@@ -30,5 +30,20 @@ defmodule Analysis.RoomEvents do
     :ok
   end
 
+  @doc """
+  Notify every connected room view that membership changed.
+
+  Each view rechecks its own user's membership: a removed member is cut off
+  immediately instead of retaining access until reload.
+  """
+  @spec publish_membership_changed(Analysis.Room.id()) :: :ok
+  def publish_membership_changed(room_id) do
+    @scope
+    |> :pg.get_members(group(room_id))
+    |> Enum.each(&send(&1, {:membership_changed, room_id}))
+
+    :ok
+  end
+
   defp group(room_id), do: {:room, room_id}
 end

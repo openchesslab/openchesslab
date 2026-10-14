@@ -59,6 +59,7 @@ defmodule Web.RoomLive do
       invite_active: false,
       invite_token: nil,
       invite_url: nil,
+      members: [],
       room: nil,
       analyses: [],
       selected_analysis_id: nil,
@@ -138,6 +139,17 @@ defmodule Web.RoomLive do
           {:ok, gate_socket(socket, base_assigns, code)}
         else
           chat_messages = room_chat(code)
+
+          # In a private room every viewer is a member: presence uses the
+          # stored member label, so the sidebar matches the member list.
+          base_assigns =
+            case Rooms.member_display_name(
+                   code,
+                   socket.assigns.current_user && socket.assigns.current_user.id
+                 ) do
+              {:ok, member_name} -> %{base_assigns | display_name: member_name}
+              :not_found -> base_assigns
+            end
 
           socket =
             socket
@@ -288,22 +300,44 @@ defmodule Web.RoomLive do
   def handle_event("unlink-provider", %{"provider" => provider}, socket),
     do: Web.ShellPanels.unlink_provider(socket, provider)
 
-  # Only the room's owner may see, rotate or revoke the invite link; the
-  # credential is refreshed before each event, and non-owners get no change.
-  def handle_event("open-invite", _params, %{assigns: %{current_user: nil}} = socket),
+  def handle_event("open-members", _params, %{assigns: %{current_user: nil}} = socket),
     do: {:noreply, socket}
 
-  def handle_event("open-invite", _params, socket) do
+  def handle_event("open-members", _params, socket) do
     if room_owner?(socket) do
       code = socket.assigns.room_code
 
       {:noreply,
        assign(socket,
-         ui_modal: "invite",
+         ui_modal: "members",
+         members: Rooms.members(code),
          invite_active: Rooms.invite_active?(code),
          invite_token: nil,
          invite_url: nil
        )}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  # Only the room's owner may remove members; the credential is refreshed
+  # before each event, the owner's own membership is immutable, and forged
+  # targets that are not members change nothing.
+  def handle_event("remove-member", _params, %{assigns: %{current_user: nil}} = socket),
+    do: {:noreply, socket}
+
+  def handle_event("remove-member", %{"user_id" => target}, socket) do
+    if room_owner?(socket) do
+      case Rooms.remove_member(socket.assigns.room_code, socket.assigns.current_user.id, target) do
+        :ok ->
+          {:noreply,
+           socket
+           |> assign(members: Rooms.members(socket.assigns.room_code))
+           |> notify(Web.I18n.t("room.memberRemoved", socket.assigns.locale))}
+
+        _ ->
+          {:noreply, socket}
+      end
     else
       {:noreply, socket}
     end
@@ -1148,6 +1182,23 @@ defmodule Web.RoomLive do
   def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   @impl true
+  # A membership change rechecks this view's own member: a removed member is
+  # cut off immediately, before any further room content reaches them.
+  def handle_info({:membership_changed, _room_code}, socket) do
+    room = socket.assigns.room
+    user = socket.assigns.current_user
+
+    if is_map(room) and is_binary(room.owner_user_id) and is_map(user) and
+         not Rooms.member?(room.id, user.id) do
+      {:noreply,
+       socket
+       |> put_flash(:error, Web.I18n.t("room.memberRemovedKick", socket.assigns.locale))
+       |> redirect(to: ~p"/rooms/#{room.id}")}
+    else
+      {:noreply, socket}
+    end
+  end
+
   def handle_info({:room_changed, _room_code}, socket) do
     socket = refresh_room(socket)
 

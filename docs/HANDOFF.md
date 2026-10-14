@@ -34,6 +34,20 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, wacht op commit/push:** `Add member listing and removal to private rooms`, gestart op
+  schone `a9a08e7`. Ontwerp (2026-10-15): de Invite-modal is nu de **Members**-modal van de eigenaar —
+  duurzame ledenlijst (naam, eigenaar-badge, lid-sinds) + invite-link beheer in dezelfde modal.
+  Namen: per lidmaatschap opgeslagen, door web gegenereerd via `Web.DisplayName` (niet-PII; legacy
+  rijen krijgen een stabiele hash-fallback "Member XXXX"); private-room presence gebruikt dezelfde
+  opgeslagen naam, dus de sidebar matcht de lijst. Verwijdering: alleen de eigenaar, eigen lidmaatschap
+  onaantastbaar, forge/deletes van niet-leden en niet-eigenaren falen stil; `Rooms.remove_member/3`
+  publiceert `membership_changed` over de room-eventgroep zodat de verbonden view van het verwijderde
+  lid direct naar de gate redirectet (opgesplitst uit handmatige tests; zicht in browserflow). Migratie
+  `20261014220000` (display_name kolom). Gericht: domein private_room **5/5**, web private_room **8/8**;
+  volledig analyse **617 geslaagd** (seed 398267) en web **227 geslaagd** (seed 511632, serieel —
+  parallelle suites corrupten de gedeelde testdb, niet herhalen); formatter, assetbuild, compile
+  --warnings-as-errors en diffcontrole geslaagd.
+
 - **Afgerond, door agent gecommit en gepusht:** `Add private rooms with owner and invite links`,
   gestart op schone `1006b71`. Besluiten gebruiker 2026-10-14: publiek blijft de default (draagbare
   kamercodes ongewijzigd, inclusief bestaande kamers); private kamers krijgen uitnodigingslinks

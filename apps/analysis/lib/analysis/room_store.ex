@@ -87,8 +87,8 @@ defmodule Analysis.RoomStore do
   """
 
   @insert_owner_sql """
-  INSERT INTO room_members (room_id, user_id)
-  VALUES ($1, $2)
+  INSERT INTO room_members (room_id, user_id, display_name)
+  VALUES ($1, $2, $3)
   ON CONFLICT (room_id, user_id) DO NOTHING
   """
 
@@ -97,16 +97,18 @@ defmodule Analysis.RoomStore do
 
   The room code alone never grants entry; only the owner and rows in
   `room_members` see the room. Callers authenticate the owner user first.
+  The display name is a server-generated, non-PII label for member listing.
   """
-  @spec create_private(String.t(), String.t()) :: :ok | {:error, :already_exists}
-  def create_private(id, owner_user_id)
+  @spec create_private(String.t(), String.t(), String.t() | nil) ::
+          :ok | {:error, :already_exists | :invalid_owner}
+  def create_private(id, owner_user_id, display_name \\ nil)
       when is_binary(id) and byte_size(id) > 0 and is_binary(owner_user_id) do
     case Ecto.UUID.dump(owner_user_id) do
       {:ok, db_owner} ->
         Repo.transaction(fn ->
           case Repo.query!(@create_private_sql, [id, db_owner]).rows do
             [[^id]] ->
-              Repo.query!(@insert_owner_sql, [id, db_owner])
+              Repo.query!(@insert_owner_sql, [id, db_owner, display_name])
               :ok
 
             [] ->
@@ -143,24 +145,95 @@ defmodule Analysis.RoomStore do
   end
 
   @add_member_sql """
-  INSERT INTO room_members (room_id, user_id)
-  SELECT id, $2 FROM rooms WHERE id = $1
+  INSERT INTO room_members (room_id, user_id, display_name)
+  SELECT id, $2, $3 FROM rooms WHERE id = $1
   ON CONFLICT (room_id, user_id) DO NOTHING
   RETURNING room_id
   """
 
-  @doc "Idempotently add a member to a durable room."
-  @spec add_member(String.t(), String.t()) :: :ok | {:error, :room_not_found}
-  def add_member(room_id, user_id) when is_binary(room_id) do
+  @doc "Idempotently add a member to a durable room with a server-generated label."
+  @spec add_member(String.t(), String.t(), String.t() | nil) ::
+          :ok | {:error, :room_not_found}
+  def add_member(room_id, user_id, display_name \\ nil) when is_binary(room_id) do
     case Ecto.UUID.dump(user_id) do
       {:ok, db_user} ->
-        case Repo.query!(@add_member_sql, [room_id, db_user]).rows do
+        case Repo.query!(@add_member_sql, [room_id, db_user, display_name]).rows do
           [[_room_id]] -> :ok
           [] -> {:error, :room_not_found}
         end
 
       _ ->
         {:error, :room_not_found}
+    end
+  end
+
+  # Legacy and nameless rows get a stable, non-identifying fallback label.
+  @member_name_sql """
+  COALESCE(display_name, 'Member ' || upper(substr(md5(user_id::text), 1, 4)))
+  """
+
+  @members_sql """
+  SELECT user_id::text, #{@member_name_sql}, created_at
+  FROM room_members
+  WHERE room_id = $1
+  ORDER BY created_at, user_id
+  """
+
+  @doc """
+  The durable member list of a room, oldest join first.
+
+  Display names are server-generated labels without personal data; they are
+  never unique identifiers or proof of authentication.
+  """
+  @spec members(String.t()) :: [
+          %{user_id: String.t(), display_name: String.t(), joined_at: NaiveDateTime.t()}
+        ]
+  def members(room_id) when is_binary(room_id) do
+    Repo.query!(@members_sql, [room_id], log: false).rows
+    |> Enum.map(fn [user_id, display_name, joined_at] ->
+      %{user_id: user_id, display_name: display_name, joined_at: joined_at}
+    end)
+  end
+
+  @member_name_of_sql """
+  SELECT #{@member_name_sql}
+  FROM room_members
+  WHERE room_id = $1 AND user_id = $2
+  """
+
+  @doc "This member's display name; `:not_found` for non-members and guests."
+  @spec member_display_name(String.t(), String.t()) :: {:ok, String.t()} | :not_found
+  def member_display_name(room_id, user_id) when is_binary(room_id) do
+    case Ecto.UUID.dump(user_id) do
+      {:ok, db_user} ->
+        case Repo.query!(@member_name_of_sql, [room_id, db_user], log: false).rows do
+          [[display_name]] -> {:ok, display_name}
+          [] -> :not_found
+        end
+
+      _ ->
+        :not_found
+    end
+  end
+
+  @remove_member_sql """
+  DELETE FROM room_members
+  WHERE room_id = $1 AND user_id = $2
+  RETURNING user_id
+  """
+
+  @doc "Remove one membership row; the caller owns the owner/authority checks."
+  @spec remove_member(String.t(), String.t()) :: :ok | :not_found
+  def remove_member(room_id, user_id) when is_binary(room_id) do
+    case Ecto.UUID.dump(user_id) do
+      {:ok, db_user} ->
+        case Repo.query!(@remove_member_sql, [room_id, db_user], log: false).rows do
+          [[_user_id]] -> :ok
+          [] -> :not_found
+        end
+
+      _ ->
+        :not_found
     end
   end
 
@@ -225,14 +298,14 @@ defmodule Analysis.RoomStore do
   """
   @spec consume_invite(String.t(), String.t(), binary()) ::
           {:ok, :joined} | {:error, :invalid_invite}
-  def consume_invite(room_id, user_id, token_hash)
+  def consume_invite(room_id, user_id, token_hash, display_name \\ nil)
       when is_binary(room_id) and byte_size(token_hash) == 32 do
     case Ecto.UUID.dump(user_id) do
       {:ok, db_user} ->
         Repo.transaction(fn ->
           case Repo.query!(@consume_invite_sql, [room_id, token_hash], log: false).rows do
             [[_token_hash]] ->
-              Repo.query!(@add_member_sql, [room_id, db_user], log: false)
+              Repo.query!(@add_member_sql, [room_id, db_user, display_name], log: false)
               :joined
 
             [] ->
