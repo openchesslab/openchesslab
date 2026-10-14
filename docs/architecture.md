@@ -308,6 +308,10 @@ next event/navigation; idle tabs have no access-change timer. Room retention and
 
 **Implemented deployment:** Fly.io app `openchesslab`, single `app` machine in **Amsterdam (`ams`)**, Fly Managed PostgreSQL, canonical `openchesslab.com` with www redirect. The release command in `fly.toml` invokes `/app/bin/openchesslab eval "OpenChessLab.Database.Release.migrate()"`; `/health` and `/ready` are passing health-check routes reported by the user. `config/runtime.exs` configures the direct Fly Postgres endpoint (`@pgbouncer.` → `@direct.`) and IPv6 sockets when `ECTO_IPV6=true`; this was deliberate to address earlier DNS issues. Inspect runtime/infra config before changes. **Manual** `flyctl deploy --remote-only -a openchesslab` is the chosen production flow; do not re-enable auto-deploy.
 
+The app Machine was explicitly resized to **512 MB, one shared CPU** on 2026-10-14;
+`fly.toml` retains this size for subsequent deployments. Post-resize health/readiness passed;
+approximately 227 MiB was available immediately after restart, without swap. Load peaks still need observation.
+
 `Analysis.Application` starts DNSCluster plus `RoomEvents`, `AnalysisEvents`, Horde room registry/supervisor, and production `RoomPruner`. There is no distributed PostgreSQL owner process. Chat is transient across worker restarts. Current production is single-region; do not imply proven multi-region failover under present architecture.
 
 **Local:** native PostgreSQL with `openchesslab_dev`/`openchesslab_test`, dev/test configs, migration tasks in `apps/database`. `config/test.exs` guards that `MIX_ENV=test` uses **exactly** `/openchesslab_test`; test helpers for analysis/web truncate PostgreSQL tables with `CASCADE` when suites start. Run in isolated/disposable databases, especially benchmark scripts. Platform-neutral commands and the user's Windows PowerShell/Arch Linux workflow are in `../AGENTS.md`.

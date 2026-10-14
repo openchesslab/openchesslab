@@ -36,6 +36,15 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- Infra-slice: `Reduce Fly app memory to 512 MB`, expliciet gevraagd door gebruiker.
+  Op 2026-10-14 live uitgevoerd: `flyctl scale memory 512 -a openchesslab -g app`.
+  Eén shared CPU, 512 MB; `fly.toml` legt beide geheugenvelden op 512 vast voor volgende deployments.
+  Configvalidatie en diffcontrole geslaagd; Fly-checks 2/2 en publieke /health + /ready geslaagd.
+  Direct na herstart circa 227 MiB beschikbaar, geen swap. Dit is geen belastingtest;
+  historische Prometheus-pieken konden bij de voorafgaande inspectie niet worden opgehaald (401).
+  Geen nieuwe image-deployment of applicatiecodewijziging; geen app-tests herhaald voor deze infra-slice.
+  Configuratie en deze overdracht reizen samen in de infra-commit; controleer HEAD/origin na pull.
+
 - Remote: `git@github.com:openchesslab/openchesslab.git`; branch `main`.
 - Laatste geverifieerde implementatiecommit: `7c24777`, gepusht op main (homepage).
 - De gebruiker bevestigde op 2026-10-14 deployment van de laatste wijzigingen (header, privé-editor en homepage).
