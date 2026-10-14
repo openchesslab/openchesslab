@@ -5,7 +5,11 @@ provider, then choose **Account → Linked accounts** and connect the other one.
 The fresh provider flow links to the current library. Logging in normally with a
 different, unlinked identity instead opens that identity's separate account.
 Already-owned identities are rejected when linking; there is no automatic merge,
-email matching, unlinking or account recovery in this slice.
+email matching or unlinking. The account page offers permanent self-service
+deletion: it removes the account, its linked identities, every session and the
+personal library links, while room content and underlying analyses remain.
+Deleting a duplicate account frees its provider identity for linking to
+another account. There is no account recovery.
 
 ## Google configuration
 
@@ -48,6 +52,9 @@ account identities remain intact.
 4. Cancel a provider flow and check that the current login/library is preserved.
 5. Try an identity already belonging to another internal account: it must report
    a conflict and preserve both accounts/libraries.
+6. Delete a throwaway account after typing the confirmation word: every browser
+   signs out, and that freed provider identity can then be linked to another
+   account. Underlying analyses and room content must remain.
 
 Provider HTTP responses are fixtures in automated tests; real Google consent
 and browser callback behavior still need this manual verification.

@@ -34,6 +34,21 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, wacht op commit/push:** `Add self-service account deletion`, gestart op schone `98a2ae4`.
+  `POST /account/delete` via `Web.AccountController` (CSRF + verplichte login) met getypte bevestiging
+  (DELETE/VERWIJDER, case-insensitief) en een danger zone op /account (EN/NL). Hergebruikt
+  `Analysis.Users.delete/1`: identities, sessies en persoonlijke bibliotheeklinks cascaderen;
+  analyses en roomcontent blijven bestaan (losgemaakte persoonlijke kopieën wachten op orphancleanup).
+  Een bevrijde provider-identiteit is daarna koppelbaar aan een ander account. Geen migratie.
+  Aanleiding: productielogins met Lichess en Google maakten twee interne accounts; koppelen wees
+  terecht een conflict af (getest gedrag). Google-productiestatus: OAuth-client aangemaakt (één
+  webclient, redirect `https://openchesslab.com/auth/google/callback`), Fly-secrets gestaged met
+  `--stage`, deployment door gebruiker bevestigd; productie toont beide loginknoppen (gecontroleerd
+  2026-10-14). Gericht **5/5** geslaagd (account_deletion_test); volledig web **202 geslaagd**
+  (seed 511632); formatter en diffcontrole geslaagd. Lokale PostgreSQL-role `openchesslab` plus
+  dev/test-databases op deze machine aangemaakt (sudo door gebruiker); testmigraties uitgevoerd.
+  Niet gecommit; niet gedeployed.
+
 - **Afgerond en gepusht:** `Add Google login and explicit account linking`, commit `2640d90`, gestart op schone `ff0a191`.
   Google OIDC (alleen openid), gezamenlijke OAuth-controller, expliciet koppelen via /account.
   Koppelen vereist dezelfde nog geldige sessie bij start/callback en na providerexchange;
@@ -87,9 +102,10 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Eerstvolgende productwerk
 
-Header, privé-editor, homepage en bibliotheektitels zijn afgerond en gepusht.
-Google-login/koppeling is toegevoegd; zie de status bovenaan. Bibliotheektitels en Google-login zijn nog niet gedeployed.
-De privé-editor vereist een eigen bibliotheeklink zonder roomlidmaatschap of andere gebruikerslink.
+Header, privé-editor, homepage, bibliotheektitels en Google-login zijn afgerond; Google-login
+is gedeployed en geverifieerd. Accountverwijdering is geïmplementeerd en wacht op commit/deployment;
+daarna verwijdert de gebruiker het dubbele Google-account in productie en koppelt Google aan het
+Lichess-account. De privé-editor vereist een eigen bibliotheeklink zonder roomlidmaatschap of andere gebruikerslink.
 Geen room wordt aangemaakt of gekoppeld. Controleer de actuele werkboom en tests voor voortzetting.
 Vervolg: privé-position setup/tools. Expliciet terugdelen
 en gewijzigde roomretentie komen later; introduceer geen automatische synchronisatie.
@@ -100,7 +116,8 @@ Dit is een overzicht, geen vastgelegde uitvoeringsvolgorde:
 
 - **Persoonlijke werkruimte:** titels/labels zijn geïmplementeerd; volgende stap position setup/tools in de privé-editor.
 - **Delen en levensduur:** expliciet kopiëren terug naar rooms; bewaartermijn en verwijderen van gevulde rooms;
-  beleid voor verweesde analyses, bibliotheekverwijdering en accountverwijdering.
+  beleid voor verweesde analyses en bibliotheekverwijdering; accountverwijdering is geïmplementeerd,
+  orphancleanup van losgemaakte persoonlijke kopieën volgt later.
 - **Lichess-data:** eigen partijen/studies importeren; later synchronisatie, herkomst, retries en minimale toestemmingen.
 - **Echte engine en partijreview:** providerkeuze (browser/server), evaluaties/varianten; daarna partijanalyse,
   fouten/momenten en evaluatiegrafieken. Huidige enginepaneel is nog geen echte engine.
@@ -124,7 +141,7 @@ Afgesproken model:
 ## Belangrijke code en grenzen
 
 - Elixir/Phoenix umbrella: apps/analysis, chess, database, features, web. PostgreSQL is gezaghebbend, lokaal zonder Docker.
-- Auth: Lichess OAuth/PKCE en Google OIDC, expliciet koppelen via /account, PostgreSQL-sessies, logout en disconnectie van andere tabs met hetzelfde credential. Google-configuratie/productieverificatie staan nog open.
+- Auth: Lichess OAuth/PKCE en Google OIDC, expliciet koppelen via /account, PostgreSQL-sessies, logout en disconnectie van andere tabs met hetzelfde credential. Accountverwijdering (getypte bevestiging) is geïmplementeerd en wacht op commit/deployment; ontkoppelen volgt later.
 - `Web.UserAuth` verifieert credentials bij mounts/events; private routes gebruiken de verplichte guard.
 - `Analysis.UserLibrary.copy_from_room/3` maakt een kopie en bibliotheeklink in één transactie,
   met controle en locks op actuele roomlidmaatschap/bron. Web gebruikt uitsluitend de serverselectie en geverifieerde gebruiker.
@@ -135,7 +152,8 @@ Afgesproken model:
   `UserLibrary.get_private/2` en `edit_private/5` controleren/locken de privéscope.
   De editor biedt legale zetten/promotie, varianten, opmerkingen/NAGs; position setup volgt later.
 - Persoonlijke kopieën krijgen een nieuw ID en zijn niet aan een room gekoppeld. Canonieke posities blijven herbruikbaar.
-- Bibliotheek verwijderen verwijdert momenteel alleen de link; orphancleanup en eigenaarschap bij accountverwijdering zijn nog apart werk.
+- Bibliotheek verwijderen verwijdert momenteel alleen de link; accountverwijdering verwijdert user,
+  identities, sessies en bibliotheeklinks (analyses blijven); orphancleanup blijft apart werk.
 - Shared header: apps/web/lib/web/components/layouts/app.html.heex en layouts.ex.
 - Productiedomein openchesslab.com, Fly-app openchesslab. Handmatige deployment; nooit automatisch deployen.
 - Productie-HMAC-sleutel bestaat en moet stabiel blijven: nooit opnieuw genereren of uitprinten.
@@ -193,5 +211,7 @@ Geen resterende controles of implementatie voor deze twee slices.
 Bibliotheektitels zijn groen en gepusht in `cc392f3`; deze nieuwe slice is niet gedeployed.
 Expliciet terugdelen, gewijzigde roomretentie en privé-position setup/tools blijven later werk.
 
-Google-login en accountkoppeling: groen en gepusht in `2640d90`; niet gedeployed.
-Deze documentatiecommit registreert de geverifieerde overdracht; geen app-code gewijzigd.
+Google-login en accountkoppeling: groen en gepusht in `2640d90`; gedeployed en productielogins
+geverifieerd door de gebruiker. Accountverwijdering: groen, wacht op commit/push en deployment.
+Verificatie na deployment: danger zone op /account, verwijderen met bevestigingswoord en het
+daarna koppelen van de vrijgekomen Google-identiteit aan het Lichess-account (zie google-auth.md).

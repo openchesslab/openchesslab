@@ -56,6 +56,7 @@ defmodule Web.Router do
   scope "/", Web do
     pipe_through([:browser, :authenticated])
 
+    post("/account/delete", AccountController, :delete)
     post("/auth/:provider/link", OAuthController, :link)
 
     live_session :authenticated, on_mount: {Web.UserAuth, :required} do

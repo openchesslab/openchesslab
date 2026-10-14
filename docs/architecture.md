@@ -154,6 +154,16 @@ revocation commit together. Existing provider ownership produces a conflict, nev
 transfer or merge. Ordinary login resolves its own provider identity without linking.
 `/account` uses required HTTP/LiveView guards and shows connected provider types only.
 
+`POST /account/delete` (CSRF-protected, authenticated, `Web.AccountController`)
+permanently deletes the signed-in account after a typed confirmation word
+(`DELETE`, or the Dutch catalog word, case-insensitively). It reuses
+`Analysis.Users.delete/1`: linked identities, all sessions and personal library
+links cascade in PostgreSQL, while underlying analyses and room content remain;
+detached personal copies await the separate orphan-cleanup policy. The current
+session is revoked, other tabs disconnect via the session topic, and a freed
+provider identity can be linked to another account. There is no recovery, merge
+or unlinking.
+
 Google uses confidential-server OIDC with `openid`, PKCE and nonce, accepting identity
 only from its direct TLS-verified token response. The response origin is authenticated
 by HTTPS/client-secret exchange under Google's documented server-flow contract;

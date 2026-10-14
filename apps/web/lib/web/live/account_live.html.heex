@@ -56,4 +56,30 @@
     {Web.I18n.t("auth.lichessUnlinked", @locale)}
   </p>
   <p class="mt-3 text-sm text-muted">{Web.I18n.t("auth.importLater", @locale)}</p>
+  <section id="account-danger-zone" class="mt-10 rounded-lg border border-error bg-panel p-4">
+    <h2 class="font-semibold">{Web.I18n.t("auth.deleteHeading", @locale)}</h2>
+    <p class="mb-4 mt-1 text-sm text-muted">{Web.I18n.t("auth.deleteHelp", @locale)}</p>
+    <.form for={%{}} id="account-delete-form" action={~p"/account/delete"} method="post">
+      <label class="mb-2 block text-sm" for="account-delete-confirmation">
+        {Web.I18n.t("auth.deleteConfirm", @locale, %{word: Web.I18n.t("auth.deleteWord", @locale)})}
+      </label>
+      <div class="flex flex-wrap items-center gap-3">
+        <input
+          id="account-delete-confirmation"
+          name="confirmation"
+          type="text"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder={Web.I18n.t("auth.deleteWord", @locale)}
+          class="w-44 rounded-md border border-border bg-canvas px-3 py-2 font-mono uppercase"
+        />
+        <button
+          type="submit"
+          class="rounded-md border border-error px-3 py-2 text-sm text-error hover:bg-panel-hover"
+        >
+          {Web.I18n.t("auth.deleteButton", @locale)}
+        </button>
+      </div>
+    </.form>
+  </section>
 </main>
