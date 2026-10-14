@@ -1,4 +1,7 @@
 {
+  "common.help": "Help",
+  "auth.account": "Account",
+  "theme.cycle": "Kleurschema: {current}. Schakel naar {next}.",
   "auth.loginRequired": "Log in om je bibliotheek te bekijken.",
   "library.title": "Mijn bibliotheek",
   "library.description": "Je bewaarde analyses. Persoonlijke kopieën uit rooms behouden hun eigen varianten en opmerkingen; latere roomwijzigingen worden niet gesynchroniseerd.",

@@ -35,7 +35,13 @@ defmodule Web.AuthControlsTest do
     for path <- ["/", "/rooms/#{code}"],
         {locale, label} <- [{"en", "Log in with Lichess"}, {"nl", "Inloggen met Lichess"}] do
       {:ok, view, _html} = live(build_conn(), path <> "?locale=" <> locale)
-      assert has_element?(view, "#auth-login[action='/auth/lichess'][method='post']", label)
+
+      assert has_element?(
+               view,
+               "#account-menu #auth-login[action='/auth/lichess'][method='post']",
+               label
+             )
+
       assert has_element?(view, "#auth-login input[name='_csrf_token']")
       refute has_element?(view, "#auth-login[phx-submit]")
       refute has_element?(view, "#auth-logout")
@@ -47,11 +53,13 @@ defmodule Web.AuthControlsTest do
     {:ok, guest, _html} = live(build_conn(), "/")
     refute has_element?(guest, "#auth-login")
     refute has_element?(guest, "#auth-logout")
+    refute has_element?(guest, "#account-menu")
 
     for path <- ["/", "/rooms/#{context.code}"] do
       conn = Plug.Test.init_test_session(build_conn(), %{user_token: context.session.token})
       {:ok, view, html} = live(conn, path <> "?locale=nl")
       assert has_element?(view, "#auth-logout[action='/auth/logout'][method='post']", "Uitloggen")
+      assert has_element?(view, "#account-menu #personal-library-link", "Mijn bibliotheek")
       refute has_element?(view, "#auth-login")
       refute html =~ context.user.id
       refute html =~ context.session.token
@@ -125,6 +133,39 @@ defmodule Web.AuthControlsTest do
     {:ok, view, _html} = live(get(recycle(logged_out), "/"))
     assert has_element?(view, "#auth-login")
     refute has_element?(view, "#auth-logout")
+  end
+
+  test "one theme button cycles saved preferences on home and rooms", %{code: code} do
+    for path <- ["/", "/rooms/#{code}"] do
+      conn = put_req_cookie(build_conn(), "_ocl_theme", "dark")
+      {:ok, view, _} = live(conn, path)
+      assert has_element?(view, "#theme-cycle[phx-value-theme='system']")
+
+      assert view
+             |> render()
+             |> LazyHTML.from_document()
+             |> LazyHTML.query("button[phx-click='set-theme']")
+             |> LazyHTML.attribute("id") == ["theme-cycle"]
+
+      for {current, next} <- [{"dark", "system"}, {"system", "light"}, {"light", "dark"}] do
+        assert has_element?(view, "#app-shell[data-theme='#{current}']")
+        view |> element("#theme-cycle") |> render_click()
+        assert_push_event(view, "set-theme", %{theme: ^next})
+        assert has_element?(view, "#app-shell[data-theme='#{next}']")
+      end
+    end
+  end
+
+  test "Help groups working shortcuts and tour controls in both languages", %{code: code} do
+    for path <- ["/", "/rooms/#{code}"], locale <- ["en", "nl"] do
+      {:ok, view, _} = live(build_conn(), path <> "?locale=" <> locale)
+      assert has_element?(view, "#help-menu summary", "Help")
+      view |> element("#help-menu #help-shortcuts") |> render_click()
+      assert has_element?(view, "[role='dialog'][aria-labelledby='shortcuts-title']")
+      render_click(view, "close-modal", %{})
+      view |> element("#help-menu #help-tour") |> render_click()
+      assert has_element?(view, "[role='dialog'][aria-labelledby='tour-title']")
+    end
   end
 
   defp form_csrf(conn, id) do

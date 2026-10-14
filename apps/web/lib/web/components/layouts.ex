@@ -25,14 +25,18 @@ defmodule Web.Layouts do
   def tour_steps_count, do: length(@tour_steps)
   def tour_step(index), do: Enum.at(@tour_steps, max(index - 1, 0), hd(@tour_steps))
 
-  def theme_button(current, target) do
-    base =
-      "inline-flex min-h-8 min-w-8 items-center justify-center rounded-md border border-border bg-transparent px-1 py-1 text-foreground hover:bg-panel-hover"
+  def next_theme("system"), do: "light"
+  def next_theme("light"), do: "dark"
+  def next_theme("dark"), do: "system"
 
-    if current == target do
-      base <> " border-accent-strong bg-panel-hover"
-    else
-      base
-    end
+  def theme_icon("system"), do: "monitor"
+  def theme_icon("light"), do: "sun"
+  def theme_icon("dark"), do: "moon"
+
+  def theme_cycle_label(theme, locale) do
+    Web.I18n.t("theme.cycle", locale, %{
+      current: Web.I18n.t("theme." <> theme, locale),
+      next: Web.I18n.t("theme." <> next_theme(theme), locale)
+    })
   end
 end

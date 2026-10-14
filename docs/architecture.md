@@ -256,6 +256,8 @@ The browser mirrors its existing local theme/language preferences into host-only
 
 The home/room header links signed-in users to the library. The page has English/Dutch text, keeps the document theme/locale, and offers removal of a saved reference without deleting the analysis or another user's reference. This first interface shows analysis identifiers and saved dates; opening a saved analysis, richer labels and private analysis editing/sharing are subsequent slices. Tests cover HTTP and connected-mount denial, event/navigation revocation, user deletion, forged owner parameters, paging and shared-analysis preservation.
 
+The shared home/room header groups authentication and the library link under **Account**, and shortcuts/tour under **Help**. A single theme button cycles system → light → dark → system using the existing preference-persistence event; its accessible label and tooltip identify the current and next setting. Native disclosure menus support keyboard use, Escape and outside-click dismissal. These controls are available on mobile too.
+
 ### Personal copies from rooms — implemented after `542c757`
 
 Signed-in room participants can choose **Save a personal copy** for the selected analysis. `Web.RoomLive` uses only the event-time credential-resolved User and server-side room/selection; supplied owner, room and analysis parameters are ignored. Guests and revoked/expired credentials cannot save. The room stays on its shared analysis after saving; the independent copy appears in `/library` for the saving user only. Repeated deliberate saves create separate snapshots.

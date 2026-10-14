@@ -293,6 +293,12 @@ git diff --check
 
 Commit subject: `Add personal analysis copies from rooms` (commit/push performed by Codex under the user's existing authorization; production deployment remains manual).
 
+### Compact header and portable handoff — 2026-10-14
+
+After the user deployed `7ea45e1`, group the home/room header into a single theme-cycle button, Help (shortcuts/tour) and Account (login or library/logout). Reuse preference persistence and CSRF-protected forms. Native disclosure menus close with Escape/outside clicks. Correct the mobile piece-set dropdown alignment after browser inspection. Add `docs/HANDOFF.md` as the maintained cross-laptop/OpenCode Go entry point.
+
+Validation: 11 targeted auth/preference tests and all 165 web tests passed (full seed `511632`). The initial new test incorrectly treated a LazyHTML selection as a list; corrected it to inspect selected IDs. Browser checks covered desktop account/help, mobile 360px layout and light/dark switching. Formatter, asset build and diff checks passed. The build initially required sandbox escalation and hit an approval-service usage limit; it succeeded after the user reported that limit lifted. No domain/schema change; the analysis suite was not repeated. Production deployment remains manual.
+
 **Near-term (next green vertical slices):**
 
 - **OAuth security foundation:** production login/logout and cross-tab disconnection have been user-verified. Private library routes/events now require a valid session. Explicit provider account linking and private analysis editing/sharing policies remain separate work.

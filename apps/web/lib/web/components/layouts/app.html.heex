@@ -30,43 +30,6 @@
       class="flex items-center gap-1"
       aria-label={Web.I18n.t("common.applicationSettings", @locale)}
     >
-      <.link
-        :if={@current_user}
-        href={~p"/library"}
-        id="personal-library-link"
-        class="inline-flex min-h-9 items-center rounded-md border border-border px-2 text-xs font-semibold hover:bg-panel-hover"
-      >
-        {Web.I18n.t("library.title", @locale)}
-      </.link>
-      <.form
-        :if={@current_user}
-        for={%{}}
-        id="auth-logout"
-        action={~p"/auth/logout"}
-        method="post"
-      >
-        <button
-          type="submit"
-          class="inline-flex min-h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-md border border-border bg-transparent px-2 text-xs font-semibold text-foreground hover:bg-panel-hover"
-        >{Web.I18n.t("auth.logout", @locale)}</button>
-      </.form>
-      <.form
-        :if={!@current_user && @login_enabled}
-        for={%{}}
-        id="auth-login"
-        action={~p"/auth/lichess"}
-        method="post"
-      >
-        <button
-          type="submit"
-          class="inline-flex min-h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-md border border-border bg-transparent px-2 text-xs font-semibold text-foreground hover:bg-panel-hover"
-          aria-label={Web.I18n.t("auth.loginWithLichess", @locale)}
-          title={Web.I18n.t("auth.loginWithLichess", @locale)}
-        >
-          <span class="lg:hidden">{Web.I18n.t("auth.login", @locale)}</span>
-          <span class="hidden lg:inline">{Web.I18n.t("auth.loginWithLichess", @locale)}</span>
-        </button>
-      </.form>
       <button
         :if={@room_code}
         type="button"
@@ -92,16 +55,22 @@
         </select>
       </form>
 
-      <details class="relative sm:hidden">
+      <details
+        id="piece-set-menu"
+        name="header-menu"
+        class="relative sm:hidden"
+        phx-click-away={JS.remove_attribute("open", to: "#piece-set-menu")}
+        phx-window-keydown={JS.remove_attribute("open", to: "#piece-set-menu")}
+        phx-key="Escape"
+      >
         <summary
-          class="inline-flex min-h-9 min-w-9 cursor-pointer list-none items-center justify-center rounded-md border border-border bg-transparent px-2 text-foreground hover:bg-panel-hover"
-          aria-label={Web.I18n.t("theme.label", @locale)}
-          title={Web.I18n.t("theme.label", @locale)}
+          class="inline-flex min-h-9 cursor-pointer list-none items-center justify-center rounded-md border border-border px-2 text-xs font-semibold hover:bg-panel-hover [&::-webkit-details-marker]:hidden"
+          aria-label={Web.I18n.t("pieceSet.menu", @locale)}
+          title={Web.I18n.t("pieceSet.menu", @locale)}
         >
           <.icon name="settings" class="h-4 w-4" />
         </summary>
-
-        <div class="absolute right-0 top-full z-40 mt-2 flex w-60 flex-col gap-3 rounded-lg border border-border bg-panel p-3 shadow-xl">
+        <div class="absolute left-0 top-full z-40 mt-2 flex w-56 flex-col gap-1 rounded-lg border border-border bg-panel p-2 shadow-xl">
           <form id="piece-set-mobile-form" phx-change="set-piece-set">
             <label for="piece-set-mobile" class="flex flex-col gap-1 text-xs text-muted">
               {Web.I18n.t("pieceSet.menu", @locale)}
@@ -116,73 +85,18 @@
               </select>
             </label>
           </form>
-
-          <div
-            class="flex items-center gap-1"
-            role="group"
-            aria-label={Web.I18n.t("theme.label", @locale)}
-          >
-            <button
-              type="button"
-              class={theme_button(@theme, "system")}
-              aria-label={Web.I18n.t("theme.system", @locale)}
-              phx-click="set-theme"
-              phx-value-theme="system"
-            ><.icon name="monitor" class="h-4 w-4" /></button>
-            <button
-              type="button"
-              class={theme_button(@theme, "light")}
-              aria-label={Web.I18n.t("theme.light", @locale)}
-              phx-click="set-theme"
-              phx-value-theme="light"
-            ><.icon name="sun" class="h-4 w-4" /></button>
-            <button
-              type="button"
-              class={theme_button(@theme, "dark")}
-              aria-label={Web.I18n.t("theme.dark", @locale)}
-              phx-click="set-theme"
-              phx-value-theme="dark"
-            ><.icon name="moon" class="h-4 w-4" /></button>
-          </div>
-
-          <button
-            type="button"
-            class="self-start text-sm text-muted hover:text-foreground"
-            phx-click="open-tour"
-          >{Web.I18n.t("tour.start", @locale)}</button>
         </div>
       </details>
 
-      <div
-        class="hidden items-center gap-0.5 sm:flex"
-        role="group"
-        aria-label={Web.I18n.t("theme.label", @locale)}
-      >
-        <button
-          type="button"
-          class={theme_button(@theme, "system")}
-          aria-label={Web.I18n.t("theme.system", @locale)}
-          title={Web.I18n.t("theme.system", @locale)}
-          phx-click="set-theme"
-          phx-value-theme="system"
-        ><.icon name="monitor" class="h-4 w-4" /></button>
-        <button
-          type="button"
-          class={theme_button(@theme, "light")}
-          aria-label={Web.I18n.t("theme.light", @locale)}
-          title={Web.I18n.t("theme.light", @locale)}
-          phx-click="set-theme"
-          phx-value-theme="light"
-        ><.icon name="sun" class="h-4 w-4" /></button>
-        <button
-          type="button"
-          class={theme_button(@theme, "dark")}
-          aria-label={Web.I18n.t("theme.dark", @locale)}
-          title={Web.I18n.t("theme.dark", @locale)}
-          phx-click="set-theme"
-          phx-value-theme="dark"
-        ><.icon name="moon" class="h-4 w-4" /></button>
-      </div>
+      <button
+        id="theme-cycle"
+        type="button"
+        class="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md border border-border px-2 hover:bg-panel-hover"
+        aria-label={theme_cycle_label(@theme, @locale)}
+        title={theme_cycle_label(@theme, @locale)}
+        phx-click="set-theme"
+        phx-value-theme={next_theme(@theme)}
+      ><.icon name={theme_icon(@theme)} class="h-4 w-4" /></button>
 
       <button
         type="button"
@@ -199,25 +113,78 @@
         {String.upcase(@locale)}
       </button>
 
-      <button
-        type="button"
-        class="hidden min-h-9 min-w-9 items-center justify-center rounded-md border border-border bg-transparent px-2 text-foreground hover:bg-panel-hover sm:inline-flex"
-        aria-label={Web.I18n.t("tour.start", @locale)}
-        title={Web.I18n.t("tour.start", @locale)}
-        phx-click="open-tour"
+      <details
+        id="help-menu"
+        name="header-menu"
+        class="relative"
+        phx-click-away={JS.remove_attribute("open", to: "#help-menu")}
+        phx-window-keydown={JS.remove_attribute("open", to: "#help-menu")}
+        phx-key="Escape"
       >
-        <.icon name="tour" class="h-4 w-4" />
-      </button>
+        <summary class="inline-flex min-h-9 cursor-pointer list-none items-center justify-center rounded-md border border-border px-2 text-xs font-semibold hover:bg-panel-hover [&::-webkit-details-marker]:hidden">
+          {Web.I18n.t("common.help", @locale)}
+        </summary>
+        <div class="absolute right-0 top-full z-40 mt-2 flex w-56 flex-col gap-1 rounded-lg border border-border bg-panel p-2 shadow-xl">
+          <button
+            id="help-shortcuts"
+            type="button"
+            class="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-panel-hover"
+            phx-click={JS.remove_attribute("open", to: "#help-menu") |> JS.push("open-shortcuts")}
+          >{Web.I18n.t("common.shortcuts", @locale)}</button>
+          <button
+            id="help-tour"
+            type="button"
+            class="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-panel-hover"
+            phx-click={JS.remove_attribute("open", to: "#help-menu") |> JS.push("open-tour")}
+          >{Web.I18n.t("tour.start", @locale)}</button>
+        </div>
+      </details>
 
-      <button
-        type="button"
-        class="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md border border-border bg-transparent px-2 text-foreground hover:bg-panel-hover max-[640px]:hidden"
-        aria-label={Web.I18n.t("common.shortcuts", @locale)}
-        title={Web.I18n.t("common.shortcuts", @locale)}
-        phx-click="open-shortcuts"
+      <details
+        :if={@current_user || @login_enabled}
+        id="account-menu"
+        name="header-menu"
+        class="relative"
+        phx-click-away={JS.remove_attribute("open", to: "#account-menu")}
+        phx-window-keydown={JS.remove_attribute("open", to: "#account-menu")}
+        phx-key="Escape"
       >
-        <.icon name="question" class="h-4 w-4" />
-      </button>
+        <summary class="inline-flex min-h-9 cursor-pointer list-none items-center justify-center rounded-md border border-border px-2 text-xs font-semibold hover:bg-panel-hover [&::-webkit-details-marker]:hidden">
+          {Web.I18n.t("auth.account", @locale)}
+        </summary>
+        <div class="absolute right-0 top-full z-40 mt-2 flex w-56 flex-col gap-1 rounded-lg border border-border bg-panel p-2 shadow-xl">
+          <.link
+            :if={@current_user}
+            href={~p"/library"}
+            id="personal-library-link"
+            class="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-panel-hover"
+          >{Web.I18n.t("library.title", @locale)}</.link>
+          <.form
+            :if={@current_user}
+            for={%{}}
+            id="auth-logout"
+            action={~p"/auth/logout"}
+            method="post"
+          >
+            <button
+              type="submit"
+              class="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-panel-hover"
+            >{Web.I18n.t("auth.logout", @locale)}</button>
+          </.form>
+          <.form
+            :if={!@current_user && @login_enabled}
+            for={%{}}
+            id="auth-login"
+            action={~p"/auth/lichess"}
+            method="post"
+          >
+            <button
+              type="submit"
+              class="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-panel-hover"
+            >{Web.I18n.t("auth.loginWithLichess", @locale)}</button>
+          </.form>
+        </div>
+      </details>
     </nav>
   </header>
   <p

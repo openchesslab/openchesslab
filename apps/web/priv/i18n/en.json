@@ -1,4 +1,7 @@
 {
+  "common.help": "Help",
+  "auth.account": "Account",
+  "theme.cycle": "Color scheme: {current}. Switch to {next}.",
   "auth.loginRequired": "Please log in to view your library.",
   "library.title": "My library",
   "library.description": "Your saved analyses. Personal copies from rooms keep their own variations and comments; later room changes are not synchronized.",
