@@ -134,36 +134,103 @@ defmodule Web.LibraryImportTest do
     assert {:ok, ^entry, 2} = AnalysisStore.get(ctx.game_entry_id)
   end
 
-  test "live sharing adds the exact analysis and fills the star", ctx do
+  test "live sharing asks first, then adds the exact analysis and fills the star", ctx do
     {:ok, view, _} = live(authenticated(ctx), "/rooms/#{ctx.code}")
     open_library_tab(view)
 
     html =
       render_click(view, "library-share", %{"id" => ctx.game_entry_id, "user_id" => "forged"})
 
-    assert html =~ "Shared live"
+    # Nothing is shared yet: a warning explains the live reference and offers copies.
+    assert has_element?(view, "#share-confirm-title")
+    assert html =~ "Share this analysis live?"
+    assert has_element?(view, "#share-confirm-copy")
+    assert has_element?(view, "#share-confirm-game")
+    assert {:ok, room} = Analysis.RoomStore.get(ctx.code)
+    assert room.analysis_ids == []
 
+    html = render_click(view, "library-share-confirm", %{"user_id" => "forged"})
+
+    assert html =~ "Shared live"
     assert {:ok, room} = Analysis.RoomStore.get(ctx.code)
     assert room.analysis_ids == [ctx.game_entry_id]
     assert has_element?(view, "#track-#{ctx.game_entry_id}[aria-pressed='true']")
+  end
+
+  test "the live-share warning can switch to a copy or game-only branch", ctx do
+    {:ok, view, _} = live(authenticated(ctx), "/rooms/#{ctx.code}")
+    open_library_tab(view)
+
+    # Cancelling leaves the room untouched.
+    render_click(view, "library-share", %{"id" => ctx.game_entry_id})
+    render_click(view, "close-modal")
+    refute has_element?(view, "#share-confirm-title")
+    assert {:ok, room} = Analysis.RoomStore.get(ctx.code)
+    assert room.analysis_ids == []
+
+    # The copy alternative branches an independent snapshot, like library-add-copy.
+    render_click(view, "library-share", %{"id" => ctx.game_entry_id})
+    html = render_click(view, "library-share-copy")
+    assert html =~ "Added to this room."
+    assert {:ok, room} = Analysis.RoomStore.get(ctx.code)
+    [copy_id] = room.analysis_ids
+    refute copy_id == ctx.game_entry_id
+    assert {:ok, copy, 1} = AnalysisStore.get(copy_id)
+    assert {:ok, entry, 2} = AnalysisStore.get(ctx.game_entry_id)
+    assert %{copy | id: entry.id} == entry
+
+    # The game-only alternative branches just the underlying game.
+    render_click(view, "library-share", %{"id" => ctx.game_entry_id})
+    html = render_click(view, "library-share-game")
+    assert html =~ "Added to this room."
+    assert {:ok, room} = Analysis.RoomStore.get(ctx.code)
+    assert [^copy_id, game_branch_id] = room.analysis_ids
+    refute game_branch_id == ctx.game_entry_id
+    assert {:ok, fresh, 1} = AnalysisStore.get(game_branch_id)
+    assert fresh.source_game_record_id == ctx.record_id
+    assert Analysis.Node.comment(Analysis.Analysis.node_at(fresh, [0])) == nil
+
+    # Entries without an underlying game do not offer the game branch here either.
+    render_click(view, "library-share", %{"id" => ctx.plain_id})
+    assert has_element?(view, "#share-confirm-title")
+    refute has_element?(view, "#share-confirm-game")
+    render_click(view, "close-modal")
+
+    assert {:ok, room} = Analysis.RoomStore.get(ctx.code)
+    assert length(room.analysis_ids) == 2
   end
 
   test "guests and revoked sessions cannot branch, even with forged parameters", ctx do
     {:ok, guest, _} = live(build_conn(), "/rooms/#{ctx.code}")
     open_library_tab(guest)
 
-    for event <- ["library-add-game", "library-add-copy", "library-share"] do
+    for event <- [
+          "library-add-game",
+          "library-add-copy",
+          "library-share",
+          "library-share-confirm",
+          "library-share-copy",
+          "library-share-game"
+        ] do
       render_click(guest, event, %{"id" => ctx.game_entry_id, "user_id" => ctx.user.id})
     end
 
     assert {:ok, room} = Analysis.RoomStore.get(ctx.code)
     assert room.analysis_ids == []
+    refute has_element?(guest, "#share-confirm-title")
 
     {:ok, view, _} = live(authenticated(ctx), "/rooms/#{ctx.code}")
     open_library_tab(view)
     UserSessions.revoke(ctx.session.token)
 
-    for event <- ["library-add-game", "library-add-copy", "library-share"] do
+    for event <- [
+          "library-add-game",
+          "library-add-copy",
+          "library-share",
+          "library-share-confirm",
+          "library-share-copy",
+          "library-share-game"
+        ] do
       render_click(view, event, %{"id" => ctx.game_entry_id, "user_id" => ctx.user.id})
     end
 

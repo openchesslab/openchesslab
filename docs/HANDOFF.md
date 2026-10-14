@@ -34,6 +34,17 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, wacht op commit/push (deploy toegestaan door gebruiker):**
+  `Warn when live-sharing a library analysis into a room`, gestart op schone `949adf7`.
+  "Share live" opent nu eerst een bevestigingsmodal (`ui_modal: "share-confirm"`,
+  `share_pending_id`): waarschuwing dat de kamer op de exacte bibliotheekanalyse werkt (elke
+  bewerking landt in de bibliotheek van de eigenaar), met inline alternatieven "Deel een kopie"
+  en "Deel alleen de partij" (verborgen zonder onderliggende partij) plus annuleren. Bestaande
+  add-game/add-copy/share-logica verhuisd naar hergebruikte helpers; confirm-events autoriseren
+  opnieuw tegen de ververste sessie. i18n EN+NL (5 nieuwe sleutels). Gericht: library_import
+  **11/11**; volledig serieel: web **228 geslaagd** (seed 511632), analyse **617 geslaagd**
+  (seed 398267); formatter, compile --warnings-as-errors, assetbuild en diffcontrole geslaagd.
+
 - **Afgerond, gecommit, gepusht en door de gebruiker gedeployed (bevestigd 2026-10-15):**
   `Require stored display names for private room members` (`b5a230f` op main, bovenop `0492391`),
   browsertest: KH43QB toont echte namen, geen fallback. Deployment omvatte ook de

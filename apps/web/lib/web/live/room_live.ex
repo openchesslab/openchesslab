@@ -45,6 +45,8 @@ defmodule Web.RoomLive do
       nag_labels: @nag_labels,
       room_code: code,
       ui_modal: nil,
+      share_pending_id: nil,
+      share_pending_has_game: false,
       tour_step: 1,
       library_entries: nil,
       library_cursor: nil,
@@ -288,7 +290,7 @@ defmodule Web.RoomLive do
   end
 
   def handle_event("close-modal", _params, socket) do
-    {:noreply, assign(socket, ui_modal: nil, engine_settings_open: false)}
+    {:noreply, assign(socket, ui_modal: nil, share_pending_id: nil, engine_settings_open: false)}
   end
 
   def handle_event("open-library", _params, socket), do: Web.ShellPanels.open_library(socket)
@@ -418,40 +420,52 @@ defmodule Web.RoomLive do
   def handle_event("library-add-game", %{"id" => _id}, %{assigns: %{current_user: nil}} = socket),
     do: {:noreply, socket}
 
-  def handle_event("library-add-game", %{"id" => id}, socket) do
-    with {:ok, new_id} <-
-           UserLibrary.branch_game(socket.assigns.current_user.id, id),
-         :ok <- Rooms.add_analysis(socket.assigns.room_code, new_id) do
-      added(socket, new_id, "room.libraryAdded")
-    else
-      {:error, _reason} -> library_add_failed(socket)
-    end
-  end
+  def handle_event("library-add-game", %{"id" => id}, socket),
+    do: add_game_from_library(socket, id)
 
   def handle_event("library-add-copy", %{"id" => _id}, %{assigns: %{current_user: nil}} = socket),
     do: {:noreply, socket}
 
-  def handle_event("library-add-copy", %{"id" => id}, socket) do
-    with {:ok, new_id} <-
-           UserLibrary.branch_analysis(socket.assigns.current_user.id, id),
-         :ok <- Rooms.add_analysis(socket.assigns.room_code, new_id) do
-      added(socket, new_id, "room.libraryAdded")
-    else
-      {:error, _reason} -> library_add_failed(socket)
-    end
-  end
+  def handle_event("library-add-copy", %{"id" => id}, socket),
+    do: add_copy_from_library(socket, id)
 
+  # "Share live" attaches the very analysis the library tracks — room edits
+  # land in the owner's library — so it first asks for confirmation and
+  # offers the two copy routes as alternatives.
   def handle_event("library-share", %{"id" => _id}, %{assigns: %{current_user: nil}} = socket),
     do: {:noreply, socket}
 
   def handle_event("library-share", %{"id" => id}, socket) do
-    with :ok <- UserLibrary.authorize_share(socket.assigns.current_user.id, id),
-         :ok <- Rooms.add_analysis(socket.assigns.room_code, id) do
-      shared(socket, id)
-    else
-      {:error, _reason} -> library_add_failed(socket)
-    end
+    has_game =
+      Enum.any?(socket.assigns.library_entries || [], fn entry ->
+        entry.id == id and not is_nil(entry.game_record_id)
+      end)
+
+    {:noreply,
+     assign(socket,
+       ui_modal: "share-confirm",
+       share_pending_id: id,
+       share_pending_has_game: has_game
+     )}
   end
+
+  def handle_event("library-share-confirm", _params, %{assigns: %{current_user: nil}} = socket),
+    do: {:noreply, socket}
+
+  def handle_event("library-share-confirm", _params, socket),
+    do: share_pending(socket, &share_from_library/2)
+
+  def handle_event("library-share-copy", _params, %{assigns: %{current_user: nil}} = socket),
+    do: {:noreply, socket}
+
+  def handle_event("library-share-copy", _params, socket),
+    do: share_pending(socket, &add_copy_from_library/2)
+
+  def handle_event("library-share-game", _params, %{assigns: %{current_user: nil}} = socket),
+    do: {:noreply, socket}
+
+  def handle_event("library-share-game", _params, socket),
+    do: share_pending(socket, &add_game_from_library/2)
 
   # Rename, removal and paging inside the My Library tab stay shared
   # with the shell panel logic. This generic head deliberately sits after
@@ -1448,6 +1462,44 @@ defmodule Web.RoomLive do
   end
 
   defp shared(socket, analysis_id), do: added(socket, analysis_id, "room.libraryShared")
+
+  # Runs a library-add action against the entry the share-confirm modal is
+  # pending on; each action re-authorizes against the refreshed credential.
+  defp share_pending(socket, action) do
+    case socket.assigns.share_pending_id do
+      id when is_binary(id) -> action.(socket, id)
+      _ -> {:noreply, assign(socket, ui_modal: nil, share_pending_id: nil)}
+    end
+  end
+
+  defp add_game_from_library(socket, id) do
+    with {:ok, new_id} <-
+           UserLibrary.branch_game(socket.assigns.current_user.id, id),
+         :ok <- Rooms.add_analysis(socket.assigns.room_code, new_id) do
+      added(socket, new_id, "room.libraryAdded")
+    else
+      {:error, _reason} -> library_add_failed(socket)
+    end
+  end
+
+  defp add_copy_from_library(socket, id) do
+    with {:ok, new_id} <-
+           UserLibrary.branch_analysis(socket.assigns.current_user.id, id),
+         :ok <- Rooms.add_analysis(socket.assigns.room_code, new_id) do
+      added(socket, new_id, "room.libraryAdded")
+    else
+      {:error, _reason} -> library_add_failed(socket)
+    end
+  end
+
+  defp share_from_library(socket, id) do
+    with :ok <- UserLibrary.authorize_share(socket.assigns.current_user.id, id),
+         :ok <- Rooms.add_analysis(socket.assigns.room_code, id) do
+      shared(socket, id)
+    else
+      {:error, _reason} -> library_add_failed(socket)
+    end
+  end
 
   defp library_add_failed(socket) do
     {:noreply, notify(socket, Web.I18n.t("room.libraryAddFailed", socket.assigns.locale), :error)}
