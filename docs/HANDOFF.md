@@ -34,8 +34,11 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond, wacht op commit/push (deploy toegestaan door gebruiker):**
-  `Warn when live-sharing a library analysis into a room`, gestart op schone `949adf7`.
+- **Afgerond, gecommit, gepusht en gedeployed (gebruiker stond deploy toe, 2026-10-15):**
+  `Warn when live-sharing a library analysis into a room` (`d1210cf` op main, bovenop `949adf7`).
+  Deploy geverifieerd: /health + /ready 200, beide Fly-servicechecks passing; de boot-time
+  "not listening"-waarschuwing was transient (socketscan vóór de endpoint-bind).
+  Gestart op schone `949adf7`.
   "Share live" opent nu eerst een bevestigingsmodal (`ui_modal: "share-confirm"`,
   `share_pending_id`): waarschuwing dat de kamer op de exacte bibliotheekanalyse werkt (elke
   bewerking landt in de bibliotheek van de eigenaar), met inline alternatieven "Deel een kopie"
