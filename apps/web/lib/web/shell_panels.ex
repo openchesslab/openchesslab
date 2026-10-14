@@ -23,7 +23,33 @@ defmodule Web.ShellPanels do
         do: Accounts.providers_for(user.id),
         else: []
 
-    {:noreply, assign(socket, ui_modal: "account", providers: providers)}
+    {:noreply, assign(socket, ui_modal: "account", providers: providers, account_error: nil)}
+  end
+
+  def unlink_provider(socket, provider) do
+    user = socket.assigns.current_user
+
+    if user do
+      case Accounts.unlink(user.id, provider) do
+        {:ok, _count} ->
+          {:noreply,
+           assign(socket, providers: Accounts.providers_for(user.id), account_error: nil)}
+
+        {:error, :last_identity} ->
+          {:noreply,
+           assign(socket, :account_error, Web.I18n.t("auth.unlinkLast", socket.assigns.locale))}
+
+        {:error, _reason} ->
+          {:noreply,
+           assign(
+             socket,
+             :account_error,
+             Web.I18n.t("auth.unlinkFailed", socket.assigns.locale, %{provider: provider})
+           )}
+      end
+    else
+      {:noreply, socket}
+    end
   end
 
   def handle_library_event("start-rename", %{"id" => id}, socket) do

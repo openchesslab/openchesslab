@@ -4,12 +4,14 @@ Google and Lichess can both authenticate the same internal User. Start with eith
 provider, then open **Account → Linked accounts** from the header's account menu and
 connect the other one. The fresh provider flow links to the current library. Logging in
 normally with a different, unlinked identity instead opens that identity's separate account.
-Already-owned identities are rejected when linking; there is no automatic merge,
-email matching or unlinking. The linked-accounts modal offers permanent self-service
-deletion: it removes the account, its linked identities, every session and the
-personal library links, while room content and underlying analyses remain.
-Deleting a duplicate account frees its provider identity for linking to
-another account. There is no account recovery.
+Already-owned identities are rejected when linking; there is no automatic merge or
+email matching. A linked provider can be unlinked again from the same modal, except
+the last remaining one: unlinking it would permanently lock you out, because there
+is no password, email or account recovery. The linked-accounts modal offers permanent
+self-service deletion: it removes the account, its linked identities, every session
+and the personal library links, while room content and underlying analyses remain.
+Deleting a duplicate account frees its provider identity for linking to another
+account. There is no account recovery.
 
 ## Google configuration
 
@@ -53,7 +55,10 @@ account identities remain intact.
 4. Cancel a provider flow and check that the current login/library is preserved.
 5. Try an identity already belonging to another internal account: it must report
    a conflict and preserve both accounts/libraries.
-6. Delete a throwaway account after typing the confirmation word: every browser
+6. Unlink a connected provider from the modal: it becomes connectable again, and
+   the last remaining provider must refuse with an explanation. The session stays
+   valid after unlinking.
+7. Delete a throwaway account after typing the confirmation word: every browser
    signs out, and that freed provider identity can then be linked to another
    account. Underlying analyses and room content must remain.
 

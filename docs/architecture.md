@@ -161,6 +161,12 @@ there are no `/library` and `/account` pages. Modal events stay host-level, so
 action re-checks the resolved user: guests and revoked credentials only receive the
 login variant. The authenticated live session now contains only the private editor.
 
+`Analysis.Accounts.unlink/2` (shell modal event `unlink-provider`, host-level and
+revalidated per event) removes all identities of one provider after locking the
+user's identity rows: concurrent unlinks can never strip the final provider, and
+`:last_identity` is refused because there is no recovery. Sessions are untouched;
+an unlinked user stays signed in and can relink the same identity later.
+
 `POST /account/delete` (CSRF-protected, authenticated, `Web.AccountController`)
 permanently deletes the signed-in account after a typed confirmation word
 (`DELETE`, or the Dutch catalog word, case-insensitively). It reuses

@@ -60,6 +60,41 @@ defmodule Analysis.UserIdentityTest do
     assert {:ok, first.id} == Accounts.user_for_verified_identity("lichess", "unique-subject")
   end
 
+  test "unlink removes one provider but never the last remaining identity", %{first: first} do
+    assert {:ok, _} = Accounts.link_verified(first.id, "lichess", "unlink-sub-1")
+    assert {:ok, _} = Accounts.link_verified(first.id, "github", "unlink-sub-2")
+    assert {:ok, _} = Accounts.link_verified(first.id, "github", "unlink-sub-3")
+
+    assert {:error, :not_linked} = Accounts.unlink(first.id, "google")
+    assert {:error, :invalid_identity} = Accounts.unlink(first.id, "Not-A-Provider")
+    assert {:error, :invalid_identity} = Accounts.unlink("not-a-uuid", "lichess")
+
+    assert {:ok, 2} = Accounts.unlink(first.id, "github")
+    assert Accounts.providers_for(first.id) == ["lichess"]
+
+    assert {:error, :last_identity} = Accounts.unlink(first.id, "lichess")
+    assert {:error, :not_linked} = Accounts.unlink(first.id, "github")
+    assert Accounts.providers_for(first.id) == ["lichess"]
+    assert {:ok, first.id} == Accounts.user_for_verified_identity("lichess", "unlink-sub-1")
+    assert :not_found == Accounts.user_for_verified_identity("github", "unlink-sub-2")
+  end
+
+  test "concurrent unlinks cannot strip the final identity together", %{first: first} do
+    assert {:ok, _} = Accounts.link_verified(first.id, "lichess", "concurrent-sub-1")
+    assert {:ok, _} = Accounts.link_verified(first.id, "github", "concurrent-sub-2")
+
+    tasks =
+      for provider <- ["lichess", "github"] do
+        Task.async(fn -> Accounts.unlink(first.id, provider) end)
+      end
+
+    results = Task.await_many(tasks)
+
+    assert Enum.any?(results, &match?({:ok, _}, &1))
+    assert Enum.any?(results, &match?({:error, :last_identity}, &1))
+    assert length(Accounts.providers_for(first.id)) == 1
+  end
+
   test "provider subjects are never stored in plaintext", %{first: first} do
     subject = "raw-private-provider-subject-123"
     assert {:ok, _id} = Accounts.link_verified(first.id, "lichess", subject)

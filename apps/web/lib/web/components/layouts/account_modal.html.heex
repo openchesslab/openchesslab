@@ -28,6 +28,9 @@
 
     <div :if={@current_user}>
       <p class="mb-6 text-sm text-muted">{Web.I18n.t("auth.connectionsHelp", @locale)}</p>
+      <p :if={@account_error} id="account-error" role="alert" class="mb-4 text-sm text-error">
+        {@account_error}
+      </p>
       <ul class="space-y-3">
         <li
           :for={
@@ -48,6 +51,14 @@
               )}
             </p>
           </div>
+          <button
+            :if={provider in @providers}
+            type="button"
+            id={"unlink-" <> provider}
+            phx-click="unlink-provider"
+            phx-value-provider={provider}
+            class="rounded-md border border-border px-3 py-2 text-sm hover:bg-panel-hover"
+          >{Web.I18n.t("auth.unlink", @locale, %{provider: label})}</button>
           <.form
             :if={enabled && provider not in @providers}
             for={%{}}

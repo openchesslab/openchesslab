@@ -34,6 +34,22 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, wacht op commit/push:** `Allow unlinking non-final linked providers`,
+  gestart op schone `923629d`. `Analysis.Accounts.unlink/2` verwijdert alle identiteiten
+  van één provider na row-locks; de laatste resterende provider weigert met
+  `:last_identity` (geen herstel, dus nooit lockout), concurrente unlinks kunnen samen
+  nooit de laatste identiteit weghalen (getest met tasks). Sessies blijven geldig;
+  opnieuw koppelen kan daarna. UI: Unlink-knop per gekoppelde provider in het
+  linked-accounts-modal (host-event, gasten/ingetrokken sessies fail closed),
+  foutmelding in-modal (`account_error`). i18n EN/NL. Geen migratie. Deploymentstatus:
+  modal-slice `923629d` is door de gebruiker gedeployed; fly-checks 2/2 groen, /health
+  en /ready OK; de flyctl-waarschuwing "not listening on 0.0.0.0:8080" is
+  boot-timing-ruis van de proces-scan (endpoint bindt kort daarna op [::]:8080, dat is
+  correct voor fly-proxy via IPv6) — geen actie nodig, niet "oplossen" naar 0.0.0.0.
+  Tests: gericht user_identity **12/12** (incl. concurrency) en account_unlink **3/3**;
+  volledig analyse **604 geslaagd** (seed 398267) en web **203 geslaagd** (seed 511632);
+  formatter en diffcontrole geslaagd. Niet gecommit; niet gedeployed.
+
 - **Afgerond, wacht op commit/push:** `Open library and linked accounts as shell modals`,
   gestart op schone `01e232a`. My library en Linked accounts zijn nu shell-modalen boven
   de home- en room-LiveViews (`Web.ShellPanels` + `Web.Layouts`-templates, geopend vanuit

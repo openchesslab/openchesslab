@@ -28,7 +28,8 @@ defmodule Web.HomeLive do
        library_next_cursor: nil,
        library_editing: nil,
        library_title_error: nil,
-       providers: []
+       providers: [],
+       account_error: nil
      )}
   end
 
@@ -95,6 +96,9 @@ defmodule Web.HomeLive do
 
   def handle_event("open-library", _params, socket), do: Web.ShellPanels.open_library(socket)
   def handle_event("open-account", _params, socket), do: Web.ShellPanels.open_account(socket)
+
+  def handle_event("unlink-provider", %{"provider" => provider}, socket),
+    do: Web.ShellPanels.unlink_provider(socket, provider)
 
   def handle_event("library-" <> event, params, socket),
     do: Web.ShellPanels.handle_library_event(event, params, socket)

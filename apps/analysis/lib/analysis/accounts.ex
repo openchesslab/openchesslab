@@ -141,9 +141,68 @@ defmodule Analysis.Accounts do
 
   def providers_for(_), do: []
 
+  @lock_providers_sql """
+  SELECT provider FROM accounts WHERE user_id = $1 ORDER BY provider FOR UPDATE
+  """
+
+  @doc """
+  Unlink every identity of one provider from the user, never the last provider.
+
+  There is no account recovery, email or password: unlinking the only remaining
+  provider would permanently lock the user out, so it fails with `:last_identity`.
+  The user's identity rows are locked first, so concurrent unlinks can never
+  strip the final identity together. Callers must authenticate the user first;
+  a supplied user ID is not authentication. Sessions are untouched: an unlinked
+  user stays signed in and can relink the same provider identity later.
+  """
+  @spec unlink(String.t(), String.t()) ::
+          {:ok, non_neg_integer()}
+          | {:error, :not_linked | :last_identity | :invalid_identity}
+  def unlink(user_id, provider) when is_binary(user_id) and is_binary(provider) do
+    with {:ok, db_id} <- Ecto.UUID.dump(user_id),
+         :ok <- valid_provider(provider) do
+      Repo.transact(fn ->
+        providers =
+          Repo.query!(@lock_providers_sql, [db_id], log: false).rows
+          |> List.flatten()
+          |> Enum.uniq()
+
+        cond do
+          provider not in providers ->
+            Repo.rollback(:not_linked)
+
+          providers == [provider] ->
+            Repo.rollback(:last_identity)
+
+          true ->
+            result =
+              Repo.query!(
+                "DELETE FROM accounts WHERE user_id = $1 AND provider = $2",
+                [db_id, provider],
+                log: false
+              )
+
+            {:ok, result.num_rows}
+        end
+      end)
+    else
+      _ -> {:error, :invalid_identity}
+    end
+  end
+
+  def unlink(_, _), do: {:error, :invalid_identity}
+
   defp valid_identity(provider, subject) do
-    if Regex.match?(~r/\A[a-z][a-z0-9_-]{0,31}\z/, provider) and
-         byte_size(subject) > 0 do
+    with :ok <- valid_provider(provider),
+         true <- byte_size(subject) > 0 do
+      :ok
+    else
+      _ -> {:error, :invalid_identity}
+    end
+  end
+
+  defp valid_provider(provider) do
+    if Regex.match?(~r/\A[a-z][a-z0-9_-]{0,31}\z/, provider) do
       :ok
     else
       {:error, :invalid_identity}
