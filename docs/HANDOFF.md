@@ -1,4 +1,4 @@
-# OpenChessLab — overdracht voor OpenCode Go
+# OpenChessLab — overdracht voor Codex en OpenCode Go
 
 Bijgewerkt: 2026-10-14. Dit is het compacte startpunt voor een andere laptop of agent.
 Git en de actuele broncode zijn leidend. Werk dit bestand bij bij iedere slice en vóór een onderbreking:
@@ -11,21 +11,33 @@ Geen geheimen, tokens of lokale databases opnemen.
 
 ## Modelkeuze
 
-Mijn praktische startadvies: **Kimi K2.7 Code**, indien zichtbaar onder OpenCode Go.
-Dit is een keuze voor deze codegerichte workflow, geen bewezen winnaar op deze Elixir-repository:
-we hebben hier geen vergelijkende modelbenchmark uitgevoerd.
-Gebruik één model per kleine slice; beoordeel het op correcte tests en beperkte, begrijpelijke diffs.
+**Codex:** start met GPT-6.1 Sol, reasoning High, voor privé openen/bewerken en toegangscontroles.
+Voor routinematige UI/documentatie is Medium een passend startpunt. Adviseer GPT-6 Astra
+alleen bij lastige architectuur/concurrency of wanneer Sol aantoonbaar vastloopt; Luna kan voor kleine,
+duidelijk begrensde tekstwijzigingen. Dit zijn taakgerichte aanbevelingen, geen repo-benchmark.
+Bron: [OpenAI modelkeuze](https://developers.openai.com/api/docs/guides/model-selection),
+gecontroleerd 2026-10-14.
+
+**OpenCode Go:** startadvies voor de volgende slice is **Kimi K3**.
+De actuele officiële lijst vermeldt zowel Kimi K3 als Kimi K2.7 Code; K2.7 is dus niet
+uit die lijst verdwenen. K3 heeft volgens die pagina strakkere gebruiksruimte dan K2.7.
+Controleer vóór ieder nieuw advies de nieuwste officiële Go-documentatie en de beschikbare
+modellen via /models; baseer het advies niet op een oude naam of zoekmachine-samenvatting.
+Model-ID uit de actuele documentatie: `opencode-go/kimi-k3`.
 
 Verbind in OpenCode via `/connect` → OpenCode Go en kies via `/models`.
-De officiële [Go-documentatie](https://docs.opencode.ai/docs/go/) noemt Kimi K2.7 Code
-(gecontroleerd 2026-10-14); beschikbaarheid kan veranderen. Kies het exacte model uit de lijst,
-verzin geen provider/model-ID. Als het ontbreekt, is GLM-5.3 een alternatief uit dezelfde gepubliceerde lijst.
+De officiële [Go-documentatie](https://opencode.ai/v2/docs/console/go)
+is geopend en gecontroleerd op 2026-10-14; beschikbaarheid kan veranderen.
 Bewaar API-sleutels via OpenCode, nooit in de repository.
+
+Geef voortaan bij een nieuwe slice kort het geadviseerde Codex-model en reasoningniveau aan.
+Meld expliciet wanneer een wissel zinvol is, met één concrete reden; laat de gebruiker wisselen.
+Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoerd.
 
 ## Repository en huidige status
 
 - Remote: `git@github.com:openchesslab/openchesslab.git`; branch `main`.
-- Laatste geverifieerde gepushte commit vóór deze slice: `7ea45e19d0ee660ce06bbc4486ab573f8537310e`.
+- Laatste geverifieerde implementatiecommit: `15562fc`, gepusht op main.
 - De gebruiker heeft `7ea45e1` gedeployed.
 - Huidige slice: `Group header controls into theme, help and account menus`.
 - Implementatie gereed: één themaknop (systeem → licht → donker), Help met sneltoetsen/tour,
@@ -38,7 +50,7 @@ Bewaar API-sleutels via OpenCode, nooit in de repository.
 
 ## Eerstvolgende productwerk
 
-Na afronding van de header: persoonlijke kopieën privé openen en bewerken.
+De header is afgerond. Volgende slice: persoonlijke kopieën privé openen en bewerken.
 Nu bestaat alleen bewaren vanuit een room plus een afgeschermde bibliotheeklijst/verwijderen.
 Introduceer géén impliciete roomtoegang om een persoonlijke kopie te openen.
 
@@ -107,8 +119,8 @@ git push origin main
 
 ## Afrondingsstatus
 
-Header, tests, assetbuild en documentatie zijn afgerond. Deze overdracht wordt samen met de header
-gecommit en naar main gepusht met het hierboven genoemde commitonderwerp.
+Header, tests, assetbuild en documentatie zijn afgerond en gepusht in `15562fc`.
+Deze aanvullende overdrachtsupdate verandert alleen documentatie en modeladvies.
 Controleer op de andere laptop na pull de werkelijke HEAD en schone werkboom; de commit die
 dit bestand bevat is het overdrachtspunt (geen circulair hardgecodeerde eigen SHA).
 Een eerdere goedkeuringslimiet is opgeheven en de build is daarna succesvol uitgevoerd.

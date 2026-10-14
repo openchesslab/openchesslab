@@ -18,6 +18,10 @@ Keep `docs/HANDOFF.md` current at each completed slice and before interruptions.
 actual test outcomes, commit/push status and deployment separately so the user can switch laptops
 or continue with OpenCode Go at any time. Keep it concise and free of secrets.
 
+At each new slice, briefly recommend a Codex model and reasoning effort. Explicitly suggest
+switching when task complexity or observed failures justify it; do not claim to change the user's
+model yourself. Verify OpenCode Go recommendations against its current official model list.
+
 1. **Inspect first.** Before proposing a change, inspect `git status --short`, `git branch --show-current`, `git rev-parse HEAD`, relevant complete source files, migrations, tests, and recent commits. If access is through GitHub, check the exact `main` SHA. Never derive APIs, file locations, behavior, or identifiers from memory alone. If the worktree is dirty, determine why before modifying anything; preserve existing changes.
 2. **Put the proposed English Git commit message at the very top** of every implementation response/step. One small, releasable vertical slice per commit. State scope and expected behavior, then supply **tests and implementation together**.
 3. **Provide full, copy-pasteable files** (or a verified, executable PowerShell script and, where appropriate, a POSIX shell equivalent), not hand-wavy instructions. Valid unified patches are acceptable only if properly generated, anchored, and tested; avoid brittle clipboard diffs. If generating an edit script, verify its exact expected SHA/anchors and ensure partial failures cannot silently overwrite or corrupt files. PowerShell here-string terminators and CRLF/LF handling deserve special care.
