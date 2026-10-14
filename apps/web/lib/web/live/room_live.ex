@@ -107,13 +107,6 @@ defmodule Web.RoomLive do
       setup_error: nil,
       pgn: "",
       import_error: nil,
-      library_games:
-        DemoData.search_games(%{
-          "player" => "",
-          "color" => "either",
-          "result" => "either",
-          "opening" => ""
-        }),
       search_filters: %{
         "player" => "",
         "color" => "either",
@@ -896,9 +889,7 @@ defmodule Web.RoomLive do
   end
 
   def handle_event("open-demo-game", %{"id" => id}, socket) do
-    game = Enum.find(socket.assigns.library_games, &(&1.id == id)) || DemoData.game(id)
-
-    case game do
+    case DemoData.game(id) do
       %{pgn: pgn} ->
         import_pgn(socket, pgn)
 
@@ -921,51 +912,6 @@ defmodule Web.RoomLive do
     do: {:noreply, assign(socket, :pgn, pgn)}
 
   def handle_event("validate-pgn-upload", _params, socket), do: {:noreply, socket}
-
-  def handle_event("save-pgn-to-library", _params, socket) do
-    case PgnImporter.parse(socket.assigns.pgn) do
-      {:ok, parsed} ->
-        if Enum.any?(socket.assigns.library_games, &(&1.pgn == socket.assigns.pgn)) do
-          {:noreply,
-           notify(socket, Web.I18n.t("room.libraryDuplicate", socket.assigns.locale), :error)}
-        else
-          headers = parsed.headers
-
-          game = %{
-            id: "local-#{System.unique_integer([:positive])}",
-            white: headers["White"] || "Guest",
-            black: headers["Black"] || "Guest",
-            white_rating: nil,
-            black_rating: nil,
-            event: headers["Event"] || "Local demo",
-            date: headers["Date"] || "",
-            result: headers["Result"] || "*",
-            opening: "Imported PGN",
-            ply_count: length(parsed.moves),
-            pgn: socket.assigns.pgn
-          }
-
-          {:noreply,
-           socket
-           |> assign(:library_games, [game | socket.assigns.library_games])
-           |> notify(Web.I18n.t("room.savedToLibrary", socket.assigns.locale))}
-        end
-
-      {:error, _reason} ->
-        {:noreply,
-         notify(socket, Web.I18n.t("room.libraryUnparseable", socket.assigns.locale), :error)}
-    end
-  end
-
-  def handle_event("remove-library-game", %{"id" => id}, socket) do
-    games =
-      Enum.reject(
-        socket.assigns.library_games,
-        &(&1.id == id and String.starts_with?(id, "local-"))
-      )
-
-    {:noreply, assign(socket, :library_games, games)}
-  end
 
   def handle_event("cancel-pgn-upload", %{"ref" => ref}, socket) do
     {:noreply, cancel_upload(socket, :pgn, ref)}

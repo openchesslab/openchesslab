@@ -34,6 +34,16 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, door agent gecommit en gepusht:** `Remove the demo save-to-library from the paste
+  import`, gestart op schone `1c1a66f`. Besluit gebruiker (2026-10-14): bibliotheek-entry
+  uitsluitend via de ster; import is room-only, niets wordt automatisch bewaard. De nep-knop
+  "Save to library" op de paste-tab is verwijderd (handler bewaarde niets, alleen een
+  in-memory lijst die na slice C nergens meer zichtbaar was); ook de dode `@library_games`
+  state, `remove-library-game` en vijf dode i18n-keys zijn weg. `open-demo-game` gebruikt nu
+  alleen `DemoData` (zoekmodal-DEMO blijft). Web-only; geen migratie. Gericht room_live +
+  library_import **53/53**; volledig web **207 geslaagd** (seed 511632); formatter,
+  assetbuild, compile --warnings-as-errors en diffcontrole geslaagd.
+
 - **Afgerond, door agent gecommit en gepusht:** `Arm the account deletion button on the
   confirmation word`, gestart op schone `5394e91` (gebruikersidee, 2026-10-14). De "Delete my
   account"-knop in het linked-accounts-modal staat op disabled tot het getypte bevestigingswoord
@@ -241,6 +251,12 @@ Dit is een overzicht, geen vastgelegde uitvoeringsvolgorde:
 - **Bibliotheek als voorraad (docentmodel):** vanuit een room een eigen bibliotheekanalyse toevoegen
   aan die room (kopie; eventueel alleen de partij); vanuit home een nieuwe room starten vanuit een entry.
   Daarna is de privé-editor volledig vervangen en wordt die verwijderd.
+- **Import, later:** overneem uit het oude project (~/blunderfest, ImportDialog/stripTree): importeer het volledige
+  geannoteerde roster (varianten, opmerkingen, NAG's — de huidige PgnImporter leest alleen de
+  hoofdlijn vanaf de standaardstart), strip standaard machinecommando's (`[%eval]`, `[%clk]`) uit
+  opmerkingen en behoud menselijke tekst, met keep-opties (varianten/metadata) zoals het oude
+  dialoog. De tray/checkout-UX daar is het latere doel voor echte Lichess/Chess.com-import.
+  Losse bekende lacune: importeren vanaf niet-standaard startposities (SetUp/FEN).
 - **Room-UX, opgelost in `Make following another viewer perceptible` (2026-10-14):** de
   aanwezigheidsavatars leken niets te doen; `follow-viewer` werkt en meldt nu zichtbaar wat
   er gebeurde, en de knop verbergt zich bij een verdwenen analyse. Opmerking blijft relevant:
