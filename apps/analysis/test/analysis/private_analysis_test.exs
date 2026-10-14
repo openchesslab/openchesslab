@@ -13,10 +13,14 @@ defmodule Analysis.PrivateAnalysisTest do
     {:ok, other} = Users.create()
     source = "private-source-" <> Ecto.UUID.generate()
     room = "private-room-" <> Ecto.UUID.generate()
+    id = "private-copy-" <> Ecto.UUID.generate()
     {:ok, _, 1} = Analyses.create(source)
     :ok = RoomStore.create(room)
     :ok = RoomStore.add_analysis(room, source)
-    {:ok, id} = UserLibrary.copy_from_room(user.id, room, source)
+    # A materialized private copy: a standalone analysis this user owns,
+    # not shared with any room (what branching a reference will produce).
+    {:ok, _, 1} = Analyses.create(id)
+    :ok = UserLibrary.save(user.id, id)
 
     on_exit(fn ->
       RoomStore.delete(room)

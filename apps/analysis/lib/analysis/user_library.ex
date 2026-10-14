@@ -1,7 +1,9 @@
 defmodule Analysis.UserLibrary do
   @moduledoc """
-  A user's saved analyses. Room saves create independent copies. Removing a reference does not
-  delete the underlying analysis or remove it from another user's library.
+  A user's saved analyses. Room stars track live references to the room's own
+  analysis; branching into another room or private editing materializes separate
+  copies. Removing a reference does not delete the underlying analysis or remove
+  it from another user's library.
 
   Callers must authenticate and authorize the user before invoking this API.
   """
@@ -121,7 +123,7 @@ defmodule Analysis.UserLibrary do
     end
   end
 
-  @copy_source_sql """
+  @room_source_sql """
   SELECT a.analysis_id
   FROM room_analyses AS ra
   JOIN analyses AS a ON a.analysis_id = ra.analysis_id
@@ -129,15 +131,27 @@ defmodule Analysis.UserLibrary do
   FOR SHARE OF ra, a
   """
 
-  @doc """
-  Save a fresh snapshot of a room analysis in this user's library atomically.
-  The caller authenticates the user and authorizes access to the room; the
-  transaction checks durable membership and holds it through the copy. Nothing
-  is added to the room or broadcast. Repeated calls create separate snapshots.
+  @track_sql """
+  INSERT INTO user_analyses (user_id, analysis_id)
+  VALUES ($1, $2)
+  ON CONFLICT (user_id, analysis_id) DO NOTHING
+  RETURNING id
   """
-  @spec copy_from_room(String.t(), String.t(), String.t()) ::
-          {:ok, String.t()} | {:error, :invalid_identity | :user_not_found | :analysis_not_found}
-  def copy_from_room(user_id, room_id, analysis_id)
+
+  @doc """
+  Track a room analysis in this user's library as a live reference.
+
+  The caller authenticates the user and authorizes access to the room; the
+  transaction checks durable membership and holds it through the insert. No
+  copy is made: the library entry is the room's own analysis, so work in the
+  room is reflected in the library while the analysis exists. Branching —
+  copying into another room or private editing — happens separately and
+  explicitly. Nothing is added to the room or broadcast. Idempotent.
+  """
+  @spec track_from_room(String.t(), String.t(), String.t()) ::
+          {:ok, :tracked | :already_tracked}
+          | {:error, :invalid_identity | :user_not_found | :analysis_not_found}
+  def track_from_room(user_id, room_id, analysis_id)
       when is_binary(room_id) and is_binary(analysis_id) do
     case Ecto.UUID.dump(user_id) do
       {:ok, db_id} ->
@@ -146,15 +160,14 @@ defmodule Analysis.UserLibrary do
             Repo.rollback(:user_not_found)
           end
 
-          if Repo.query!(@copy_source_sql, [room_id, analysis_id]).rows == [] do
+          if Repo.query!(@room_source_sql, [room_id, analysis_id]).rows == [] do
             Repo.rollback(:analysis_not_found)
           end
 
-          {:ok, source, _revision} = AnalysisStore.get(analysis_id)
-          id = "analysis-" <> Base.url_encode64(:crypto.strong_rand_bytes(16), padding: false)
-          {:ok, 1} = AnalysisStore.insert(%{source | id: id})
-          :ok = save(user_id, id)
-          id
+          case Repo.query!(@track_sql, [db_id, analysis_id], log: false).rows do
+            [[_id]] -> :tracked
+            [] -> :already_tracked
+          end
         end)
 
       :error ->
@@ -162,7 +175,30 @@ defmodule Analysis.UserLibrary do
     end
   end
 
-  def copy_from_room(_, _, _), do: {:error, :invalid_identity}
+  def track_from_room(_, _, _), do: {:error, :invalid_identity}
+
+  @doc "Return which of the given analyses this user's library already references."
+  @spec tracked(String.t(), [String.t()]) :: [String.t()]
+  def tracked(user_id, analysis_ids) when is_binary(user_id) and is_list(analysis_ids) do
+    if analysis_ids == [] do
+      []
+    else
+      case Ecto.UUID.dump(user_id) do
+        {:ok, db_id} ->
+          Repo.query!(
+            "SELECT analysis_id FROM user_analyses WHERE user_id = $1 AND analysis_id = ANY($2)",
+            [db_id, analysis_ids],
+            log: false
+          ).rows
+          |> Enum.map(fn [id] -> id end)
+
+        :error ->
+          []
+      end
+    end
+  end
+
+  def tracked(_, _), do: []
 
   @save_sql """
   INSERT INTO user_analyses (user_id, analysis_id)

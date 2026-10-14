@@ -53,6 +53,7 @@ defmodule Web.RoomLive do
       library_title_error: nil,
       providers: [],
       account_error: nil,
+      tracked_ids: [],
       room: nil,
       analyses: [],
       selected_analysis_id: nil,
@@ -139,6 +140,7 @@ defmodule Web.RoomLive do
           socket
           |> assign(base_assigns)
           |> assign(room: room, analyses: AnalysisView.room_analyses(room, locale))
+          |> assign_tracked()
           |> assign(chat_messages: chat_messages)
           |> stream(:chat_messages, chat_messages)
           |> allow_upload(:pgn,
@@ -314,30 +316,55 @@ defmodule Web.RoomLive do
 
   def handle_event("create-analysis", _params, socket), do: create_analysis(socket, nil)
 
-  def handle_event("save-personal-copy", _params, %{assigns: %{current_user: nil}} = socket) do
-    {:noreply,
-     notify(socket, Web.I18n.t("room.copyLoginRequired", socket.assigns.locale), :error)}
+  def handle_event("track-analysis", %{"id" => id}, %{assigns: %{current_user: nil}} = socket) do
+    # Stars are not rendered for guests; forged events fail closed.
+    {:noreply, socket}
   end
 
-  def handle_event("save-personal-copy", _params, socket) do
+  def handle_event("track-analysis", %{"id" => id}, socket) do
     # Authentication is refreshed before each event. Never accept the owner,
-    # room or source analysis from event parameters.
-    result =
-      UserLibrary.copy_from_room(
-        socket.assigns.current_user.id,
-        socket.assigns.room_code,
-        socket.assigns.selected_analysis_id
-      )
+    # room or analysis from event parameters; the id must be in this room.
+    if analysis_in_room?(socket, id) do
+      # Optimistic star: filled immediately, reverted on failure.
+      socket = assign(socket, :tracked_ids, [id | List.delete(socket.assigns.tracked_ids, id)])
 
-    case result do
-      {:ok, _id} ->
-        {:noreply, notify(socket, Web.I18n.t("room.personalCopySaved", socket.assigns.locale))}
+      case UserLibrary.track_from_room(
+             socket.assigns.current_user.id,
+             socket.assigns.room_code,
+             id
+           ) do
+        {:ok, _state} ->
+          {:noreply, socket}
 
-      {:error, _reason} ->
-        {:noreply,
-         notify(socket, Web.I18n.t("room.personalCopyFailed", socket.assigns.locale), :error)}
+        {:error, _reason} ->
+          {:noreply,
+           socket
+           |> assign(:tracked_ids, List.delete(socket.assigns.tracked_ids, id))
+           |> notify(Web.I18n.t("room.trackFailed", socket.assigns.locale), :error)}
+      end
+    else
+      {:noreply, socket}
     end
   end
+
+  def handle_event("untrack-analysis", %{"id" => id}, %{assigns: %{current_user: nil}} = socket) do
+    {:noreply, socket}
+  end
+
+  def handle_event("untrack-analysis", %{"id" => id}, socket) do
+    if analysis_in_room?(socket, id) do
+      # Optimistic: the star empties immediately; removal is idempotent and
+      # only ever removes the reference, never the analysis or room content.
+      socket = assign(socket, :tracked_ids, List.delete(socket.assigns.tracked_ids, id))
+      _ = UserLibrary.remove(socket.assigns.current_user.id, id)
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  defp analysis_in_room?(socket, id),
+    do: Enum.any?(socket.assigns.analyses, &(&1.id == id))
 
   def handle_event("select-analysis", %{"id" => id}, socket) do
     if Enum.any?(socket.assigns.analyses, &(&1.id == id)) do
@@ -1231,14 +1258,26 @@ defmodule Web.RoomLive do
   defp refresh_room(socket) do
     case Rooms.get(socket.assigns.room_code) do
       {:ok, room} ->
-        assign(socket,
-          room: room,
-          analyses: AnalysisView.room_analyses(room, socket.assigns.locale)
-        )
+        socket
+        |> assign(room: room, analyses: AnalysisView.room_analyses(room, socket.assigns.locale))
+        |> assign_tracked()
 
       :not_found ->
         assign(socket, room: nil, error: Web.I18n.t("home.joinNotFound", socket.assigns.locale))
     end
+  end
+
+  # A star reflects this user's live library reference to a room analysis;
+  # the list is refetched whenever the room's analysis set changes.
+  defp assign_tracked(socket) do
+    ids = Enum.map(socket.assigns.analyses, & &1.id)
+
+    tracked =
+      if user = socket.assigns.current_user,
+        do: UserLibrary.tracked(user.id, ids),
+        else: []
+
+    assign(socket, :tracked_ids, tracked)
   end
 
   defp create_analysis(socket, position) do

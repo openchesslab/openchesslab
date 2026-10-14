@@ -143,12 +143,13 @@
         <ul :if={@analyses != []} class="m-0 flex list-none flex-col gap-1 p-0">
           <%= for analysis <- @analyses do %>
             <% active = analysis.id == @selected_analysis_id %> <% viewers =
-              analysis_viewers(analysis.id, @participants, @participant_id) %>
-            <li>
+              analysis_viewers(analysis.id, @participants, @participant_id) %> <% tracked =
+              analysis.id in @tracked_ids %>
+            <li class="relative">
               <button
                 type="button"
                 class={[
-                  "flex w-full flex-col items-start rounded-md border px-3 py-2 text-left transition-colors",
+                  "flex w-full flex-col items-start rounded-md border py-2 pl-3 pr-9 text-left transition-colors",
                   active &&
                     "border-highlight/40 bg-highlight/15 shadow-[inset_2px_0_0_var(--highlight)]",
                   not active && "border-transparent hover:bg-panel-hover"
@@ -167,22 +168,25 @@
                 </span>
                 <span class="text-xs text-muted">{analysis.detail}</span>
               </button>
+              <button
+                :if={@current_user}
+                type="button"
+                id={"track-#{analysis.id}"}
+                class="absolute right-1.5 top-1.5 inline-flex min-h-7 min-w-7 items-center justify-center rounded-md bg-transparent text-muted hover:bg-panel-hover hover:text-accent"
+                aria-pressed={if tracked, do: "true", else: "false"}
+                aria-label={
+                  Web.I18n.t(
+                    if(tracked, do: "room.untrack", else: "room.track"),
+                    @locale
+                  )
+                }
+                title={Web.I18n.t(if(tracked, do: "room.untrack", else: "room.track"), @locale)}
+                phx-click={if tracked, do: "untrack-analysis", else: "track-analysis"}
+                phx-value-id={analysis.id}
+              ><.icon name="star" class={["h-4 w-4", tracked && "fill-current text-accent"]} /></button>
             </li>
           <% end %>
         </ul>
-        <div :if={@current_user && @analysis} class="flex flex-col gap-1">
-          <button
-            id="save-personal-copy"
-            type="button"
-            phx-click="save-personal-copy"
-            phx-disable-with={Web.I18n.t("room.savingPersonalCopy", @locale)}
-            aria-describedby="personal-copy-help"
-            class="rounded-md border border-border px-3 py-2 text-left text-xs font-medium hover:bg-panel-hover"
-          >{Web.I18n.t("room.savePersonalCopy", @locale)}</button>
-          <p id="personal-copy-help" class="m-0 text-xs text-muted">
-            {Web.I18n.t("room.personalCopyHelp", @locale)}
-          </p>
-        </div>
       </section>
 
       <section

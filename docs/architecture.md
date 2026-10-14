@@ -126,7 +126,7 @@ The catalogue covers exact state, material, pawns, placement, mobility, center, 
 - `rooms.created_at` is required; `Analysis.RoomInventory.summary/1` / `old_empty_rooms/2` provide counts/candidates.
 - `Analysis.RoomStore.prune_old_empty_rooms/2` uses a bounded `DELETE ... RETURNING` over old rooms with **no `room_analyses` membership**, using row locks/`SKIP LOCKED`; `Analysis.Rooms.prune_old_empty_rooms/3` also terminates their workers.
 - **Production-only** `Analysis.RoomPruner` starts a minute after boot and runs every 24 hours: defaults **30 days**, **1,000 rooms maximum per run**; errors are logged, not fatal. The user verified manual cleanup and the scheduled worker in production.
-- **Decision (2026-10-14):** room work is shared; saving for personal use creates an independent copy. Explicit sharing back into a room should likewise create a copy, without automatic synchronization. Eventually deleting/expiring a room should remove its room analyses while preserving personal copies. The populated-room retention period, warnings and cleanup are still unimplemented; closing the last browser tab must not delete work.
+- **Decision (2026-10-14, refined same day):** room work is shared; a library star tracks the room's own analysis as a **live reference** (room work is reflected in the library). Bringing a library entry into a room is an explicit choice: copy the underlying game only, copy the analysis, or live-share the analysis itself. Private editing materializes a separate copy; there is no automatic synchronization. Eventually deleting/expiring a room must materialize or otherwise preserve referenced library entries before removing room analyses. The populated-room retention period, warnings and cleanup are still unimplemented; closing the last browser tab must not delete work.
 
 ## 6. Identity, accounts, libraries, authentication and privacy
 
@@ -321,13 +321,34 @@ The home/room header links signed-in users to the library. The page has English/
 
 The shared home/room header groups authentication and the library link under **Account**. **Help** (shortcuts/tour) and piece-set controls are available only in room workspaces, where they have relevant content; the home entry page has language, theme and Account controls. A single theme button cycles system → light → dark → system using the existing preference-persistence event; its accessible label and tooltip identify the current and next setting. Native disclosure menus support keyboard use, Escape and outside-click dismissal. Room controls are available on mobile too. Home Create/Join cards align their primary action row and size independently, so a Join error does not move the Create button or caption.
 
-### Personal copies from rooms — implemented after `542c757`
+### Library stars and live references — 2026-10-14
 
-Signed-in room participants can choose **Save a personal copy** for the selected analysis. `Web.RoomLive` uses only the event-time credential-resolved User and server-side room/selection; supplied owner, room and analysis parameters are ignored. Guests and revoked/expired credentials cannot save. The room stays on its shared analysis after saving; the independent copy appears in `/library` for the saving user only. Repeated deliberate saves create separate snapshots.
+Signed-in room participants see a **star** on every analysis entry. Clicking it tracks the
+room's own analysis in their library as a **live reference** — no copy is made, so work in
+the room is reflected in the library while the analysis exists; clicking again un-tracks.
+`Web.RoomLive` fills the star optimistically, reverts and reports on failure, and uses only
+the event-time credential-resolved User with a server-side room and analysis id; supplied
+owner, room and analysis parameters are ignored. Guests and revoked/expired credentials
+never see the star and cannot track. `UserLibrary.tracked/2` re-renders the starred state
+whenever the room's analysis set changes.
 
-`Analysis.UserLibrary.copy_from_room/3` is a trusted domain API, not an authentication boundary. In one PostgreSQL transaction it locks the existing User against deletion, verifies durable room membership while holding shared row locks on the membership and source analysis, reads the current aggregate through `AnalysisStore`, gives it a fresh random ID and revision 1, and inserts its library reference. All branches, comments, NAGs, start context, metadata and source-game reference are preserved. Canonical position/game content remains shared and immutable; subsequent mutable analysis edits diverge. A failed library insert rolls back the copied aggregate too. The copy is neither added to a room nor broadcast to participants. Knowing its ID does not make it selectable through room routes/events.
+`Analysis.UserLibrary.track_from_room/3` is a trusted domain API, not an authentication
+boundary. In one PostgreSQL transaction it locks the existing User against deletion,
+verifies durable room membership while holding shared row locks on the membership and
+analysis, and inserts the library reference idempotently. Nothing is copied, added to the
+room or broadcast; repeated and concurrent tracks converge on one reference per owner.
+Un-tracking (`remove/2`) removes only the reference, never the analysis or room content.
+The earlier snapshot-at-save behavior (`copy_from_room/3`) was removed with it: branching
+— copying a game or analysis into a room, live-sharing, and materializing private copies —
+is explicit and separate, keeping other users' references tracking the original.
 
-The existing `user_analyses` schema stores the copy's library association; no ownership column, migration, private editor or sharing endpoint is introduced. The trusted `save/2` primitive still inserts references internally and is not exposed as a browser save operation. Library removal still removes the association only, so orphan cleanup/user deletion semantics need a separate policy. Explicit copy-back sharing and private opening/editing remain next slices; room expiry/cleanup behavior is unchanged.
+The existing `user_analyses` schema stores the reference; no ownership column, migration
+or sharing endpoint is introduced. The trusted `save/2` primitive still inserts references
+internally and is not exposed as a browser save operation. Library removal still removes
+the association only, so orphan cleanup/user deletion semantics need a separate policy.
+Opening a live reference in the private editor is deliberately refused until branching
+materializes a private copy; room expiry/cleanup behavior is unchanged (references are
+durable today because analysis rows outlive rooms).
 
 ### Private personal editor — 2026-10-14
 
@@ -339,9 +360,9 @@ comments and NAGs; `?p=` selects a tree occurrence and move navigation replaces 
 Position setup/editing and the broader room tools are not yet exposed in this first private editor.
 
 `UserLibrary.get_private/2` and `edit_private/5` require the requesting user's library reference,
-no room membership and no other user's library reference. This deliberately denies shared
-references inserted through trusted `save/2`; personal copies from `copy_from_room/3` satisfy
-the policy. These remain trusted domain APIs: the browser boundary supplies only its verified
+no room membership and no other user's library reference. This deliberately denies room-shared
+references and other users' tracks; a materialized private copy — a standalone analysis in one
+user's library — satisfies the policy until branching a live reference materializes a copy. These remain trusted domain APIs: the browser boundary supplies only its verified
 User and server-selected analysis/revision/path. Missing and inaccessible IDs receive the same denial.
 PostgreSQL locks the analysis with `FOR UPDATE` (also excluding new foreign-key references),
 then the user's reference with `FOR SHARE`, retaining the private access scope throughout reads/writes.

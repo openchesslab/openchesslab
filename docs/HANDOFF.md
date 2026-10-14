@@ -34,6 +34,20 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, wacht op commit/push:** `Track room analyses from a library star`, gestart op
+  schone `0270cd6`. Vast productmodel ( zie "Afgesproken model"): room→bibliotheek is nu een
+  **live referentie** via een ster op iedere analyse-entry (`UserLibrary.track_from_room/3`,
+  idempotent, row-locks, géén kopie; `copy_from_room/3` en de save-a-copy-knop zijn verwijderd).
+  Optimistische ster (vult direct, revert+melding bij falen), un-track verwijdert alleen de
+  referentie; gasten/ingetrokken sessies zien geen ster en kunnen niet tracken. `tracked/2`
+  laadt sterstatus bij iedere roomverversing. Privé-editor weigert live referenties (bewust,
+  tot branchen een kopie materialiseert); editor-tests gebruiken nu een standalone privé-entry.
+  i18n EN/NL; ster-icoon toegevoegd. Geen migratie. AGENTS/architecture/development-history
+  dragen het herziene besluit. Gericht: analyse library_tracking **5/5**, web library_tracking/
+  personal_analysis/library_modal **25/25**; volledig analyse **605 geslaagd** (seed 398267)
+  en web **203 geslaagd** (seed 511632); formatter en diffcontrole geslaagd.
+  Niet gecommit; niet gedeployed.
+
 - **Afgerond, wacht op commit/push:** `Allow unlinking non-final linked providers`,
   gestart op schone `923629d`. `Analysis.Accounts.unlink/2` verwijdert alle identiteiten
   van één provider na row-locks; de laatste resterende provider weigert met
@@ -170,11 +184,20 @@ Dit is een overzicht, geen vastgelegde uitvoeringsvolgorde:
 
 Afgesproken model:
 
-- Binnen een room is een analyse gedeeld.
-- Persoonlijk bewaren maakt een zelfstandige kopie met alle varianten/opmerkingen.
-- Toekomstig expliciet delen terug naar een room maakt opnieuw een kopie; geen automatische synchronisatie.
+- Een room is een tijdelijke analysesessie; solo is een gewoon gebruik.
+- Binnen een room is een analyse gedeeld; een ster in de room trackt de analyse als
+  **live referentie** in de bibliotheek (roomwerk wordt gereflecteerd).
+- Terugdelen vanuit de bibliotheek naar een room is een expliciete keuze: alleen de partij
+  kopiëren (vertrouwelijke eigen analyse blijft privé), de analyse kopiëren, of de analyse
+  live delen (zelfde analyse; roomwerk verschijnt in de bibliotheek — werken over meerdere dagen).
+- Privé-bewerken materialiseert een eigen kopie; geen automatische synchronisatie;
+  andermans referenties blijven de originele analyse volgen.
+- Zodra private rooms met eigenaars-toestemming bestaan: waarschuwing bij live delen dat
+  de gedeelde analyse dezelfde is als die in de bibliotheek en dat leden die kunnen wijzigen.
 - Roomverval met verwijdering van roomanalyses is gepland; bewaartermijn nog niet vastgesteld.
-  Huidige cleanup verwijdert uitsluitend oude lege rooms. Laatste tab sluiten verwijdert niets.
+  Huidige cleanup verwijdert uitsluitend oude lege rooms; analyseregels overleven rooms vandaag,
+  maar zodra verwijdering komt moeten gereferenceerde bibliotheekenties eerst worden gematerialiseerd.
+  Laatste tab sluiten verwijdert niets.
 
 ## Belangrijke code en grenzen
 
