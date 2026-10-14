@@ -143,6 +143,7 @@
   "room.analysisLoadFailed": "Analyse laden mislukt: {message}",
   "room.someoneUpdated": "Iemand anders heeft deze analyse bijgewerkt.",
   "room.followViewer": "Klik om deze stelling te bekijken",
+  "room.followedViewer": "Je bekijkt de positie van {name}.",
   "room.importTitle": "Partijen importeren",
   "room.importTabPaste": "Plakken",
   "room.importTabLichess": "Lichess",

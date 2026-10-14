@@ -60,17 +60,18 @@
                 if viewing, do: "#{meta.display_name} — #{viewing.label}", else: meta.display_name %>
               <li>
                 <button
-                  :if={id != @participant_id and meta.analysis_id}
+                  :if={id != @participant_id and viewing}
                   type="button"
                   class="grid h-7 w-7 place-items-center rounded-full border border-border bg-panel-hover text-[.65rem] font-bold text-foreground hover:border-accent-strong"
                   title={viewer_title}
                   aria-label={Web.I18n.t("room.followViewer", @locale) <> ": " <> meta.display_name}
                   phx-click="follow-viewer"
+                  phx-value-participant_id={id}
                   phx-value-analysis_id={meta.analysis_id}
                   phx-value-path={Enum.join(meta.path || [], ",")}
                 >{initials(meta.display_name)}</button>
                 <span
-                  :if={id == @participant_id or is_nil(meta.analysis_id)}
+                  :if={id == @participant_id or is_nil(viewing)}
                   class="grid h-7 w-7 place-items-center rounded-full border border-border bg-panel-hover text-[.65rem] font-bold text-muted"
                   title={viewer_title}
                 >{initials(meta.display_name)}</span>

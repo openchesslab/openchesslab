@@ -475,6 +475,61 @@ defmodule Web.RoomLiveTest do
     assert html =~ Web.I18n.t("auth.loginRequired", "en")
   end
 
+  test "following another viewer is perceptible and stale follow buttons disappear", %{
+    conn: conn,
+    code: code
+  } do
+    analysis_id = "follow-#{System.unique_integer([:positive])}"
+    other_id = "follow-other-#{System.unique_integer([:positive])}"
+    assert {:ok, _analysis, _revision} = Analyses.create(analysis_id)
+    assert {:ok, _other, _revision} = Analyses.create(other_id)
+    :ok = Rooms.add_analysis(code, analysis_id)
+    :ok = Rooms.add_analysis(code, other_id)
+
+    {:ok, viewer_a, _html} = live(conn, "/rooms/#{code}?a=#{other_id}")
+    {:ok, viewer_b, _html} = live(conn, "/rooms/#{code}?a=#{analysis_id}")
+
+    html = render(viewer_a)
+    assert has_element?(viewer_a, "button[phx-click='follow-viewer']")
+
+    [followed_id] =
+      html
+      |> LazyHTML.from_document()
+      |> LazyHTML.query("button[phx-click='follow-viewer']")
+      |> LazyHTML.attribute("phx-value-participant_id")
+
+    # Following a foreign analysis silently does nothing.
+    html =
+      render_click(viewer_a, "follow-viewer", %{
+        "analysis_id" => "missing",
+        "path" => "",
+        "participant_id" => followed_id
+      })
+
+    refute html =~ "Viewing "
+
+    # The real follow is always perceptible, even when the jump is visible.
+    html =
+      render_click(viewer_a, "follow-viewer", %{
+        "analysis_id" => analysis_id,
+        "path" => "",
+        "participant_id" => followed_id
+      })
+
+    assert html =~ "Viewing "
+    assert_patch(viewer_a, "/rooms/#{code}?a=#{analysis_id}")
+
+    # Once the followed analysis leaves the room, no follow button points at it
+    # (the surviving viewer re-selects, which is a legitimate button again).
+    :ok = Rooms.remove_analysis(code, analysis_id)
+    _html = render(viewer_a)
+
+    refute has_element?(
+             viewer_a,
+             "button[phx-click='follow-viewer'][phx-value-analysis_id='#{analysis_id}']"
+           )
+  end
+
   test "the black reply remains on the main line and variations are indented", %{code: code} do
     {:ok, analysis, _revision} = Analyses.create("tree-test")
     :ok = Rooms.add_analysis(code, analysis.id)

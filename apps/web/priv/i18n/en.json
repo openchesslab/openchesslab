@@ -143,6 +143,7 @@
   "room.analysisLoadFailed": "Failed to load analysis: {message}",
   "room.someoneUpdated": "Someone else updated this analysis.",
   "room.followViewer": "Click to view this position",
+  "room.followedViewer": "Viewing {name}'s position.",
   "room.importTitle": "Import games",
   "room.importTabPaste": "Paste",
   "room.importTabLichess": "Lichess",

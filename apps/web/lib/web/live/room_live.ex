@@ -426,17 +426,37 @@ defmodule Web.RoomLive do
     end
   end
 
-  def handle_event("follow-viewer", %{"analysis_id" => id, "path" => path}, socket) do
+  def handle_event(
+        "follow-viewer",
+        %{"analysis_id" => id, "path" => path, "participant_id" => participant_id},
+        socket
+      ) do
     if Enum.any?(socket.assigns.analyses, &(&1.id == id)) do
       path = parse_path(path)
 
-      if id == socket.assigns.selected_analysis_id do
-        {:noreply, select_path(socket, path)}
-      else
-        {:noreply, push_patch(socket, to: analysis_url(socket.assigns.room_code, id, path))}
-      end
+      socket =
+        if id == socket.assigns.selected_analysis_id do
+          select_path(socket, path)
+        else
+          push_patch(socket, to: analysis_url(socket.assigns.room_code, id, path))
+        end
+
+      # The jump is invisible when already sitting on the followed position,
+      # so always report what happened. The name comes from presence, never
+      # from event parameters.
+      {:noreply, follow_notice(socket, participant_id)}
     else
       {:noreply, socket}
+    end
+  end
+
+  defp follow_notice(socket, participant_id) do
+    case Map.get(socket.assigns.participants, participant_id) do
+      %{display_name: name} when is_binary(name) and name != "" ->
+        notify(socket, Web.I18n.t("room.followedViewer", socket.assigns.locale, %{name: name}))
+
+      _other ->
+        socket
     end
   end
 

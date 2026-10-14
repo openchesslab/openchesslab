@@ -34,7 +34,17 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond, wacht op commit/push:** `Open library entries into rooms from the import modal`,
+- **Afgerond, wacht op commit/push:** `Make following another viewer perceptible`, gestart op
+  schone `946fc21`. `follow-viewer` meldt nu altijd wat er gebeurde (`room.followedViewer`,
+  naam uitsluitend serverzijde uit presence, nooit uit event-parameters) — ook als je al op
+  de gevolgde positie zat, precies het geval dat "niets deed". De avatar-knop verbergt zich
+  zodra de gevolgde analyse niet meer in de room staat (voorwaarde gebruikt het bestaande
+  `viewing`); de stille no-op blijft alleen voor gesmede events. Eerste testdekking voor het
+  volledige follow-flow (twee views, presence, notice, patch, verwijdering). Web-only,
+  geen migratie. Gericht room_live **42/42**; volledig web **205 geslaagd** (seed 511632);
+  formatter en diffcontrole geslaagd. Niet gedeployed.
+
+- **Afgerond, gepusht en gedeployed:** `Open library entries into rooms from the import modal`, commit `946fc21`,
   gestart op schone `e3dd2ee`. Het "My Library"-tab van de importmodal is nu de echte en
   énige bibliotheekinterface (room-only); de account-menu-knop en het bibliotheek-modal zijn
   verwijderd. `UserLibrary.page/2` rapporteert per entry de onderliggende partij
@@ -49,9 +59,9 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   personal_analysis/room_live/auth_controls **65/67→na herstel groen** (auto-select-redirect
   en nul-gepadde paging-ids gecorrigeerd); volledig analyse **610 geslaagd** (seed 398267)
   en web **204 geslaagd** (seed 511632); formatter en diffcontrole geslaagd.
-  Niet gecommit; niet gedeployed.
+  Commit/push geverifieerd; op 2026-10-14 gedeployed (gebruiker).
 
-- **Afgerond, wacht op commit/push:** `Track room analyses from a library star`, gestart op
+- **Afgerond, gepusht en gedeployed:** `Track room analyses from a library star`, commit `e3dd2ee`, gestart op
   schone `0270cd6`. Vast productmodel ( zie "Afgesproken model"): room→bibliotheek is nu een
   **live referentie** via een ster op iedere analyse-entry (`UserLibrary.track_from_room/3`,
   idempotent, row-locks, géén kopie; `copy_from_room/3` en de save-a-copy-knop zijn verwijderd).
@@ -63,9 +73,9 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   dragen het herziene besluit. Gericht: analyse library_tracking **5/5**, web library_tracking/
   personal_analysis/library_modal **25/25**; volledig analyse **605 geslaagd** (seed 398267)
   en web **203 geslaagd** (seed 511632); formatter en diffcontrole geslaagd.
-  Niet gecommit; niet gedeployed.
+  Commit/push geverifieerd; op 2026-10-14 gedeployed (gebruiker).
 
-- **Afgerond, wacht op commit/push:** `Allow unlinking non-final linked providers`,
+- **Afgerond, gepusht en gedeployed:** `Allow unlinking non-final linked providers`, commit `0270cd6`,
   gestart op schone `923629d`. `Analysis.Accounts.unlink/2` verwijdert alle identiteiten
   van één provider na row-locks; de laatste resterende provider weigert met
   `:last_identity` (geen herstel, dus nooit lockout), concurrente unlinks kunnen samen
@@ -79,7 +89,7 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   correct voor fly-proxy via IPv6) — geen actie nodig, niet "oplossen" naar 0.0.0.0.
   Tests: gericht user_identity **12/12** (incl. concurrency) en account_unlink **3/3**;
   volledig analyse **604 geslaagd** (seed 398267) en web **203 geslaagd** (seed 511632);
-  formatter en diffcontrole geslaagd. Niet gecommit; niet gedeployed.
+  formatter en diffcontrole geslaagd. Commit/push geverifieerd; op 2026-10-14 gedeployed (gebruiker).
 
 - **Afgerond, wacht op commit/push:** `Open library and linked accounts as shell modals`,
   gestart op schone `01e232a`. My library en Linked accounts zijn nu shell-modalen boven
@@ -193,7 +203,10 @@ Dit is een overzicht, geen vastgelegde uitvoeringsvolgorde:
 - **Bibliotheek als voorraad (docentmodel):** vanuit een room een eigen bibliotheekanalyse toevoegen
   aan die room (kopie; eventueel alleen de partij); vanuit home een nieuwe room starten vanuit een entry.
   Daarna is de privé-editor volledig vervangen en wordt die verwijderd.
-- **UX/export:** resterende punten uit de historische UI-catalogus eerst aan actuele code toetsen;
+- **Room-UX, opgelost in `Make following another viewer perceptible` (2026-10-14):** de
+  aanwezigheidsavatars leken niets te doen; `follow-viewer` werkt en meldt nu zichtbaar wat
+  er gebeurde, en de knop verbergt zich bij een verdwenen analyse. Opmerking blijft relevant:
+  Tailwind v4-preflight geeft álle knoppen `cursor:pointer` (native browser-default is `default`).- **UX/export:** resterende punten uit de historische UI-catalogus eerst aan actuele code toetsen;
   onder meer analysebeheer, partijmetadata, rijkere export, grafieken en een tour met gerichte highlights.
 - **Techniek/schaal:** bekende `:invalid_occurrences`-suitefout; grote importbenchmarks, monitoring,
   queryprestaties en pas bij concrete behoefte een importqueue/verdere regio-uitbreiding.
@@ -292,6 +305,6 @@ Expliciet terugdelen, gewijzigde roomretentie en privé-position setup/tools bli
 
 Google-login en accountkoppeling: groen en gepusht in `2640d90`; gedeployed en productielogins
 geverifieerd door de gebruiker. Accountverwijdering: groen en gepusht in `01e232a`; niet gedeployed.
-Modal-slice (library/linked accounts als shell-modalen): groen, wacht op commit/push en deployment.
+Modal-slice, ontkoppelen, ster en import-tab: gepusht (`923629d`, `0270cd6`, `e3dd2ee`, `946fc21`) en gedeployed.
 Verificatie na deployment: modalen openen boven home/room, verwijderen met bevestigingswoord en het
 daarna koppelen van de vrijgekomen Google-identiteit aan het Lichess-account (zie google-auth.md).
