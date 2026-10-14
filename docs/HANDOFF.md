@@ -34,8 +34,9 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond, wacht op commit/push:** `Add member listing and removal to private rooms`, gestart op
-  schone `a9a08e7`. Ontwerp (2026-10-15): de Invite-modal is nu de **Members**-modal van de eigenaar —
+- **Afgerond, gecommit en gepusht:** `Add member listing and individual removal to private rooms`
+  (`c092dbc` op main, bovenop `a9a08e7`), browsertest op dev geverifieerd (lijst, fallback-namen,
+  join via invite, verwijdering kickt live naar de gate). Ontwerp (2026-10-15): de Invite-modal is nu de **Members**-modal van de eigenaar —
   duurzame ledenlijst (naam, eigenaar-badge, lid-sinds) + invite-link beheer in dezelfde modal.
   Namen: per lidmaatschap opgeslagen, door web gegenereerd via `Web.DisplayName` (niet-PII; legacy
   rijen krijgen een stabiele hash-fallback "Member XXXX"); private-room presence gebruikt dezelfde
