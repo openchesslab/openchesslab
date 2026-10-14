@@ -170,6 +170,19 @@
             </li>
           <% end %>
         </ul>
+        <div :if={@current_user && @analysis} class="flex flex-col gap-1">
+          <button
+            id="save-personal-copy"
+            type="button"
+            phx-click="save-personal-copy"
+            phx-disable-with={Web.I18n.t("room.savingPersonalCopy", @locale)}
+            aria-describedby="personal-copy-help"
+            class="rounded-md border border-border px-3 py-2 text-left text-xs font-medium hover:bg-panel-hover"
+          >{Web.I18n.t("room.savePersonalCopy", @locale)}</button>
+          <p id="personal-copy-help" class="m-0 text-xs text-muted">
+            {Web.I18n.t("room.personalCopyHelp", @locale)}
+          </p>
+        </div>
       </section>
 
       <section

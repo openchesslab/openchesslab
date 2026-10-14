@@ -11,6 +11,7 @@ defmodule Web.RoomLive do
   alias Analysis.RoomChat
   alias Analysis.RoomEvents
   alias Analysis.Rooms
+  alias Analysis.UserLibrary
   alias Chess.Position
   alias Chess.PositionDraft
   alias Web.AnalysisView
@@ -297,6 +298,31 @@ defmodule Web.RoomLive do
 
   def handle_event("create-analysis", _params, socket), do: create_analysis(socket, nil)
 
+  def handle_event("save-personal-copy", _params, %{assigns: %{current_user: nil}} = socket) do
+    {:noreply,
+     notify(socket, Web.I18n.t("room.copyLoginRequired", socket.assigns.locale), :error)}
+  end
+
+  def handle_event("save-personal-copy", _params, socket) do
+    # Authentication is refreshed before each event. Never accept the owner,
+    # room or source analysis from event parameters.
+    result =
+      UserLibrary.copy_from_room(
+        socket.assigns.current_user.id,
+        socket.assigns.room_code,
+        socket.assigns.selected_analysis_id
+      )
+
+    case result do
+      {:ok, _id} ->
+        {:noreply, notify(socket, Web.I18n.t("room.personalCopySaved", socket.assigns.locale))}
+
+      {:error, _reason} ->
+        {:noreply,
+         notify(socket, Web.I18n.t("room.personalCopyFailed", socket.assigns.locale), :error)}
+    end
+  end
+
   def handle_event("select-analysis", %{"id" => id}, socket) do
     if Enum.any?(socket.assigns.analyses, &(&1.id == id)) do
       {:noreply,
@@ -305,10 +331,10 @@ defmodule Web.RoomLive do
        |> push_patch(to: analysis_url(socket.assigns.room_code, id))}
     else
       {:noreply,
-       assign(
+       notify(
          socket,
-         :notice,
-         Web.I18n.t("room.analysisLoadFailed", socket.assigns.locale, %{message: "not found"})
+         Web.I18n.t("room.analysisLoadFailed", socket.assigns.locale, %{message: "not found"}),
+         :error
        )}
     end
   end

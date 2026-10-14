@@ -1,12 +1,56 @@
 defmodule Analysis.UserLibrary do
   @moduledoc """
-  A user's saved references to existing analyses. Removing a reference does not
+  A user's saved analyses. Room saves create independent copies. Removing a reference does not
   delete the underlying analysis or remove it from another user's library.
 
   Callers must authenticate and authorize the user before invoking this API.
   """
 
+  alias Analysis.AnalysisStore
   alias OpenChessLab.Repo
+
+  @copy_source_sql """
+  SELECT a.analysis_id
+  FROM room_analyses AS ra
+  JOIN analyses AS a ON a.analysis_id = ra.analysis_id
+  WHERE ra.room_id = $1 AND ra.analysis_id = $2
+  FOR SHARE OF ra, a
+  """
+
+  @doc """
+  Save a fresh snapshot of a room analysis in this user's library atomically.
+  The caller authenticates the user and authorizes access to the room; the
+  transaction checks durable membership and holds it through the copy. Nothing
+  is added to the room or broadcast. Repeated calls create separate snapshots.
+  """
+  @spec copy_from_room(String.t(), String.t(), String.t()) ::
+          {:ok, String.t()} | {:error, :invalid_identity | :user_not_found | :analysis_not_found}
+  def copy_from_room(user_id, room_id, analysis_id)
+      when is_binary(room_id) and is_binary(analysis_id) do
+    case Ecto.UUID.dump(user_id) do
+      {:ok, db_id} ->
+        Repo.transaction(fn ->
+          if Repo.query!("SELECT id FROM users WHERE id = $1 FOR KEY SHARE", [db_id]).rows == [] do
+            Repo.rollback(:user_not_found)
+          end
+
+          if Repo.query!(@copy_source_sql, [room_id, analysis_id]).rows == [] do
+            Repo.rollback(:analysis_not_found)
+          end
+
+          {:ok, source, _revision} = AnalysisStore.get(analysis_id)
+          id = "analysis-" <> Base.url_encode64(:crypto.strong_rand_bytes(16), padding: false)
+          {:ok, 1} = AnalysisStore.insert(%{source | id: id})
+          :ok = save(user_id, id)
+          id
+        end)
+
+      :error ->
+        {:error, :invalid_identity}
+    end
+  end
+
+  def copy_from_room(_, _, _), do: {:error, :invalid_identity}
 
   @save_sql """
   INSERT INTO user_analyses (user_id, analysis_id)

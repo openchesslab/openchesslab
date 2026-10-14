@@ -17,7 +17,8 @@
 | 2026-10-08 to 2026-10-13 | Added `features` umbrella app using `docs/POSITION_FEATURES.md`: 21-section chess-feature catalogue, attack/bitboard caches, structural and tactical similarity, versioned persistence via `Analysis.PositionFeatures`. | **Implemented feature extraction/comparison**; global indexed feature-vector search still planned. |
 | 2026-10-13 | Persist rooms and ordered memberships in PostgreSQL; room workers remain ephemeral. Restore analyses after worker restart; collision-safe codes; selected analysis position in deep-link URL, synchronized as moves/navigation change. | **Implemented; LiveView regression tests**. |
 | 2026-10-13 | Introduced read-only inventory, required room creation timestamp and bounded removal of old empty rooms. Production `RoomPruner` runs after startup/daily (30 days, ≤1,000 per run); verified deployed and old empty rooms removed. | **Implemented current empty-room rule**. |
-| 2026-10-13, product decision | Room is temporary; **analysis is durable independent of the room**. Eventually a room may expire regardless of attached analyses, provided personal libraries/recovery/permissions are defined. | **Decision, not current pruning behavior**. |
+| 2026-10-13, product decision | Room is temporary; **analysis is durable independent of the room**. Eventually a room may expire regardless of attached analyses, provided personal libraries/recovery/permissions are defined. | **Refined by the explicit-copy decision on 2026-10-14 below; not current pruning behavior**. |
+| 2026-10-14, personal work | Save an independent personal copy from shared room work; future explicit sharing should copy back into a room. No automatic synchronization. Eventually room deletion removes room analyses, while personal copies survive. | **Room-to-library copies implemented; private editor, copy-back sharing and populated-room retention remain planned.** |
 | 2026-10-13, identity | Rejected email-based local `users` model before integration. Adopted **PII-minimizing** `User → 0..N Accounts`, provider + HMAC of subject, library references, no local password/email/name. Lichess first external provider; OAuth2/PKCE and private study/game scopes later. | **Identity/library schema and trusted APIs implemented in `51192f5`; OAuth/sessions/UI planned**. |
 
 **Product principles:** No established user base; no backward-compatibility constraint. Default English, Dutch available; later SAN localization considered. User privacy, ownership and effective retrieval matter more than keeping a room code forever. A user's analyses should not be globally visible by default after auth/access controls are introduced. A room's unguessable code currently functions as its collaboration invitation; it is **not an authenticated ownership model**.
@@ -269,11 +270,34 @@ The user confirmed the preference fix in `2708819`. Starting from clean local/re
 
 Validation: 10 targeted identity tests and 17 initial auth/library tests passed; the additional paging interaction test is included in the full suite. Full analysis seed `398267` passed all 590 tests. Full web seed `511632` initially passed 158/159: the earlier login-control test simulated OAuth denial without its state, leaving an attempt that contaminated a later empty-table assertion. Supplying the real generated state fixes the fixture at its source; all 159 web tests then passed with the same seed. This is separate from the accepted analysis `:invalid_occurrences` backlog.
 
+### Personal room-analysis copies — 2026-10-14
+
+Starting from clean `main` at `542c757`, implement the user's explicit-copy decision: solo continuations must not silently alter an earlier shared analysis. Add an authenticated room save button, transactional snapshot creation and a library association, with English/Dutch explanation and feedback. Keep canonical content reusable and mutable trees independent. Architecture section 6 records the transaction and access contract. No migration or production deployment is included.
+
+Targeted tests cover full aggregate preservation, divergence in both directions, deletion of the original without losing the copy, concurrent copies, absent/removed memberships, a real database constraint failure after the copy insert, credential revocation and forged parameters. Initial web fixtures expected a direct mount despite the existing room selection redirect; they were corrected to use canonical selected-analysis URLs and verify the HTTP redirect for an unrelated ID. The private-ID selection test also covers a corrected error-notice shape in the existing selection handler.
+
+Validation: 14 targeted domain tests and 13 targeted web tests passed. Full analysis seed `398267`: 594 passed; full web seed `511632`: 163 passed. Root formatting verification, asset build and `git diff --check` passed. The build required execution outside the sandbox because Mix's temporary hard-link lock was denied. The accepted analysis-suite backlog remains unchanged.
+
+Reproduce from the umbrella root in either PowerShell or Bash (run serially):
+
+```text
+mix format --check-formatted
+cd apps/analysis
+mix test --seed 398267
+cd ../web
+mix test --seed 511632
+mix assets.build
+cd ../..
+git diff --check
+```
+
+Commit subject: `Add personal analysis copies from rooms` (commit/push performed by Codex under the user's existing authorization; production deployment remains manual).
+
 **Near-term (next green vertical slices):**
 
 - **OAuth security foundation:** production login/logout and cross-tab disconnection have been user-verified. Private library routes/events now require a valid session. Explicit provider account linking and private analysis editing/sharing policies remain separate work.
 - **Lichess first-provider login:** provisioned and verified; distinguish any future provider account linking from requesting study/game scopes.
-- **Library access in LiveView:** authenticated listing/removal exists; next add saving from rooms and reopening references, preserving shared-analysis behavior. Richer labels and private editing/sharing need their own design.
+- **Library access in LiveView:** authenticated listing/removal and independent copies from rooms exist. Next add private opening/editing, richer labels and explicit copy-back sharing. Never reopen a personal copy by silently adding it to a shared room.
 - **Tests / infra:** update auth/migration/release coverage, health/readiness where relevant, and test helpers for new tables; check app scopes and prevents accidental access to other users. Keep manual production deployment.
 - **Accepted test backlog (2026-10-13):** investigate suite-dependent `:invalid_occurrences` failures in `Analysis.AnalysesTest` (`test/analysis/analyses_test.exs:122`) and `Analysis.PgnBatchImporterTest` (`test/analysis/pgn_batch_importer_test.exs:143`). Full analysis seed `938846` produced 588/589, then 587/589 passes; the isolated analysis test passed and both files together passed all 63 tests with that same seed. Full seed `824219` passed all 589. Shared PostgreSQL fixtures/reset order are suspected, but the cause is not established. The user explicitly requested putting a flaky test on the backlog. Do not suppress the tests or describe the failing seed as green. Reproduce from `apps/analysis` with `mix test --seed 938846`; compare `mix test test/analysis/analyses_test.exs test/analysis/pgn_batch_importer_test.exs --seed 938846` (same commands on Windows/Arch).
 
