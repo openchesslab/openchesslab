@@ -5,11 +5,15 @@ defmodule Web.OAuthController do
   alias Analysis.{Accounts, UserSessions}
   alias OpenChessLab.Repo
   alias Web.OAuthAttempts
+  alias Web.ReturnTo
 
-  def create(conn, %{"provider" => provider}), do: start(conn, provider, :login)
-  def link(conn, %{"provider" => provider}), do: start(conn, provider, :link)
+  def create(conn, %{"provider" => provider} = params),
+    do: start(conn, provider, :login, params)
 
-  defp start(conn, provider, intent) do
+  def link(conn, %{"provider" => provider} = params),
+    do: start(conn, provider, :link, params)
+
+  defp start(conn, provider, intent, params) do
     conn = private_response(conn)
 
     case config(provider) do
@@ -21,7 +25,8 @@ defmodule Web.OAuthController do
           provider: provider,
           intent: intent,
           session_hash: session_hash(get_session(conn, :user_token)),
-          nonce: Base.url_encode64(:crypto.strong_rand_bytes(32), padding: false)
+          nonce: Base.url_encode64(:crypto.strong_rand_bytes(32), padding: false),
+          return_to: ReturnTo.sanitize(params["return_to"])
         }
 
         {:ok, attempt} = OAuthAttempts.create(context)
@@ -65,24 +70,34 @@ defmodule Web.OAuthController do
         unavailable(conn, provider)
 
       config ->
-        with {:ok, verifier, %{provider: ^provider} = context} <-
-               OAuthAttempts.consume_context(params["state"], browser_token),
-             :ok <- valid_context(context, get_session(conn, :user_token)),
-             false <- Map.has_key?(params, "error"),
-             {:ok, identity} <- verify(provider, params["code"], verifier, context.nonce, config),
-             {:ok, session} <- complete(identity, context, get_session(conn, :user_token)) do
-          Web.UserAuth.disconnect_session(get_session(conn, :user_token))
-          Plug.CSRFProtection.delete_csrf_token()
+        case OAuthAttempts.consume_context(params["state"], browser_token) do
+          {:ok, verifier, %{provider: ^provider} = context} ->
+            with :ok <- valid_context(context, get_session(conn, :user_token)),
+                 false <- Map.has_key?(params, "error"),
+                 {:ok, identity} <-
+                   verify(provider, params["code"], verifier, context.nonce, config),
+                 {:ok, session} <- complete(identity, context, get_session(conn, :user_token)) do
+              Web.UserAuth.disconnect_session(get_session(conn, :user_token))
+              Plug.CSRFProtection.delete_csrf_token()
 
-          conn
-          |> configure_session(renew: true)
-          |> clear_session()
-          |> put_session(:user_token, session.token)
-          |> put_session(:live_socket_id, Web.UserAuth.live_socket_id(session.token))
-          |> redirect(to: ~p"/")
-        else
-          {:error, :already_linked} ->
-            failure(conn, "auth.linkConflict", ~p"/")
+              conn
+              |> configure_session(renew: true)
+              |> clear_session()
+              |> put_session(:user_token, session.token)
+              |> put_session(:live_socket_id, Web.UserAuth.live_socket_id(session.token))
+              |> redirect(to: return_target(context))
+            else
+              {:error, :already_linked} ->
+                # The consumed attempt still knows where the user started.
+                failure(conn, "auth.linkConflict", return_target(context))
+
+              _ ->
+                failure(
+                  conn,
+                  if(provider == "lichess", do: "auth.loginFailed", else: "auth.googleFailed"),
+                  ~p"/"
+                )
+            end
 
           _ ->
             failure(
@@ -182,6 +197,11 @@ defmodule Web.OAuthController do
 
   defp failure(conn, key, target),
     do: conn |> put_flash(:error, Web.I18n.t(key)) |> redirect(to: target)
+
+  # The trusted return path comes only from the consumed attempt context,
+  # never from callback parameters: a room start returns to that room.
+  defp return_target(%{return_to: return_to}) when is_binary(return_to), do: return_to
+  defp return_target(_context), do: ~p"/"
 
   defp private_response(conn),
     do:

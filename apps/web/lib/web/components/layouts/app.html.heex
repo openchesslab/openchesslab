@@ -199,6 +199,12 @@
             action={~p"/auth/logout"}
             method="post"
           >
+            <input
+              :if={@room_code}
+              type="hidden"
+              name="return_to"
+              value={~p"/rooms/#{@room_code}"}
+            />
             <button
               type="submit"
               class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-panel-hover"
@@ -214,6 +220,12 @@
             action={~p"/auth/lichess"}
             method="post"
           >
+            <input
+              :if={@room_code}
+              type="hidden"
+              name="return_to"
+              value={~p"/rooms/#{@room_code}"}
+            />
             <button
               type="submit"
               class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-panel-hover"
@@ -229,6 +241,12 @@
             action={~p"/auth/google"}
             method="post"
           >
+            <input
+              :if={@room_code}
+              type="hidden"
+              name="return_to"
+              value={~p"/rooms/#{@room_code}"}
+            />
             <button
               type="submit"
               class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-panel-hover"
@@ -459,5 +477,6 @@
     providers={@providers}
     account_error={@account_error}
     account_delete_armed={@account_delete_armed}
+    room_code={@room_code}
   />
 </div>

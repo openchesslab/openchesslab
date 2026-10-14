@@ -66,6 +66,12 @@
             action={~p"/auth/#{provider}/link"}
             method="post"
           >
+            <input
+              :if={@room_code}
+              type="hidden"
+              name="return_to"
+              value={~p"/rooms/#{@room_code}"}
+            />
             <button type="submit" class="rounded-md border border-border px-3 py-2 text-sm">{Web.I18n.t(
               "auth.connect",
               @locale,

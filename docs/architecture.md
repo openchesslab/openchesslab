@@ -154,6 +154,14 @@ revocation commit together. Existing provider ownership produces a conflict, nev
 transfer or merge. Ordinary login resolves its own provider identity without linking.
 Callbacks redirect to `/`; link conflicts surface as a flash on the home page.
 
+Returning to a room (2026-10-14): the room shell's login, link and logout forms carry a
+hidden `return_to` room path. Login and link store it in the encrypted, browser-bound
+OAuth attempt context (`Web.ReturnTo.sanitize/1` accepts only internal single-segment
+`/rooms/<code>` paths — anything else falls back to home, so a crafted value can never
+become an open redirect); the callback redirects there on success and on link conflicts,
+and callback parameters can never override the stored path. Logout sanitizes the same
+form field. Home and the private editor (an authenticated route) return to home.
+
 Linked accounts are a shell modal over the home and room LiveViews
 (`Web.ShellPanels` + `Web.Layouts` templates), opened from the header account menu;
 there are no `/library` and `/account` pages. **My library** has two surfaces with

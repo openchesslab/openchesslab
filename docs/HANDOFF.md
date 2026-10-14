@@ -34,6 +34,23 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, door agent gecommit en gepusht:** `Return to the room after login, link or logout`,
+  gestart op schone `3f06461` (gebruikersbevinding 2026-10-14: inloggen/uitloggen in een room
+  stuurde naar home; terugkeren naar de room gewenst, zoals het oude blunderfest-project via de
+  OAuth-state deed). Nieuwe `Web.ReturnTo.sanitize/1`: alléén interne `/rooms/<code>`-paden
+  (geen query/slash, ≤64 bytes) — een gesmede waarde kan nooit een open redirect worden
+  (ergste geval de room-"niet gevonden"-melding); anders `nil`→home. De login/link-formulieren
+  (header + account-modal) en logout-formulier in de roomshell dragen een verborgen
+  `return_to`; de OAuth-attemptcontext bewaart het serverside (versleuteld, browsergebonden —
+  callbackparameters kunnen het niet overschrijven; oude pogingen missen de key → home).
+  Callback: succes én link-conflict keren terug naar de room; overige falers → home (context
+  niet beschikbaar). Logout leest het veld met dezelfde sanitatie. Editor-logout blijft → home
+  (auth-vereiste route). `with`→`case`-herstructurering omdat else-bindings geen clausulevars
+  zien. Web-only; geen migratie/i18n. Nieuwe auth_return_to_test **6/6** (terugkeer bij
+  login/link/logout; formulier alleen in room; gesmede interne/externe/lijst-waarden → home;
+  callback-override onmogelijk). Volledig web **219 geslaagd** (seed 511632); formatter,
+  compile --warnings-as-errors en diffcontrole geslaagd.
+
 - **Afgerond, door agent gecommit en gepusht:** `Add header and account-menu icons with provider marks`,
   gestart op schone `8575360` (gebruikersidee 2026-10-14). Header: **Help** is nu een icon-only `?`-knop en
   **Account** een icon-only persoon-icoon (geen namen/initialen: privacy-model; aria-label+title blijven

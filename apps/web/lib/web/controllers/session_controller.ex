@@ -4,12 +4,14 @@ defmodule Web.SessionController do
   use Web, :controller
 
   alias Analysis.UserSessions
+  alias Web.ReturnTo
 
   @secure_cookie Application.compile_env!(:web, :secure_session_cookie)
 
-  def delete(conn, _params) do
+  def delete(conn, params) do
     # Only the protected browser session supplies the credential. Request
     # parameters cannot select another user's session or trigger revoke_all.
+    # A room-supplied return_to only ever returns to that room page.
     token = get_session(conn, :user_token)
     :ok = UserSessions.revoke(token)
     :ok = Web.UserAuth.disconnect_session(token)
@@ -38,6 +40,6 @@ defmodule Web.SessionController do
       same_site: "Lax"
     )
     |> put_resp_header("referrer-policy", "no-referrer")
-    |> redirect(to: ~p"/")
+    |> redirect(to: ReturnTo.sanitize(params["return_to"]) || ~p"/")
   end
 end
