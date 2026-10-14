@@ -1275,9 +1275,209 @@ const AppUI = {
   },
 };
 
+// Runs the vendored Stockfish 19 WASM worker (single-threaded lite build, no
+// COOP/COEP needed) against the position advertised via data attributes, and
+// pushes throttled UCI info back to the LiveView. The worker only ever sees
+// the FEN of the position on the board.
+const EngineAnalysis = {
+  mounted() {
+    this.worker = null;
+    this.ready = false;
+    this.searching = false;
+    this.searchKey = null;
+    this.pendingGo = null;
+    this.lines = new Map();
+    this.best = null;
+    this.flushTimer = null;
+    this.fen = "";
+    this.sync();
+  },
+
+  updated() {
+    this.sync();
+  },
+
+  destroyed() {
+    this.stopWorker();
+  },
+
+  sync() {
+    const on = this.el.dataset.engineOn === "true";
+    const fen = this.el.dataset.fen || "";
+    const depth = parseInt(this.el.dataset.depth || "20", 10);
+    const multipv = parseInt(this.el.dataset.multipv || "3", 10);
+
+    if (!on || !fen) {
+      this.searchKey = null;
+      this.stopSearch();
+      return;
+    }
+
+    const key = [fen, depth, multipv].join("|");
+    if (key === this.searchKey) return;
+    this.searchKey = key;
+    this.startSearch({ fen, depth, multipv });
+  },
+
+  ensureWorker() {
+    if (this.worker) return true;
+
+    try {
+      this.worker = new Worker("/engine/stockfish.js");
+    } catch (_) {
+      this.fail();
+      return false;
+    }
+
+    this.ready = false;
+    this.worker.onerror = () => this.fail();
+    this.worker.onmessage = (event) => this.handleLine(String(event.data));
+    this.worker.postMessage("uci");
+    return true;
+  },
+
+  handleLine(line) {
+    if (line === "uciok") {
+      this.worker.postMessage("isready");
+      return;
+    }
+
+    if (line === "readyok") {
+      this.ready = true;
+      if (this.pendingGo) {
+        const go = this.pendingGo;
+        this.pendingGo = null;
+        this.sendSearch(go);
+      }
+      return;
+    }
+
+    if (line.startsWith("info ")) {
+      this.trackInfo(line);
+      return;
+    }
+
+    if (line.startsWith("bestmove")) this.flush(true);
+  },
+
+  startSearch(search) {
+    if (!this.ensureWorker()) return;
+    this.stopSearch();
+
+    if (this.ready) {
+      this.sendSearch(search);
+    } else {
+      this.pendingGo = search;
+    }
+  },
+
+  sendSearch({ fen, depth, multipv }) {
+    this.worker.postMessage(`setoption name MultiPV value ${multipv}`);
+    this.worker.postMessage(`position fen ${fen}`);
+    this.worker.postMessage(`go depth ${depth}`);
+    this.searching = true;
+    this.fen = fen;
+  },
+
+  // Aborts the current search and clears buffered lines, but deliberately
+  // keeps `searchKey`: it belongs to sync() and guards against restarts on
+  // unrelated LiveView re-renders.
+  stopSearch() {
+    if (this.worker && this.searching) this.worker.postMessage("stop");
+    this.searching = false;
+    this.lines = new Map();
+    this.best = null;
+
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = null;
+    }
+  },
+
+  trackInfo(line) {
+    // info depth 14 seldepth 19 multipv 1 score cp 28 nodes 61234 nps 400000 time 153 pv e2e4 e7e5
+    const match = line.match(
+      /^info depth (\d+)(?:\s+\S+)*? multipv (\d+) score (cp|mate) (-?\d+)(?:\s+\S+)*? nodes (\d+)(?:\s+\S+)*? nps (\d+)(?:\s+\S+)*? pv (.*)$/,
+    );
+    if (!match) return;
+
+    const [, depthS, multipvS, kind, valueS, nodesS, npsS, pv] = match;
+    const depth = parseInt(depthS, 10);
+    const multipv = parseInt(multipvS, 10);
+    const previous = this.lines.get(multipv);
+    if (previous && previous.depth > depth) return;
+
+    this.lines.set(multipv, {
+      multipv,
+      depth,
+      scoreKind: kind,
+      score: parseInt(valueS, 10),
+      pv: pv.trim(),
+    });
+
+    if (!this.best || depth >= this.best.depth) {
+      this.best = { depth, nodes: parseInt(nodesS, 10), nps: parseInt(npsS, 10) };
+    }
+
+    this.flush(false);
+  },
+
+  flush(final) {
+    if (this.flushTimer) return;
+
+    this.flushTimer = setTimeout(
+      () => {
+        this.flushTimer = null;
+        if (!this.lines.size) return;
+
+        const lines = [...this.lines.values()]
+          .sort((a, b) => a.multipv - b.multipv)
+          .map((line) => ({
+            multipv: line.multipv,
+            ...(line.scoreKind === "mate"
+              ? { score_mate: line.score }
+              : { score_cp: line.score }),
+            pv: line.pv,
+          }));
+
+        this.pushEvent("engine-update", {
+          fen: this.fen,
+          depth: this.best?.depth || 0,
+          nodes: this.best?.nodes || 0,
+          nps: this.best?.nps || 0,
+          lines,
+        });
+      },
+      final ? 0 : 250,
+    );
+  },
+
+  fail() {
+    this.stopWorker();
+    this.pushEvent("engine-error", {});
+  },
+
+  stopWorker() {
+    if (this.worker) {
+      try {
+        this.worker.terminate();
+      } catch (_) {
+        /* already gone */
+      }
+    }
+
+    this.worker = null;
+    this.ready = false;
+    this.searching = false;
+    this.searchKey = null;
+    this.lines = new Map();
+    this.best = null;
+  },
+};
+
 const csrfToken = document.querySelector("meta[name='csrf-token']")?.content;
 const liveSocket = new LiveSocket("/live", Socket, {
-  hooks: { AppUI, Board, EvalBar, MoveList, PaletteDrag, RoomTabs, ScrollLog },
+  hooks: { AppUI, Board, EngineAnalysis, EvalBar, MoveList, PaletteDrag, RoomTabs, ScrollLog },
   params: { _csrf_token: csrfToken },
 });
 

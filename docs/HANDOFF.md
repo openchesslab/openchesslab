@@ -34,6 +34,24 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, wacht op commit/push (deploy toegestaan door gebruiker):**
+  `Add client-side Stockfish analysis with an evaluation bar`, gestart op schone `bff7e93`.
+  Echte engine vervangt het demopaneel: Stockfish 19 lite-single (WASM, 1,8 MB, GPLv3 + licentie
+  meegeleverd) onder `priv/static/engine/`, geserveerd via nieuwe static path `engine`.
+  `EngineAnalysis`-hook: worker-lifecycle, UCI-handshake, MultiPV/depth opties, throttled
+  `engine-update` (~250 ms). RoomLive: `Chess.Notation.UCI` (nieuw, chess-app) zet UCI-PV's om naar
+  SAN via legal-move-matching; scores worden wit-relatief genormaliseerd (UCI is side-to-move);
+  stale fens en uitgeschakelde engine worden genegeerd; worker-fouten tonen een eerlijke
+  fouttoestand. Instellingen: depth 1–40 + multipv 1–10, sessie-only; movetime-knop verwijderd
+  (was dode UI), provider-select is nu een eerlijk statisch label. Evaluatiebalk links van het
+  bord toont live scores (mate als #n). DemoData.engine_preview verwijderd. Twee bugfixes onderweg:
+  HEEx boolean-attr (`to_string` voor data-engine-on) en searchKey-reset die zoekopdrachten
+  herstartte bij elke push. Bijkomende fix: twee Jason-tests verhuisden van chess naar analysis
+  (defimpl woonde al in analysis; chess is bewust dep-vrij). Gericht: chess 583, web room_live 44;
+  volledig serieel: chess **583**, analysis **619**, web **230**; formatter, --warnings-as-errors,
+  assetbuild, diffcontrole geslaagd. Browsertest: echte eval (+0,37), balk zichtbaar, settings
+  bereiken de worker (MultiPV 2, depth 14), zet herstart zoekopdracht (exact 1 nieuwe `go`).
+
 - **Afgerond, gecommit, gepusht en gedeployed (gebruiker stond deploy toe, 2026-10-15):**
   `Warn when live-sharing a library analysis into a room` (`d1210cf` op main, bovenop `949adf7`).
   Deploy geverifieerd: /health + /ready 200, beide Fly-servicechecks passing; de boot-time
@@ -376,8 +394,9 @@ Dit is een overzicht, geen vastgelegde uitvoeringsvolgorde:
   beleid voor verweesde analyses en bibliotheekverwijdering; accountverwijdering is geïmplementeerd,
   orphancleanup van losgemaakte persoonlijke kopieën volgt later.
 - **Lichess-data:** eigen partijen/studies importeren; later synchronisatie, herkomst, retries en minimale toestemmingen.
-- **Echte engine en partijreview:** providerkeuze (browser/server), evaluaties/varianten; daarna partijanalyse,
-  fouten/momenten en evaluatiegrafieken. Huidige enginepaneel is nog geen echte engine.
+- **Echte engine en partijreview:** client-side Stockfish 19 (WASM) met evaluatiebalk en
+  MultiPV-lijnen is geïmplementeerd (2026-10-15). Vervolg: partijreview (fouten/momenten),
+  evaluatiegrafiek, rijkere engine-inzichten; eventueel multi-threaded (COOP/COEP) of server-engine.
 - **Zoeken:** echte corpuszoekresultaten aan UI koppelen; later geïndexeerd zoeken op schaakkenmerken,
   structuren/plannen en gelijkenis op grote schaal.
 - **Samenwerkingsrechten/accounts:** rollen, delen/eigenaarschap; private rooms met expliciete

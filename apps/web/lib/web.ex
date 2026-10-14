@@ -18,7 +18,7 @@ defmodule Web do
 
   # Static paths served by Phoenix. The LiveView hook bundle and
   # Tailwind output are built into `priv/static/assets`.
-  def static_paths, do: ~w(assets brand fonts images favicon.ico robots.txt)
+  def static_paths, do: ~w(assets brand engine fonts images favicon.ico robots.txt)
 
   def router do
     quote do

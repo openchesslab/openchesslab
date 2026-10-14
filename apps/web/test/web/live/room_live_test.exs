@@ -699,18 +699,106 @@ defmodule Web.RoomLiveTest do
     assert html =~ "0/2"
   end
 
-  test "engine preview output is visibly labelled as demo data", %{conn: conn, code: code} do
+  test "toggling the engine starts a local analysis that fills the panel and bar", %{
+    conn: conn,
+    code: code
+  } do
     {:ok, view, _html} = live(conn, "/rooms/#{code}")
     render_click(view, "create-analysis", %{})
 
+    # Turning the engine on clears the panel until the local worker reports.
     html = render_click(view, "toggle-engine", %{})
 
-    assert html =~ "DEMO"
-    assert html =~ "Illustrative fixture only"
-    assert html =~ "+0.24"
-    assert html =~ "data-eval-bar"
     assert html =~ "role=\"switch\""
     assert html =~ "aria-checked=\"true\""
+    assert html =~ "data-engine-on=\"true\""
+    assert html =~ "Starting the local engine"
+    refute html =~ "data-eval-bar"
+
+    # Throttled UCI info from the worker fills the stats, lines and eval bar.
+    html =
+      render_click(view, "engine-update", %{
+        "fen" => "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "depth" => 18,
+        "nodes" => 612_345,
+        "nps" => 450_000,
+        "lines" => [
+          %{"multipv" => 1, "score_cp" => 34, "pv" => "e2e4 e7e5 g1f3"},
+          %{"multipv" => 2, "score_cp" => 10, "pv" => "d2d4 d7d5"}
+        ]
+      })
+
+    assert html =~ "+0.34"
+    assert html =~ "+0.10"
+    assert html =~ "612345"
+    assert html =~ "450000"
+    assert html =~ "e4 e5 Nf3"
+    assert html =~ "d4 d5"
+    assert html =~ "data-eval-bar"
+
+    # Stale results for another position are dropped; the panel keeps the
+    # current evaluation instead of regressing.
+    html =
+      render_click(view, "engine-update", %{
+        "fen" => "8/8/8/8/8/8/8/K6k w - - 0 1",
+        "depth" => 30,
+        "nodes" => 1,
+        "nps" => 1,
+        "lines" => [%{"multipv" => 1, "score_cp" => -900, "pv" => "a1a2"}]
+      })
+
+    assert html =~ "+0.34"
+    refute html =~ "-9.00"
+  end
+
+  test "engine scores are white-relative, also when Black is to move", %{conn: conn, code: code} do
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    render_click(view, "create-analysis", %{})
+
+    view |> element("#chess-board-square-e2") |> render_click()
+    view |> element("#chess-board-square-e4") |> render_click()
+    render_click(view, "toggle-engine", %{})
+
+    # UCI reports from the side to move: +34 with Black to move means Black is
+    # slightly better, so the white-relative panel shows a small minus.
+    html =
+      render_click(view, "engine-update", %{
+        "fen" => "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+        "depth" => 12,
+        "nodes" => 10_000,
+        "nps" => 100_000,
+        "lines" => [
+          %{"multipv" => 1, "score_cp" => 34, "pv" => "e7e5"},
+          %{"multipv" => 2, "score_mate" => -3, "pv" => "d7d5"}
+        ]
+      })
+
+    assert html =~ "-0.34"
+    assert html =~ "#3"
+  end
+
+  test "engine errors surface honestly and switch the engine off", %{conn: conn, code: code} do
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    render_click(view, "create-analysis", %{})
+
+    # Updates for a switched-off engine never fill the panel.
+    html =
+      render_click(view, "engine-update", %{
+        "fen" => "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "depth" => 18,
+        "nodes" => 1,
+        "nps" => 1,
+        "lines" => [%{"multipv" => 1, "score_cp" => 34, "pv" => "e2e4"}]
+      })
+
+    refute html =~ "+0.34"
+    refute html =~ "data-eval-bar"
+
+    render_click(view, "toggle-engine", %{})
+    html = render_click(view, "engine-error", %{})
+
+    assert html =~ "The local engine could not start"
+    assert html =~ "aria-checked=\"false\""
   end
 
   test "selected analysis, strip tab, and toolbar icons use the cyan SVG treatment", %{
@@ -740,19 +828,17 @@ defmodule Web.RoomLiveTest do
     assert html =~ "role=\"switch\""
     assert html =~ "aria-checked=\"false\""
     assert html =~ "id=\"engine-provider\""
-    assert html =~ "Demo fixture"
-    assert html =~ "settings stay in this session"
+    assert html =~ "Stockfish 19 (local)"
+    assert html =~ "stay in this session"
     assert html =~ "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
     html =
       render_change(view, "update-engine-settings", %{
         "depth" => "41",
-        "movetime_ms" => "500",
         "multipv" => "2"
       })
 
     assert html =~ ~r/name="depth"[^>]*value="40"/
-    assert html =~ ~r/name="movetime_ms"[^>]*value="500"/
     assert html =~ ~r/name="multipv"[^>]*value="2"/
 
     html = render_click(view, "toggle-engine", %{})

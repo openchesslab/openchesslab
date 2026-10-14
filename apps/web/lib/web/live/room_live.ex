@@ -12,6 +12,7 @@ defmodule Web.RoomLive do
   alias Analysis.RoomEvents
   alias Analysis.Rooms
   alias Analysis.UserLibrary
+  alias Chess.Notation.UCI
   alias Chess.Position
   alias Chess.PositionDraft
   alias Web.AnalysisView
@@ -129,8 +130,9 @@ defmodule Web.RoomLive do
       provider: nil,
       engine_on: false,
       engine_preview: nil,
+      engine_error: nil,
       engine_settings_open: false,
-      engine_settings: %{depth: 20, movetime_ms: 5000, multipv: 3}
+      engine_settings: %{depth: 20, multipv: 3}
     }
 
     case Rooms.get(code) do
@@ -975,15 +977,11 @@ defmodule Web.RoomLive do
   def handle_event("toggle-engine", _params, socket) do
     on? = not socket.assigns.engine_on
 
-    preview =
-      if on? and socket.assigns.position,
-        do: DemoData.engine_preview(socket.assigns.position),
-        else: nil
-
     {:noreply,
      assign(socket,
        engine_on: on?,
-       engine_preview: preview,
+       engine_preview: nil,
+       engine_error: nil,
        engine_settings_open: false
      )}
   end
@@ -996,8 +994,7 @@ defmodule Web.RoomLive do
 
   def handle_event("update-engine-settings", params, socket) do
     settings =
-      Enum.reduce(["depth", "movetime_ms", "multipv"], socket.assigns.engine_settings, fn key,
-                                                                                          acc ->
+      Enum.reduce(["depth", "multipv"], socket.assigns.engine_settings, fn key, acc ->
         case Integer.parse(params[key] || "") do
           {value, ""} when value > 0 ->
             {minimum, maximum} = engine_setting_bounds(key)
@@ -1014,6 +1011,30 @@ defmodule Web.RoomLive do
       end)
 
     {:noreply, assign(socket, :engine_settings, settings)}
+  end
+
+  # The local engine worker reports throttled UCI info lines. Stale results
+  # (an older position or a switched-off engine) are dropped, and the engine
+  # only ever sees the FEN of the position on the board.
+  def handle_event("engine-update", params, %{assigns: %{engine_on: true}} = socket) do
+    with %{"fen" => fen, "lines" => [_ | _] = lines} <- params,
+         true <- fen == current_fen(socket),
+         {:ok, preview} <- engine_preview(lines, params, socket.assigns.position) do
+      {:noreply, assign(socket, engine_preview: preview, engine_error: nil)}
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("engine-update", _params, socket), do: {:noreply, socket}
+
+  def handle_event("engine-error", _params, socket) do
+    {:noreply,
+     assign(socket,
+       engine_on: false,
+       engine_preview: nil,
+       engine_error: "room.engineError"
+     )}
   end
 
   def handle_event("search-games", params, socket) do
@@ -2522,8 +2543,10 @@ defmodule Web.RoomLive do
   defp shape_color(_color), do: "#3b6fe0"
 
   defp engine_setting_bounds("depth"), do: {1, 40}
-  defp engine_setting_bounds("movetime_ms"), do: {100, 100_000}
   defp engine_setting_bounds("multipv"), do: {1, 10}
+
+  defp eval_white_share(%{mate_in: mate}) when is_integer(mate) and mate > 0, do: 100.0
+  defp eval_white_share(%{mate_in: mate}) when is_integer(mate) and mate < 0, do: 0.0
 
   defp eval_white_share(%{eval_cp: cp}) when is_number(cp) do
     cp = max(-1000, min(1000, cp))
@@ -2532,12 +2555,94 @@ defmodule Web.RoomLive do
 
   defp eval_white_share(_preview), do: 50.0
 
+  defp eval_label(%{mate_in: mate}) when is_integer(mate) and mate > 0,
+    do: "#" <> to_string(mate)
+
+  defp eval_label(%{mate_in: mate}) when is_integer(mate) and mate < 0,
+    do: "#-" <> to_string(abs(mate))
+
   defp eval_label(%{eval_cp: cp}) when is_number(cp) do
     score = :erlang.float_to_binary(abs(cp) / 100, decimals: 2)
     if cp >= 0, do: "+" <> score, else: "-" <> score
   end
 
   defp eval_label(_preview), do: "—"
+
+  # Builds the engine panel state from throttled UCI info pushed by the local
+  # worker. UCI scores are relative to the side to move; the panel and the
+  # evaluation bar are white-relative, so scores flip when Black is to move.
+  defp engine_preview(lines, params, position) do
+    flip = if position.side_to_move == :black, do: -1, else: 1
+
+    pv =
+      lines
+      |> Enum.sort_by(fn line -> engine_int(line["multipv"]) end)
+      |> Enum.map(fn line ->
+        case UCI.pv_to_san(position, line["pv"] || "") do
+          [] -> nil
+          sans -> %{score: score_label(line, flip), san: Enum.join(sans, " ")}
+        end
+      end)
+      |> Enum.reject(&is_nil/1)
+
+    case pv do
+      [] ->
+        :error
+
+      _ ->
+        {eval_cp, mate_in} = white_relative_score(List.first(lines), flip)
+
+        {:ok,
+         %{
+           eval_cp: eval_cp,
+           mate_in: mate_in,
+           depth: engine_int(params["depth"]),
+           nodes: engine_int(params["nodes"]),
+           nps: engine_int(params["nps"]),
+           pv: pv
+         }}
+    end
+  end
+
+  defp white_relative_score(line, flip) do
+    cond do
+      mate = line["score_mate"] -> {nil, engine_int(mate) * flip}
+      cp = line["score_cp"] -> {engine_int(cp) * flip, nil}
+      true -> {nil, nil}
+    end
+  end
+
+  defp score_label(line, flip) do
+    cond do
+      mate = line["score_mate"] ->
+        n = engine_int(mate) * flip
+        if n > 0, do: "#" <> to_string(n), else: "#-" <> to_string(abs(n))
+
+      cp = line["score_cp"] ->
+        cp = engine_int(cp) * flip
+        score = :erlang.float_to_binary(abs(cp) / 100, decimals: 2)
+        if cp >= 0, do: "+" <> score, else: "-" <> score
+
+      true ->
+        "—"
+    end
+  end
+
+  defp engine_int(value) when is_integer(value), do: value
+
+  defp engine_int(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {number, _} -> number
+      _ -> 0
+    end
+  end
+
+  defp engine_int(_value), do: 0
+
+  defp current_fen(%{assigns: %{position: %Chess.Position{} = position}}),
+    do: to_fen(position)
+
+  defp current_fen(_socket), do: nil
 
   defp eval_label_position(preview, "black"), do: eval_white_share(preview)
   defp eval_label_position(preview, _orientation), do: 100 - eval_white_share(preview)

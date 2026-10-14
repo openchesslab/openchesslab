@@ -6,9 +6,6 @@ defmodule Web.DemoData do
   represented as real engine/search results.
   """
 
-  alias Chess.Notation.SAN
-  alias Chess.Position
-
   @sample_pgn """
   [Event "OpenChessLab sample"]
   [Site "Local demo"]
@@ -95,26 +92,4 @@ defmodule Web.DemoData do
 
   @doc "Returns a fixture by id; callers still replay it through the chess rules."
   def game(id), do: Enum.find(@fixtures, &(&1.id == id))
-
-  @doc "Creates illustrative, non-engine output for the demo panel."
-  def engine_preview(%Position{} = position) do
-    lines =
-      position
-      |> Position.legal_moves()
-      |> Enum.take(3)
-      |> Enum.map(fn move ->
-        case SAN.format(position, move) do
-          {:ok, san} -> san <> " …"
-          _ -> "—"
-        end
-      end)
-
-    %{
-      eval_cp: 24,
-      depth: 12,
-      nodes: 18_240,
-      nps: 61_000,
-      pv: lines
-    }
-  end
 end
