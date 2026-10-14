@@ -12,14 +12,27 @@ defmodule Analysis.Rooms do
   @type option ::
           {:registry, atom()}
           | {:supervisor, atom()}
+          | {:owner, Room.owner_user_id()}
 
   @type options :: [option()]
 
-  @doc "Create a new room; unlike `start_room/2`, never reuse an existing code."
+  @doc """
+  Create a new room; unlike `start_room/2`, never reuse an existing code.
+
+  With `owner:` the room is private: the room code alone never grants entry,
+  and the owner becomes its first member. The caller authenticates the owner
+  user first; this is not an authorization boundary.
+  """
   @spec create_room(Room.id(), options()) ::
-          {:ok, Room.t()} | {:error, :already_exists | :not_found}
+          {:ok, Room.t()} | {:error, :already_exists | :not_found | :invalid_owner}
   def create_room(room_id, opts \\ []) do
-    case RoomStore.create(room_id) do
+    created =
+      case Keyword.get(opts, :owner) do
+        nil -> RoomStore.create(room_id)
+        owner_user_id -> RoomStore.create_private(room_id, owner_user_id)
+      end
+
+    case created do
       :ok ->
         case lookup(registry(opts), room_id, opts) do
           {:ok, pid} -> {:ok, RoomServer.get(pid)}
@@ -28,7 +41,50 @@ defmodule Analysis.Rooms do
 
       {:error, :already_exists} = error ->
         error
+
+      {:error, :invalid_owner} = error ->
+        error
     end
+  end
+
+  @doc "Membership check for private-room gating; owners are members at creation."
+  @spec member?(Room.id(), String.t() | nil) :: boolean()
+  def member?(room_id, user_id) do
+    RoomStore.member?(room_id, user_id)
+  end
+
+  @doc "Admit a user through a raw invite token; returns the token only once elsewhere."
+  @spec consume_invite(Room.id(), String.t(), String.t()) ::
+          {:ok, :joined} | {:error, :invalid_invite}
+  def consume_invite(room_id, user_id, token) when is_binary(token) do
+    RoomStore.consume_invite(room_id, user_id, :crypto.hash(:sha256, token))
+  end
+
+  def consume_invite(_, _, _), do: {:error, :invalid_invite}
+
+  @doc """
+  Generate a fresh multi-use invite link for the room, rotating any older one.
+
+  Only the owner may call this (checked by the caller against the room's
+  owner); the raw token is returned once and only its SHA-256 hash is stored.
+  """
+  @spec create_invite(Room.id()) :: {:ok, String.t()}
+  def create_invite(room_id) do
+    token = Base.url_encode64(:crypto.strong_rand_bytes(32), padding: false)
+    :ok = RoomStore.create_invite(room_id, :crypto.hash(:sha256, token))
+    {:ok, token}
+  end
+
+  @doc "Revoke every active invite link; the owner-only cutoff is checked by the caller."
+  @spec revoke_invites(Room.id()) :: non_neg_integer()
+  def revoke_invites(room_id) do
+    RoomStore.revoke_invites(room_id)
+  end
+
+  @doc "Does the room have an active (non-revoked) invite link?"
+  @spec invite_active?(Room.id()) :: boolean()
+  def invite_active?(room_id) do
+    RoomStore.invite_active?(room_id)
   end
 
   @spec start_room(

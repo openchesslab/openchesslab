@@ -3,19 +3,25 @@ defmodule Analysis.Room do
 
   @type id :: term()
   @type analysis_id :: Analysis.Analysis.id()
+  @type owner_user_id :: String.t() | nil
 
   @type t :: %__MODULE__{
           id: id(),
-          analysis_ids: [analysis_id()]
+          analysis_ids: [analysis_id()],
+          owner_user_id: String.t() | nil
         }
 
   @enforce_keys [:id]
-  defstruct id: nil, analysis_ids: []
+  defstruct id: nil, analysis_ids: [], owner_user_id: nil
 
   @spec new(id()) :: t()
   def new(id) do
     %__MODULE__{id: id}
   end
+
+  @doc "The owning user of a private room; nil for public bearer-code rooms."
+  @spec owner(t()) :: String.t() | nil
+  def owner(%__MODULE__{owner_user_id: owner_user_id}), do: owner_user_id
 
   @spec id(t()) :: id()
   def id(%__MODULE__{id: id}) do

@@ -121,6 +121,30 @@ The catalogue covers exact state, material, pawns, placement, mobility, center, 
 
 **Implemented after `a6636d3`:** `Web.DisplayName.generate/0` supplies room participant labels such as `Brave Otter 42`, using curated English adjectives/animals and numbers 10–99. Presence, chat authors and annotation authors use the same server-assigned label during that LiveView lifetime. Names are generated afresh on mount and are not stored in the identity schema or derived from provider profiles. They need not be globally unique: the separate random participant ID identifies presence/chat participants. Room participation remains anonymous, including when a browser holds a login session.
 
+### Private rooms, owners and invite links — 2026-10-14
+
+Public rooms keep bearer-code semantics: knowing the code is entry. A private room
+(`rooms.owner_user_id`, created through the signed-in "Private room" toggle) never treats
+the code as access: `Web.RoomLive` renders only a gate card for non-members, without
+subscribing to room events, joining presence, streaming chat or loading analyses — nothing
+about the room leaks to guests or non-members. Owners become the first row of
+`room_members` at creation; joining requires an invite link.
+
+Invite links (user decision, 2026-10-14) are multi-use and revocable: `GET /rooms/:code/join/:token`
+(`Web.RoomInviteController`) admits the signed-in opener as a member; guests are pointed at the
+gate with a login hint and reopen the link after logging in. Only the SHA-256 hash of the token
+is durable (`room_invites`, at most one active link per room); the raw token is shown to the owner
+once, generating a new link rotates (revokes) the old one, and revocation stops new joins immediately
+while existing members keep access. The invite row is locked `FOR UPDATE` before the membership
+insert, so a concurrent revoke cannot admit anyone after cutoff. Owners manage links through the
+owner-only Invite control (replacing Copy code in private rooms); forged invite events from
+non-owners change nothing.
+
+Membership is user-based: private rooms require login for everyone including joiners. Account
+deletion cascades ownership and memberships (`on_delete: :delete_all`). Room retention is
+unchanged: private rooms are equally temporary, and pruning criteria still consider only
+analysis membership. Member listing and individual member removal remain future work.
+
 ### Room retention — implemented **current rule**
 
 - `rooms.created_at` is required; `Analysis.RoomInventory.summary/1` / `old_empty_rooms/2` provide counts/candidates.

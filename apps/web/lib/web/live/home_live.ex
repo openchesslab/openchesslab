@@ -35,8 +35,18 @@ defmodule Web.HomeLive do
   end
 
   @impl true
-  def handle_event("create-room", _params, socket) do
-    case create_room() do
+  def handle_event("create-room", params, socket) do
+    # A private room needs an authenticated owner; the toggle is only
+    # rendered for signed-in users, so an unchecked box stays public.
+    owner =
+      with "true" <- params["private"],
+           %{id: user_id} <- socket.assigns.current_user do
+        user_id
+      else
+        _ -> nil
+      end
+
+    case create_room(owner) do
       {:ok, code} ->
         {:noreply, push_navigate(socket, to: ~p"/rooms/#{code}")}
 
@@ -109,20 +119,21 @@ defmodule Web.HomeLive do
 
   def handle_event(_event, _params, socket), do: {:noreply, socket}
 
-  defp create_room do
-    create_room(@room_create_attempts)
+  defp create_room(owner) do
+    create_room(@room_create_attempts, owner)
   rescue
     error -> {:error, error}
   end
 
-  defp create_room(0), do: {:error, :room_code_collisions}
+  defp create_room(0, _owner), do: {:error, :room_code_collisions}
 
-  defp create_room(attempts) do
+  defp create_room(attempts, owner) do
     code = new_room_code()
+    opts = if owner, do: [owner: owner], else: []
 
-    case Rooms.create_room(code) do
+    case Rooms.create_room(code, opts) do
       {:ok, _room} -> {:ok, code}
-      {:error, :already_exists} -> create_room(attempts - 1)
+      {:error, :already_exists} -> create_room(attempts - 1, owner)
       {:error, _reason} = error -> error
     end
   end

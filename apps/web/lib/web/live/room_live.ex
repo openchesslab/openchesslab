@@ -55,6 +55,10 @@ defmodule Web.RoomLive do
       account_error: nil,
       account_delete_armed: false,
       tracked_ids: [],
+      private_gate: nil,
+      invite_active: false,
+      invite_token: nil,
+      invite_url: nil,
       room: nil,
       analyses: [],
       selected_analysis_id: nil,
@@ -128,28 +132,55 @@ defmodule Web.RoomLive do
 
     case Rooms.get(code) do
       {:ok, room} ->
-        chat_messages = room_chat(code)
+        if private_gate?(room, code, socket) do
+          # A private room never reveals content to non-members: no presence,
+          # no chat, no analyses, no subscription — only the gate card.
+          {:ok, gate_socket(socket, base_assigns, code)}
+        else
+          chat_messages = room_chat(code)
 
-        socket =
-          socket
-          |> assign(base_assigns)
-          |> assign(room: room, analyses: AnalysisView.room_analyses(room, locale))
-          |> assign_tracked()
-          |> assign(chat_messages: chat_messages)
-          |> stream(:chat_messages, chat_messages)
-          |> allow_upload(:pgn,
-            accept: ~w(.pgn .txt),
-            max_entries: 1,
-            max_file_size: 100_000,
-            auto_upload: true
-          )
+          socket =
+            socket
+            |> assign(base_assigns)
+            |> assign(room: room, analyses: AnalysisView.room_analyses(room, locale))
+            |> assign_tracked()
+            |> assign(chat_messages: chat_messages)
+            |> stream(:chat_messages, chat_messages)
+            |> allow_upload(:pgn,
+              accept: ~w(.pgn .txt),
+              max_entries: 1,
+              max_file_size: 100_000,
+              auto_upload: true
+            )
 
-        {:ok, subscribe_room(socket)}
+          {:ok, subscribe_room(socket)}
+        end
 
       :not_found ->
         {:ok,
          assign(socket, Map.put(base_assigns, :error, Web.I18n.t("home.joinNotFound", locale)))}
     end
+  end
+
+  # The room code alone never grants entry to a private room; only the owner
+  # and rows in room_members pass. Guests are never members.
+  defp private_gate?(%{owner_user_id: nil}, _code, _socket), do: false
+
+  defp private_gate?(%{owner_user_id: owner_user_id}, code, socket)
+       when is_binary(owner_user_id) do
+    user_id = socket.assigns.current_user && socket.assigns.current_user.id
+    not Rooms.member?(code, user_id)
+  end
+
+  defp gate_socket(socket, base_assigns, code) do
+    assign(
+      socket,
+      Map.merge(base_assigns, %{
+        room: nil,
+        room_code: nil,
+        private_gate: code
+      })
+    )
   end
 
   @impl true
@@ -256,6 +287,74 @@ defmodule Web.RoomLive do
 
   def handle_event("unlink-provider", %{"provider" => provider}, socket),
     do: Web.ShellPanels.unlink_provider(socket, provider)
+
+  # Only the room's owner may see, rotate or revoke the invite link; the
+  # credential is refreshed before each event, and non-owners get no change.
+  def handle_event("open-invite", _params, %{assigns: %{current_user: nil}} = socket),
+    do: {:noreply, socket}
+
+  def handle_event("open-invite", _params, socket) do
+    if room_owner?(socket) do
+      code = socket.assigns.room_code
+
+      {:noreply,
+       assign(socket,
+         ui_modal: "invite",
+         invite_active: Rooms.invite_active?(code),
+         invite_token: nil,
+         invite_url: nil
+       )}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("generate-invite", _params, %{assigns: %{current_user: nil}} = socket),
+    do: {:noreply, socket}
+
+  def handle_event("generate-invite", _params, socket) do
+    if room_owner?(socket) do
+      # Rotation: creating a link invalidates every earlier one.
+      {:ok, token} = Rooms.create_invite(socket.assigns.room_code)
+
+      {:noreply,
+       assign(socket,
+         invite_token: token,
+         invite_url: invite_url(socket, token),
+         invite_active: true
+       )}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("revoke-invite", _params, %{assigns: %{current_user: nil}} = socket),
+    do: {:noreply, socket}
+
+  def handle_event("revoke-invite", _params, socket) do
+    if room_owner?(socket) do
+      _ = Rooms.revoke_invites(socket.assigns.room_code)
+
+      {:noreply,
+       socket
+       |> assign(invite_active: false, invite_token: nil, invite_url: nil)
+       |> notify(Web.I18n.t("room.inviteRevoked", socket.assigns.locale))}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("copy-invite-link", _params, socket) do
+    if url = socket.assigns.invite_url do
+      {:noreply,
+       push_event(socket, "copy-text", %{
+         text: url,
+         notice: Web.I18n.t("common.copied", socket.assigns.locale)
+       })}
+    else
+      {:noreply, socket}
+    end
+  end
 
   def handle_event("close-promotion", _params, socket),
     do: {:noreply, assign(socket, :pending_promotion, nil)}
@@ -1305,6 +1404,19 @@ defmodule Web.RoomLive do
 
   defp analysis_in_room?(socket, id),
     do: Enum.any?(socket.assigns.analyses, &(&1.id == id))
+
+  defp room_owner?(socket) do
+    room = socket.assigns.room
+    user = socket.assigns.current_user
+    is_map(room) and is_map(user) and room.owner_user_id == user.id
+  end
+
+  # The connected request's own host keeps the link correct in development
+  # and behind the production domain.
+  defp invite_url(socket, token) do
+    path = ~p"/rooms/#{socket.assigns.room_code}/join/#{token}"
+    URI.to_string(%{socket.host_uri | path: path})
+  end
 
   defp follow_notice(socket, participant_id) do
     case Map.get(socket.assigns.participants, participant_id) do

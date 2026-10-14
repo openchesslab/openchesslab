@@ -32,6 +32,21 @@
       </p>
 
       <form id="create-room-form" phx-submit="create-room" class="pt-4">
+        <label
+          :if={@current_user}
+          for="private-room"
+          class="mb-3 flex cursor-pointer items-center gap-2 text-sm text-muted"
+          title={Web.I18n.t("home.privateRoomHelp", @locale)}
+        >
+          <input
+            id="private-room"
+            name="private"
+            type="checkbox"
+            value="true"
+            class="relative top-px"
+          />
+          {Web.I18n.t("home.privateRoom", @locale)}
+        </label>
         <button
           type="submit"
           class="inline-flex h-14 w-full items-center justify-center rounded-lg border border-accent-strong bg-accent px-4 font-semibold text-white hover:bg-accent-strong disabled:cursor-wait disabled:opacity-60"

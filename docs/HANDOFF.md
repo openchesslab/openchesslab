@@ -34,6 +34,26 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, door agent gecommit en gepusht:** `Add private rooms with owner and invite links`,
+  gestart op schone `1006b71`. Besluiten gebruiker 2026-10-14: publiek blijft de default (draagbare
+  kamercodes ongewijzigd, inclusief bestaande kamers); private kamers krijgen uitnodigingslinks
+  (multi-use, intrekbaar/roterend; code alleen = geen toegang — de gate toont geen inhoud: geen
+  presence/chat/analyses/abonnement). Migratie `20261014210000`: `rooms.owner_user_id` (NULL = publiek),
+  `room_members` (uniek per kamer+user; owner wordt eerste lid), `room_invites` (alleen token-hash 32B,
+  één actieve link per kamer; rotate = vorige intrekken). Domein: `Rooms.create_room(owner:)`,
+  `member?/2`, `consume_invite/3` (row-lock vs. gelijktijdige revoke; ON CONFLICT idempotent),
+  `create_invite/1` (rauw token eenmalig teruggegeven), `revoke_invites/1`, `invite_active?/1`;
+  RoomStore volledig hash-only. Web: "Privékamer"-schakelaar op Create Room (alleen ingelogd),
+  privékamer-gate in RoomLive-mount (geen subscribe/presence/chat/uploads), Invite-knop i.p.v.
+  Copy code (owner-only), invite-modal (link eenmalig getoond + kopiëren + roteren/intrekken),
+  `GET /rooms/:code/join/:token` (gast → gate-melding; geldig → lid + redirect; ongeldig → melding).
+  Devserver-bevinding: de umbrella-code-reloader herlaadt alleen de web-app — bij domeinwijzigingen
+  herstarten; oude devserver (stond sinds sep. 29 aan poort 4000) was al verwijderd en vers gestart.
+  Gericht: domein private_room **4/4**, web private_room **6/6**; volledig analyse **616 geslaagd**
+  (seed 398267) en web **225 geslaagd** (seed 511632); formatter, assetbuild, compile
+  --warnings-as-errors en diffcontrole geslaagd. Browsergeverifieerd op devserver: UI-flow
+  create→gate→invite→join→lid werkt end-to-end.
+
 - **Afgerond, door agent gecommit en gepusht:** `Color move annotations by their meaning`,
   gestart op schone `5005b64` (gebruikersidee 2026-10-14). NAG's in de zettenlijst (room + privé-editor,
   zelfde `move_list`-component) zijn nu per glyf gekleurd naar eigen betekenis: goed/brilliant

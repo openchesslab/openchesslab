@@ -50,6 +50,8 @@ defmodule Web.Router do
       live("/", HomeLive, :index)
       live("/rooms/:code", RoomLive, :show)
     end
+
+    get("/rooms/:code/join/:token", RoomInviteController, :join)
   end
 
   # Other scopes may use custom stacks.

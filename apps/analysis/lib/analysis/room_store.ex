@@ -25,6 +25,7 @@ defmodule Analysis.RoomStore do
   @get_sql """
   SELECT
     rooms.id,
+    rooms.owner_user_id::text,
     COALESCE(
       array_agg(room_analyses.analysis_id ORDER BY room_analyses.id)
         FILTER (WHERE room_analyses.analysis_id IS NOT NULL),
@@ -33,7 +34,7 @@ defmodule Analysis.RoomStore do
   FROM rooms
   LEFT JOIN room_analyses ON room_analyses.room_id = rooms.id
   WHERE rooms.id = $1
-  GROUP BY rooms.id
+  GROUP BY rooms.id, rooms.owner_user_id
   """
 
   @add_analysis_sql """
@@ -78,6 +79,176 @@ defmodule Analysis.RoomStore do
     end
   end
 
+  @create_private_sql """
+  INSERT INTO rooms (id, owner_user_id)
+  VALUES ($1, $2)
+  ON CONFLICT (id) DO NOTHING
+  RETURNING id
+  """
+
+  @insert_owner_sql """
+  INSERT INTO room_members (room_id, user_id)
+  VALUES ($1, $2)
+  ON CONFLICT (room_id, user_id) DO NOTHING
+  """
+
+  @doc """
+  Atomically reserve a fresh private room and make the owner its first member.
+
+  The room code alone never grants entry; only the owner and rows in
+  `room_members` see the room. Callers authenticate the owner user first.
+  """
+  @spec create_private(String.t(), String.t()) :: :ok | {:error, :already_exists}
+  def create_private(id, owner_user_id)
+      when is_binary(id) and byte_size(id) > 0 and is_binary(owner_user_id) do
+    case Ecto.UUID.dump(owner_user_id) do
+      {:ok, db_owner} ->
+        Repo.transaction(fn ->
+          case Repo.query!(@create_private_sql, [id, db_owner]).rows do
+            [[^id]] ->
+              Repo.query!(@insert_owner_sql, [id, db_owner])
+              :ok
+
+            [] ->
+              Repo.rollback(:already_exists)
+          end
+        end)
+        |> case do
+          {:ok, :ok} -> :ok
+          {:error, :already_exists} = error -> error
+        end
+
+      _ ->
+        {:error, :invalid_owner}
+    end
+  end
+
+  @member_sql """
+  SELECT EXISTS (
+    SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2
+  )
+  """
+
+  @doc "Is this user a member of the room? Owners become members at creation."
+  @spec member?(String.t(), String.t() | nil) :: boolean()
+  def member?(room_id, user_id) when is_binary(room_id) do
+    case Ecto.UUID.dump(user_id) do
+      {:ok, db_user} ->
+        [[member]] = Repo.query!(@member_sql, [room_id, db_user], log: false).rows
+        member
+
+      :error ->
+        false
+    end
+  end
+
+  @add_member_sql """
+  INSERT INTO room_members (room_id, user_id)
+  SELECT id, $2 FROM rooms WHERE id = $1
+  ON CONFLICT (room_id, user_id) DO NOTHING
+  RETURNING room_id
+  """
+
+  @doc "Idempotently add a member to a durable room."
+  @spec add_member(String.t(), String.t()) :: :ok | {:error, :room_not_found}
+  def add_member(room_id, user_id) when is_binary(room_id) do
+    case Ecto.UUID.dump(user_id) do
+      {:ok, db_user} ->
+        case Repo.query!(@add_member_sql, [room_id, db_user]).rows do
+          [[_room_id]] -> :ok
+          [] -> {:error, :room_not_found}
+        end
+
+      _ ->
+        {:error, :room_not_found}
+    end
+  end
+
+  @revoke_invites_sql """
+  UPDATE room_invites
+  SET revoked_at = now()
+  WHERE room_id = $1 AND revoked_at IS NULL
+  """
+
+  @insert_invite_sql """
+  INSERT INTO room_invites (token_hash, room_id)
+  VALUES ($1, $2)
+  """
+
+  @doc """
+  Rotate the room's invite: revoke every active link, then store one fresh
+  token hash. The raw token never enters PostgreSQL; only its SHA-256 hash
+  is durable, so it is shown to the owner once at generation.
+  """
+  @spec create_invite(String.t(), binary()) :: :ok
+  def create_invite(room_id, token_hash) when byte_size(token_hash) == 32 do
+    Repo.transaction(fn ->
+      Repo.query!(@revoke_invites_sql, [room_id])
+      Repo.query!(@insert_invite_sql, [token_hash, room_id])
+      :ok
+    end)
+    |> elem(1)
+  end
+
+  @doc "Revoke every active invite link of the room; new joins stop immediately."
+  @spec revoke_invites(String.t()) :: non_neg_integer()
+  def revoke_invites(room_id) do
+    Repo.query!(@revoke_invites_sql, [room_id]).num_rows
+  end
+
+  @active_invite_sql """
+  SELECT EXISTS (
+    SELECT 1 FROM room_invites WHERE room_id = $1 AND revoked_at IS NULL
+  )
+  """
+
+  @doc "Does the room have an active (non-revoked) invite link?"
+  @spec invite_active?(String.t()) :: boolean()
+  def invite_active?(room_id) when is_binary(room_id) do
+    [[active]] = Repo.query!(@active_invite_sql, [room_id], log: false).rows
+    active
+  end
+
+  @consume_invite_sql """
+  SELECT token_hash
+  FROM room_invites
+  WHERE room_id = $1 AND token_hash = $2 AND revoked_at IS NULL
+  FOR UPDATE
+  """
+
+  @doc """
+  Atomically admit a user through an active invite.
+
+  The invite row is locked before the membership insert, so a concurrent
+  revoke cannot admit anyone after cutoff. Idempotent per user; the raw
+  token is only ever hashed here. Callers authenticate the joining user.
+  """
+  @spec consume_invite(String.t(), String.t(), binary()) ::
+          {:ok, :joined} | {:error, :invalid_invite}
+  def consume_invite(room_id, user_id, token_hash)
+      when is_binary(room_id) and byte_size(token_hash) == 32 do
+    case Ecto.UUID.dump(user_id) do
+      {:ok, db_user} ->
+        Repo.transaction(fn ->
+          case Repo.query!(@consume_invite_sql, [room_id, token_hash], log: false).rows do
+            [[_token_hash]] ->
+              Repo.query!(@add_member_sql, [room_id, db_user], log: false)
+              :joined
+
+            [] ->
+              Repo.rollback(:invalid_invite)
+          end
+        end)
+        |> case do
+          {:ok, :joined} -> {:ok, :joined}
+          {:error, :invalid_invite} = error -> error
+        end
+
+      _ ->
+        {:error, :invalid_invite}
+    end
+  end
+
   @spec ensure(String.t()) :: :ok
   def ensure(id) when is_binary(id) and byte_size(id) > 0 do
     Repo.query!(@create_sql, [id])
@@ -87,8 +258,11 @@ defmodule Analysis.RoomStore do
   @spec get(String.t()) :: {:ok, Room.t()} | :not_found
   def get(id) when is_binary(id) and byte_size(id) > 0 do
     case Repo.query!(@get_sql, [id]).rows do
-      [[^id, analysis_ids]] -> {:ok, %Room{id: id, analysis_ids: analysis_ids}}
-      [] -> :not_found
+      [[^id, owner_user_id, analysis_ids]] ->
+        {:ok, %Room{id: id, analysis_ids: analysis_ids, owner_user_id: owner_user_id}}
+
+      [] ->
+        :not_found
     end
   end
 
