@@ -248,9 +248,17 @@ The shared layout renders error flashes as an accessible alert; callback failure
 
 The browser mirrors its existing local theme/language preferences into host-only, one-year, SameSite=Lax cookies (Secure over HTTPS), both when restoring them and when the user changes them. These cookies intentionally permit JavaScript updates and contain no credentials. Login/session renewal and logout/session deletion leave them intact, so the next HTTP response already uses the selected theme and language. Existing localStorage-only preferences acquire their cookie mirror when the updated client first mounts; that initial visit still needs client restoration. If cookies are blocked, local restoration remains available but initial server rendering cannot know the saved preference. Tests check initial HTML and connected mounts on both public routes, successful callback/logout with session clearing, invalid values, cookie attributes and blocked storage.
 
-### Not implemented: private access control
+### Authenticated personal library list
 
-- No protected private LiveView route, account-grant storage, or Lichess library import/sync. Optional request/mount/event authentication, login initiation/callback, logout, browser session issuance, state/PKCE primitives, provider verification and atomic user resolution now exist as described above.
+`/library` is a separate authenticated LiveView session. Its HTTP pipeline requires a resolved User and sends `Cache-Control: no-store`; `Web.UserAuth` in `:required` mode independently resolves the credential at both mounts and before each event and `handle_params` callback. Missing, expired, revoked or deleted-user credentials halt processing and redirect home with a translated login prompt. Public home/room routes retain optional authentication. Authentication checks are per request/event, not a claim of serializability with concurrent revocation, and idle expiry still has no timer.
+
+`Web.LibraryLive` lists and removes references exclusively using the server-resolved User ID. It ignores client-provided owner and cursor values; paging uses its current server-side cursor. `Analysis.UserLibrary.page/2` reads at most 50 references plus one lookahead row in analysis-ID order, with keyset continuation using the existing unique `(user_id, analysis_id)` index. It reads reference IDs and saved dates only, without loading analysis trees or issuing per-entry queries. The older trusted `list/1` API remains available for domain use.
+
+The home/room header links signed-in users to the library. The page has English/Dutch text, keeps the document theme/locale, and offers removal of a saved reference without deleting the analysis or another user's reference. This first interface shows reference identifiers and saved dates; saving from rooms, opening a saved analysis, richer labels and private analysis editing/sharing are subsequent slices. Library membership is not ownership of a shared analysis. Tests cover HTTP and connected-mount denial, event/navigation revocation, user deletion, forged owner parameters, paging and shared-analysis preservation.
+
+### Remaining private access control and integration
+
+- No account-grant storage or Lichess library import/sync. The protected library list described above does not introduce private analysis editing or room permissions.
 - `user_sessions` now exists as described above; `account_grants` remains a proposal. Avoid assuming Better Auth (a different ecosystem) is installed; **User → multiple Accounts is the adopted *model***, not a library dependency.
 - Users should not see unrelated users' analyses by default once ownership/scoping is introduced. Existing room collaboration remains link-based, guest-capable; future policy must define who can view, edit, claim or share analyses, and how anonymous work joins authenticated libraries. No automatic linkage based on matching email addresses.
 

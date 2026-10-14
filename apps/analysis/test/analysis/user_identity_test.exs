@@ -106,6 +106,37 @@ defmodule Analysis.UserIdentityTest do
     assert {:error, :analysis_not_found} = UserLibrary.save(context.first.id, "absent-analysis")
   end
 
+  test "library pages are bounded, scoped and continue after a removed cursor", context do
+    ids =
+      for n <- 1..51,
+          do: "page-#{context.analysis_id}-#{String.pad_leading(to_string(n), 3, "0")}"
+
+    on_exit(fn ->
+      for id <- ids, do: AnalysisStore.delete(id, 1)
+    end)
+
+    for id <- ids do
+      {:ok, 1} = AnalysisStore.insert(AnalysisModel.new(id, 42))
+      :ok = UserLibrary.save(context.first.id, id)
+    end
+
+    :ok = UserLibrary.save(context.second.id, context.analysis_id)
+    first = UserLibrary.page(context.first.id)
+    assert Enum.map(first.entries, & &1.id) == Enum.take(ids, 50)
+    assert first.next_cursor == Enum.at(ids, 49)
+    assert Enum.all?(first.entries, &match?(%NaiveDateTime{}, &1.saved_at))
+    :ok = UserLibrary.remove(context.first.id, first.next_cursor)
+    last = UserLibrary.page(context.first.id, first.next_cursor)
+    assert Enum.map(last.entries, & &1.id) == [List.last(ids)]
+    assert last.next_cursor == nil
+    assert UserLibrary.page("invalid") == %{entries: [], next_cursor: nil}
+    assert UserLibrary.page(context.first.id, %{}) == %{entries: [], next_cursor: nil}
+
+    assert UserLibrary.page(context.second.id).entries |> Enum.map(& &1.id) == [
+             context.analysis_id
+           ]
+  end
+
   test "deleting a user clears account and library links but not the analysis", context do
     assert {:ok, _id} = Accounts.link_verified(context.first.id, "lichess", "delete-me")
     assert :ok = UserLibrary.save(context.first.id, context.analysis_id)

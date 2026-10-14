@@ -8,7 +8,7 @@ defmodule Web.UserAuth do
   """
 
   import Phoenix.Component, only: [assign: 3]
-  import Phoenix.LiveView, only: [attach_hook: 4]
+  import Phoenix.LiveView, only: [attach_hook: 4, put_flash: 3, redirect: 2]
 
   alias Analysis.UserSessions
 
@@ -44,7 +44,20 @@ defmodule Web.UserAuth do
     :ok
   end
 
-  def on_mount(:default, _params, session, socket) do
+  def require_authenticated_user(conn, _opts) do
+    conn = Plug.Conn.put_resp_header(conn, "cache-control", "no-store")
+
+    if conn.assigns.current_user do
+      conn
+    else
+      conn
+      |> Phoenix.Controller.put_flash(:error, Web.I18n.t("auth.loginRequired"))
+      |> Phoenix.Controller.redirect(to: "/")
+      |> Plug.Conn.halt()
+    end
+  end
+
+  def on_mount(mode, _params, session, socket) when mode in [:default, :required] do
     token = session["user_token"]
 
     socket =
@@ -54,11 +67,32 @@ defmodule Web.UserAuth do
       |> attach_hook(:refresh_authentication, :handle_event, fn _event, _params, socket ->
         # Revalidate before the view's handler. A mount-time User assign is
         # insufficient after expiry/logout. Keep the credential out of assigns.
-        {:cont, assign(socket, :current_user, resolve(token))}
+        refresh(socket, token, mode)
       end)
 
-    {:cont, socket}
+    socket =
+      if mode == :required do
+        attach_hook(socket, :authenticate_navigation, :handle_params, fn _params, _uri, socket ->
+          refresh(socket, token, mode)
+        end)
+      else
+        socket
+      end
+
+    authorize(socket, mode)
   end
+
+  defp refresh(socket, token, mode),
+    do: socket |> assign(:current_user, resolve(token)) |> authorize(mode)
+
+  defp authorize(%{assigns: %{current_user: nil}} = socket, :required) do
+    {:halt,
+     socket
+     |> put_flash(:error, Web.I18n.t("auth.loginRequired"))
+     |> redirect(to: "/")}
+  end
+
+  defp authorize(socket, _mode), do: {:cont, socket}
 
   defp resolve(token) do
     case UserSessions.user_for_token(token) do

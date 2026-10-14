@@ -30,6 +30,14 @@
       class="flex items-center gap-1"
       aria-label={Web.I18n.t("common.applicationSettings", @locale)}
     >
+      <.link
+        :if={@current_user}
+        href={~p"/library"}
+        id="personal-library-link"
+        class="inline-flex min-h-9 items-center rounded-md border border-border px-2 text-xs font-semibold hover:bg-panel-hover"
+      >
+        {Web.I18n.t("library.title", @locale)}
+      </.link>
       <.form
         :if={@current_user}
         for={%{}}

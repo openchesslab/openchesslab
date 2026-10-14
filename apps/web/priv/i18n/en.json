@@ -1,4 +1,13 @@
 {
+  "auth.loginRequired": "Please log in to view your library.",
+  "library.title": "My library",
+  "library.description": "Your saved analysis references. Removing a reference leaves the shared analysis intact.",
+  "library.empty": "No saved references on this page.",
+  "library.saved": "Saved",
+  "library.remove": "Remove reference",
+  "library.pages": "Library pages",
+  "library.first": "First page",
+  "library.next": "Next page",
   "auth.login": "Log in",
   "auth.loginWithLichess": "Log in with Lichess",
   "auth.logout": "Log out",

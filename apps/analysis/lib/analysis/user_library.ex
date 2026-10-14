@@ -73,6 +73,31 @@ defmodule Analysis.UserLibrary do
 
   def list(_), do: []
 
+  @doc "Read at most 50 saved references, using the existing user/analysis unique index for keyset paging."
+  @spec page(String.t(), String.t() | nil) :: %{entries: [map()], next_cursor: String.t() | nil}
+  def page(user_id, after_id \\ nil) do
+    with {:ok, db_id} <- Ecto.UUID.dump(user_id),
+         true <- is_nil(after_id) or is_binary(after_id) do
+      {predicate, params} =
+        if is_nil(after_id), do: {"", [db_id]}, else: {" AND analysis_id > $2", [db_id, after_id]}
+
+      rows =
+        Repo.query!(
+          "SELECT analysis_id, created_at FROM user_analyses WHERE user_id = $1" <>
+            predicate <> " ORDER BY analysis_id LIMIT 51",
+          params
+        ).rows
+
+      entries =
+        Enum.map(Enum.take(rows, 50), fn [id, saved_at] -> %{id: id, saved_at: saved_at} end)
+
+      cursor = if length(rows) > 50, do: List.last(entries).id
+      %{entries: entries, next_cursor: cursor}
+    else
+      _ -> %{entries: [], next_cursor: nil}
+    end
+  end
+
   @doc "Remove only this user's saved reference, never the analysis."
   @spec remove(String.t(), String.t()) :: :ok | :not_found
   def remove(user_id, analysis_id) when is_binary(user_id) and is_binary(analysis_id) do

@@ -1,5 +1,10 @@
 defmodule Web.Router do
   use Web, :router
+  import Web.UserAuth, only: [require_authenticated_user: 2]
+
+  pipeline :authenticated do
+    plug(:require_authenticated_user)
+  end
 
   pipeline :browser do
     plug(:accepts, ["html"])
@@ -48,6 +53,14 @@ defmodule Web.Router do
   end
 
   # Other scopes may use custom stacks.
+  scope "/", Web do
+    pipe_through([:browser, :authenticated])
+
+    live_session :authenticated, on_mount: {Web.UserAuth, :required} do
+      live("/library", LibraryLive, :index)
+    end
+  end
+
   # scope "/api", Web do
   #   pipe_through :api
   # end

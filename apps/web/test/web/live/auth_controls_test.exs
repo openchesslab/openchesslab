@@ -80,10 +80,25 @@ defmodule Web.AuthControlsTest do
 
     assert redirected_to(started) =~ "https://lichess.org/oauth?"
 
+    state =
+      started
+      |> redirected_to()
+      |> URI.parse()
+      |> Map.fetch!(:query)
+      |> URI.decode_query()
+      |> Map.fetch!("state")
+
+    denial =
+      URI.encode_query(%{
+        "state" => state,
+        "error" => "access_denied",
+        "error_description" => "private-detail"
+      })
+
     denied =
       started
       |> recycle()
-      |> get("/auth/lichess/callback?error=access_denied&error_description=private-detail")
+      |> get("/auth/lichess/callback?" <> denial)
 
     {:ok, view, html} = live(get(recycle(denied), "/"))
     assert has_element?(view, "#app-error[role='alert']", "Inloggen met Lichess is mislukt.")

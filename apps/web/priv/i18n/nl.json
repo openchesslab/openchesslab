@@ -1,4 +1,13 @@
 {
+  "auth.loginRequired": "Log in om je bibliotheek te bekijken.",
+  "library.title": "Mijn bibliotheek",
+  "library.description": "Je bewaarde analyseverwijzingen. Verwijderen van een verwijzing laat de gedeelde analyse intact.",
+  "library.empty": "Geen bewaarde verwijzingen op deze pagina.",
+  "library.saved": "Bewaard",
+  "library.remove": "Verwijzing verwijderen",
+  "library.pages": "Bibliotheekpagina's",
+  "library.first": "Eerste pagina",
+  "library.next": "Volgende pagina",
   "auth.login": "Inloggen",
   "auth.loginWithLichess": "Inloggen met Lichess",
   "auth.logout": "Uitloggen",
