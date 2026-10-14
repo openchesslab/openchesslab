@@ -1,11 +1,11 @@
 # Google login and linked accounts
 
 Google and Lichess can both authenticate the same internal User. Start with either
-provider, then choose **Account → Linked accounts** and connect the other one.
-The fresh provider flow links to the current library. Logging in normally with a
-different, unlinked identity instead opens that identity's separate account.
+provider, then open **Account → Linked accounts** from the header's account menu and
+connect the other one. The fresh provider flow links to the current library. Logging in
+normally with a different, unlinked identity instead opens that identity's separate account.
 Already-owned identities are rejected when linking; there is no automatic merge,
-email matching or unlinking. The account page offers permanent self-service
+email matching or unlinking. The linked-accounts modal offers permanent self-service
 deletion: it removes the account, its linked identities, every session and the
 personal library links, while room content and underlying analyses remain.
 Deleting a duplicate account frees its provider identity for linking to
@@ -44,10 +44,11 @@ account identities remain intact.
 
 ## Verification after configuration/deployment
 
-1. Log in with Google in a fresh browser: the library opens and Linked accounts
-   shows Google connected and Lichess unconnected.
-2. Connect Lichess from that page. Log out and log in with either provider; the
-   same saved analyses should be visible.
+1. Log in with Google in a fresh browser: the home page opens; the header account
+   menu's My library and Linked accounts modals open over it and show Google
+   connected and Lichess unconnected.
+2. Connect Lichess from that modal. Log out and log in with either provider; the
+   same saved analyses are visible in the library modal.
 3. Also test connecting Google from an existing Lichess account.
 4. Cancel a provider flow and check that the current login/library is preserved.
 5. Try an identity already belonging to another internal account: it must report

@@ -49,12 +49,13 @@ defmodule Web.AccountLinkingTest do
     {:ok, user} = UserSessions.user_for_token(get_session(completed, :user_token))
     assert Accounts.providers_for(user.id) == ["google"]
     assert {:ok, user.id} == Accounts.user_for_verified_identity("google", "google-subject")
-    {:ok, view, html} = live(recycle(completed), "/account")
+    {:ok, view, _html} = live(recycle(completed), "/")
+    render_click(view, "open-account")
     assert has_element?(view, "#link-lichess")
     refute has_element?(view, "#link-google")
     assert has_element?(view, "#lichess-unlinked")
-    refute html =~ "google-subject"
-    refute html =~ "private-secret"
+    refute render(view) =~ "google-subject"
+    refute render(view) =~ "private-secret"
     replay = callback(start, "google")
     assert get_session(replay, :user_token) == nil
   end
@@ -69,7 +70,7 @@ defmodule Web.AccountLinkingTest do
     completed =
       callback(start, "google", %{"user_id" => Ecto.UUID.generate(), "intent" => "login"})
 
-    assert redirected_to(completed) == "/account"
+    assert redirected_to(completed) == "/"
     assert :not_found = UserSessions.user_for_token(old.token)
     assert {:ok, ^user} = UserSessions.user_for_token(get_session(completed, :user_token))
     assert Accounts.providers_for(user.id) == ["google", "lichess"]
@@ -79,7 +80,7 @@ defmodule Web.AccountLinkingTest do
       if provider == "google", do: stub_google(params(login)["nonce"]), else: stub_lichess()
       result = callback(login, provider)
       assert {:ok, ^user} = UserSessions.user_for_token(get_session(result, :user_token))
-      assert {:ok, _view, _html} = live(recycle(result), "/library")
+      {:ok, _view, _html} = live(recycle(result), "/")
     end
   end
 
@@ -90,7 +91,7 @@ defmodule Web.AccountLinkingTest do
     start = start(signed_in(session.token), "lichess", :link)
     stub_lichess()
     result = callback(start, "lichess")
-    assert redirected_to(result) == "/account"
+    assert redirected_to(result) == "/"
     assert Accounts.providers_for(user_id) == ["google", "lichess"]
     assert ids() == before_ids
   end
@@ -102,7 +103,7 @@ defmodule Web.AccountLinkingTest do
     start = start(signed_in(old.token), "google", :link)
     stub_google(params(start)["nonce"])
     result = callback(start, "google")
-    assert redirected_to(result) == "/account"
+    assert redirected_to(result) == "/"
     assert Phoenix.Flash.get(result.assigns.flash, :error) =~ "another OpenChessLab account"
     assert get_session(result, :user_token) == old.token
     assert {:ok, ^owner_id} = Accounts.user_for_verified_identity("google", "google-subject")
@@ -203,12 +204,16 @@ defmodule Web.AccountLinkingTest do
     refute_received :google_exchange
   end
 
-  test "Google-only UI works with Lichess disabled and account page requires authentication" do
+  test "Google-only UI works with Lichess disabled and guest modal events fail closed" do
     Application.put_env(:web, :lichess_oauth, nil)
     {:ok, view, _} = live(build_conn(), "/?locale=nl")
     assert has_element?(view, "#auth-google-login", "Inloggen met Google")
     refute has_element?(view, "#auth-login")
-    assert {:error, {:redirect, %{to: "/"}}} = live(build_conn(), "/account")
+
+    render_click(view, "open-account", %{"user_id" => Ecto.UUID.generate()})
+    assert render(view) =~ Web.I18n.t("auth.loginRequired", "nl")
+    refute has_element?(view, "#link-lichess")
+    refute has_element?(view, "#link-google")
   end
 
   test "session insertion failure rolls back linking but cannot restore the OAuth attempt" do
@@ -250,13 +255,17 @@ defmodule Web.AccountLinkingTest do
     assert Accounts.providers_for(user_id) == ["lichess"]
   end
 
-  test "account page revalidates a revoked credential on navigation and events" do
+  test "a revoked credential renders the guest modal variant on later events" do
     {:ok, user} = Users.create()
     {:ok, session} = UserSessions.create(user.id)
-    {:ok, view, _} = live(signed_in(session.token), "/account")
+    {:ok, view, _} = live(signed_in(session.token), "/")
     UserSessions.revoke(session.token)
-    render_hook(view, "refresh", %{"user_id" => user.id})
-    assert_redirect(view, "/")
+    render_click(view, "open-account", %{"user_id" => user.id})
+
+    assert render(view) =~ Web.I18n.t("auth.loginRequired", "en")
+    refute has_element?(view, "#link-lichess")
+    refute has_element?(view, "#link-google")
+    assert Accounts.providers_for(user.id) == []
   end
 
   test "Google login initiation requires CSRF and disabled configuration issues no attempt" do

@@ -152,7 +152,14 @@ initiating credential, then rechecks it after provider verification under `FOR U
 on its session row. Account linkage, replacement session issuance and old-session
 revocation commit together. Existing provider ownership produces a conflict, never a
 transfer or merge. Ordinary login resolves its own provider identity without linking.
-`/account` uses required HTTP/LiveView guards and shows connected provider types only.
+Callbacks redirect to `/`; link conflicts surface as a flash on the home page.
+
+My library and Linked accounts are shell modals over the home and room LiveViews
+(`Web.ShellPanels` + `Web.Layouts` templates), opened from the header account menu;
+there are no `/library` and `/account` pages. Modal events stay host-level, so
+`Web.UserAuth` revalidates the browser credential before every handler, and every
+action re-checks the resolved user: guests and revoked credentials only receive the
+login variant. The authenticated live session now contains only the private editor.
 
 `POST /account/delete` (CSRF-protected, authenticated, `Web.AccountController`)
 permanently deletes the signed-in account after a typed confirmation word

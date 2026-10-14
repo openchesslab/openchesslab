@@ -246,7 +246,7 @@ defmodule Web.PersonalAnalysisLive do
     do:
       socket
       |> put_flash(:error, Web.I18n.t("personal.unavailable", socket.assigns.locale))
-      |> redirect(to: "/library")
+      |> redirect(to: "/")
 
   defp sibling([], _), do: []
   defp sibling(path, delta), do: Enum.drop(path, -1) ++ [max(0, List.last(path) + delta)]

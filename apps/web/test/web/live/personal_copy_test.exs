@@ -65,7 +65,8 @@ defmodule Web.PersonalCopyTest do
 
     render_click(view, "save-comment", %{"comment" => "Later shared comment"})
     assert {:ok, ^copy, 1} = AnalysisStore.get(copy_id)
-    {:ok, library, _} = live(authenticated(ctx), "/library")
+    {:ok, library, _} = live(authenticated(ctx), "/")
+    render_click(library, "open-library")
     assert has_element?(library, "#library-entries li", copy_id)
     refute has_element?(library, "#library-entries li", ctx.id)
   end

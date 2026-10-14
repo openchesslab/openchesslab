@@ -26,7 +26,7 @@ defmodule Web.AccountDeletionTest do
 
   test "typed confirmation deletes identities, sessions and library links, not analyses", ctx do
     page = delete_page(ctx.session.token)
-    csrf = form_csrf(page, "account-delete-form")
+    csrf = form_csrf(page, "auth-logout")
 
     result =
       page
@@ -56,7 +56,7 @@ defmodule Web.AccountDeletionTest do
   test "wrong or missing confirmation preserves the account and session", ctx do
     for confirmation <- ["remove", "delete!", "", nil, ["DELETE"]] do
       page = delete_page(ctx.session.token)
-      csrf = form_csrf(page, "account-delete-form")
+      csrf = form_csrf(page, "auth-logout")
 
       result =
         page
@@ -67,7 +67,7 @@ defmodule Web.AccountDeletionTest do
           "confirmation" => confirmation
         })
 
-      assert redirected_to(result) == "/account"
+      assert redirected_to(result) == "/"
       assert Phoenix.Flash.get(result.assigns.flash, :error) =~ "confirmation word"
 
       assert {:ok, %{id: user_id}} = UserSessions.user_for_token(ctx.session.token)
@@ -85,7 +85,7 @@ defmodule Web.AccountDeletionTest do
              Accounts.link_verified(keeper.id, "google", "google-subject")
 
     page = delete_page(google_session.token)
-    csrf = form_csrf(page, "account-delete-form")
+    csrf = form_csrf(page, "auth-logout")
 
     result =
       page
@@ -137,25 +137,31 @@ defmodule Web.AccountDeletionTest do
     assert {:ok, _} = UserSessions.user_for_token(ctx.session.token)
   end
 
-  test "account page shows the deletion danger zone in both languages", ctx do
-    {:ok, view, html} = live(signed_in(ctx.session.token), "/account")
+  test "the account modal shows the deletion danger zone in both languages", ctx do
+    {:ok, view, _html} = live(signed_in(ctx.session.token), "/")
+    assert has_element?(view, "#account-menu #linked-accounts-button", "Linked accounts")
+    refute has_element?(view, "#account-danger-zone")
+    render_click(view, "open-account")
+
     assert has_element?(view, "#account-danger-zone")
     assert has_element?(view, "#account-delete-form[action='/account/delete'][method='post']")
     assert has_element?(view, "#account-delete-form input[name='_csrf_token']")
     assert has_element?(view, "#account-delete-confirmation[name='confirmation']")
     assert has_element?(view, "#account-delete-confirmation[placeholder='DELETE']")
-    assert html =~ "Type DELETE to confirm"
+    assert render(view) =~ "Type DELETE to confirm"
 
-    {:ok, view_nl, html_nl} = live(signed_in(ctx.session.token), "/account?locale=nl")
+    {:ok, view_nl, _html} = live(signed_in(ctx.session.token), "/?locale=nl")
+    render_click(view_nl, "open-account")
+
     assert has_element?(view_nl, "#account-delete-confirmation[placeholder='VERWIJDER']")
-    assert html_nl =~ "Typ VERWIJDER om te bevestigen"
+    assert render(view_nl) =~ "Typ VERWIJDER om te bevestigen"
   end
 
   defp delete_page(token),
     do:
       signed_in(token)
       |> put_private(:plug_skip_csrf_protection, false)
-      |> get(@origin <> "/account")
+      |> get(@origin <> "/")
 
   defp form_csrf(conn, id) do
     [token] =

@@ -34,7 +34,22 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond, wacht op commit/push:** `Add self-service account deletion`, gestart op schone `98a2ae4`.
+- **Afgerond, wacht op commit/push:** `Open library and linked accounts as shell modals`,
+  gestart op schone `01e232a`. My library en Linked accounts zijn nu shell-modalen boven
+  de home- en room-LiveViews (`Web.ShellPanels` + `Web.Layouts`-templates, geopend vanuit
+  het header-accountmenu); de routes `/account` en `/library` zijn verwijderd, alleen de
+  privé-editor `/library/:id` resteert in de geauthenticeerde live-session. Modal-events
+  blijven host-level: `Web.UserAuth` hervalideert vóór iedere handler en elke actie
+  controleert de geresolveerde gebruiker; gasten/ingetrokken sessies krijgen alleen de
+  login-variant. OAuth-callbacks en verwijderingsfouten verwijzen nu naar `/`. Geen migratie.
+  Vastgesteld productmodel (gebruiker, 2026-10-14): **een room is een tijdelijke analysesessie**
+  (solo is gewoon), **de bibliotheek is de duurzame privévoorraad**, uitnodigen moet
+  "gewoon werken" omdat je al in een room zit; daarnaar converged de editor (één editor,
+  twee contexten). Gericht: library_modal 10/10 en account_deletion 5/5; account_linking/
+  auth_controls/personal_copy/personal_analysis-tests aangepast. Volledig web **200 geslaagd**
+  (seed 511632); formatter en diffcontrole geslaagd. Niet gecommit; niet gedeployed.
+
+- **Afgerond en gepusht:** `Add self-service account deletion`, commit `01e232a`, gestart op schone `98a2ae4`.
   `POST /account/delete` via `Web.AccountController` (CSRF + verplichte login) met getypte bevestiging
   (DELETE/VERWIJDER, case-insensitief) en een danger zone op /account (EN/NL). Hergebruikt
   `Analysis.Users.delete/1`: identities, sessies en persoonlijke bibliotheeklinks cascaderen;
@@ -47,7 +62,7 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   2026-10-14). Gericht **5/5** geslaagd (account_deletion_test); volledig web **202 geslaagd**
   (seed 511632); formatter en diffcontrole geslaagd. Lokale PostgreSQL-role `openchesslab` plus
   dev/test-databases op deze machine aangemaakt (sudo door gebruiker); testmigraties uitgevoerd.
-  Niet gecommit; niet gedeployed.
+  Commit/push `01e232a` geverifieerd op origin/main; niet gedeployed.
 
 - **Afgerond en gepusht:** `Add Google login and explicit account linking`, commit `2640d90`, gestart op schone `ff0a191`.
   Google OIDC (alleen openid), gezamenlijke OAuth-controller, expliciet koppelen via /account.
@@ -103,9 +118,10 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 ## Eerstvolgende productwerk
 
 Header, privé-editor, homepage, bibliotheektitels en Google-login zijn afgerond; Google-login
-is gedeployed en geverifieerd. Accountverwijdering is geïmplementeerd en wacht op commit/deployment;
-daarna verwijdert de gebruiker het dubbele Google-account in productie en koppelt Google aan het
-Lichess-account. De privé-editor vereist een eigen bibliotheeklink zonder roomlidmaatschap of andere gebruikerslink.
+is gedeployed en geverifieerd. Accountverwijdering is gepusht in `01e232a` en wacht op deployment;
+de modal-slice hierboven bouwt daarop voort. Daarna verwijdert de gebruiker het dubbele
+Google-account in productie en koppelt Google aan het Lichess-account. Vervolg daarna:
+bibliotheek-entries delen naar rooms (docentmodel) en de privé-editor laten convergeren.
 Geen room wordt aangemaakt of gekoppeld. Controleer de actuele werkboom en tests voor voortzetting.
 Vervolg: privé-position setup/tools. Expliciet terugdelen
 en gewijzigde roomretentie komen later; introduceer geen automatische synchronisatie.
@@ -114,7 +130,8 @@ en gewijzigde roomretentie komen later; introduceer geen automatische synchronis
 
 Dit is een overzicht, geen vastgelegde uitvoeringsvolgorde:
 
-- **Persoonlijke werkruimte:** titels/labels zijn geïmplementeerd; volgende stap position setup/tools in de privé-editor.
+- **Persoonlijke werkruimte:** titels/labels zijn geïmplementeerd; position setup/tools volgen in
+  de room-editor (één editor, twee contexten; de privé-editor convergeert daarin).
 - **Delen en levensduur:** expliciet kopiëren terug naar rooms; bewaartermijn en verwijderen van gevulde rooms;
   beleid voor verweesde analyses en bibliotheekverwijdering; accountverwijdering is geïmplementeerd,
   orphancleanup van losgemaakte persoonlijke kopieën volgt later.
@@ -123,7 +140,12 @@ Dit is een overzicht, geen vastgelegde uitvoeringsvolgorde:
   fouten/momenten en evaluatiegrafieken. Huidige enginepaneel is nog geen echte engine.
 - **Zoeken:** echte corpuszoekresultaten aan UI koppelen; later geïndexeerd zoeken op schaakkenmerken,
   structuren/plannen en gelijkenis op grote schaal.
-- **Samenwerkingsrechten/accounts:** rollen, delen/eigenaarschap; Google/Lichess koppelen is geïmplementeerd, ontkoppelen en herstelbeleid volgen later.
+- **Samenwerkingsrechten/accounts:** rollen, delen/eigenaarschap; private rooms met expliciete
+  toestemming van de eigenaar (oplossing voor room-privacy; daarna convergeert de privé-editor weg).
+  Google/Lichess koppelen is geïmplementeerd, ontkoppelen en herstelbeleid volgen later.
+- **Bibliotheek als voorraad (docentmodel):** vanuit een room een eigen bibliotheekanalyse toevoegen
+  aan die room (kopie; eventueel alleen de partij); vanuit home een nieuwe room starten vanuit een entry.
+  Daarna is de privé-editor volledig vervangen en wordt die verwijderd.
 - **UX/export:** resterende punten uit de historische UI-catalogus eerst aan actuele code toetsen;
   onder meer analysebeheer, partijmetadata, rijkere export, grafieken en een tour met gerichte highlights.
 - **Techniek/schaal:** bekende `:invalid_occurrences`-suitefout; grote importbenchmarks, monitoring,
@@ -189,7 +211,8 @@ git diff --check
 ```
 
 Voor web-only wijzigingen volstaat de relevante websuite; voer analyse niet nodeloos opnieuw uit.
-Laatste volledige controle: analyse **602 geslaagd**, seed 398267; web **197 geslaagd**, seed 511632; database **4 geslaagd**, voor Google-login/koppeling.
+Laatste volledige controle: web **200 geslaagd**, seed 511632 (modal-slice; analyse/database ongewijzigd
+ten opzichte van de eerdere 602/4).
 Geaccepteerde backlog: suite-afhankelijke `:invalid_occurrences`-fouten, seed 938846,
 in AnalysesTest/PgnBatchImporterTest; zie development-history. Niet onderdrukken of een falende run groen noemen.
 
@@ -212,6 +235,7 @@ Bibliotheektitels zijn groen en gepusht in `cc392f3`; deze nieuwe slice is niet 
 Expliciet terugdelen, gewijzigde roomretentie en privé-position setup/tools blijven later werk.
 
 Google-login en accountkoppeling: groen en gepusht in `2640d90`; gedeployed en productielogins
-geverifieerd door de gebruiker. Accountverwijdering: groen, wacht op commit/push en deployment.
-Verificatie na deployment: danger zone op /account, verwijderen met bevestigingswoord en het
+geverifieerd door de gebruiker. Accountverwijdering: groen en gepusht in `01e232a`; niet gedeployed.
+Modal-slice (library/linked accounts als shell-modalen): groen, wacht op commit/push en deployment.
+Verificatie na deployment: modalen openen boven home/room, verwijderen met bevestigingswoord en het
 daarna koppelen van de vrijgekomen Google-identiteit aan het Lichess-account (zie google-auth.md).

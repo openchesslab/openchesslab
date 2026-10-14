@@ -43,8 +43,9 @@ defmodule Web.PersonalAnalysisLiveTest do
   end
 
   test "library opens a private editor and restores persisted edits without a room", ctx do
-    {:ok, library, _} = live(conn(ctx.session), "/library")
-    assert has_element?(library, "a[href='/library/#{ctx.id}']")
+    {:ok, home, _} = live(conn(ctx.session), "/")
+    render_click(home, "open-library")
+    assert has_element?(home, "a[href='/library/#{ctx.id}']")
     {:ok, view, html} = live(conn(ctx.session), "/library/#{ctx.id}")
     assert html =~ "Personal analysis"
     assert has_element?(view, "#chess-board")
@@ -88,7 +89,7 @@ defmodule Web.PersonalAnalysisLiveTest do
           {ctx.session, "missing"},
           {ctx.session, ctx.source}
         ] do
-      assert {:error, {:redirect, %{to: "/library"}}} =
+      assert {:error, {:redirect, %{to: "/"}}} =
                live(conn(session), "/library/#{id}?user_id=#{ctx.user.id}")
     end
   end
@@ -98,10 +99,10 @@ defmodule Web.PersonalAnalysisLiveTest do
     {:ok, patch_view, _} = live(conn(ctx.session), "/library/#{ctx.id}")
     UserLibrary.remove(ctx.user.id, ctx.id)
 
-    assert {:error, {:redirect, %{to: "/library"}}} =
+    assert {:error, {:redirect, %{to: "/"}}} =
              render_submit(event_view, "save-comment", %{"comment" => "Denied"})
 
-    assert {:error, {:redirect, %{to: "/library"}}} =
+    assert {:error, {:redirect, %{to: "/"}}} =
              render_patch(patch_view, "/library/#{ctx.id}?p=0")
 
     assert {:ok, _, 1} = AnalysisStore.get(ctx.id)

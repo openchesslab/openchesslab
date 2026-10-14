@@ -79,10 +79,10 @@ defmodule Web.OAuthController do
           |> clear_session()
           |> put_session(:user_token, session.token)
           |> put_session(:live_socket_id, Web.UserAuth.live_socket_id(session.token))
-          |> redirect(to: if(context.intent == :link, do: ~p"/account", else: ~p"/"))
+          |> redirect(to: ~p"/")
         else
           {:error, :already_linked} ->
-            failure(conn, "auth.linkConflict", ~p"/account")
+            failure(conn, "auth.linkConflict", ~p"/")
 
           _ ->
             failure(

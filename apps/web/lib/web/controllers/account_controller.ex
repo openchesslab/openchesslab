@@ -62,7 +62,7 @@ defmodule Web.AccountController do
     else
       conn
       |> put_flash(:error, Web.I18n.t("auth.deleteMismatch"))
-      |> redirect(to: ~p"/account")
+      |> redirect(to: ~p"/")
     end
   end
 

@@ -46,6 +46,12 @@ defmodule Web.RoomLive do
       room_code: code,
       ui_modal: nil,
       tour_step: 1,
+      library_entries: nil,
+      library_cursor: nil,
+      library_next_cursor: nil,
+      library_editing: nil,
+      library_title_error: nil,
+      providers: [],
       room: nil,
       analyses: [],
       selected_analysis_id: nil,
@@ -244,6 +250,12 @@ defmodule Web.RoomLive do
   def handle_event("close-modal", _params, socket) do
     {:noreply, assign(socket, ui_modal: nil, engine_settings_open: false)}
   end
+
+  def handle_event("open-library", _params, socket), do: Web.ShellPanels.open_library(socket)
+  def handle_event("open-account", _params, socket), do: Web.ShellPanels.open_account(socket)
+
+  def handle_event("library-" <> event, params, socket),
+    do: Web.ShellPanels.handle_library_event(event, params, socket)
 
   def handle_event("close-promotion", _params, socket),
     do: {:noreply, assign(socket, :pending_promotion, nil)}

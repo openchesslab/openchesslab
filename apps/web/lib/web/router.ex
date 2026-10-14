@@ -60,8 +60,6 @@ defmodule Web.Router do
     post("/auth/:provider/link", OAuthController, :link)
 
     live_session :authenticated, on_mount: {Web.UserAuth, :required} do
-      live("/account", AccountLive, :index)
-      live("/library", LibraryLive, :index)
       live("/library/:id", PersonalAnalysisLive, :show)
     end
   end
