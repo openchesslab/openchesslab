@@ -36,13 +36,22 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- Slice gereed: `Add readable titles to personal library analyses`, start op schone `561ed67`.
+  Persoonlijke titel op `user_analyses`, hernoemen in bibliotheek en tonen boven privé-editor.
+  Dev/test-migratie `20261014150000` uitgevoerd. Eerste gerichte domeinrun 9/13 doordat ik tests
+  vóór de door Mix-lock geblokkeerde testmigratie startte; migratie uitgevoerd, dezelfde seed `96633` daarna 13/13.
+  Gericht: 23 webtests; database: 4 tests incl. release-migratie-idempotentie geslaagd.
+  Volledig: analyse **602 geslaagd** (seed `398267`), web **179 geslaagd** (seed `511632`).
+  Assetbuild, formatter en diffcontrole geslaagd. Commit/push volgen; **niet gedeployed**.
+  Deze slice bevat één nieuwe migratie; normale release-migratie voert die bij deployment uit.
+
 - Infra-slice: `Reduce Fly app memory to 512 MB`, expliciet gevraagd door gebruiker.
   Op 2026-10-14 live uitgevoerd: `flyctl scale memory 512 -a openchesslab -g app`.
   Eén shared CPU, 512 MB; `fly.toml` legt beide geheugenvelden op 512 vast voor volgende deployments.
   Configvalidatie en diffcontrole geslaagd; Fly-checks 2/2 en publieke /health + /ready geslaagd.
   Direct na herstart circa 227 MiB beschikbaar, geen swap. Dit is geen belastingtest;
   historische Prometheus-pieken konden bij de voorafgaande inspectie niet worden opgehaald (401).
-  Geen nieuwe image-deployment of applicatiecodewijziging; geen app-tests herhaald voor deze infra-slice.
+  Gebruiker bevestigde daarna deployment van `561ed67`; geen app-tests herhaald voor die infra-slice.
   Configuratie en deze overdracht reizen samen in de infra-commit; controleer HEAD/origin na pull.
 
 - Remote: `git@github.com:openchesslab/openchesslab.git`; branch `main`.
@@ -66,17 +75,18 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Eerstvolgende productwerk
 
-Header, privé-editor en homepage zijn afgerond en gepusht; er is geen openstaande implementatie.
+Header, privé-editor en homepage zijn afgerond en gepusht. Bibliotheektitels zijn nu groen;
+controleer de commit/push-status hierboven voor voortzetting.
 De privé-editor vereist een eigen bibliotheeklink zonder roomlidmaatschap of andere gebruikerslink.
 Geen room wordt aangemaakt of gekoppeld. Controleer de actuele werkboom en tests voor voortzetting.
-Vervolg naar keuze: rijkere bibliotheeklabels of privé-position setup/tools. Expliciet terugdelen
+Vervolg: privé-position setup/tools. Expliciet terugdelen
 en gewijzigde roomretentie komen later; introduceer geen automatische synchronisatie.
 
 ## Compact overzicht resterend werk
 
 Dit is een overzicht, geen vastgelegde uitvoeringsvolgorde:
 
-- **Persoonlijke werkruimte:** herkenbare analysetitels/labels en position setup/tools in de privé-editor.
+- **Persoonlijke werkruimte:** titels/labels zijn geïmplementeerd; volgende stap position setup/tools in de privé-editor.
 - **Delen en levensduur:** expliciet kopiëren terug naar rooms; bewaartermijn en verwijderen van gevulde rooms;
   beleid voor verweesde analyses, bibliotheekverwijdering en accountverwijdering.
 - **Lichess-data:** eigen partijen/studies importeren; later synchronisatie, herkomst, retries en minimale toestemmingen.
@@ -107,6 +117,8 @@ Afgesproken model:
 - `Analysis.UserLibrary.copy_from_room/3` maakt een kopie en bibliotheeklink in één transactie,
   met controle en locks op actuele roomlidmaatschap/bron. Web gebruikt uitsluitend de serverselectie en geverifieerde gebruiker.
 - `UserLibrary.save/2` is een intern verwijzingsprimitive, geen geautoriseerde browseractie.
+- `UserLibrary.rename/3` en `title/2` beheren alleen de eigen bibliotheektitel, maximaal 120 Unicode-codepunten.
+  Leeg wist de titel; geen verandering van roomwerk, andere gebruikerslinks of analyserevisie.
 - Privé-editor: apps/web/lib/web/live/personal_analysis_live.{ex,html.heex};
   `UserLibrary.get_private/2` en `edit_private/5` controleren/locken de privéscope.
   De editor biedt legale zetten/promotie, varianten, opmerkingen/NAGs; position setup volgt later.
@@ -135,7 +147,9 @@ Deze commando’s werken vanaf de umbrella-root in PowerShell en Bash; voer suit
 
 ```text
 mix format --check-formatted
-cd apps/analysis
+cd apps/database
+mix test
+cd ../analysis
 mix test --seed 398267
 cd ../web
 mix test --seed 511632
@@ -145,16 +159,16 @@ git diff --check
 ```
 
 Voor web-only wijzigingen volstaat de relevante websuite; voer analyse niet nodeloos opnieuw uit.
-Laatste volledige analysecontrole: **599 geslaagd**, seed 398267, voor de privé-editor.
+Laatste volledige analysecontrole: **602 geslaagd**, seed 398267, voor bibliotheektitels.
 Geaccepteerde backlog: suite-afhankelijke `:invalid_occurrences`-fouten, seed 938846,
 in AnalysesTest/PgnBatchImporterTest; zie development-history. Niet onderdrukken of een falende run groen noemen.
 
-Reproductie van de afgeronde homepagecommit (al uitgevoerd; niet nogmaals committen),
+Reproductie van de bibliotheektitelslice,
 dezelfde Git-commando’s op beide systemen:
 
 ```text
 git add <expliciet-gecontroleerde-bestanden>
-git commit -m "Simplify home controls and align independent room entry cards"
+git commit -m "Add readable titles to personal library analyses"
 git push origin main
 ```
 
@@ -164,4 +178,5 @@ Header is gepusht in `15562fc`; privé-editor in `05c3cf6`; homepage in `7c24777
 Controleer na pull de werkelijke HEAD en werkboom; commit/push staan afzonderlijk hierboven.
 Deployment van de laatste wijzigingen is op 2026-10-14 door de gebruiker bevestigd.
 Geen resterende controles of implementatie voor deze twee slices.
+Bibliotheektitels zijn groen; commit/push-status bovenaan. Deze nieuwe slice is niet gedeployed.
 Expliciet terugdelen, gewijzigde roomretentie en privé-position setup/tools blijven later werk.

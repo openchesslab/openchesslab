@@ -10,6 +10,47 @@ defmodule Analysis.UserLibrary do
   alias Analysis.AnalysisStore
   alias OpenChessLab.Repo
 
+  @doc "Read only this user's personal library title, without loading an analysis tree."
+  def title(user_id, analysis_id) when is_binary(analysis_id) do
+    case Ecto.UUID.dump(user_id) do
+      {:ok, db_id} ->
+        case Repo.query!(
+               "SELECT title FROM user_analyses WHERE user_id = $1 AND analysis_id = $2",
+               [db_id, analysis_id]
+             ).rows do
+          [[title]] -> {:ok, title}
+          [] -> :not_found
+        end
+
+      _ ->
+        :not_found
+    end
+  end
+
+  def title(_, _), do: :not_found
+
+  @doc "Rename this user's saved reference only. Blank titles clear the personal label."
+  def rename(user_id, analysis_id, title) when is_binary(analysis_id) and is_binary(title) do
+    with {:ok, db_id} <- Ecto.UUID.dump(user_id),
+         true <- String.valid?(title),
+         title = title |> String.replace(~r/\s+/u, " ") |> String.trim(),
+         true <- length(String.codepoints(title)) <= 120 do
+      title = if title != "", do: title
+
+      case Repo.query!(
+             "UPDATE user_analyses SET title = $3 WHERE user_id = $1 AND analysis_id = $2 RETURNING id",
+             [db_id, analysis_id, title]
+           ).rows do
+        [[_]] -> :ok
+        [] -> :not_found
+      end
+    else
+      _ -> {:error, :invalid_title}
+    end
+  end
+
+  def rename(_, _, _), do: {:error, :invalid_title}
+
   @doc "Read a personal analysis: this user's reference, no room or other user's reference."
   def get_private(user_id, analysis_id) do
     case with_private(user_id, analysis_id, fn -> AnalysisStore.get(analysis_id) end) do
@@ -198,13 +239,15 @@ defmodule Analysis.UserLibrary do
 
       rows =
         Repo.query!(
-          "SELECT analysis_id, created_at FROM user_analyses WHERE user_id = $1" <>
+          "SELECT analysis_id, created_at, title FROM user_analyses WHERE user_id = $1" <>
             predicate <> " ORDER BY analysis_id LIMIT 51",
           params
         ).rows
 
       entries =
-        Enum.map(Enum.take(rows, 50), fn [id, saved_at] -> %{id: id, saved_at: saved_at} end)
+        Enum.map(Enum.take(rows, 50), fn [id, saved_at, title] ->
+          %{id: id, saved_at: saved_at, title: title}
+        end)
 
       cursor = if length(rows) > 50, do: List.last(entries).id
       %{entries: entries, next_cursor: cursor}

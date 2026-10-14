@@ -134,6 +134,64 @@ defmodule Web.LibraryLiveTest do
   defp authenticated(ctx),
     do: Plug.Test.init_test_session(build_conn(), %{user_token: ctx.session.token})
 
+  test "rename uses the selected personal entry, persists and escapes the title", ctx do
+    {:ok, view, _} = live(authenticated(ctx), "/library")
+    assert has_element?(view, "#saved-#{ctx.own} a", "Untitled analysis")
+    render_click(view, "start-rename", %{"id" => ctx.own})
+
+    render_submit(view, "rename", %{
+      "title" => "  My <script>plan</script>  ",
+      "id" => ctx.theirs,
+      "user_id" => ctx.other.id
+    })
+
+    assert {:ok, "My <script>plan</script>"} = UserLibrary.title(ctx.user.id, ctx.own)
+    assert {:ok, nil} = UserLibrary.title(ctx.other.id, ctx.own)
+    assert {:ok, nil} = UserLibrary.title(ctx.other.id, ctx.theirs)
+    assert has_element?(view, "#saved-#{ctx.own} a", "My <script>plan</script>")
+    refute has_element?(view, "#library-entries script")
+    refute has_element?(view, "#library-rename-form")
+    {:ok, reopened, _} = live(authenticated(ctx), "/library")
+    assert has_element?(reopened, "#saved-#{ctx.own} a", "My <script>plan</script>")
+  end
+
+  test "invalid titles stay editable; cancellation and clearing work in Dutch", ctx do
+    {:ok, view, _} = live(put_req_cookie(authenticated(ctx), "_ocl_locale", "nl"), "/library")
+    render_click(view, "start-rename", %{"id" => ctx.own})
+    assert has_element?(view, "label[for='library-title']", "Analysetitel")
+    render_submit(view, "rename", %{"title" => String.duplicate("x", 121)})
+    assert has_element?(view, "#library-rename-form [role='alert']", "maximaal 120")
+    assert {:ok, nil} = UserLibrary.title(ctx.user.id, ctx.own)
+    render_click(view, "cancel-rename", %{})
+    refute has_element?(view, "#library-rename-form")
+    render_click(view, "start-rename", %{"id" => ctx.own})
+    render_submit(view, "rename", %{"title" => "Mijn analyse"})
+    render_click(view, "start-rename", %{"id" => ctx.own})
+    render_submit(view, "rename", %{"title" => "  "})
+    assert has_element?(view, "#saved-#{ctx.own} a", "Analyse zonder titel")
+  end
+
+  test "foreign selections, removed memberships and revoked credentials cannot rename", ctx do
+    {:ok, view, _} = live(authenticated(ctx), "/library")
+    render_click(view, "start-rename", %{"id" => ctx.theirs, "user_id" => ctx.other.id})
+    refute has_element?(view, "#library-rename-form")
+    render_submit(view, "rename", %{"title" => "Denied", "id" => ctx.theirs})
+    assert {:ok, nil} = UserLibrary.title(ctx.other.id, ctx.theirs)
+    render_click(view, "start-rename", %{"id" => ctx.own})
+    UserLibrary.remove(ctx.user.id, ctx.own)
+    render_submit(view, "rename", %{"title" => "Removed"})
+    assert {:ok, nil} = UserLibrary.title(ctx.other.id, ctx.own)
+    UserLibrary.save(ctx.user.id, ctx.own)
+    render_click(view, "first-page", %{})
+    render_click(view, "start-rename", %{"id" => ctx.own})
+    UserSessions.revoke(ctx.session.token)
+
+    assert {:error, {:redirect, %{to: "/"}}} =
+             render_submit(view, "rename", %{"title" => "Revoked"})
+
+    assert {:ok, nil} = UserLibrary.title(ctx.user.id, ctx.own)
+  end
+
   defp expire(token) do
     Repo.query!(
       "UPDATE user_sessions SET created_at = timezone('UTC', statement_timestamp()) - interval '2 days', expires_at = timezone('UTC', statement_timestamp()) - interval '1 second' WHERE token_hash = $1",

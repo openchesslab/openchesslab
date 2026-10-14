@@ -43,8 +43,17 @@ defmodule Web.PersonalAnalysisLive do
       {:ok, analysis, revision} ->
         notice = socket.assigns.notice
 
-        {:noreply,
-         socket |> display(analysis, revision, parse_path(params["p"])) |> assign(:notice, notice)}
+        case UserLibrary.title(socket.assigns.current_user.id, id) do
+          {:ok, title} ->
+            {:noreply,
+             socket
+             |> display(analysis, revision, parse_path(params["p"]))
+             |> assign(:notice, notice)
+             |> assign(:page_title, title || Web.I18n.t("personal.title", socket.assigns.locale))}
+
+          :not_found ->
+            {:noreply, unavailable(socket)}
+        end
 
       :not_found ->
         {:noreply, unavailable(socket)}

@@ -13,7 +13,9 @@ defmodule Web.LibraryLive do
        locale: locale,
        entries: [],
        cursor: nil,
-       next_cursor: nil
+       next_cursor: nil,
+       editing: nil,
+       title_error: nil
      ), layout: false}
   end
 
@@ -21,6 +23,29 @@ defmodule Web.LibraryLive do
   def handle_params(_params, _uri, socket), do: {:noreply, load_page(socket, nil)}
 
   @impl true
+  def handle_event("start-rename", %{"id" => id}, socket) do
+    entry = Enum.find(socket.assigns.entries, &(&1.id == id))
+    {:noreply, assign(socket, editing: entry, title_error: nil)}
+  end
+
+  def handle_event("cancel-rename", _, socket),
+    do: {:noreply, assign(socket, editing: nil, title_error: nil)}
+
+  def handle_event("rename", %{"title" => title}, %{assigns: %{editing: entry}} = socket)
+      when not is_nil(entry) do
+    case UserLibrary.rename(socket.assigns.current_user.id, entry.id, title) do
+      :ok ->
+        {:noreply, load_page(socket, socket.assigns.cursor)}
+
+      :not_found ->
+        {:noreply, load_page(socket, socket.assigns.cursor)}
+
+      {:error, :invalid_title} ->
+        {:noreply,
+         assign(socket, :title_error, Web.I18n.t("library.titleInvalid", socket.assigns.locale))}
+    end
+  end
+
   def handle_event("next-page", _params, %{assigns: %{next_cursor: nil}} = socket),
     do: {:noreply, socket}
 
@@ -40,6 +65,13 @@ defmodule Web.LibraryLive do
 
   defp load_page(socket, cursor) do
     page = UserLibrary.page(socket.assigns.current_user.id, cursor)
-    assign(socket, entries: page.entries, cursor: cursor, next_cursor: page.next_cursor)
+
+    assign(socket,
+      entries: page.entries,
+      cursor: cursor,
+      next_cursor: page.next_cursor,
+      editing: nil,
+      title_error: nil
+    )
   end
 end

@@ -28,8 +28,9 @@
       <div class="min-w-0">
         <.link
           navigate={~p"/library/#{entry.id}"}
-          class="m-0 break-all font-mono text-sm underline"
-        >{entry.id}</.link>
+          class="m-0 break-words font-semibold underline"
+        >{entry.title || Web.I18n.t("library.untitled", @locale)}</.link>
+        <p class="mt-1 break-all font-mono text-xs text-faint">{entry.id}</p>
         <p class="mt-1 text-xs text-muted">
           {Web.I18n.t("library.saved", @locale)}
           <time datetime={NaiveDateTime.to_iso8601(entry.saved_at) <> "Z"}>{Calendar.strftime(
@@ -38,14 +39,56 @@
           )}</time>
         </p>
       </div>
-      <button
-        type="button"
-        phx-click="remove"
-        phx-value-id={entry.id}
-        class="rounded-md border border-border px-3 py-2 text-sm hover:bg-panel-hover"
+      <div class="flex flex-wrap gap-2">
+        <button
+          type="button"
+          phx-click="start-rename"
+          phx-value-id={entry.id}
+          class="rounded-md border border-border px-3 py-2 text-sm hover:bg-panel-hover"
+        >{Web.I18n.t("library.rename", @locale)}</button>
+        <button
+          type="button"
+          phx-click="remove"
+          phx-value-id={entry.id}
+          class="rounded-md border border-border px-3 py-2 text-sm hover:bg-panel-hover"
+        >
+          {Web.I18n.t("library.remove", @locale)}
+        </button>
+      </div>
+      <form
+        :if={@editing && @editing.id == entry.id}
+        id="library-rename-form"
+        phx-submit="rename"
+        class="w-full space-y-3 border-t border-border pt-4"
       >
-        {Web.I18n.t("library.remove", @locale)}
-      </button>
+        <label for="library-title" class="block text-sm font-semibold">{Web.I18n.t(
+          "library.titleLabel",
+          @locale
+        )}</label>
+        <input
+          id="library-title"
+          name="title"
+          value={@editing.title || ""}
+          maxlength="120"
+          aria-describedby="library-title-help"
+          class="w-full rounded-md border border-border bg-canvas px-3 py-2"
+        />
+        <p id="library-title-help" class="text-xs text-muted">
+          {Web.I18n.t("library.titleHelp", @locale)}
+        </p>
+        <p :if={@title_error} role="alert" class="text-sm text-error">{@title_error}</p>
+        <div class="flex flex-wrap gap-2">
+          <button type="submit" class="rounded-md border border-border px-3 py-2 text-sm">{Web.I18n.t(
+            "library.saveTitle",
+            @locale
+          )}</button>
+          <button
+            type="button"
+            phx-click="cancel-rename"
+            class="rounded-md border border-border px-3 py-2 text-sm"
+          >{Web.I18n.t("library.cancel", @locale)}</button>
+        </div>
+      </form>
     </li>
   </ul>
   <nav class="mt-6 flex gap-3" aria-label={Web.I18n.t("library.pages", @locale)}>

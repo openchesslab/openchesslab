@@ -8,7 +8,7 @@
       )}</button>
     </.form>
   </nav>
-  <h1 class="text-2xl font-semibold">{Web.I18n.t("personal.title", @locale)}</h1>
+  <h1 class="break-words text-2xl font-semibold">{@page_title}</h1>
   <p class="mb-5 text-sm text-muted">{Web.I18n.t("personal.description", @locale)}</p>
   <p :if={@notice} role="alert" class="mb-3 text-sm">{@notice}</p>
   <div :if={@analysis} class="grid gap-6 min-[861px]:grid-cols-2">

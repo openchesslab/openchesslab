@@ -329,11 +329,30 @@ code, and Dutch 360px mobile without horizontal overflow. Full web seed `511632`
 asset build, root formatter and diff checks passed. Analysis tests were not repeated for this web-only slice.
 No database change or production deployment; temporary local preview server stopped.
 
+### Personal library titles — 2026-10-14
+
+After the user confirmed deployment of `561ed67`, start from its clean main checkout and
+add personal labels to saved library references. A nullable, length-constrained title column
+keeps paging bounded without decoding trees. Rename uses only the verified User and the
+server-selected current-page entry; the same title appears in the private editor. Room content,
+other users' labels and aggregate revisions remain independent. Blank titles reset the fallback.
+No provider import, sharing, retention or automatic title generation is added.
+
+Dev migration succeeded; the first test migration hit the sandbox Mix hard-link restriction.
+Tests were mistakenly started before correcting that migration, producing 9/13 passes with
+four missing-column errors. Run the migration outside the sandbox; the same seed `96633`
+then passed all 13 targeted domain tests. The 23 targeted web tests passed, covering persistent
+labels, escaped output, Dutch controls, clearing/cancellation, removed references, forged
+parameters and revoked credentials. Database suite: 4 passed, including release migration idempotence.
+Full analysis seed `398267`: 602 passed; full web seed `511632`: 179 passed.
+Asset build (outside sandbox), root formatter and diff checks passed. No production deployment;
+the normal release migration must apply the new column before the new app code starts.
+
 **Near-term (next green vertical slices):**
 
 - **OAuth security foundation:** production login/logout and cross-tab disconnection have been user-verified. Private library routes/events now require a valid session. Explicit provider account linking and private analysis editing/sharing policies remain separate work.
 - **Lichess first-provider login:** provisioned and verified; distinguish any future provider account linking from requesting study/game scopes.
-- **Library access in LiveView:** authenticated listing/removal, independent copies and private editing exist. Next add richer labels, private position setup/tools and explicit copy-back sharing. Never reopen a personal copy by silently adding it to a shared room.
+- **Library access in LiveView:** authenticated listing/removal, personal titles, independent copies and private editing exist. Next add private position setup/tools and explicit copy-back sharing. Never reopen a personal copy by silently adding it to a shared room.
 - **Tests / infra:** update auth/migration/release coverage, health/readiness where relevant, and test helpers for new tables; check app scopes and prevents accidental access to other users. Keep manual production deployment.
 - **Accepted test backlog (2026-10-13):** investigate suite-dependent `:invalid_occurrences` failures in `Analysis.AnalysesTest` (`test/analysis/analyses_test.exs:122`) and `Analysis.PgnBatchImporterTest` (`test/analysis/pgn_batch_importer_test.exs:143`). Full analysis seed `938846` produced 588/589, then 587/589 passes; the isolated analysis test passed and both files together passed all 63 tests with that same seed. Full seed `824219` passed all 589. Shared PostgreSQL fixtures/reset order are suspected, but the cause is not established. The user explicitly requested putting a flaky test on the backlog. Do not suppress the tests or describe the failing seed as green. Reproduce from `apps/analysis` with `mix test --seed 938846`; compare `mix test test/analysis/analyses_test.exs test/analysis/pgn_batch_importer_test.exs --seed 938846` (same commands on Windows/Arch).
 

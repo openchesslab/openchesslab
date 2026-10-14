@@ -197,4 +197,16 @@ defmodule Web.PersonalAnalysisLiveTest do
   end
 
   defp conn(session), do: Plug.Test.init_test_session(build_conn(), %{user_token: session.token})
+
+  test "the editor uses the personal library title without altering room work", ctx do
+    :ok = UserLibrary.rename(ctx.user.id, ctx.id, "My opening study")
+    {:ok, view, html} = live(conn(ctx.session), "/library/#{ctx.id}")
+    assert has_element?(view, "h1", "My opening study")
+    assert html =~ "My opening study"
+    assert :sys.get_state(view.pid).socket.assigns.page_title == "My opening study"
+    render_click(view, "board-move", %{"from" => 12, "to" => 28})
+    assert has_element?(view, "h1", "My opening study")
+    assert {:ok, source, 1} = AnalysisStore.get(ctx.source)
+    assert source.metadata == %{}
+  end
 end

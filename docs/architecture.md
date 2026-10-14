@@ -252,7 +252,18 @@ The browser mirrors its existing local theme/language preferences into host-only
 
 `/library` is a separate authenticated LiveView session. Its HTTP pipeline requires a resolved User and sends `Cache-Control: no-store`; `Web.UserAuth` in `:required` mode independently resolves the credential at both mounts and before each event and `handle_params` callback. Missing, expired, revoked or deleted-user credentials halt processing and redirect home with a translated login prompt. Public home/room routes retain optional authentication. Authentication checks are per request/event, not a claim of serializability with concurrent revocation, and idle expiry still has no timer.
 
-`Web.LibraryLive` lists and removes references exclusively using the server-resolved User ID. It ignores client-provided owner and cursor values; paging uses its current server-side cursor. `Analysis.UserLibrary.page/2` reads at most 50 references plus one lookahead row in analysis-ID order, with keyset continuation using the existing unique `(user_id, analysis_id)` index. It reads reference IDs and saved dates only, without loading analysis trees or issuing per-entry queries. The older trusted `list/1` API remains available for domain use.
+`Web.LibraryLive` lists, renames and removes references exclusively using the server-resolved User ID. It ignores client-provided owner and cursor values; paging uses its current server-side cursor. `Analysis.UserLibrary.page/2` reads at most 50 references plus one lookahead row in analysis-ID order, with keyset continuation using the existing unique `(user_id, analysis_id)` index. It reads reference IDs, saved dates and personal titles only, without loading analysis trees or issuing per-entry queries. The older trusted `list/1` API remains available for domain use.
+
+Migration `20261014150000_add_user_analysis_titles.exs` adds a nullable `user_analyses.title`,
+constrained to 1–120 Unicode code points when present. `UserLibrary.rename/3` normalizes
+whitespace and clears blank titles to NULL, updating only the authenticated caller's reference.
+`title/2` is likewise user-scoped. These trusted APIs require authentication at the web boundary.
+Titles are personal library labels, independent of the analysis aggregate/revision, room content
+and another user's references; simultaneous title saves use the latest committed write.
+The list opens an inline rename form only for a server-selected entry on the current page;
+submitted owner/analysis IDs cannot redirect the save. HTML output escapes titles. Untitled items
+use an English/Dutch fallback, and the private editor uses the saved label as its heading/document title.
+Existing references need no tree reads or backfill; users can label them directly.
 
 The home/room header links signed-in users to the library. The page has English/Dutch text, keeps the document theme/locale, and offers removal of a saved reference without deleting the analysis or another user's reference. This first interface shows analysis identifiers and saved dates; opening a saved analysis, richer labels and private analysis editing/sharing are subsequent slices. Tests cover HTTP and connected-mount denial, event/navigation revocation, user deletion, forged owner parameters, paging and shared-analysis preservation.
 
