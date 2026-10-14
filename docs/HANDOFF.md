@@ -34,6 +34,16 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, door agent gecommit en gepusht:** `Arm the account deletion button on the
+  confirmation word`, gestart op schone `5394e91` (gebruikersidee, 2026-10-14). De "Delete my
+  account"-knop in het linked-accounts-modal staat op disabled tot het getypte bevestigingswoord
+  klopt (`account-delete-change` host-event → `Web.AccountController.confirmation_valid?/1`,
+  dezelfde servercontrole als de POST; herstelt op false bij heropenen). De verouderde
+  "type the confirmation word"-melding is nu alleen nog het antwoord op buiten de browser
+  gemaakte requests; de servercontrole blijft gezaghebbend (verdediging getest). Web-only.
+  Gericht: account_deletion **6/6** (incl. nieuwe arming-test); volledig web **207 geslaagd**
+  (seed 511632); formatter, compile --warnings-as-errors en diffcontrole geslaagd.
+
 - **Afgerond, door agent gecommit en gepusht:** `Materialize a private copy when opening a live
   reference`, gestart op schone `0b38cca`. `UserLibrary.open_private/2` opent een bibliotheekentry
   voor privé-werk: is de analyse nog gedeeld (in een room óf door een andere gebruiker gereferenceerd),

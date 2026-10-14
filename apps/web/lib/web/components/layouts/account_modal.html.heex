@@ -84,7 +84,13 @@
       <section id="account-danger-zone" class="mt-10 rounded-lg border border-error bg-panel p-4">
         <h3 class="m-0 font-semibold">{Web.I18n.t("auth.deleteHeading", @locale)}</h3>
         <p class="mb-4 mt-1 text-sm text-muted">{Web.I18n.t("auth.deleteHelp", @locale)}</p>
-        <.form for={%{}} id="account-delete-form" action={~p"/account/delete"} method="post">
+        <.form
+          for={%{}}
+          id="account-delete-form"
+          action={~p"/account/delete"}
+          method="post"
+          phx-change="account-delete-change"
+        >
           <label class="mb-2 block text-sm" for="account-delete-confirmation">
             {Web.I18n.t("auth.deleteConfirm", @locale, %{
               word: Web.I18n.t("auth.deleteWord", @locale)
@@ -102,7 +108,8 @@
             />
             <button
               type="submit"
-              class="rounded-md border border-error px-3 py-2 text-sm text-error hover:bg-panel-hover"
+              disabled={!@account_delete_armed}
+              class="rounded-md border border-error px-3 py-2 text-sm text-error hover:bg-panel-hover disabled:cursor-not-allowed disabled:opacity-40"
             >
               {Web.I18n.t("auth.deleteButton", @locale)}
             </button>

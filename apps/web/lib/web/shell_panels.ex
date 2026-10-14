@@ -12,6 +12,7 @@ defmodule Web.ShellPanels do
   import Phoenix.Component, only: [assign: 2, assign: 3]
 
   alias Analysis.{Accounts, UserLibrary}
+  alias Web.AccountController
 
   def load_library(socket, cursor \\ nil) do
     # The import modal's My Library tab is the only library surface; it is
@@ -25,7 +26,24 @@ defmodule Web.ShellPanels do
         do: Accounts.providers_for(user.id),
         else: []
 
-    {:noreply, assign(socket, ui_modal: "account", providers: providers, account_error: nil)}
+    {:noreply,
+     assign(socket,
+       ui_modal: "account",
+       providers: providers,
+       account_error: nil,
+       account_delete_armed: false
+     )}
+  end
+
+  # Typing the confirmation word arms the deletion button. The server-side
+  # check stays authoritative: the disabled button is browser UX only.
+  def account_delete_change(params, socket) do
+    {:noreply,
+     assign(
+       socket,
+       :account_delete_armed,
+       AccountController.confirmation_valid?(params["confirmation"])
+     )}
   end
 
   def unlink_provider(socket, provider) do

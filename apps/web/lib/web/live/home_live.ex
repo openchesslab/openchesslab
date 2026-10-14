@@ -24,7 +24,8 @@ defmodule Web.HomeLive do
        join_error: nil,
        create_error: nil,
        providers: [],
-       account_error: nil
+       account_error: nil,
+       account_delete_armed: false
      )}
   end
 
@@ -90,6 +91,9 @@ defmodule Web.HomeLive do
   def handle_event("latency-ping", _params, socket), do: {:reply, %{}, socket}
 
   def handle_event("open-account", _params, socket), do: Web.ShellPanels.open_account(socket)
+
+  def handle_event("account-delete-change", params, socket),
+    do: Web.ShellPanels.account_delete_change(params, socket)
 
   def handle_event("unlink-provider", %{"provider" => provider}, socket),
     do: Web.ShellPanels.unlink_provider(socket, provider)

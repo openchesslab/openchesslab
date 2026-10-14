@@ -53,7 +53,9 @@ defmodule Web.AccountDeletionTest do
     assert {:ok, %Analysis{}, 1} = AnalysisStore.get(ctx.analysis_id)
   end
 
-  test "wrong or missing confirmation preserves the account and session", ctx do
+  test "crafted requests without the word cannot delete the account", ctx do
+    # The disabled button is browser UX only; the server check stays
+    # authoritative for requests crafted outside the browser.
     for confirmation <- ["remove", "delete!", "", nil, ["DELETE"]] do
       page = delete_page(ctx.session.token)
       csrf = form_csrf(page, "auth-logout")
@@ -155,6 +157,28 @@ defmodule Web.AccountDeletionTest do
 
     assert has_element?(view_nl, "#account-delete-confirmation[placeholder='VERWIJDER']")
     assert render(view_nl) =~ "Typ VERWIJDER om te bevestigen"
+  end
+
+  test "the deletion button stays disabled until the confirmation word is typed", ctx do
+    {:ok, view, _html} = live(signed_in(ctx.session.token), "/")
+    render_click(view, "open-account")
+
+    disarm = "#account-delete-form button[type='submit'][disabled]"
+    assert has_element?(view, disarm)
+
+    for typed <- ["remove", "delete!", "", " verwijdering ", ["DELETE"]] do
+      render_change(view, "account-delete-change", %{"confirmation" => typed})
+      assert has_element?(view, disarm)
+    end
+
+    for typed <- [" DELETE ", "verwijder"] do
+      render_change(view, "account-delete-change", %{"confirmation" => typed})
+      refute has_element?(view, disarm)
+      assert has_element?(view, "#account-delete-form button[type='submit']")
+
+      render_change(view, "account-delete-change", %{"confirmation" => "wrong"})
+      assert has_element?(view, disarm)
+    end
   end
 
   defp delete_page(token),

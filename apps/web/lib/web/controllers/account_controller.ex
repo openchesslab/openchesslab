@@ -17,8 +17,18 @@ defmodule Web.AccountController do
 
   # Keep in sync with the "auth.deleteWord" catalog values. Either word is
   # accepted, case-insensitively, so switching languages between rendering
-  # the form and submitting it cannot trap the user.
+  # the form and submitting it cannot trap the user. Public because the shell
+  # modal's change event uses the same check to arm its button.
   @confirm_words ~w(DELETE VERWIJDER)
+
+  @doc "Is this typed confirmation word one of the catalog words, ignoring case and surrounding whitespace?"
+  @spec confirmation_valid?(term()) :: boolean()
+  def confirmation_valid?(input) when is_binary(input) do
+    input = input |> String.trim() |> String.upcase()
+    input in @confirm_words
+  end
+
+  def confirmation_valid?(_), do: false
 
   def delete(conn, params) do
     conn = private_response(conn)
@@ -26,7 +36,7 @@ defmodule Web.AccountController do
     # parameters cannot select another user's account.
     token = get_session(conn, :user_token)
 
-    if confirmed?(params["confirmation"]) do
+    if confirmation_valid?(params["confirmation"]) do
       # A double submit after the first deletion commits finishes signed out.
       case Users.delete(conn.assigns.current_user.id) do
         :ok -> :ok
@@ -65,13 +75,6 @@ defmodule Web.AccountController do
       |> redirect(to: ~p"/")
     end
   end
-
-  defp confirmed?(input) when is_binary(input) do
-    input = input |> String.trim() |> String.upcase()
-    input in @confirm_words
-  end
-
-  defp confirmed?(_), do: false
 
   defp private_response(conn),
     do:

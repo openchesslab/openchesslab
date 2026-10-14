@@ -172,7 +172,10 @@ an unlinked user stays signed in and can relink the same identity later.
 
 `POST /account/delete` (CSRF-protected, authenticated, `Web.AccountController`)
 permanently deletes the signed-in account after a typed confirmation word
-(`DELETE`, or the Dutch catalog word, case-insensitively). It reuses
+(`DELETE`, or the Dutch catalog word, case-insensitively). The modal's deletion
+button stays disabled until the typed word matches (`account-delete-change`,
+`Web.AccountController.confirmation_valid?/1`); the server-side check remains
+authoritative for requests crafted outside the browser. It reuses
 `Analysis.Users.delete/1`: linked identities, all sessions and personal library
 links cascade in PostgreSQL, while underlying analyses and room content remain;
 detached personal copies await the separate orphan-cleanup policy. The current
