@@ -34,8 +34,9 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond, wacht op commit/push:** `Require stored display names for private room members`,
-  gestart op schone `0492391`. Gebruikersbeslissing 2026-10-15: greenfield zonder gebruikers, dus
+- **Afgerond, gecommit en gepusht:** `Require stored display names for private room members`
+  (`b5a230f` op main, bovenop `0492391`), browsertest: KH43QB toont echte namen, geen fallback.
+  Gebruikersbeslissing 2026-10-15: greenfield zonder gebruikers, dus
   geen legacy-compatibiliteit — de md5-fallback ("Member XXXX") uit `RoomStore` is verwijderd,
   `display_name` is `NOT NULL` (migratie `20261015120000`, dropt de twee pre-eis dev-rijen),
   `display_name` is een verplichte parameter van `create_private`/`add_member`/`consume_invite` en
