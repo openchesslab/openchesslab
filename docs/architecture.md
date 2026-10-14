@@ -266,9 +266,30 @@ Signed-in room participants can choose **Save a personal copy** for the selected
 
 The existing `user_analyses` schema stores the copy's library association; no ownership column, migration, private editor or sharing endpoint is introduced. The trusted `save/2` primitive still inserts references internally and is not exposed as a browser save operation. Library removal still removes the association only, so orphan cleanup/user deletion semantics need a separate policy. Explicit copy-back sharing and private opening/editing remain next slices; room expiry/cleanup behavior is unchanged.
 
-### Remaining private access control and integration
+### Private personal editor — 2026-10-14
 
-- No account-grant storage or Lichess library import/sync. The protected library list described above does not introduce private analysis editing or room permissions.
+`/library/:id` opens `Web.PersonalAnalysisLive` in the required authenticated session,
+with HTTP `no-store` and credential checks on mount, events and navigation. The library
+links directly to this route. The editor has no room, chat, presence or room-membership creation.
+It supports legal board moves (including promotion), branches, variation promotion/removal,
+comments and NAGs; `?p=` selects a tree occurrence and move navigation replaces URL history.
+Position setup/editing and the broader room tools are not yet exposed in this first private editor.
+
+`UserLibrary.get_private/2` and `edit_private/5` require the requesting user's library reference,
+no room membership and no other user's library reference. This deliberately denies shared
+references inserted through trusted `save/2`; personal copies from `copy_from_room/3` satisfy
+the policy. These remain trusted domain APIs: the browser boundary supplies only its verified
+User and server-selected analysis/revision/path. Missing and inaccessible IDs receive the same denial.
+PostgreSQL locks the analysis with `FOR UPDATE` (also excluding new foreign-key references),
+then the user's reference with `FOR SHARE`, retaining the private access scope throughout reads/writes.
+Failed mutations roll back; existing analysis operations retain chess validation and revision semantics.
+An edit checks the displayed revision before mutation: a stale tab reloads the latest aggregate
+and asks the user to retry instead of overwriting it. Membership removal takes effect on the
+next event/navigation; idle tabs have no access-change timer. Room retention and explicit sharing remain planned.
+
+### Remaining integration
+
+- No account-grant storage or Lichess library import/sync. Private editing is scoped as above; room permissions remain separate work.
 - `user_sessions` now exists as described above; `account_grants` remains a proposal. Avoid assuming Better Auth (a different ecosystem) is installed; **User → multiple Accounts is the adopted *model***, not a library dependency.
 - Users should not see unrelated users' analyses by default once ownership/scoping is introduced. Existing room collaboration remains link-based, guest-capable; future policy must define who can view, edit, claim or share analyses, and how anonymous work joins authenticated libraries. No automatic linkage based on matching email addresses.
 

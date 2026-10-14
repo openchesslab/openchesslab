@@ -26,7 +26,10 @@
       class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-panel p-4"
     >
       <div class="min-w-0">
-        <p class="m-0 break-all font-mono text-sm">{entry.id}</p>
+        <.link
+          navigate={~p"/library/#{entry.id}"}
+          class="m-0 break-all font-mono text-sm underline"
+        >{entry.id}</.link>
         <p class="mt-1 text-xs text-muted">
           {Web.I18n.t("library.saved", @locale)}
           <time datetime={NaiveDateTime.to_iso8601(entry.saved_at) <> "Z"}>{Calendar.strftime(

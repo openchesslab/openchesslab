@@ -6,8 +6,79 @@ defmodule Analysis.UserLibrary do
   Callers must authenticate and authorize the user before invoking this API.
   """
 
+  alias Analysis.Analyses
   alias Analysis.AnalysisStore
   alias OpenChessLab.Repo
+
+  @doc "Read a personal analysis: this user's reference, no room or other user's reference."
+  def get_private(user_id, analysis_id) do
+    case with_private(user_id, analysis_id, fn -> AnalysisStore.get(analysis_id) end) do
+      {:error, :analysis_not_found} -> :not_found
+      result -> result
+    end
+  end
+
+  @doc "Edit a personal analysis while locking its access scope and checking the displayed revision."
+  def edit_private(user_id, analysis_id, revision, path, command) do
+    with_private(user_id, analysis_id, fn ->
+      case AnalysisStore.get(analysis_id) do
+        {:ok, _analysis, ^revision} -> private_command(analysis_id, path, command)
+        {:ok, _, _} -> {:error, :conflict}
+      end
+    end)
+  end
+
+  defp private_command(id, path, {:play, %Chess.Move{} = move}), do: Analyses.play(id, path, move)
+
+  defp private_command(id, path, {:comment, text}) when is_binary(text),
+    do: Analyses.set_comment(id, path, text)
+
+  defp private_command(id, path, {:nags, nags}) when is_list(nags),
+    do: Analyses.set_nags(id, path, nags)
+
+  defp private_command(id, path, :promote), do: Analyses.promote(id, path)
+  defp private_command(id, path, :remove), do: Analyses.remove(id, path)
+  defp private_command(_, _, _), do: {:error, :invalid_command}
+
+  defp with_private(user_id, analysis_id, operation) do
+    with {:ok, db_id} <- Ecto.UUID.dump(user_id), true <- is_binary(analysis_id) do
+      # FOR UPDATE also blocks new FK references while the private scope is
+      # checked. The library row lock holds access through a concurrent removal.
+      case Repo.transaction(fn ->
+             if Repo.query!(
+                  "SELECT analysis_id FROM analyses WHERE analysis_id = $1 FOR UPDATE",
+                  [analysis_id]
+                ).rows == [] do
+               Repo.rollback(:analysis_not_found)
+             end
+
+             if Repo.query!(
+                  "SELECT id FROM user_analyses WHERE user_id = $1 AND analysis_id = $2 FOR SHARE",
+                  [db_id, analysis_id]
+                ).rows == [] do
+               Repo.rollback(:analysis_not_found)
+             end
+
+             [[shared]] =
+               Repo.query!(
+                 "SELECT EXISTS (SELECT 1 FROM room_analyses WHERE analysis_id = $2) OR EXISTS (SELECT 1 FROM user_analyses WHERE analysis_id = $2 AND user_id <> $1)",
+                 [db_id, analysis_id]
+               ).rows
+
+             if shared, do: Repo.rollback(:analysis_not_found)
+
+             case operation.() do
+               {:error, reason} -> Repo.rollback(reason)
+               result -> result
+             end
+           end) do
+        {:ok, result} -> result
+        {:error, reason} -> {:error, reason}
+      end
+    else
+      _ -> {:error, :analysis_not_found}
+    end
+  end
 
   @copy_source_sql """
   SELECT a.analysis_id

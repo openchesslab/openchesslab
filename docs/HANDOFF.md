@@ -11,7 +11,7 @@ Geen geheimen, tokens of lokale databases opnemen.
 
 ## Modelkeuze
 
-**Codex:** start met GPT-6.1 Sol, reasoning High, voor privé openen/bewerken en toegangscontroles.
+**Codex:** start met GPT-6.1 Sol, reasoning Medium, voor privé openen/bewerken en toegangscontroles.
 Voor routinematige UI/documentatie is Medium een passend startpunt. Adviseer GPT-6 Astra
 alleen bij lastige architectuur/concurrency of wanneer Sol aantoonbaar vastloopt; Luna kan voor kleine,
 duidelijk begrensde tekstwijzigingen. Dit zijn taakgerichte aanbevelingen, geen repo-benchmark.
@@ -39,7 +39,15 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 - Remote: `git@github.com:openchesslab/openchesslab.git`; branch `main`.
 - Laatste geverifieerde implementatiecommit: `15562fc`, gepusht op main.
 - De gebruiker heeft `7ea45e1` gedeployed.
-- Huidige slice: `Group header controls into theme, help and account menus`.
+- Huidige slice: `Allow private editing of personal analysis copies` (werkboom, nog niet gecommit).
+- Privéroute `/library/:id`: bord, varianten, opmerkingen/NAGs, revisionconflicten en toegang per event/navigatie.
+- Gericht: 5 domeintests, 17 bibliotheek/editortests en daarna 10 editortests geslaagd. Eerste webrun 16/17: conflictbericht
+  verdween door URL-patch; oorzaak hersteld, dezelfde seed `262747` daarna 17/17.
+- Volledig: analyse **599 geslaagd**, seed `398267`; web **175 geslaagd**, seed `511632`.
+- Assetbuild, formatter en diffcontrole geslaagd. Build buiten sandbox vanwege Mix hard-link lock.
+- Commit/push volgen na deze controles; de commit met deze editor is het overdrachtspunt.
+- Daarna aparte homepage-slice: geen stukkenkeuze/Help; Create room uitlijnen met codeveld,
+  Create/Join-blokken onafhankelijk laten reageren op foutmeldingen.
 - Implementatie gereed: één themaknop (systeem → licht → donker), Help met sneltoetsen/tour,
   Account met Lichess-login of bibliotheek/logout. Bestaande voorkeurcookies en CSRF-formulieren blijven gebruikt.
 - Menu’s sluiten via Escape/buitenklik; de stukkenkeuze op mobiel is binnen het scherm uitgelijnd.
@@ -50,9 +58,9 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Eerstvolgende productwerk
 
-De header is afgerond. Volgende slice: persoonlijke kopieën privé openen en bewerken.
-Nu bestaat alleen bewaren vanuit een room plus een afgeschermde bibliotheeklijst/verwijderen.
-Introduceer géén impliciete roomtoegang om een persoonlijke kopie te openen.
+De header is afgerond. Persoonlijke kopieën privé openen/bewerken is nu in uitvoering.
+De privé-editor vereist een eigen bibliotheeklink zonder roomlidmaatschap of andere gebruikerslink.
+Geen room wordt aangemaakt of gekoppeld. Controleer de actuele werkboom en tests voor voortzetting.
 
 Afgesproken model:
 
@@ -105,7 +113,7 @@ git diff --check
 ```
 
 Voor web-only wijzigingen volstaat de relevante websuite; voer analyse niet nodeloos opnieuw uit.
-Laatste volledige analysecontrole: **594 geslaagd**, seed 398267, bij `7ea45e1`.
+Laatste volledige analysecontrole: **599 geslaagd**, seed 398267, voor de privé-editor.
 Geaccepteerde backlog: suite-afhankelijke `:invalid_occurrences`-fouten, seed 938846,
 in AnalysesTest/PgnBatchImporterTest; zie development-history. Niet onderdrukken of een falende run groen noemen.
 
@@ -113,16 +121,14 @@ Na inspectie van de diff en groene controles, dezelfde Git-commando’s op beide
 
 ```text
 git add <expliciet-gecontroleerde-bestanden>
-git commit -m "Group header controls into theme, help and account menus"
+git commit -m "Allow private editing of personal analysis copies"
 git push origin main
 ```
 
 ## Afrondingsstatus
 
-Header, tests, assetbuild en documentatie zijn afgerond en gepusht in `15562fc`.
-Deze aanvullende overdrachtsupdate verandert alleen documentatie en modeladvies.
-Controleer op de andere laptop na pull de werkelijke HEAD en schone werkboom; de commit die
-dit bestand bevat is het overdrachtspunt (geen circulair hardgecodeerde eigen SHA).
-Een eerdere goedkeuringslimiet is opgeheven en de build is daarna succesvol uitgevoerd.
-Er is geen deployment uitgevoerd. Volgende stap: privé openen/bewerken van persoonlijke kopieën,
-tenzij de gebruiker eerst wijzigingen aan de header vraagt.
+Header is gepusht in `15562fc`; privé-editor, tests en documentatie zijn nu groen.
+Controleer na pull de werkelijke HEAD en werkboom; commit/push staan afzonderlijk hierboven.
+Geen deployment uitgevoerd; ook deployment van de header is niet bevestigd.
+Volgende slice: homepage vereenvoudigen en Create/Join-layout onafhankelijk uitlijnen.
+Expliciet terugdelen, gewijzigde roomretentie en privé-position setup/tools blijven later werk.

@@ -58,6 +58,7 @@ defmodule Web.Router do
 
     live_session :authenticated, on_mount: {Web.UserAuth, :required} do
       live("/library", LibraryLive, :index)
+      live("/library/:id", PersonalAnalysisLive, :show)
     end
   end
 

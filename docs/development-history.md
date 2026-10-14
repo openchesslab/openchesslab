@@ -299,11 +299,28 @@ After the user deployed `7ea45e1`, group the home/room header into a single them
 
 Validation: 11 targeted auth/preference tests and all 165 web tests passed (full seed `511632`). The initial new test incorrectly treated a LazyHTML selection as a list; corrected it to inspect selected IDs. Browser checks covered desktop account/help, mobile 360px layout and light/dark switching. Formatter, asset build and diff checks passed. The build initially required sandbox escalation and hit an approval-service usage limit; it succeeded after the user reported that limit lifted. No domain/schema change; the analysis suite was not repeated. Production deployment remains manual.
 
+### Private personal editor — 2026-10-14
+
+Starting at `63acd64` with only the user's Medium model-advice change in HANDOFF,
+add `/library/:id` and a separate private board/tree editor. Library membership alone
+does not imply privacy: deny room-linked or multiply referenced analyses. Lock the access
+scope through each domain operation, check the displayed revision and preserve independent
+room/copy content. No schema, implicit room, sharing or retention change.
+
+Targeted coverage includes foreign/absent IDs, removed memberships, room/shared references,
+concurrent revision conflicts, failed edits, credential expiry/revocation, persistent moves,
+comments/NAGs, variations and explicit pawn promotion. The first targeted web run passed
+16/17: its conflict test found the warning was cleared on a URL patch. Preserve the notice
+through handle_params; the same seed `262747` then passed 17/17, and the two additional
+variation/promotion tests passed in the 10-test editor file. Full analysis seed `398267`: 599 passed.
+Full web seed `511632`: 175 passed. Asset build (outside the sandbox for Mix's hard-link lock),
+formatter and diff checks passed. Production deployment remains manual.
+
 **Near-term (next green vertical slices):**
 
 - **OAuth security foundation:** production login/logout and cross-tab disconnection have been user-verified. Private library routes/events now require a valid session. Explicit provider account linking and private analysis editing/sharing policies remain separate work.
 - **Lichess first-provider login:** provisioned and verified; distinguish any future provider account linking from requesting study/game scopes.
-- **Library access in LiveView:** authenticated listing/removal and independent copies from rooms exist. Next add private opening/editing, richer labels and explicit copy-back sharing. Never reopen a personal copy by silently adding it to a shared room.
+- **Library access in LiveView:** authenticated listing/removal, independent copies and private editing exist. Next add richer labels, private position setup/tools and explicit copy-back sharing. Never reopen a personal copy by silently adding it to a shared room.
 - **Tests / infra:** update auth/migration/release coverage, health/readiness where relevant, and test helpers for new tables; check app scopes and prevents accidental access to other users. Keep manual production deployment.
 - **Accepted test backlog (2026-10-13):** investigate suite-dependent `:invalid_occurrences` failures in `Analysis.AnalysesTest` (`test/analysis/analyses_test.exs:122`) and `Analysis.PgnBatchImporterTest` (`test/analysis/pgn_batch_importer_test.exs:143`). Full analysis seed `938846` produced 588/589, then 587/589 passes; the isolated analysis test passed and both files together passed all 63 tests with that same seed. Full seed `824219` passed all 589. Shared PostgreSQL fixtures/reset order are suspected, but the cause is not established. The user explicitly requested putting a flaky test on the backlog. Do not suppress the tests or describe the failing seed as green. Reproduce from `apps/analysis` with `mix test --seed 938846`; compare `mix test test/analysis/analyses_test.exs test/analysis/pgn_batch_importer_test.exs --seed 938846` (same commands on Windows/Arch).
 
