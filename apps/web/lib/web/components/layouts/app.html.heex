@@ -41,7 +41,12 @@
         <.icon name="search" class="h-4 w-4" />
       </button>
 
-      <form id="piece-set-desktop-form" phx-change="set-piece-set" class="hidden sm:block">
+      <form
+        :if={@room_code}
+        id="piece-set-desktop-form"
+        phx-change="set-piece-set"
+        class="hidden sm:block"
+      >
         <label class="sr-only" for="piece-set-desktop">{Web.I18n.t("pieceSet.menu", @locale)}</label>
         <select
           id="piece-set-desktop"
@@ -56,6 +61,7 @@
       </form>
 
       <details
+        :if={@room_code}
         id="piece-set-menu"
         name="header-menu"
         class="relative sm:hidden"
@@ -114,6 +120,7 @@
       </button>
 
       <details
+        :if={@room_code}
         id="help-menu"
         name="header-menu"
         class="relative"

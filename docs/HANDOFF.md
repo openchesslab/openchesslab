@@ -37,17 +37,21 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 ## Repository en huidige status
 
 - Remote: `git@github.com:openchesslab/openchesslab.git`; branch `main`.
-- Laatste geverifieerde implementatiecommit: `15562fc`, gepusht op main.
+- Laatste geverifieerde implementatiecommit: `05c3cf6`, gepusht op main (privé-editor).
 - De gebruiker heeft `7ea45e1` gedeployed.
-- Huidige slice: `Allow private editing of personal analysis copies` (werkboom, nog niet gecommit).
+- Afgeronde slice: `Allow private editing of personal analysis copies`, commit/push `05c3cf6`.
 - Privéroute `/library/:id`: bord, varianten, opmerkingen/NAGs, revisionconflicten en toegang per event/navigatie.
 - Gericht: 5 domeintests, 17 bibliotheek/editortests en daarna 10 editortests geslaagd. Eerste webrun 16/17: conflictbericht
   verdween door URL-patch; oorzaak hersteld, dezelfde seed `262747` daarna 17/17.
 - Volledig: analyse **599 geslaagd**, seed `398267`; web **175 geslaagd**, seed `511632`.
 - Assetbuild, formatter en diffcontrole geslaagd. Build buiten sandbox vanwege Mix hard-link lock.
-- Commit/push volgen na deze controles; de commit met deze editor is het overdrachtspunt.
-- Daarna aparte homepage-slice: geen stukkenkeuze/Help; Create room uitlijnen met codeveld,
-  Create/Join-blokken onafhankelijk laten reageren op foutmeldingen.
+- Huidige slice: `Simplify home controls and align independent room entry cards`.
+- Homepage gereed: geen stukkenkeuze/Help, Create room uitgelijnd met codeveld,
+  Create/Join-blokken onafhankelijk bij foutmeldingen; roomknoppen blijven beschikbaar.
+- Gericht: 15 home/auth/voorkeurtests geslaagd. Browser: EN/NL desktop en 360px mobiel,
+  actieposities/hoogtes gelijk, Create-knop/caption stabiel na onbekende code, geen horizontale overflow.
+- Volledige websuite **175 geslaagd**, seed `511632`; assetbuild en formatter/diffcontrole geslaagd.
+- Previewserver gestopt. Commit/push nog uit te voeren na deze groene controles.
 - Implementatie gereed: één themaknop (systeem → licht → donker), Help met sneltoetsen/tour,
   Account met Lichess-login of bibliotheek/logout. Bestaande voorkeurcookies en CSRF-formulieren blijven gebruikt.
 - Menu’s sluiten via Escape/buitenklik; de stukkenkeuze op mobiel is binnen het scherm uitgelijnd.
@@ -58,7 +62,7 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Eerstvolgende productwerk
 
-De header is afgerond. Persoonlijke kopieën privé openen/bewerken is nu in uitvoering.
+De header en persoonlijke kopieën privé openen/bewerken zijn afgerond en gepusht.
 De privé-editor vereist een eigen bibliotheeklink zonder roomlidmaatschap of andere gebruikerslink.
 Geen room wordt aangemaakt of gekoppeld. Controleer de actuele werkboom en tests voor voortzetting.
 
@@ -121,14 +125,14 @@ Na inspectie van de diff en groene controles, dezelfde Git-commando’s op beide
 
 ```text
 git add <expliciet-gecontroleerde-bestanden>
-git commit -m "Allow private editing of personal analysis copies"
+git commit -m "Simplify home controls and align independent room entry cards"
 git push origin main
 ```
 
 ## Afrondingsstatus
 
-Header is gepusht in `15562fc`; privé-editor, tests en documentatie zijn nu groen.
+Header is gepusht in `15562fc`; privé-editor in `05c3cf6`. Homepage-slice in uitvoering.
 Controleer na pull de werkelijke HEAD en werkboom; commit/push staan afzonderlijk hierboven.
 Geen deployment uitgevoerd; ook deployment van de header is niet bevestigd.
-Volgende slice: homepage vereenvoudigen en Create/Join-layout onafhankelijk uitlijnen.
+Rond indien nodig de homepagecontroles en commit/push hierboven af.
 Expliciet terugdelen, gewijzigde roomretentie en privé-position setup/tools blijven later werk.

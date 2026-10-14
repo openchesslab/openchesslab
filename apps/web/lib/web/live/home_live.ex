@@ -84,23 +84,6 @@ defmodule Web.HomeLive do
      |> push_event("set-piece-set", %{piece_set: piece_set})}
   end
 
-  def handle_event("open-tour", _params, socket),
-    do: {:noreply, assign(socket, ui_modal: "tour", tour_step: 1)}
-
-  def handle_event("tour-back", _params, socket),
-    do: {:noreply, update(socket, :tour_step, &max(&1 - 1, 1))}
-
-  def handle_event("tour-next", _params, socket) do
-    if socket.assigns.tour_step >= Web.Layouts.tour_steps_count() do
-      {:noreply, assign(socket, :ui_modal, nil)}
-    else
-      {:noreply, update(socket, :tour_step, &(&1 + 1))}
-    end
-  end
-
-  def handle_event("open-shortcuts", _params, socket),
-    do: {:noreply, assign(socket, :ui_modal, "shortcuts")}
-
   def handle_event("close-modal", _params, socket), do: {:noreply, assign(socket, :ui_modal, nil)}
   def handle_event("latency-ping", _params, socket), do: {:reply, %{}, socket}
 

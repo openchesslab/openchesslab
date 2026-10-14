@@ -316,6 +316,19 @@ variation/promotion tests passed in the 10-test editor file. Full analysis seed 
 Full web seed `511632`: 175 passed. Asset build (outside the sandbox for Mix's hard-link lock),
 formatter and diff checks passed. Production deployment remains manual.
 
+### Home entry controls and independent cards — 2026-10-14
+
+After private editor commit `05c3cf6`, the user requested hiding piece selection and Help
+on the boardless homepage, aligning Create room with the room-code input, and preventing
+Join errors from moving Create controls. Limit header Help/piece controls to room workspaces;
+remove homepage handlers that opened irrelevant tour/shortcut dialogs. Align fixed-height action
+rows beneath description space and let cards size independently. The room controls stay available.
+Targeted home/auth/preference tests: 15 passed. Browser checks cover English/Dutch desktop,
+identical 56px action heights/tops, unchanged Create button/caption positions after an unknown
+code, and Dutch 360px mobile without horizontal overflow. Full web seed `511632`: 175 passed;
+asset build, root formatter and diff checks passed. Analysis tests were not repeated for this web-only slice.
+No database change or production deployment; temporary local preview server stopped.
+
 **Near-term (next green vertical slices):**
 
 - **OAuth security foundation:** production login/logout and cross-tab disconnection have been user-verified. Private library routes/events now require a valid session. Explicit provider account linking and private analysis editing/sharing policies remain separate work.

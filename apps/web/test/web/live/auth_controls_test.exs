@@ -156,9 +156,22 @@ defmodule Web.AuthControlsTest do
     end
   end
 
-  test "Help groups working shortcuts and tour controls in both languages", %{code: code} do
-    for path <- ["/", "/rooms/#{code}"], locale <- ["en", "nl"] do
+  test "Help and piece selection belong to the room workspace in both languages", %{code: code} do
+    for locale <- ["en", "nl"] do
+      {:ok, home, _} = live(build_conn(), "/?locale=" <> locale)
+
+      for selector <- ["#help-menu", "#piece-set-desktop-form", "#piece-set-menu"] do
+        refute has_element?(home, selector)
+      end
+
+      render_click(home, "open-shortcuts", %{})
+      render_click(home, "open-tour", %{})
+      refute has_element?(home, "[role='dialog']")
+
+      path = "/rooms/#{code}"
       {:ok, view, _} = live(build_conn(), path <> "?locale=" <> locale)
+      assert has_element?(view, "#piece-set-desktop-form")
+      assert has_element?(view, "#piece-set-menu")
       assert has_element?(view, "#help-menu summary", "Help")
       view |> element("#help-menu #help-shortcuts") |> render_click()
       assert has_element?(view, "[role='dialog'][aria-labelledby='shortcuts-title']")
