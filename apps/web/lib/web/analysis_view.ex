@@ -131,6 +131,18 @@ defmodule Web.AnalysisView do
     move_list_data(analysis, locale).entries
   end
 
+  @doc "The move number and side to move at a path, for numbering engine lines."
+  @spec move_context(AnalysisModel.t(), AnalysisModel.path()) :: Analysis.MoveContext.t() | nil
+  def move_context(%AnalysisModel{} = analysis, path) do
+    case position_for(AnalysisModel.root(analysis)) do
+      %Position{} = root_position ->
+        AnalysisModel.move_context(analysis, root_position.side_to_move, path)
+
+      _ ->
+        nil
+    end
+  end
+
   @doc "Builds the paired mainline rows and recursive variation rows used by the move tree."
   @spec move_list_data(AnalysisModel.t(), String.t()) :: %{
           entries: [map()],

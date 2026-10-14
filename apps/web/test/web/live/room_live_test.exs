@@ -732,8 +732,26 @@ defmodule Web.RoomLiveTest do
     assert html =~ "+0.10"
     assert html =~ "612345"
     assert html =~ "450000"
-    assert html =~ "e4 e5 Nf3"
-    assert html =~ "d4 d5"
+
+    # Each line is a numbered row of individually clickable moves.
+    assert has_element?(
+             view,
+             "button[phx-click='engine-play-pv'][phx-value-line='1'][phx-value-ply='0']",
+             "e4"
+           )
+
+    assert has_element?(
+             view,
+             "button[phx-click='engine-play-pv'][phx-value-line='1'][phx-value-ply='2']",
+             "Nf3"
+           )
+
+    assert has_element?(
+             view,
+             "button[phx-click='engine-play-pv'][phx-value-line='2'][phx-value-ply='1']",
+             "d5"
+           )
+
     assert html =~ "data-eval-bar"
 
     # Stale results for another position are dropped; the panel keeps the
@@ -775,6 +793,64 @@ defmodule Web.RoomLiveTest do
 
     assert html =~ "-0.34"
     assert html =~ "#3"
+  end
+
+  test "clicking a move in an engine line plays the line up to that move", %{
+    conn: conn,
+    code: code
+  } do
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    render_click(view, "create-analysis", %{})
+
+    render_click(view, "toggle-engine", %{})
+
+    render_click(view, "engine-update", %{
+      "fen" => "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "depth" => 18,
+      "nodes" => 1,
+      "nps" => 1,
+      "lines" => [
+        %{"multipv" => 1, "score_cp" => 34, "pv" => "e2e4 e7e5 g1f3"},
+        %{"multipv" => 2, "score_cp" => 10, "pv" => "d2d4 d7d5"}
+      ]
+    })
+
+    # Clicking the second move of line 1 plays 1.e4 e5 into the tree.
+    html = render_click(view, "engine-play-pv", %{"line" => "1", "ply" => "1"})
+
+    assert html =~ "1."
+    assert has_element?(view, "button[data-move-path='0']", "e4")
+    assert has_element?(view, "button[data-move-path='0,0'][tabindex='0']", "e5")
+
+    # The stale line from before the move is anchored at the old position and
+    # does nothing now; only a fresh evaluation may be played.
+    refute has_element?(view, "button[data-move-path='1']", "d4")
+  end
+
+  test "hovering an engine line move peeks at the position after it", %{conn: conn, code: code} do
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    render_click(view, "create-analysis", %{})
+
+    render_click(view, "toggle-engine", %{})
+
+    render_click(view, "engine-update", %{
+      "fen" => "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "depth" => 18,
+      "nodes" => 1,
+      "nps" => 1,
+      "lines" => [%{"multipv" => 1, "score_cp" => 34, "pv" => "e2e4 e7e5"}]
+    })
+
+    html = render_click(view, "engine-peek", %{"line" => "1", "ply" => "1"})
+
+    assert html =~ "id=\"engine-peek\""
+    assert html =~ "1... e5"
+
+    # The pawn is on e4 in the peek board, not on e2.
+    assert html =~ ~r/id="engine-peek".*white_pawn/s
+
+    html = render_click(view, "engine-peek-clear", %{})
+    refute html =~ "id=\"engine-peek\""
   end
 
   test "engine errors surface honestly and switch the engine off", %{conn: conn, code: code} do

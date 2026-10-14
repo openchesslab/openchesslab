@@ -131,6 +131,7 @@ defmodule Web.RoomLive do
       engine_on: false,
       engine_preview: nil,
       engine_error: nil,
+      engine_peek: nil,
       engine_settings_open: false,
       engine_settings: %{depth: 20, multipv: 3}
     }
@@ -982,6 +983,7 @@ defmodule Web.RoomLive do
        engine_on: on?,
        engine_preview: nil,
        engine_error: nil,
+       engine_peek: nil,
        engine_settings_open: false
      )}
   end
@@ -1019,7 +1021,16 @@ defmodule Web.RoomLive do
   def handle_event("engine-update", params, %{assigns: %{engine_on: true}} = socket) do
     with %{"fen" => fen, "lines" => [_ | _] = lines} <- params,
          true <- fen == current_fen(socket),
-         {:ok, preview} <- engine_preview(lines, params, socket.assigns.position) do
+         {:ok, preview} <- engine_preview(lines, params, socket) do
+      # Deeper results for the same position keep an open peek; only a fresh
+      # position invalidates it.
+      peek_stale? =
+        case socket.assigns.engine_preview do
+          %{fen: old_fen} -> old_fen != fen
+          _ -> false
+        end
+
+      socket = if peek_stale?, do: assign(socket, :engine_peek, nil), else: socket
       {:noreply, assign(socket, engine_preview: preview, engine_error: nil)}
     else
       _ -> {:noreply, socket}
@@ -1027,6 +1038,38 @@ defmodule Web.RoomLive do
   end
 
   def handle_event("engine-update", _params, socket), do: {:noreply, socket}
+
+  # Clicking a move in an engine line plays the line up to that move into the
+  # analysis, the same as playing those moves on the board. The line is
+  # anchored at the position it was computed for; stale lines do nothing.
+  def handle_event("engine-play-pv", %{"line" => line, "ply" => ply}, socket) do
+    with %{fen: fen, pv: pv} <- socket.assigns.engine_preview || %{},
+         true <- socket.assigns.engine_on and fen == current_fen(socket),
+         {ply, ""} when ply >= 0 <- Integer.parse(ply),
+         %{moves: moves} <- Enum.find(pv, &(&1.multipv == engine_int(line))),
+         {:ok, analysis, revision, path} <- play_uci_line(socket, moves, ply) do
+      {:noreply, update_analysis(socket, analysis, revision, path)}
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  # Hovering a move peeks at the position after that move, rendered as a
+  # small static board next to the lines.
+  def handle_event("engine-peek", %{"line" => line, "ply" => ply}, socket) do
+    with %{fen: fen, pv: pv} <- socket.assigns.engine_preview || %{},
+         true <- fen == current_fen(socket),
+         {ply, ""} when ply >= 0 <- Integer.parse(ply),
+         %{moves: moves} <- Enum.find(pv, &(&1.multipv == engine_int(line))),
+         {:ok, position, label} <- peek_position(socket.assigns.position, moves, ply) do
+      {:noreply, assign(socket, engine_peek: %{position: position, label: label})}
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("engine-peek-clear", _params, socket),
+    do: {:noreply, assign(socket, :engine_peek, nil)}
 
   def handle_event("engine-error", _params, socket) do
     {:noreply,
@@ -1622,6 +1665,7 @@ defmodule Web.RoomLive do
     socket
     |> refresh_room()
     |> assign(:selected_analysis_id, analysis.id)
+    |> assign(:engine_peek, nil)
     |> set_analysis(analysis, revision, path)
     |> sync_position_url()
   end
@@ -2571,16 +2615,32 @@ defmodule Web.RoomLive do
   # Builds the engine panel state from throttled UCI info pushed by the local
   # worker. UCI scores are relative to the side to move; the panel and the
   # evaluation bar are white-relative, so scores flip when Black is to move.
-  defp engine_preview(lines, params, position) do
+  defp engine_preview(lines, params, socket) do
+    position = socket.assigns.position
     flip = if position.side_to_move == :black, do: -1, else: 1
+    context = AnalysisView.move_context(socket.assigns.analysis, socket.assigns.current_path)
 
     pv =
       lines
       |> Enum.sort_by(fn line -> engine_int(line["multipv"]) end)
       |> Enum.map(fn line ->
-        case UCI.pv_to_san(position, line["pv"] || "") do
-          [] -> nil
-          sans -> %{score: score_label(line, flip), san: Enum.join(sans, " ")}
+        uci_moves = String.split(line["pv"] || "", " ", trim: true)
+
+        moves =
+          uci_moves
+          |> Enum.zip(UCI.pv_to_san(position, line["pv"] || ""))
+          |> Enum.map(fn {uci, san} -> %{uci: uci, san: san} end)
+
+        case moves do
+          [] ->
+            nil
+
+          _ ->
+            %{
+              multipv: engine_int(line["multipv"]),
+              score: score_label(line, flip),
+              moves: add_move_labels(moves, context)
+            }
         end
       end)
       |> Enum.reject(&is_nil/1)
@@ -2594,6 +2654,7 @@ defmodule Web.RoomLive do
 
         {:ok,
          %{
+           fen: params["fen"],
            eval_cp: eval_cp,
            mate_in: mate_in,
            depth: engine_int(params["depth"]),
@@ -2603,6 +2664,32 @@ defmodule Web.RoomLive do
          }}
     end
   end
+
+  # Numbers the moves of an engine line the way the move list does: a number
+  # on White's moves, and on Black's only when the line starts with one.
+  defp add_move_labels(moves, %Analysis.MoveContext{} = context) do
+    Enum.map(Enum.with_index(moves), fn {move, index} ->
+      context = Analysis.MoveContext.at(context.fullmove_number, context.side, index)
+
+      label =
+        cond do
+          context.side == :white -> "#{context.fullmove_number}."
+          index == 0 -> "#{context.fullmove_number}..."
+          true -> nil
+        end
+
+      number_label =
+        if context.side == :white,
+          do: "#{context.fullmove_number}.",
+          else: "#{context.fullmove_number}..."
+
+      move
+      |> Map.put(:label, label)
+      |> Map.put(:number_label, number_label)
+    end)
+  end
+
+  defp add_move_labels(moves, _context), do: moves
 
   defp white_relative_score(line, flip) do
     cond do
@@ -2628,6 +2715,56 @@ defmodule Web.RoomLive do
     end
   end
 
+  # Plays the first ply + 1 moves of an engine line into the analysis at the
+  # current path, one `Analyses.play/3` per move so the tree and revision
+  # handling stay identical to board play.
+  defp play_uci_line(socket, moves, ply) do
+    analysis_id = socket.assigns.selected_analysis_id
+
+    moves
+    |> Enum.take(ply + 1)
+    |> Enum.reduce_while({socket.assigns.position, socket.assigns.current_path, nil}, fn move,
+                                                                                         {position,
+                                                                                          path,
+                                                                                          _last} ->
+      with {:ok, legal} <- UCI.parse_move(position, move.uci),
+           {:ok, analysis, revision, next_path} <- Analyses.play(analysis_id, path, legal),
+           {:ok, next_position} <- Position.apply_move(position, legal) do
+        {:cont, {next_position, next_path, {analysis, revision}}}
+      else
+        _ -> {:halt, :error}
+      end
+    end)
+    |> case do
+      {_position, path, {analysis, revision}} -> {:ok, analysis, revision, path}
+      _ -> :error
+    end
+  end
+
+  # Applies the first ply + 1 moves of a line to the shown position and
+  # returns the resulting board plus the clicked move's label.
+  defp peek_position(position, moves, ply) do
+    case Enum.fetch(moves, ply) do
+      {:ok, clicked} ->
+        position =
+          moves
+          |> Enum.take(ply + 1)
+          |> Enum.reduce_while(position, fn move, current ->
+            with {:ok, legal} <- UCI.parse_move(current, move.uci),
+                 {:ok, next} <- Position.apply_move(current, legal) do
+              {:cont, next}
+            else
+              _ -> {:halt, current}
+            end
+          end)
+
+        {:ok, position, "#{clicked.number_label} #{clicked.san}"}
+
+      :error ->
+        :error
+    end
+  end
+
   defp engine_int(value) when is_integer(value), do: value
 
   defp engine_int(value) when is_binary(value) do
@@ -2643,6 +2780,25 @@ defmodule Web.RoomLive do
     do: to_fen(position)
 
   defp current_fen(_socket), do: nil
+
+  # The peek board renders the position in visual order following the main
+  # board's orientation: White at the bottom by default.
+  defp peek_squares(position, orientation) do
+    {ranks, files} =
+      if orientation == "black",
+        do: {Enum.to_list(0..7), Enum.to_list(7..0//-1)},
+        else: {Enum.to_list(7..0//-1), Enum.to_list(0..7)}
+
+    for rank <- ranks, file <- files do
+      square = rank * 8 + file
+
+      %{
+        square: square,
+        piece: Position.piece_at(position, square),
+        light: rem(file + rank, 2) == 1
+      }
+    end
+  end
 
   defp eval_label_position(preview, "black"), do: eval_white_share(preview)
   defp eval_label_position(preview, _orientation), do: 100 - eval_white_share(preview)

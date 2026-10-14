@@ -34,6 +34,16 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, wacht op commit/push:** `Make engine lines readable and interactive`, bovenop
+  `fee8abc` (Stockfish-slice). Regels zijn nu genummerde, afzonderlijk klikbare zetten
+  (wrap breekt tussen zetten); klik op zet N speelt de lijn t/m N in de analyse (één
+  `Analyses.play/3` per zet, stale-fen-guard); hover toont na 180 ms een debounced mini-bord
+  met de stelling ná die zet (`engine-peek`, overleeft doorlopende updates, verdwijnt bij
+  mouse-away). `AnalysisView.move_context/2` levert het volgnummer; zetten dragen PGN-labels
+  ("1."/"1..."). Gericht: room_live 46; volledig serieel: web **232**, analysis **619**,
+  chess **583**; browsertest geverifieerd (klik speelt lijn, peek 64 velden/32 stukken).
+  Vervolg in deze reeks: best-move-arrow, evalgrafiek, partijreview; daarna deploy (toegestaan).
+
 - **Afgerond, wacht op commit/push (deploy toegestaan door gebruiker):**
   `Add client-side Stockfish analysis with an evaluation bar`, gestart op schone `bff7e93`.
   Echte engine vervangt het demopaneel: Stockfish 19 lite-single (WASM, 1,8 MB, GPLv3 + licentie

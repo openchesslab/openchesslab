@@ -934,11 +934,57 @@
                     {Web.I18n.t("room.enginePvHeading", @locale)}
                   </h4>
 
-                  <ol class="m-0 list-decimal space-y-1 pl-5 text-xs text-muted">
+                  <ol class="m-0 list-decimal space-y-1 pl-5 text-xs leading-relaxed text-muted">
                     <li :for={line <- @engine_preview.pv}>
-                      <strong class="font-mono text-foreground">{line.score}</strong> {line.san}
+                      <strong class="mr-1 font-mono text-foreground">{line.score}</strong>
+                      <span
+                        :for={{move, index} <- Enum.with_index(line.moves)}
+                        class="whitespace-nowrap"
+                      >
+                        <span :if={move.label} class="text-faint">{move.label}</span>
+                        <button
+                          type="button"
+                          class="rounded px-0.5 hover:bg-panel-hover hover:text-foreground"
+                          title={Web.I18n.t("room.enginePlayToHere", @locale)}
+                          phx-click="engine-play-pv"
+                          phx-value-line={line.multipv}
+                          phx-value-ply={index}
+                          data-peek-line={line.multipv}
+                          data-peek-ply={index}
+                        >{move.san}</button>
+                      </span>
                     </li>
                   </ol>
+
+                  <div
+                    :if={@engine_peek}
+                    id="engine-peek"
+                    class="absolute right-3 top-14 z-40 w-44 rounded-lg border border-border bg-panel p-2 shadow-xl"
+                    role="tooltip"
+                  >
+                    <div class="grid w-full grid-cols-8 overflow-hidden rounded border border-border">
+                      <div
+                        :for={square <- peek_squares(@engine_peek.position, @orientation)}
+                        class={[
+                          "grid aspect-square place-items-center",
+                          square.light && "bg-board-light",
+                          not square.light && "bg-board-dark"
+                        ]}
+                      >
+                        <.piece_icon
+                          :if={square.piece}
+                          kind={elem(square.piece, 1)}
+                          color={elem(square.piece, 0)}
+                          piece_set={@piece_set}
+                          class="h-[90%] w-[90%]"
+                        />
+                      </div>
+                    </div>
+
+                    <p class="m-0 mt-1 text-center text-[.68rem] font-semibold text-muted">
+                      {@engine_peek.label}
+                    </p>
+                  </div>
                 <% @engine_on -> %>
                   <p id="engine-loading" class="mb-0 mt-2 text-xs text-muted" role="status">
                     {Web.I18n.t("room.engineLoading", @locale)}

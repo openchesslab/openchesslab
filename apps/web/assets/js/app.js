@@ -1290,6 +1290,40 @@ const EngineAnalysis = {
     this.best = null;
     this.flushTimer = null;
     this.fen = "";
+    this.peekKey = null;
+    this.peekTimer = null;
+
+    // Hovering a move in the lines peeks at the position after that move.
+    // Debounced so casual mouse movement does not spam the server.
+    this.el.addEventListener("mouseover", (event) => {
+      const button = event.target.closest("[data-peek-ply]");
+      if (!button) return;
+
+      const key = button.dataset.peekLine + ":" + button.dataset.peekPly;
+      if (key === this.peekKey) return;
+      this.peekKey = key;
+
+      clearTimeout(this.peekTimer);
+      this.peekTimer = setTimeout(() => {
+        this.pushEvent("engine-peek", {
+          line: button.dataset.peekLine,
+          ply: button.dataset.peekPly,
+        });
+      }, 180);
+    });
+
+    this.el.addEventListener("mouseout", (event) => {
+      const from = event.target.closest("[data-peek-ply]");
+      if (!from) return;
+
+      const to = event.relatedTarget && event.relatedTarget.closest("[data-peek-ply]");
+      if (to) return;
+
+      clearTimeout(this.peekTimer);
+      this.peekKey = null;
+      this.pushEvent("engine-peek-clear", {});
+    });
+
     this.sync();
   },
 

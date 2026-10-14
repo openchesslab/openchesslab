@@ -397,6 +397,7 @@
   "room.engineLocal": "Stockfish 19 (local)",
   "room.engineLoading": "Starting the local engine…",
   "room.engineError": "The local engine could not start in this browser.",
+  "room.enginePlayToHere": "Play the line up to this move",
   "room.eval": "Eval",
   "room.nodes": "Nodes",
   "room.nps": "NPS",
