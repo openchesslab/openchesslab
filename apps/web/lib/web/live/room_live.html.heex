@@ -1306,10 +1306,9 @@
                 class="flex flex-wrap items-center justify-between gap-3 p-3"
               >
                 <div class="min-w-0">
-                  <.link
-                    href={~p"/library/#{entry.id}"}
-                    class="m-0 break-words font-semibold underline"
-                  >{entry.title || Web.I18n.t("library.untitled", @locale)}</.link>
+                  <p class="m-0 break-words font-semibold text-foreground">
+                    {entry.title || Web.I18n.t("library.untitled", @locale)}
+                  </p>
                   <p class="mb-0 mt-1 break-all font-mono text-xs text-faint">{entry.id}</p>
                   <p class="mb-0 mt-1 text-xs text-muted">
                     {Web.I18n.t("library.saved", @locale)}
@@ -1343,59 +1342,7 @@
                     phx-click="library-share"
                     phx-value-id={entry.id}
                   >{Web.I18n.t("room.libraryShare", @locale)}</button>
-                  <button
-                    type="button"
-                    class="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-panel-hover"
-                    phx-click="library-start-rename"
-                    phx-value-id={entry.id}
-                  >{Web.I18n.t("library.rename", @locale)}</button>
-                  <button
-                    type="button"
-                    class="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-panel-hover"
-                    phx-click="library-remove"
-                    phx-value-id={entry.id}
-                  >{Web.I18n.t("library.remove", @locale)}</button>
                 </div>
-
-                <form
-                  :if={@library_editing && @library_editing.id == entry.id}
-                  id="library-rename-form"
-                  phx-submit="library-rename"
-                  class="w-full space-y-3 pt-3"
-                >
-                  <label for="library-title" class="block text-sm font-semibold">{Web.I18n.t(
-                    "library.titleLabel",
-                    @locale
-                  )}</label>
-                  <input
-                    id="library-title"
-                    name="title"
-                    value={@library_editing.title || ""}
-                    maxlength="120"
-                    aria-describedby="library-title-help"
-                    class="w-full rounded-md border border-border bg-canvas px-3 py-2"
-                  />
-                  <p id="library-title-help" class="text-xs text-muted">
-                    {Web.I18n.t("library.titleHelp", @locale)}
-                  </p>
-                  <p :if={@library_title_error} role="alert" class="text-sm text-error">
-                    {@library_title_error}
-                  </p>
-                  <div class="flex flex-wrap gap-2">
-                    <button
-                      type="submit"
-                      class="rounded-md border border-border px-3 py-2 text-sm"
-                    >{Web.I18n.t(
-                      "library.saveTitle",
-                      @locale
-                    )}</button>
-                    <button
-                      type="button"
-                      phx-click="library-cancel-rename"
-                      class="rounded-md border border-border px-3 py-2 text-sm"
-                    >{Web.I18n.t("library.cancel", @locale)}</button>
-                  </div>
-                </form>
               </li>
             </ul>
 

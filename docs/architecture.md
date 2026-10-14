@@ -156,13 +156,17 @@ Callbacks redirect to `/`; link conflicts surface as a flash on the home page.
 
 Linked accounts are a shell modal over the home and room LiveViews
 (`Web.ShellPanels` + `Web.Layouts` templates), opened from the header account menu;
-there are no `/library` and `/account` pages. **My library** is the import modal's
-tab inside rooms (`Web.ShellPanels.load_library/2` + `handle_library_event/3`), the
-single library surface where entries are branched into room work. Modal and tab
-events stay host-level, so `Web.UserAuth` revalidates the browser credential before
-every handler, and every action re-checks the resolved user: guests and revoked
-credentials only receive the login variant. The authenticated live session now
-contains only the private editor.
+there are no `/library` and `/account` pages. **My library** has two surfaces with
+distinct responsibilities (2026-10-14, user decision): the **Account menu opens a
+library management modal** (`Web.ShellPanels.open_library/2`) with editor links,
+renaming, removal and paging; the **import modal's My Library tab inside rooms**
+(`Web.ShellPanels.load_library/2` + `handle_library_event/3`) lists the same
+entries with only the import actions (game-only branch, analysis copy, live
+share). Tab and modal events stay host-level, so `Web.UserAuth` revalidates the
+browser credential before every handler, and every action re-checks the resolved
+user: guests and revoked credentials only receive the login variant. The
+authenticated live session contains only the private editor. Escape closes any
+modal, including while a field inside it has focus.
 
 `Analysis.Accounts.unlink/2` (shell modal event `unlink-provider`, host-level and
 revalidated per event) removes all identities of one provider after locking the

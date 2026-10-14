@@ -248,6 +248,7 @@ defmodule Web.RoomLive do
     {:noreply, assign(socket, ui_modal: nil, engine_settings_open: false)}
   end
 
+  def handle_event("open-library", _params, socket), do: Web.ShellPanels.open_library(socket)
   def handle_event("open-account", _params, socket), do: Web.ShellPanels.open_account(socket)
 
   def handle_event("account-delete-change", params, socket),

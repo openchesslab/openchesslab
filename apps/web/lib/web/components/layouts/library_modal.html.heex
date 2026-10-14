@@ -1,0 +1,126 @@
+<div
+  id="library-modal"
+  class="fixed inset-0 z-[60] grid place-items-center bg-transparent p-4 backdrop-blur-xs backdrop-saturate-[.9]"
+>
+  <section
+    class="max-h-[90dvh] w-full max-w-2xl overflow-auto rounded-xl border border-border-strong bg-panel p-5 shadow-2xl"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="library-modal-title"
+    phx-click-away="close-modal"
+  >
+    <header class="mb-4 flex items-center justify-between gap-4">
+      <h2 id="library-modal-title" class="m-0 text-lg font-semibold">
+        {Web.I18n.t("library.title", @locale)}
+      </h2>
+
+      <button
+        type="button"
+        class="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md border border-border bg-transparent text-foreground hover:bg-panel-hover"
+        aria-label={Web.I18n.t("common.close", @locale)}
+        phx-click="close-modal"
+      ><.icon name="close" class="h-4 w-4" /></button>
+    </header>
+
+    <p :if={!@current_user} class="text-sm text-muted">
+      {Web.I18n.t("auth.loginRequired", @locale)}
+    </p>
+
+    <div :if={@current_user}>
+      <p class="mb-6 text-sm text-muted">{Web.I18n.t("library.description", @locale)}</p>
+      <p
+        :if={@entries == []}
+        id="library-empty"
+        class="rounded-lg border border-border bg-panel p-5 text-muted"
+      >
+        {Web.I18n.t("library.empty", @locale)}
+      </p>
+      <ul id="library-entries" class="space-y-3">
+        <li
+          :for={entry <- @entries}
+          id={"saved-#{entry.id}"}
+          class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-panel p-4"
+        >
+          <div class="min-w-0">
+            <.link
+              href={~p"/library/#{entry.id}"}
+              class="m-0 break-words font-semibold underline"
+            >{entry.title || Web.I18n.t("library.untitled", @locale)}</.link>
+            <p class="mt-1 break-all font-mono text-xs text-faint">{entry.id}</p>
+            <p class="mt-1 text-xs text-muted">
+              {Web.I18n.t("library.saved", @locale)}
+              <time datetime={NaiveDateTime.to_iso8601(entry.saved_at) <> "Z"}>{Calendar.strftime(
+                entry.saved_at,
+                "%Y-%m-%d"
+              )}</time>
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button
+              type="button"
+              phx-click="library-start-rename"
+              phx-value-id={entry.id}
+              class="rounded-md border border-border px-3 py-2 text-sm hover:bg-panel-hover"
+            >{Web.I18n.t("library.rename", @locale)}</button>
+            <button
+              type="button"
+              phx-click="library-remove"
+              phx-value-id={entry.id}
+              class="rounded-md border border-border px-3 py-2 text-sm hover:bg-panel-hover"
+            >
+              {Web.I18n.t("library.remove", @locale)}
+            </button>
+          </div>
+          <form
+            :if={@editing && @editing.id == entry.id}
+            id="library-rename-form"
+            phx-submit="library-rename"
+            class="w-full space-y-3 border-t border-border pt-4"
+          >
+            <label for="library-title" class="block text-sm font-semibold">{Web.I18n.t(
+              "library.titleLabel",
+              @locale
+            )}</label>
+            <input
+              id="library-title"
+              name="title"
+              value={@editing.title || ""}
+              maxlength="120"
+              aria-describedby="library-title-help"
+              class="w-full rounded-md border border-border bg-canvas px-3 py-2"
+            />
+            <p id="library-title-help" class="text-xs text-muted">
+              {Web.I18n.t("library.titleHelp", @locale)}
+            </p>
+            <p :if={@title_error} role="alert" class="text-sm text-error">{@title_error}</p>
+            <div class="flex flex-wrap gap-2">
+              <button type="submit" class="rounded-md border border-border px-3 py-2 text-sm">{Web.I18n.t(
+                "library.saveTitle",
+                @locale
+              )}</button>
+              <button
+                type="button"
+                phx-click="library-cancel-rename"
+                class="rounded-md border border-border px-3 py-2 text-sm"
+              >{Web.I18n.t("library.cancel", @locale)}</button>
+            </div>
+          </form>
+        </li>
+      </ul>
+      <nav class="mt-6 flex gap-3" aria-label={Web.I18n.t("library.pages", @locale)}>
+        <button
+          :if={@cursor}
+          type="button"
+          phx-click="library-first-page"
+          class="rounded-md border border-border px-3 py-2 text-sm hover:bg-panel-hover"
+        >{Web.I18n.t("library.first", @locale)}</button>
+        <button
+          :if={@next_cursor}
+          type="button"
+          phx-click="library-next-page"
+          class="rounded-md border border-border px-3 py-2 text-sm hover:bg-panel-hover"
+        >{Web.I18n.t("library.next", @locale)}</button>
+      </nav>
+    </div>
+  </section>
+</div>

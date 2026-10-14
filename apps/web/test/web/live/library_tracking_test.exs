@@ -48,7 +48,6 @@ defmodule Web.LibraryTrackingTest do
     render_click(view, "set-import-source", %{"source" => "library"})
 
     assert has_element?(view, "#library-entries li", ctx.id)
-    assert has_element?(view, "a[href='/library/#{ctx.id}']")
 
     # A live reference branches into an independent private copy when opened;
     # the room's original keeps its identity and revision.

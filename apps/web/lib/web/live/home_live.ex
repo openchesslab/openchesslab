@@ -23,6 +23,11 @@ defmodule Web.HomeLive do
        join_code: "",
        join_error: nil,
        create_error: nil,
+       library_entries: nil,
+       library_cursor: nil,
+       library_next_cursor: nil,
+       library_editing: nil,
+       library_title_error: nil,
        providers: [],
        account_error: nil,
        account_delete_armed: false
@@ -90,6 +95,7 @@ defmodule Web.HomeLive do
   def handle_event("close-modal", _params, socket), do: {:noreply, assign(socket, :ui_modal, nil)}
   def handle_event("latency-ping", _params, socket), do: {:reply, %{}, socket}
 
+  def handle_event("open-library", _params, socket), do: Web.ShellPanels.open_library(socket)
   def handle_event("open-account", _params, socket), do: Web.ShellPanels.open_account(socket)
 
   def handle_event("account-delete-change", params, socket),
@@ -97,6 +103,9 @@ defmodule Web.HomeLive do
 
   def handle_event("unlink-provider", %{"provider" => provider}, socket),
     do: Web.ShellPanels.unlink_provider(socket, provider)
+
+  def handle_event("library-" <> event, params, socket),
+    do: Web.ShellPanels.handle_library_event(event, params, socket)
 
   def handle_event(_event, _params, socket), do: {:noreply, socket}
 

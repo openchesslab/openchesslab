@@ -14,10 +14,15 @@ defmodule Web.ShellPanels do
   alias Analysis.{Accounts, UserLibrary}
   alias Web.AccountController
 
+  # Both library surfaces load entries through here: the Account-menu
+  # library modal (home and room) and the import modal's My Library tab
+  # inside rooms, where entries are branched into room work.
   def load_library(socket, cursor \\ nil) do
-    # The import modal's My Library tab is the only library surface; it is
-    # reachable inside rooms, where entries are branched into room work.
     {:noreply, load(socket, cursor)}
+  end
+
+  def open_library(socket) do
+    {:noreply, socket |> assign(:ui_modal, "library") |> load(nil)}
   end
 
   def open_account(socket) do

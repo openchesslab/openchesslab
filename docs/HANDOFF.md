@@ -34,6 +34,27 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, door agent gecommit en gepusht:** `Close modals with Escape from focused inputs`,
+  commit `1536dae`. De globale `AppUI`-keyhandler behandelde Escape vóór de
+  typing-guard (gebruikersbevinding 2026-10-14: modal sluit niet bij focus in een
+  invoerveld — klopte: de `typing`-guard slikte ook Escape). Browsergeverifieerd:
+  account-modal sluit vanuit het bevestigingsveld, import-modal vanuit de
+  PGN-tekstvlakte; letter-sneltoetsen blijven geblokkeerd tijdens typen. JS-only.
+
+- **Afgerond, wacht op commit/push:** `Split library management from importing`,
+  gestart op schone `1536dae` (gebruikersidee 2026-10-14). Het "My Library"-tab van
+  de importmodal bevat nu alléén importacties (Partij / Analysekopie / Live delen;
+  geen editor-links, hernoemen of verwijderen meer). Onder het Account-menu is de
+  beheer-modal terug: "Mijn bibliotheek" opent `library_modal` met editor-links,
+  hernoemen, verwijderen en paging (`ShellPanels.open_library`; `library-`-events
+  gedeeld met het tab). Beide hosts (home+room) route `open-library`/`library-*`.
+  Web-only; geen migratie; geen i18n-wijzigingen nodig. Gericht: library_modal
+  **8/8**, library_import/library_tracking/auth_controls **20/20**; volledig web
+  **213 geslaagd** (seed 511632); formatter, assetbuild, compile
+  --warnings-as-errors en diffcontrole geslaagd. Browsergeverifieerd op devserver
+  (beheermodal: editor-links/hernoemen/verwijderen; importtab: alleen
+  brancknoppen; Escape sluit beide).
+
 - **Afgerond, door agent gecommit en gepusht:** `Remove the demo save-to-library from the paste
   import`, gestart op schone `1c1a66f`. Besluit gebruiker (2026-10-14): bibliotheek-entry
   uitsluitend via de ster; import is room-only, niets wordt automatisch bewaard. De nep-knop

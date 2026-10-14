@@ -59,7 +59,7 @@ defmodule Web.LibraryImportTest do
     render_click(view, "set-import-source", %{"source" => "library"})
   end
 
-  test "the My Library tab lists real entries with the three branch actions", ctx do
+  test "the My Library tab lists real entries with the three branch actions only", ctx do
     {:ok, view, _} = live(authenticated(ctx), "/rooms/#{ctx.code}")
     html = open_library_tab(view)
 
@@ -69,10 +69,11 @@ defmodule Web.LibraryImportTest do
     assert has_element?(view, "#saved-#{ctx.game_entry_id} button[phx-click='library-add-copy']")
     assert has_element?(view, "#saved-#{ctx.game_entry_id} button[phx-click='library-share']")
 
-    assert has_element?(
-             view,
-             "#saved-#{ctx.game_entry_id} a[href='/library/#{ctx.game_entry_id}']"
-           )
+    # The tab is import-only: no editor links, renaming or removal here;
+    # those belong to the Account-menu library modal.
+    refute has_element?(view, "#saved-#{ctx.game_entry_id} a[href]")
+    refute has_element?(view, "button[phx-click='library-start-rename']")
+    refute has_element?(view, "button[phx-click='library-remove']")
 
     # Entries without an underlying game do not offer the game branch.
     assert has_element?(view, "#saved-#{ctx.plain_id} button[phx-click='library-add-copy']")
@@ -181,24 +182,6 @@ defmodule Web.LibraryImportTest do
     assert room.analysis_ids == []
   end
 
-  test "rename and removal still work inside the tab", ctx do
-    {:ok, view, _} = live(authenticated(ctx), "/rooms/#{ctx.code}")
-    open_library_tab(view)
-
-    render_click(view, "library-start-rename", %{"id" => ctx.plain_id})
-
-    render_submit(view, "library-rename", %{
-      "title" => "My open Sicilian",
-      "id" => ctx.game_entry_id
-    })
-
-    assert {:ok, "My open Sicilian"} = UserLibrary.title(ctx.user.id, ctx.plain_id)
-    assert {:ok, nil} = UserLibrary.title(ctx.user.id, ctx.game_entry_id)
-
-    render_click(view, "library-remove", %{"id" => ctx.plain_id})
-    assert Enum.sort(UserLibrary.list(ctx.user.id)) == Enum.sort([ctx.game_entry_id])
-  end
-
   test "the removed /library and /account routes are gone", ctx do
     for path <- ["/library", "/account"] do
       assert response(get(authenticated(ctx), path), 404)
@@ -235,11 +218,20 @@ defmodule Web.LibraryImportTest do
     assert has_element?(view, "#library-entries li", List.first(ids))
   end
 
-  test "the account menu no longer opens a library surface", ctx do
+  test "the account menu opens the library management modal", ctx do
     {:ok, view, _} = live(authenticated(ctx), "/")
-    refute has_element?(view, "#personal-library-button")
+    assert has_element?(view, "#personal-library-button")
     refute has_element?(view, "#library-modal-title")
-    assert has_element?(view, "#linked-accounts-button")
+
+    render_click(view, "open-library")
+    assert has_element?(view, "#library-modal-title")
+    assert has_element?(view, "#library-entries li", ctx.game_entry_id)
+    assert has_element?(view, "a[href='/library/#{ctx.game_entry_id}']")
+    assert has_element?(view, "button[phx-click='library-start-rename']")
+    assert has_element?(view, "button[phx-click='library-remove']")
+
+    render_click(view, "close-modal")
+    refute has_element?(view, "#library-modal-title")
   end
 
   defp authenticated(ctx),
