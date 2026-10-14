@@ -37,7 +37,7 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 ## Repository en huidige status
 
 - Remote: `git@github.com:openchesslab/openchesslab.git`; branch `main`.
-- Laatste geverifieerde implementatiecommit: `05c3cf6`, gepusht op main (privé-editor).
+- Laatste geverifieerde implementatiecommit: `7c24777`, gepusht op main (homepage).
 - De gebruiker heeft `7ea45e1` gedeployed.
 - Afgeronde slice: `Allow private editing of personal analysis copies`, commit/push `05c3cf6`.
 - Privéroute `/library/:id`: bord, varianten, opmerkingen/NAGs, revisionconflicten en toegang per event/navigatie.
@@ -45,26 +45,23 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   verdween door URL-patch; oorzaak hersteld, dezelfde seed `262747` daarna 17/17.
 - Volledig: analyse **599 geslaagd**, seed `398267`; web **175 geslaagd**, seed `511632`.
 - Assetbuild, formatter en diffcontrole geslaagd. Build buiten sandbox vanwege Mix hard-link lock.
-- Huidige slice: `Simplify home controls and align independent room entry cards`.
+- Afgeronde slice: `Simplify home controls and align independent room entry cards`, commit/push `7c24777`.
 - Homepage gereed: geen stukkenkeuze/Help, Create room uitgelijnd met codeveld,
   Create/Join-blokken onafhankelijk bij foutmeldingen; roomknoppen blijven beschikbaar.
 - Gericht: 15 home/auth/voorkeurtests geslaagd. Browser: EN/NL desktop en 360px mobiel,
   actieposities/hoogtes gelijk, Create-knop/caption stabiel na onbekende code, geen horizontale overflow.
 - Volledige websuite **175 geslaagd**, seed `511632`; assetbuild en formatter/diffcontrole geslaagd.
-- Previewserver gestopt. Commit/push nog uit te voeren na deze groene controles.
-- Implementatie gereed: één themaknop (systeem → licht → donker), Help met sneltoetsen/tour,
-  Account met Lichess-login of bibliotheek/logout. Bestaande voorkeurcookies en CSRF-formulieren blijven gebruikt.
-- Menu’s sluiten via Escape/buitenklik; de stukkenkeuze op mobiel is binnen het scherm uitgelijnd.
-- Validatie: 11 gerichte auth/voorkeurtests; volledige websuite **165 geslaagd**, seed `511632`;
-  formatter en diffcontrole geslaagd. Browsercontrole desktop en 360px mobiel, Help/Account en themawisseling geslaagd.
-- Assetbuild geslaagd; tijdelijke lokale previewserver gestopt.
-- Deze headerslice is **niet gedeployed**.
+- Previewserver gestopt; werkboom na beide implementatiecommits schoon en HEAD gelijk aan origin/main.
+- Header `15562fc`, privé-editor `05c3cf6` en homepage `7c24777`: **geen deployment uitgevoerd/bevestigd**.
+- Deze afsluitende documentatiecommit registreert de geverifieerde commit/push-status.
 
 ## Eerstvolgende productwerk
 
-De header en persoonlijke kopieën privé openen/bewerken zijn afgerond en gepusht.
+Header, privé-editor en homepage zijn afgerond en gepusht; er is geen openstaande implementatie.
 De privé-editor vereist een eigen bibliotheeklink zonder roomlidmaatschap of andere gebruikerslink.
 Geen room wordt aangemaakt of gekoppeld. Controleer de actuele werkboom en tests voor voortzetting.
+Vervolg naar keuze: rijkere bibliotheeklabels of privé-position setup/tools. Expliciet terugdelen
+en gewijzigde roomretentie komen later; introduceer geen automatische synchronisatie.
 
 Afgesproken model:
 
@@ -82,6 +79,9 @@ Afgesproken model:
 - `Analysis.UserLibrary.copy_from_room/3` maakt een kopie en bibliotheeklink in één transactie,
   met controle en locks op actuele roomlidmaatschap/bron. Web gebruikt uitsluitend de serverselectie en geverifieerde gebruiker.
 - `UserLibrary.save/2` is een intern verwijzingsprimitive, geen geautoriseerde browseractie.
+- Privé-editor: apps/web/lib/web/live/personal_analysis_live.{ex,html.heex};
+  `UserLibrary.get_private/2` en `edit_private/5` controleren/locken de privéscope.
+  De editor biedt legale zetten/promotie, varianten, opmerkingen/NAGs; position setup volgt later.
 - Persoonlijke kopieën krijgen een nieuw ID en zijn niet aan een room gekoppeld. Canonieke posities blijven herbruikbaar.
 - Bibliotheek verwijderen verwijdert momenteel alleen de link; orphancleanup en eigenaarschap bij accountverwijdering zijn nog apart werk.
 - Shared header: apps/web/lib/web/components/layouts/app.html.heex en layouts.ex.
@@ -121,7 +121,8 @@ Laatste volledige analysecontrole: **599 geslaagd**, seed 398267, voor de privé
 Geaccepteerde backlog: suite-afhankelijke `:invalid_occurrences`-fouten, seed 938846,
 in AnalysesTest/PgnBatchImporterTest; zie development-history. Niet onderdrukken of een falende run groen noemen.
 
-Na inspectie van de diff en groene controles, dezelfde Git-commando’s op beide systemen:
+Reproductie van de afgeronde homepagecommit (al uitgevoerd; niet nogmaals committen),
+dezelfde Git-commando’s op beide systemen:
 
 ```text
 git add <expliciet-gecontroleerde-bestanden>
@@ -131,8 +132,8 @@ git push origin main
 
 ## Afrondingsstatus
 
-Header is gepusht in `15562fc`; privé-editor in `05c3cf6`. Homepage-slice in uitvoering.
+Header is gepusht in `15562fc`; privé-editor in `05c3cf6`; homepage in `7c24777`.
 Controleer na pull de werkelijke HEAD en werkboom; commit/push staan afzonderlijk hierboven.
 Geen deployment uitgevoerd; ook deployment van de header is niet bevestigd.
-Rond indien nodig de homepagecontroles en commit/push hierboven af.
+Geen resterende controles of implementatie voor deze twee slices.
 Expliciet terugdelen, gewijzigde roomretentie en privé-position setup/tools blijven later werk.
