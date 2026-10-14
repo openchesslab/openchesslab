@@ -54,6 +54,48 @@ defmodule Analysis.PrivateAnalysisTest do
     assert :not_found = UserLibrary.get_private(ctx.user.id, ctx.source)
   end
 
+  test "opening a live reference branches a private copy once and repoints the entry", ctx do
+    assert {:ok, :tracked} = UserLibrary.track_from_room(ctx.user.id, ctx.room, ctx.source)
+
+    assert {:ok, copy_id} = UserLibrary.open_private(ctx.user.id, ctx.source)
+    refute copy_id == ctx.source
+    assert UserLibrary.list(ctx.user.id) == [ctx.id, copy_id]
+
+    # The copy preserves the aggregate; the room's original is untouched.
+    assert {:ok, copy, 1} = AnalysisStore.get(copy_id)
+    assert {:ok, source, 1} = AnalysisStore.get(ctx.source)
+    assert %{copy | id: ctx.source} == source
+    assert {:ok, room} = RoomStore.get(ctx.room)
+    assert ctx.source in room.analysis_ids
+
+    # Branching is idempotent: the entry now opens as itself.
+    assert {:ok, ^copy_id} = UserLibrary.open_private(ctx.user.id, copy_id)
+
+    # Another user's reference keeps the original; theirs branches separately.
+    assert {:ok, :tracked} = UserLibrary.track_from_room(ctx.other.id, ctx.room, ctx.source)
+    assert UserLibrary.list(ctx.other.id) == [ctx.source]
+
+    assert {:ok, other_copy} = UserLibrary.open_private(ctx.other.id, ctx.source)
+    refute other_copy in [ctx.source, copy_id]
+    assert UserLibrary.list(ctx.other.id) == [other_copy]
+
+    assert {:error, :analysis_not_found} = UserLibrary.open_private(ctx.user.id, "missing")
+    assert {:error, :invalid_identity} = UserLibrary.open_private("invalid", ctx.source)
+  end
+
+  test "an already-private entry opens unchanged without copying", ctx do
+    assert {:ok, id} = UserLibrary.open_private(ctx.user.id, ctx.id)
+    assert id == ctx.id
+    assert UserLibrary.list(ctx.user.id) == [ctx.id]
+
+    # An entry only referenced by another user (no room) branches as well.
+    :ok = UserLibrary.save(ctx.other.id, ctx.id)
+    assert {:ok, copy_id} = UserLibrary.open_private(ctx.user.id, ctx.id)
+    refute copy_id == ctx.id
+    assert UserLibrary.list(ctx.user.id) == [copy_id]
+    assert UserLibrary.list(ctx.other.id) == [ctx.id]
+  end
+
   test "moves, comments, annotations and variants persist without changing the room", ctx do
     assert {:ok, _, 2, [0]} = edit(ctx, 1, [], {:play, Chess.Move.new(12, 28)})
     assert {:ok, _, 3, [1]} = edit(ctx, 2, [], {:play, Chess.Move.new(11, 27)})

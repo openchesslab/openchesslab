@@ -40,7 +40,7 @@ defmodule Web.LibraryTrackingTest do
     assert {:ok, _, 1} = AnalysisStore.get(ctx.id)
   end
 
-  test "the library tab lists a tracked analysis; the private editor refuses it", ctx do
+  test "the library tab lists a tracked analysis; opening it branches a private copy", ctx do
     assert {:ok, :tracked} = UserLibrary.track_from_room(ctx.user.id, ctx.code, ctx.id)
 
     {:ok, view, _} = live(authenticated(ctx), "/rooms/#{ctx.code}?a=#{ctx.id}")
@@ -50,9 +50,15 @@ defmodule Web.LibraryTrackingTest do
     assert has_element?(view, "#library-entries li", ctx.id)
     assert has_element?(view, "a[href='/library/#{ctx.id}']")
 
-    # A live reference is still the room's shared analysis: the private
-    # editor refuses it until branching materializes a private copy.
-    assert {:error, {:redirect, %{to: "/"}}} = live(authenticated(ctx), "/library/#{ctx.id}")
+    # A live reference branches into an independent private copy when opened;
+    # the room's original keeps its identity and revision.
+    assert {:error, {:live_redirect, %{to: to}}} = live(authenticated(ctx), "/library/#{ctx.id}")
+    {:ok, editor, _} = live(authenticated(ctx), to)
+
+    copy_id = :sys.get_state(editor.pid).socket.assigns.analysis.id
+    refute copy_id == ctx.id
+    assert UserLibrary.list(ctx.user.id) == [copy_id]
+    assert {:ok, _, 1} = AnalysisStore.get(ctx.id)
   end
 
   test "guests and revoked sessions cannot track, even with forged parameters", ctx do

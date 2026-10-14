@@ -349,9 +349,14 @@ The existing `user_analyses` schema stores the reference; no ownership column, m
 or sharing endpoint is introduced. The trusted `save/2` primitive still inserts references
 internally and is not exposed as a browser save operation. Library removal still removes
 the association only, so orphan cleanup/user deletion semantics need a separate policy.
-Opening a live reference in the private editor is deliberately refused until branching
-materializes a private copy; room expiry/cleanup behavior is unchanged (references are
-durable today because analysis rows outlive rooms).
+Opening a live reference in the private editor branches it once: `UserLibrary.open_private/2`
+verifies the user's entry, and if the analysis is still room-shared or referenced by another
+user, materializes an independent private copy, repoints the entry to it and returns the
+copy's id. Branching is idempotent: later opens continue the private copy, and the room's
+analysis and other users' references keep the original untouched. `Web.PersonalAnalysisLive`
+live-redirects to the fresh copy's canonical URL (preserving the selected path); room
+expiry/cleanup behavior is unchanged (references are durable today because analysis rows
+outlive rooms).
 
 ### Branching library entries into rooms — 2026-10-14
 
@@ -386,8 +391,9 @@ Position setup/editing and the broader room tools are not yet exposed in this fi
 
 `UserLibrary.get_private/2` and `edit_private/5` require the requesting user's library reference,
 no room membership and no other user's library reference. This deliberately denies room-shared
-references and other users' tracks; a materialized private copy — a standalone analysis in one
-user's library — satisfies the policy until branching a live reference materializes a copy. These remain trusted domain APIs: the browser boundary supplies only its verified
+references and other users' tracks; `open_private/2` guarantees that scope by branching live
+references before the editor reads or edits anything. These remain trusted domain APIs: the
+browser boundary supplies only its verified
 User and server-selected analysis/revision/path. Missing and inaccessible IDs receive the same denial.
 PostgreSQL locks the analysis with `FOR UPDATE` (also excluding new foreign-key references),
 then the user's reference with `FOR SHARE`, retaining the private access scope throughout reads/writes.

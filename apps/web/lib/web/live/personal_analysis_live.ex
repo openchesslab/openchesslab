@@ -39,24 +39,27 @@ defmodule Web.PersonalAnalysisLive do
 
   @impl true
   def handle_params(%{"id" => id} = params, _uri, socket) do
-    case UserLibrary.get_private(socket.assigns.current_user.id, id) do
-      {:ok, analysis, revision} ->
+    user_id = socket.assigns.current_user.id
+    path = parse_path(params["p"])
+
+    with {:ok, open_id} <- UserLibrary.open_private(user_id, id),
+         {:ok, analysis, revision} <- UserLibrary.get_private(user_id, open_id),
+         {:ok, title} <- UserLibrary.title(user_id, open_id) do
+      if open_id != id do
+        # The entry was a live reference: the fresh private copy is now the
+        # canonical URL, so reloads and later opens continue the same work.
+        {:noreply, push_patch(socket, to: private_url(open_id, path))}
+      else
         notice = socket.assigns.notice
 
-        case UserLibrary.title(socket.assigns.current_user.id, id) do
-          {:ok, title} ->
-            {:noreply,
-             socket
-             |> display(analysis, revision, parse_path(params["p"]))
-             |> assign(:notice, notice)
-             |> assign(:page_title, title || Web.I18n.t("personal.title", socket.assigns.locale))}
-
-          :not_found ->
-            {:noreply, unavailable(socket)}
-        end
-
-      :not_found ->
-        {:noreply, unavailable(socket)}
+        {:noreply,
+         socket
+         |> display(analysis, revision, path)
+         |> assign(:notice, notice)
+         |> assign(:page_title, title || Web.I18n.t("personal.title", socket.assigns.locale))}
+      end
+    else
+      _ -> {:noreply, unavailable(socket)}
     end
   end
 
@@ -240,6 +243,11 @@ defmodule Web.PersonalAnalysisLive do
     path = Enum.join(socket.assigns.current_path, ",")
     url = ~p"/library/#{socket.assigns.analysis.id}"
     push_patch(socket, to: if(path == "", do: url, else: url <> "?p=" <> path), replace: true)
+  end
+
+  defp private_url(id, path) do
+    url = ~p"/library/#{id}"
+    if path == [], do: url, else: url <> "?p=" <> Enum.join(path, ",")
   end
 
   defp unavailable(socket),

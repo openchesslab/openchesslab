@@ -72,6 +72,35 @@ defmodule Web.PersonalAnalysisLiveTest do
     assert room.analysis_ids == [ctx.source]
   end
 
+  test "opening a live reference branches a private copy and continues it there", ctx do
+    assert {:ok, :tracked} = UserLibrary.track_from_room(ctx.user.id, ctx.room, ctx.source)
+
+    # The reference's open live-redirects to the fresh copy's canonical URL.
+    assert {:error, {:live_redirect, %{to: to}}} =
+             live(conn(ctx.session), "/library/#{ctx.source}")
+
+    {:ok, view, _html} = live(conn(ctx.session), to)
+
+    copy_id = :sys.get_state(view.pid).socket.assigns.analysis.id
+    refute copy_id == ctx.source
+    assert UserLibrary.list(ctx.user.id) == [ctx.id, copy_id]
+    assert has_element?(view, "#chess-board")
+
+    # Private work continues on the copy; the room's original is untouched.
+    render_click(view, "board-square", %{"square" => "12"})
+    render_click(view, "board-square", %{"square" => "28"})
+    assert_patch(view, "/library/#{copy_id}?p=0")
+
+    assert {:ok, _, 2} = AnalysisStore.get(copy_id)
+    assert {:ok, _, 1} = AnalysisStore.get(ctx.source)
+
+    assert {:ok, room} = RoomStore.get(ctx.room)
+    assert room.analysis_ids == [ctx.source]
+
+    # The old reference URL no longer opens for this user: the entry moved on.
+    assert {:error, {:redirect, %{to: "/"}}} = live(conn(ctx.session), "/library/#{ctx.source}")
+  end
+
   test "guests and forged credentials cannot request private content", ctx do
     for token <- [nil, "invalid", ctx.user.id] do
       response =

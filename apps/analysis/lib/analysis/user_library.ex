@@ -85,6 +85,53 @@ defmodule Analysis.UserLibrary do
   defp private_command(id, path, :remove), do: Analyses.remove(id, path)
   defp private_command(_, _, _), do: {:error, :invalid_command}
 
+  @shared_sql """
+  SELECT EXISTS (SELECT 1 FROM room_analyses WHERE analysis_id = $2),
+         EXISTS (SELECT 1 FROM user_analyses WHERE analysis_id = $2 AND user_id <> $1)
+  """
+
+  @doc """
+  Open a library entry for private work, branching a live reference once.
+
+  When the entry still refers to shared work — an analysis that lives in a
+  room or that another user's library references — this materializes an
+  independent private copy, repoints the entry to it and returns the copy's
+  id. Branching is idempotent: later opens of the same entry continue the
+  private copy. The room's analysis and other users' references keep the
+  original untouched. Entries that are already private open unchanged.
+  Callers authenticate the user; this is not an authorization boundary.
+  """
+  @spec open_private(String.t(), String.t()) ::
+          {:ok, String.t()} | {:error, :invalid_identity | :analysis_not_found}
+  def open_private(user_id, analysis_id) when is_binary(analysis_id) do
+    case Ecto.UUID.dump(user_id) do
+      {:ok, db_id} ->
+        Repo.transaction(fn ->
+          case Repo.query!(
+                 "SELECT id FROM user_analyses WHERE user_id = $1 AND analysis_id = $2 FOR UPDATE",
+                 [db_id, analysis_id],
+                 log: false
+               ).rows do
+            [] ->
+              Repo.rollback(:analysis_not_found)
+
+            [[_id]] ->
+              [[room_shared, other_referenced]] =
+                Repo.query!(@shared_sql, [db_id, analysis_id], log: false).rows
+
+              if room_shared or other_referenced,
+                do: branch_reference(db_id, analysis_id),
+                else: analysis_id
+          end
+        end)
+
+      :error ->
+        {:error, :invalid_identity}
+    end
+  end
+
+  def open_private(_, _), do: {:error, :invalid_identity}
+
   defp with_private(user_id, analysis_id, operation) do
     with {:ok, db_id} <- Ecto.UUID.dump(user_id), true <- is_binary(analysis_id) do
       # FOR UPDATE also blocks new FK references while the private scope is
@@ -324,6 +371,31 @@ defmodule Analysis.UserLibrary do
 
   defp fresh_analysis_id do
     "analysis-" <> Base.url_encode64(:crypto.strong_rand_bytes(16), padding: false)
+  end
+
+  defp branch_reference(db_id, analysis_id) do
+    case Repo.query!("SELECT record FROM analyses WHERE analysis_id = $1", [analysis_id],
+           log: false
+         ).rows do
+      [[record]] ->
+        with {:ok, analysis} <- AnalysisCodec.decode(record),
+             fresh_id = fresh_analysis_id(),
+             {:ok, _revision} <- AnalysisStore.insert(%{analysis | id: fresh_id}) do
+          result =
+            Repo.query!(
+              "UPDATE user_analyses SET analysis_id = $3 WHERE user_id = $1 AND analysis_id = $2",
+              [db_id, analysis_id, fresh_id],
+              log: false
+            )
+
+          if result.num_rows == 1, do: fresh_id, else: Repo.rollback(:analysis_not_found)
+        else
+          _other -> Repo.rollback(:analysis_not_found)
+        end
+
+      [] ->
+        Repo.rollback(:analysis_not_found)
+    end
   end
 
   @save_sql """

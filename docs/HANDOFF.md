@@ -34,6 +34,18 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, door agent gecommit en gepusht:** `Materialize a private copy when opening a live
+  reference`, gestart op schone `0b38cca`. `UserLibrary.open_private/2` opent een bibliotheekentry
+  voor privé-werk: is de analyse nog gedeeld (in een room óf door een andere gebruiker gereferenceerd),
+  dan materialiseert één keer een eigen kopie, herpint de entry naar de kopie en geeft de kopie-id
+  terug (idempotent; roomoriginal + andermans referenties blijven onaangetast; titel blijft staan).
+  `Web.PersonalAnalysisLive` live-redirectt naar de canonieke kopie-URL (met `?p=`) en de editor werkt
+  daarna op de privé-kopie; get_private/edit_private blijven de privé-scope forceren. Web+domain;
+  geen migratie. Gericht: private_analysis **7/7**, web personal_analysis/library_tracking **16/16**;
+  volledig analyse **612 geslaagd** (seed 398267) en web **206 geslaagd** (seed 511632); formatter,
+  compile --warnings-as-errors en diffcontrole geslaagd. Daarna direct de delete-UX-slice (zie
+  volgende entry).
+
 - **Afgerond, door agent gecommit en gepusht (nieuwe werkwijze):** `Fix dark-mode contrast of the
   share and star actions`, gestart op schone `3f58fb5`. Diagnose: `--accent` (#35507e) is een
   bewuste vulkleur (altijd met witte tekst; niet thema-adaptief) — accent als tekst/rand op
