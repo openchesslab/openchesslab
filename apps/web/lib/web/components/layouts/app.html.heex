@@ -128,8 +128,12 @@
         phx-window-keydown={JS.remove_attribute("open", to: "#help-menu")}
         phx-key="Escape"
       >
-        <summary class="inline-flex min-h-9 cursor-pointer list-none items-center justify-center rounded-md border border-border px-2 text-xs font-semibold hover:bg-panel-hover [&::-webkit-details-marker]:hidden">
-          {Web.I18n.t("common.help", @locale)}
+        <summary
+          class="inline-flex min-h-9 min-w-9 cursor-pointer list-none items-center justify-center rounded-md border border-border px-2 text-xs font-semibold hover:bg-panel-hover [&::-webkit-details-marker]:hidden"
+          aria-label={Web.I18n.t("common.help", @locale)}
+          title={Web.I18n.t("common.help", @locale)}
+        >
+          <.icon name="question" class="h-4 w-4" />
         </summary>
         <div class="absolute right-0 top-full z-40 mt-2 flex w-56 flex-col gap-1 rounded-lg border border-border bg-panel p-2 shadow-xl">
           <button
@@ -156,28 +160,36 @@
         phx-window-keydown={JS.remove_attribute("open", to: "#account-menu")}
         phx-key="Escape"
       >
-        <summary class="inline-flex min-h-9 cursor-pointer list-none items-center justify-center rounded-md border border-border px-2 text-xs font-semibold hover:bg-panel-hover [&::-webkit-details-marker]:hidden">
-          {Web.I18n.t("auth.account", @locale)}
+        <summary
+          class="inline-flex min-h-9 min-w-9 cursor-pointer list-none items-center justify-center rounded-md border border-border px-2 text-xs font-semibold hover:bg-panel-hover [&::-webkit-details-marker]:hidden"
+          aria-label={Web.I18n.t("auth.account", @locale)}
+          title={Web.I18n.t("auth.account", @locale)}
+        >
+          <.icon name="person" class="h-4 w-4" />
         </summary>
         <div class="absolute right-0 top-full z-40 mt-2 flex w-56 flex-col gap-1 rounded-lg border border-border bg-panel p-2 shadow-xl">
           <button
             :if={@current_user}
             type="button"
             id="personal-library-button"
-            class="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-panel-hover"
+            class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-panel-hover"
             phx-click={
               JS.remove_attribute("open", to: "#account-menu") |> JS.push("open-library")
             }
-          >{Web.I18n.t("library.title", @locale)}</button>
+          >
+            <.icon name="library" class="h-4 w-4" />
+            {Web.I18n.t("library.title", @locale)}
+          </button>
           <button
             :if={@current_user}
             type="button"
             id="linked-accounts-button"
-            class="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-panel-hover"
+            class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-panel-hover"
             phx-click={
               JS.remove_attribute("open", to: "#account-menu") |> JS.push("open-account")
             }
           >
+            <.icon name="link" class="h-4 w-4" />
             {Web.I18n.t("auth.connections", @locale)}
           </button>
           <.form
@@ -189,8 +201,11 @@
           >
             <button
               type="submit"
-              class="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-panel-hover"
-            >{Web.I18n.t("auth.logout", @locale)}</button>
+              class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-panel-hover"
+            >
+              <.icon name="logout" class="h-4 w-4" />
+              {Web.I18n.t("auth.logout", @locale)}
+            </button>
           </.form>
           <.form
             :if={!@current_user && @login_enabled}
@@ -201,8 +216,11 @@
           >
             <button
               type="submit"
-              class="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-panel-hover"
-            >{Web.I18n.t("auth.loginWithLichess", @locale)}</button>
+              class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-panel-hover"
+            >
+              <.lichess_mark class="h-4 w-4" />
+              {Web.I18n.t("auth.loginWithLichess", @locale)}
+            </button>
           </.form>
           <.form
             :if={!@current_user && @google_login_enabled}
@@ -213,8 +231,9 @@
           >
             <button
               type="submit"
-              class="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-panel-hover"
+              class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-panel-hover"
             >
+              <.google_mark class="h-4 w-4" />
               {Web.I18n.t("auth.loginWithGoogle", @locale)}
             </button>
           </.form>

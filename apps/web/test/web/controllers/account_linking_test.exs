@@ -208,6 +208,7 @@ defmodule Web.AccountLinkingTest do
     Application.put_env(:web, :lichess_oauth, nil)
     {:ok, view, _} = live(build_conn(), "/?locale=nl")
     assert has_element?(view, "#auth-google-login", "Inloggen met Google")
+    assert has_element?(view, "#auth-google-login button svg")
     refute has_element?(view, "#auth-login")
 
     render_click(view, "open-account", %{"user_id" => Ecto.UUID.generate()})

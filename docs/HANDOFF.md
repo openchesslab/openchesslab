@@ -34,6 +34,20 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, door agent gecommit en gepusht:** `Add header and account-menu icons with provider marks`,
+  gestart op schone `8575360` (gebruikersidee 2026-10-14). Header: **Help** is nu een icon-only `?`-knop en
+  **Account** een icon-only persoon-icoon (geen namen/initialen: privacy-model; aria-label+title blijven
+  gelokaliseerd). Menu-items dragen iconen: bibliotheek (My Library), link (Linked accounts), logout.
+  Gast-login-items dragen providermerken: het Lichess-paard (lila, AGPLv3 — compatibel met dit
+  GPL-3.0-or-later project; attributie in nieuwe `apps/web/priv/NOTICE.md`, dezelfde mark als het oude
+  ~/blunderfest-project) en de Google-"G" volgens Google's sign-in-brandingrichtlijnen (standaardkleuren,
+  lokaliseerbare tekst). Nieuwe stroke-iconen (person/library/logout/link) + `lichess_mark`/`google_mark`
+  als fill-componenten; `web.ex` importeert ze voor de layout. Web-only; geen migratie/i18n-wijzigingen.
+  Gericht: auth_controls **11/11**, account_linking **9/9**; volledig web **213 geslaagd** (seed 511632);
+  formatter, assetbuild, compile --warnings-as-errors en diffcontrole geslaagd. Browsergeverifieerd op
+  devserver: icon-only summaries met gelokaliseerde aria-labels, menu-iconen aanwezig; login-merken
+  gedekt door de tests (devserver heeft geen OAuth-config).
+
 - **Afgerond, door agent gecommit en gepusht:** `Close modals with Escape from focused inputs`,
   commit `1536dae`. De globale `AppUI`-keyhandler behandelde Escape vóór de
   typing-guard (gebruikersbevinding 2026-10-14: modal sluit niet bij focus in een

@@ -78,7 +78,7 @@ defmodule Web do
       # Common modules used in templates
       alias Phoenix.LiveView.JS
       alias Web.Layouts
-      import Web.IconComponents, only: [icon: 1]
+      import Web.IconComponents, only: [icon: 1, lichess_mark: 1, google_mark: 1]
       import Web.MoveListComponents, only: [move_list: 1]
 
       # Routes generation with the ~p sigil
