@@ -48,7 +48,9 @@ defmodule Web.PrivateRoomTest do
   end
 
   test "a private room gates non-members without leaking any content", ctx do
-    assert {:ok, _room} = Rooms.create_room(ctx.code, owner: ctx.owner.id)
+    assert {:ok, _room} =
+             Rooms.create_room(ctx.code, owner: ctx.owner.id, owner_display_name: "Wise Otter 42")
+
     assert {:ok, _a, 1} = Analyses.create(ctx.analysis_id)
     :ok = Rooms.add_analysis(ctx.code, ctx.analysis_id)
 
@@ -74,7 +76,9 @@ defmodule Web.PrivateRoomTest do
   end
 
   test "the owner works in the room and manages the invite link", ctx do
-    assert {:ok, _room} = Rooms.create_room(ctx.code, owner: ctx.owner.id)
+    assert {:ok, _room} =
+             Rooms.create_room(ctx.code, owner: ctx.owner.id, owner_display_name: "Wise Otter 42")
+
     {:ok, view, html} = live(authenticated(ctx.owner_session.token), "/rooms/#{ctx.code}")
 
     # No copy-code button in a private room; the owner gets the Invite button.
@@ -103,7 +107,9 @@ defmodule Web.PrivateRoomTest do
   end
 
   test "invite links admit signed-in members through the join route", ctx do
-    assert {:ok, _room} = Rooms.create_room(ctx.code, owner: ctx.owner.id)
+    assert {:ok, _room} =
+             Rooms.create_room(ctx.code, owner: ctx.owner.id, owner_display_name: "Wise Otter 42")
+
     assert {:ok, _a, 1} = Analyses.create(ctx.analysis_id)
     :ok = Rooms.add_analysis(ctx.code, ctx.analysis_id)
     {:ok, token} = Rooms.create_invite(ctx.code)
@@ -144,7 +150,9 @@ defmodule Web.PrivateRoomTest do
   end
 
   test "guests opening an invite are sent to the gate with the login hint", ctx do
-    assert {:ok, _room} = Rooms.create_room(ctx.code, owner: ctx.owner.id)
+    assert {:ok, _room} =
+             Rooms.create_room(ctx.code, owner: ctx.owner.id, owner_display_name: "Wise Otter 42")
+
     {:ok, token} = Rooms.create_invite(ctx.code)
 
     conn = build_conn() |> get("/rooms/#{ctx.code}/join/#{token}")
@@ -153,7 +161,9 @@ defmodule Web.PrivateRoomTest do
   end
 
   test "forged invite events by non-owners change nothing", ctx do
-    assert {:ok, _room} = Rooms.create_room(ctx.code, owner: ctx.owner.id)
+    assert {:ok, _room} =
+             Rooms.create_room(ctx.code, owner: ctx.owner.id, owner_display_name: "Wise Otter 42")
+
     {:ok, view, _} = live(authenticated(ctx.other_session.token), "/rooms/#{ctx.code}")
 
     # The non-member never even gets the room page; use the owner to be sure
@@ -163,7 +173,9 @@ defmodule Web.PrivateRoomTest do
   end
 
   test "the members list shows names; removal kicks the member immediately", ctx do
-    assert {:ok, _room} = Rooms.create_room(ctx.code, owner: ctx.owner.id)
+    assert {:ok, _room} =
+             Rooms.create_room(ctx.code, owner: ctx.owner.id, owner_display_name: "Wise Otter 42")
+
     {:ok, token} = Rooms.create_invite(ctx.code)
 
     assert {:ok, :joined} =
@@ -200,9 +212,11 @@ defmodule Web.PrivateRoomTest do
   end
 
   test "non-owner members cannot forge member management", ctx do
-    assert {:ok, _room} = Rooms.create_room(ctx.code, owner: ctx.owner.id)
+    assert {:ok, _room} =
+             Rooms.create_room(ctx.code, owner: ctx.owner.id, owner_display_name: "Wise Otter 42")
+
     {:ok, token} = Rooms.create_invite(ctx.code)
-    assert {:ok, :joined} = Rooms.consume_invite(ctx.code, ctx.other.id, token)
+    assert {:ok, :joined} = Rooms.consume_invite(ctx.code, ctx.other.id, token, "Keen Rhino 44")
 
     {:ok, view, _} = live(authenticated(ctx.other_session.token), "/rooms/#{ctx.code}")
 

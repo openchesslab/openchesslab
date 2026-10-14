@@ -24,7 +24,8 @@ defmodule Analysis.Rooms do
   With `owner:` the room is private: the room code alone never grants entry,
   and the owner becomes its first member. The caller authenticates the owner
   user first; this is not an authorization boundary. `owner_display_name` is
-  a server-generated, non-PII label shown in the member list.
+  required for a private room: a server-generated, non-PII label shown in the
+  member list.
   """
   @spec create_room(Room.id(), options()) ::
           {:ok, Room.t()} | {:error, :already_exists | :not_found | :invalid_owner}
@@ -35,7 +36,11 @@ defmodule Analysis.Rooms do
           RoomStore.create(room_id)
 
         owner_user_id ->
-          RoomStore.create_private(room_id, owner_user_id, Keyword.get(opts, :owner_display_name))
+          RoomStore.create_private(
+            room_id,
+            owner_user_id,
+            Keyword.fetch!(opts, :owner_display_name)
+          )
       end
 
     case created do
@@ -105,10 +110,10 @@ defmodule Analysis.Rooms do
     end
   end
 
-  @doc "Admit a user through a raw invite token; returns the token only once elsewhere."
-  @spec consume_invite(Room.id(), String.t(), String.t(), String.t() | nil) ::
+  @doc "Admit a user through a raw invite token with their member display name."
+  @spec consume_invite(Room.id(), String.t(), String.t(), String.t()) ::
           {:ok, :joined} | {:error, :invalid_invite}
-  def consume_invite(room_id, user_id, token, display_name \\ nil)
+  def consume_invite(room_id, user_id, token, display_name)
 
   def consume_invite(room_id, user_id, token, display_name) when is_binary(token) do
     RoomStore.consume_invite(room_id, user_id, :crypto.hash(:sha256, token), display_name)

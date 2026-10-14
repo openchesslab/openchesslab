@@ -34,6 +34,16 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, wacht op commit/push:** `Require stored display names for private room members`,
+  gestart op schone `0492391`. Gebruikersbeslissing 2026-10-15: greenfield zonder gebruikers, dus
+  geen legacy-compatibiliteit — de md5-fallback ("Member XXXX") uit `RoomStore` is verwijderd,
+  `display_name` is `NOT NULL` (migratie `20261015120000`, dropt de twee pre-eis dev-rijen),
+  `display_name` is een verplichte parameter van `create_private`/`add_member`/`consume_invite` en
+  `owner_display_name` is verplicht bij `Rooms.create_room(owner: ...)`. Dev-fixture KH43QB
+  handmatig gevuld vóór migratie. Gericht: domein **5/5**, web **8/8**; volledig serieel: analyse
+  **617 geslaagd** (seed 398267), web **227 geslaagd** (seed 511632); formatter, compile
+  --warnings-as-errors en diffcontrole geslaagd.
+
 - **Afgerond, gecommit en gepusht:** `Add member listing and individual removal to private rooms`
   (`c092dbc` op main, bovenop `a9a08e7`), browsertest op dev geverifieerd (lijst, fallback-namen,
   join via invite, verwijdering kickt live naar de gate). Ontwerp (2026-10-15): de Invite-modal is nu de **Members**-modal van de eigenaar —

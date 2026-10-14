@@ -141,10 +141,9 @@ owner-only Invite control (replacing Copy code in private rooms); forged invite 
 non-owners change nothing.
 
 Member management lives in the owner's **Members** modal (2026-10-15): a durable member list
-(`Rooms.members/1`) with server-generated, non-PII display names stored per membership
-(`Web.DisplayName`, with a stable non-identifying fallback for legacy rows) plus join dates and an
-owner badge; private-room presence uses the same stored member label, so the sidebar matches the
-list. Individual removal (`Rooms.remove_member/3`) is owner-only and never touches the owner's own
+(`Rooms.members/1`) with required server-generated, non-PII display names stored per membership
+(`Web.DisplayName`, `display_name NOT NULL`) plus join dates and an owner badge; private-room
+presence uses the same stored member label, so the sidebar matches the list. Individual removal (`Rooms.remove_member/3`) is owner-only and never touches the owner's own
 membership; removal publishes `membership_changed` over the room's event group, so every connected
 view rechecks its own membership and a removed member is cut off immediately, redirected to the
 gate with a removal notice. Guests and non-owners cannot forge list, invite or removal events.

@@ -34,11 +34,6 @@ defmodule Analysis.PrivateRoomTest do
     assert owner_member.display_name == "Wise Otter 42"
     assert joined_member.display_name == "Keen Rhino 44"
 
-    # Legacy rows without a stored name get a stable fallback label.
-    Repo.query!("UPDATE room_members SET display_name = NULL WHERE room_id = $1", [ctx.code])
-    [%{display_name: fallback_name} | _] = Rooms.members(ctx.code)
-    assert fallback_name =~ ~r/^Member [0-9A-F]{4}$/
-
     # Only the owner may remove; their own membership is immutable.
     assert {:error, :not_owner} = Rooms.remove_member(ctx.code, ctx.other.id, ctx.other.id)
     assert {:error, :owner_immutable} = Rooms.remove_member(ctx.code, ctx.owner.id, ctx.owner.id)
@@ -48,14 +43,16 @@ defmodule Analysis.PrivateRoomTest do
     assert :ok = Rooms.remove_member(ctx.code, ctx.owner.id, ctx.other.id)
     refute Rooms.member?(ctx.code, ctx.other.id)
     assert {:error, :member_not_found} = Rooms.remove_member(ctx.code, ctx.owner.id, ctx.other.id)
-    assert {:ok, :joined} = Rooms.consume_invite(ctx.code, ctx.other.id, token)
+    assert {:ok, :joined} = Rooms.consume_invite(ctx.code, ctx.other.id, token, "Keen Rhino 45")
     assert Rooms.member?(ctx.code, ctx.other.id)
 
     assert room.owner_user_id == ctx.owner.id
   end
 
   test "creating a private room makes the owner its first and only member", ctx do
-    assert {:ok, room} = Rooms.create_room(ctx.code, owner: ctx.owner.id)
+    assert {:ok, room} =
+             Rooms.create_room(ctx.code, owner: ctx.owner.id, owner_display_name: "Wise Otter 42")
+
     assert room.owner_user_id == ctx.owner.id
     assert Rooms.member?(ctx.code, ctx.owner.id)
     refute Rooms.member?(ctx.code, ctx.other.id)
@@ -70,18 +67,21 @@ defmodule Analysis.PrivateRoomTest do
   end
 
   test "invite links admit members until revoked or rotated", ctx do
-    assert {:ok, room} = Rooms.create_room(ctx.code, owner: ctx.owner.id)
+    assert {:ok, room} =
+             Rooms.create_room(ctx.code, owner: ctx.owner.id, owner_display_name: "Wise Otter 42")
 
     # No link yet: nobody joins, not even with a forged token.
-    assert {:error, :invalid_invite} = Rooms.consume_invite(ctx.code, ctx.other.id, "forged")
+    assert {:error, :invalid_invite} =
+             Rooms.consume_invite(ctx.code, ctx.other.id, "forged", "Keen Rhino 44")
+
     refute Rooms.member?(ctx.code, ctx.other.id)
 
     assert {:ok, token} = Rooms.create_invite(ctx.code)
     assert Rooms.invite_active?(ctx.code)
 
     # Multi-use: the same link admits a member, and rejoining is idempotent.
-    assert {:ok, :joined} = Rooms.consume_invite(ctx.code, ctx.other.id, token)
-    assert {:ok, :joined} = Rooms.consume_invite(ctx.code, ctx.other.id, token)
+    assert {:ok, :joined} = Rooms.consume_invite(ctx.code, ctx.other.id, token, "Keen Rhino 44")
+    assert {:ok, :joined} = Rooms.consume_invite(ctx.code, ctx.other.id, token, "Keen Rhino 44")
     assert Rooms.member?(ctx.code, ctx.other.id)
 
     # Only the SHA-256 hash of the token is stored, never the raw token.
@@ -93,31 +93,44 @@ defmodule Analysis.PrivateRoomTest do
 
     # Revoke: new joins stop immediately; existing members keep access.
     assert Rooms.revoke_invites(ctx.code) == 1
-    assert {:error, :invalid_invite} = Rooms.consume_invite(ctx.code, ctx.owner.id, token)
+
+    assert {:error, :invalid_invite} =
+             Rooms.consume_invite(ctx.code, ctx.owner.id, token, "Wise Otter 43")
+
     assert Rooms.member?(ctx.code, ctx.other.id)
 
     # Rotation: generating a new link invalidates the old one.
     assert {:ok, token2} = Rooms.create_invite(ctx.code)
-    assert {:error, :invalid_invite} = Rooms.consume_invite(ctx.code, ctx.owner.id, token)
-    assert {:ok, :joined} = Rooms.consume_invite(ctx.code, ctx.owner.id, token2)
+
+    assert {:error, :invalid_invite} =
+             Rooms.consume_invite(ctx.code, ctx.owner.id, token, "Wise Otter 43")
+
+    assert {:ok, :joined} = Rooms.consume_invite(ctx.code, ctx.owner.id, token2, "Wise Otter 43")
 
     assert room.owner_user_id == ctx.owner.id
   end
 
   test "concurrent consumption and revocation: cutoff wins", ctx do
-    assert {:ok, _room} = Rooms.create_room(ctx.code, owner: ctx.owner.id)
+    assert {:ok, _room} =
+             Rooms.create_room(ctx.code, owner: ctx.owner.id, owner_display_name: "Wise Otter 42")
+
     assert {:ok, token} = Rooms.create_invite(ctx.code)
 
     consumers =
       for _ <- 1..8,
-          do: Task.async(fn -> Rooms.consume_invite(ctx.code, ctx.other.id, token) end)
+          do:
+            Task.async(fn ->
+              Rooms.consume_invite(ctx.code, ctx.other.id, token, "Keen Rhino 44")
+            end)
 
     revoker = Task.async(fn -> Rooms.revoke_invites(ctx.code) end)
     Enum.map(consumers, &Task.await/1)
     Task.await(revoker)
 
     # Whatever interleaving happened, the token is dead after the revoke.
-    assert {:error, :invalid_invite} = Rooms.consume_invite(ctx.code, ctx.owner.id, token)
+    assert {:error, :invalid_invite} =
+             Rooms.consume_invite(ctx.code, ctx.owner.id, token, "Wise Otter 43")
+
     refute Rooms.invite_active?(ctx.code)
   end
 

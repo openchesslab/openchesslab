@@ -99,10 +99,11 @@ defmodule Analysis.RoomStore do
   `room_members` see the room. Callers authenticate the owner user first.
   The display name is a server-generated, non-PII label for member listing.
   """
-  @spec create_private(String.t(), String.t(), String.t() | nil) ::
+  @spec create_private(String.t(), String.t(), String.t()) ::
           :ok | {:error, :already_exists | :invalid_owner}
-  def create_private(id, owner_user_id, display_name \\ nil)
-      when is_binary(id) and byte_size(id) > 0 and is_binary(owner_user_id) do
+  def create_private(id, owner_user_id, display_name)
+      when is_binary(id) and byte_size(id) > 0 and is_binary(owner_user_id) and
+             is_binary(display_name) do
     case Ecto.UUID.dump(owner_user_id) do
       {:ok, db_owner} ->
         Repo.transaction(fn ->
@@ -152,9 +153,10 @@ defmodule Analysis.RoomStore do
   """
 
   @doc "Idempotently add a member to a durable room with a server-generated label."
-  @spec add_member(String.t(), String.t(), String.t() | nil) ::
+  @spec add_member(String.t(), String.t(), String.t()) ::
           :ok | {:error, :room_not_found}
-  def add_member(room_id, user_id, display_name \\ nil) when is_binary(room_id) do
+  def add_member(room_id, user_id, display_name)
+      when is_binary(room_id) and is_binary(display_name) do
     case Ecto.UUID.dump(user_id) do
       {:ok, db_user} ->
         case Repo.query!(@add_member_sql, [room_id, db_user, display_name]).rows do
@@ -167,13 +169,8 @@ defmodule Analysis.RoomStore do
     end
   end
 
-  # Legacy and nameless rows get a stable, non-identifying fallback label.
-  @member_name_sql """
-  COALESCE(display_name, 'Member ' || upper(substr(md5(user_id::text), 1, 4)))
-  """
-
   @members_sql """
-  SELECT user_id::text, #{@member_name_sql}, created_at
+  SELECT user_id::text, display_name, created_at
   FROM room_members
   WHERE room_id = $1
   ORDER BY created_at, user_id
@@ -196,7 +193,7 @@ defmodule Analysis.RoomStore do
   end
 
   @member_name_of_sql """
-  SELECT #{@member_name_sql}
+  SELECT display_name
   FROM room_members
   WHERE room_id = $1 AND user_id = $2
   """
@@ -296,10 +293,10 @@ defmodule Analysis.RoomStore do
   revoke cannot admit anyone after cutoff. Idempotent per user; the raw
   token is only ever hashed here. Callers authenticate the joining user.
   """
-  @spec consume_invite(String.t(), String.t(), binary()) ::
+  @spec consume_invite(String.t(), String.t(), binary(), String.t()) ::
           {:ok, :joined} | {:error, :invalid_invite}
-  def consume_invite(room_id, user_id, token_hash, display_name \\ nil)
-      when is_binary(room_id) and byte_size(token_hash) == 32 do
+  def consume_invite(room_id, user_id, token_hash, display_name)
+      when is_binary(room_id) and byte_size(token_hash) == 32 and is_binary(display_name) do
     case Ecto.UUID.dump(user_id) do
       {:ok, db_user} ->
         Repo.transaction(fn ->
