@@ -5,7 +5,7 @@ defmodule Web.LichessOAuth do
   `config` must contain the trusted client ID and exact redirect URI used when
   authorization started, never values from callback parameters. The browser
   token must come only from the initiating browser's protected cookie. Provider
-  denial should instead use `LichessOAuthAttempts.cancel/2`.
+  denial should instead use `OAuthAttempts.cancel/2`.
 
   Only the provider and verified opaque `id` are returned, for subsequent HMAC
   account resolution. The rest of the profile and the access token are discarded.
@@ -17,7 +17,7 @@ defmodule Web.LichessOAuth do
   The optional request function is a trusted HTTP test seam, not client input.
   """
 
-  alias Web.LichessOAuthAttempts
+  alias Web.OAuthAttempts
 
   @token_url ~c"https://lichess.org/api/token"
   @account_url ~c"https://lichess.org/api/account"
@@ -38,8 +38,14 @@ defmodule Web.LichessOAuth do
   @spec verify_callback(term(), term(), term(), config(), function()) ::
           {:ok, identity()} | {:error, error()}
   def verify_callback(state, browser_token, code, config, request \\ &:httpc.request/4) do
-    with {:ok, verifier} <- LichessOAuthAttempts.consume(state, browser_token),
-         :ok <- validate_config(config),
+    with {:ok, verifier} <- OAuthAttempts.consume(state, browser_token) do
+      verify_code(code, verifier, config, request)
+    end
+  end
+
+  @doc "Exchange a code only after the caller has consumed and validated its OAuth attempt."
+  def verify_code(code, verifier, config, request) do
+    with :ok <- validate_config(config),
          :ok <- validate_code(code) do
       body =
         URI.encode_query(%{

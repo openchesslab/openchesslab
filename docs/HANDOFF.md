@@ -11,12 +11,10 @@ Geen geheimen, tokens of lokale databases opnemen.
 
 ## Modelkeuze
 
-**Codex:** start met GPT-6.1 Sol, reasoning Medium, voor privé openen/bewerken en toegangscontroles.
-Voor routinematige UI/documentatie is Medium een passend startpunt. Adviseer GPT-6 Astra
-alleen bij lastige architectuur/concurrency of wanneer Sol aantoonbaar vastloopt; Luna kan voor kleine,
-duidelijk begrensde tekstwijzigingen. Dit zijn taakgerichte aanbevelingen, geen repo-benchmark.
-Bron: [OpenAI modelkeuze](https://developers.openai.com/api/docs/guides/model-selection),
-gecontroleerd 2026-10-14.
+**Codex:** de gebruiker heeft Sol Light/Medium en Astra Light/Medium beschikbaar.
+Voor Google-login en accountkoppeling is Astra Medium geadviseerd; de gebruiker heeft
+bevestigd te zijn overgeschakeld. Adviseer bij volgende slices alleen beschikbare opties.
+Bij een zinvolle modelwissel: geef de reden en wacht eerst op de gebruiker.
 
 **OpenCode Go:** startadvies voor de volgende slice is **Kimi K3**.
 De actuele officiële lijst vermeldt zowel Kimi K3 als Kimi K2.7 Code; K2.7 is dus niet
@@ -35,6 +33,20 @@ Meld expliciet wanneer een wissel zinvol is, met één concrete reden; laat de g
 Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoerd.
 
 ## Repository en huidige status
+
+- **Implementatie groen:** `Add Google login and explicit account linking`, gestart op schone `ff0a191`.
+  Google OIDC (alleen openid), gezamenlijke OAuth-controller, expliciet koppelen via /account.
+  Koppelen vereist dezelfde nog geldige sessie bij start/callback en na providerexchange;
+  bestaand eigenaarschap wordt niet overgedragen of samengevoegd. Lichess-import blijft later.
+  Pogingenmodule/tabel gegeneraliseerd naar OAuthAttempts/oauth_attempts;
+  migratie 20261014160000 lokaal dev/test uitgevoerd (test buiten sandbox wegens Mix-lock).
+  Gericht 63 geslaagd (seed 988516); uitgebreid volledig web **197 geslaagd** (seed 511632),
+  analyse **602 geslaagd** (seed 398267), database **4 geslaagd** incl. release-idempotentie.
+  Assetbuild, formatter en diffcontrole geslaagd. Geen testfouten; Mix-lock blokkeerde
+  enkele starts vóór uitvoering, buiten sandbox uitgevoerd. Nog geen commit/push/deployment.
+  Setup en handmatige acceptatie: [docs/google-auth.md](google-auth.md).
+  Google-clientconfiguratie en echte providerlogin zijn nog niet uitgevoerd; productie niet gewijzigd.
+
 
 - Slice afgerond en gepusht: `Add readable titles to personal library analyses`, commit `cc392f3`, start op schone `561ed67`.
   Persoonlijke titel op `user_analyses`, hernoemen in bibliotheek en tonen boven privé-editor.
@@ -76,7 +88,7 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 ## Eerstvolgende productwerk
 
 Header, privé-editor, homepage en bibliotheektitels zijn afgerond en gepusht.
-Er is geen openstaande implementatie; bibliotheektitels zijn nog niet gedeployed.
+Google-login/koppeling is toegevoegd; zie de status bovenaan. Bibliotheektitels en Google-login zijn nog niet gedeployed.
 De privé-editor vereist een eigen bibliotheeklink zonder roomlidmaatschap of andere gebruikerslink.
 Geen room wordt aangemaakt of gekoppeld. Controleer de actuele werkboom en tests voor voortzetting.
 Vervolg: privé-position setup/tools. Expliciet terugdelen
@@ -94,7 +106,7 @@ Dit is een overzicht, geen vastgelegde uitvoeringsvolgorde:
   fouten/momenten en evaluatiegrafieken. Huidige enginepaneel is nog geen echte engine.
 - **Zoeken:** echte corpuszoekresultaten aan UI koppelen; later geïndexeerd zoeken op schaakkenmerken,
   structuren/plannen en gelijkenis op grote schaal.
-- **Samenwerkingsrechten/accounts:** rollen, delen/eigenaarschap en expliciet accounts koppelen/herstelbeleid.
+- **Samenwerkingsrechten/accounts:** rollen, delen/eigenaarschap; Google/Lichess koppelen is geïmplementeerd, ontkoppelen en herstelbeleid volgen later.
 - **UX/export:** resterende punten uit de historische UI-catalogus eerst aan actuele code toetsen;
   onder meer analysebeheer, partijmetadata, rijkere export, grafieken en een tour met gerichte highlights.
 - **Techniek/schaal:** bekende `:invalid_occurrences`-suitefout; grote importbenchmarks, monitoring,
@@ -112,7 +124,7 @@ Afgesproken model:
 ## Belangrijke code en grenzen
 
 - Elixir/Phoenix umbrella: apps/analysis, chess, database, features, web. PostgreSQL is gezaghebbend, lokaal zonder Docker.
-- Auth werkt: Lichess OAuth/PKCE, PostgreSQL-sessies, logout en disconnectie van andere tabs met hetzelfde credential.
+- Auth: Lichess OAuth/PKCE en Google OIDC, expliciet koppelen via /account, PostgreSQL-sessies, logout en disconnectie van andere tabs met hetzelfde credential. Google-configuratie/productieverificatie staan nog open.
 - `Web.UserAuth` verifieert credentials bij mounts/events; private routes gebruiken de verplichte guard.
 - `Analysis.UserLibrary.copy_from_room/3` maakt een kopie en bibliotheeklink in één transactie,
   met controle en locks op actuele roomlidmaatschap/bron. Web gebruikt uitsluitend de serverselectie en geverifieerde gebruiker.
@@ -159,16 +171,16 @@ git diff --check
 ```
 
 Voor web-only wijzigingen volstaat de relevante websuite; voer analyse niet nodeloos opnieuw uit.
-Laatste volledige analysecontrole: **602 geslaagd**, seed 398267, voor bibliotheektitels.
+Laatste volledige controle: analyse **602 geslaagd**, seed 398267; web **197 geslaagd**, seed 511632; database **4 geslaagd**, voor Google-login/koppeling.
 Geaccepteerde backlog: suite-afhankelijke `:invalid_occurrences`-fouten, seed 938846,
 in AnalysesTest/PgnBatchImporterTest; zie development-history. Niet onderdrukken of een falende run groen noemen.
 
-Reproductie van de bibliotheektitelslice,
+Reproductie van de Google-authenticatieslice,
 dezelfde Git-commando’s op beide systemen:
 
 ```text
 git add <expliciet-gecontroleerde-bestanden>
-git commit -m "Add readable titles to personal library analyses"
+git commit -m "Add Google login and explicit account linking"
 git push origin main
 ```
 
@@ -180,3 +192,5 @@ Deployment van de laatste wijzigingen is op 2026-10-14 door de gebruiker bevesti
 Geen resterende controles of implementatie voor deze twee slices.
 Bibliotheektitels zijn groen en gepusht in `cc392f3`; deze nieuwe slice is niet gedeployed.
 Expliciet terugdelen, gewijzigde roomretentie en privé-position setup/tools blijven later werk.
+
+Google-login en accountkoppeling: implementatie en controles groen; commit/push-status bovenaan.

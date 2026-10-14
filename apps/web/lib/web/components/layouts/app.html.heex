@@ -148,7 +148,7 @@
       </details>
 
       <details
-        :if={@current_user || @login_enabled}
+        :if={@current_user || @login_enabled || @google_login_enabled}
         id="account-menu"
         name="header-menu"
         class="relative"
@@ -166,6 +166,14 @@
             id="personal-library-link"
             class="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-panel-hover"
           >{Web.I18n.t("library.title", @locale)}</.link>
+          <.link
+            :if={@current_user}
+            href={~p"/account"}
+            id="linked-accounts-link"
+            class="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-panel-hover"
+          >
+            {Web.I18n.t("auth.connections", @locale)}
+          </.link>
           <.form
             :if={@current_user}
             for={%{}}
@@ -189,6 +197,20 @@
               type="submit"
               class="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-panel-hover"
             >{Web.I18n.t("auth.loginWithLichess", @locale)}</button>
+          </.form>
+          <.form
+            :if={!@current_user && @google_login_enabled}
+            for={%{}}
+            id="auth-google-login"
+            action={~p"/auth/google"}
+            method="post"
+          >
+            <button
+              type="submit"
+              class="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-panel-hover"
+            >
+              {Web.I18n.t("auth.loginWithGoogle", @locale)}
+            </button>
           </.form>
         </div>
       </details>

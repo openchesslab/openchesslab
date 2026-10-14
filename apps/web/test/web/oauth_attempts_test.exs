@@ -1,11 +1,11 @@
-defmodule Web.LichessOAuthAttemptsTest do
+defmodule Web.OAuthAttemptsTest do
   use ExUnit.Case, async: false
 
   alias OpenChessLab.Repo
-  alias Web.LichessOAuthAttempts, as: Attempts
+  alias Web.OAuthAttempts, as: Attempts
 
   setup do
-    on_exit(fn -> Repo.query!("DELETE FROM lichess_oauth_attempts", []) end)
+    on_exit(fn -> Repo.query!("DELETE FROM oauth_attempts", []) end)
     :ok
   end
 
@@ -38,7 +38,7 @@ defmodule Web.LichessOAuthAttemptsTest do
 
     assert [[state_hash, browser_hash, created_at, expires_at]] =
              Repo.query!(
-               "SELECT state_hash, browser_token_hash, created_at, expires_at FROM lichess_oauth_attempts",
+               "SELECT state_hash, browser_token_hash, created_at, expires_at FROM oauth_attempts",
                []
              ).rows
 
@@ -49,7 +49,7 @@ defmodule Web.LichessOAuthAttemptsTest do
 
     [[columns]] =
       Repo.query!(
-        "SELECT array_agg(column_name ORDER BY column_name) FROM information_schema.columns WHERE table_name = 'lichess_oauth_attempts' AND table_schema = current_schema()",
+        "SELECT array_agg(column_name ORDER BY column_name) FROM information_schema.columns WHERE table_name = 'oauth_attempts' AND table_schema = current_schema()",
         []
       ).rows
 
@@ -110,17 +110,22 @@ defmodule Web.LichessOAuthAttemptsTest do
 
   test "encrypted browser token has its own expiry and purpose binding" do
     for {salt, signed_at} <- [
-          {"lichess-login-attempt", System.system_time(:second) - 301},
+          {"oauth-attempt", System.system_time(:second) - 301},
           {"another-purpose", System.system_time(:second)}
         ] do
       {:ok, attempt} = Attempts.create()
 
       token =
-        Phoenix.Token.encrypt(Web.Endpoint, salt, String.duplicate("A", 43), signed_at: signed_at)
+        Phoenix.Token.encrypt(
+          Web.Endpoint,
+          salt,
+          {String.duplicate("A", 43), %{provider: "lichess", intent: :login}},
+          signed_at: signed_at
+        )
 
       # Match the DB hash deliberately, so this tests decryption rather than hash mismatch.
       Repo.query!(
-        "UPDATE lichess_oauth_attempts SET browser_token_hash = $1 WHERE state_hash = $2",
+        "UPDATE oauth_attempts SET browser_token_hash = $1 WHERE state_hash = $2",
         [
           :crypto.hash(:sha256, token),
           :crypto.hash(:sha256, attempt.authorization_params["state"])
@@ -205,7 +210,7 @@ defmodule Web.LichessOAuthAttemptsTest do
 
     Repo.query!(
       """
-      INSERT INTO lichess_oauth_attempts (state_hash, browser_token_hash, created_at, expires_at)
+      INSERT INTO oauth_attempts (state_hash, browser_token_hash, created_at, expires_at)
       SELECT decode(lpad(to_hex(n), 64, '0'), 'hex'), decode(repeat('00', 32), 'hex'),
              timezone('UTC', statement_timestamp()) - interval '10 minutes',
              timezone('UTC', statement_timestamp()) - interval '5 minutes'
@@ -229,7 +234,7 @@ defmodule Web.LichessOAuthAttemptsTest do
     finish = ~N[2026-10-13 00:05:00.000000]
 
     sql = """
-    INSERT INTO lichess_oauth_attempts (state_hash, browser_token_hash, created_at, expires_at)
+    INSERT INTO oauth_attempts (state_hash, browser_token_hash, created_at, expires_at)
     VALUES ($1, $2, $3, $4)
     """
 
@@ -246,13 +251,13 @@ defmodule Web.LichessOAuthAttemptsTest do
 
   defp expire_all do
     Repo.query!(
-      "UPDATE lichess_oauth_attempts SET created_at = timezone('UTC', statement_timestamp()) - interval '10 minutes', expires_at = timezone('UTC', statement_timestamp()) - interval '1 second'",
+      "UPDATE oauth_attempts SET created_at = timezone('UTC', statement_timestamp()) - interval '10 minutes', expires_at = timezone('UTC', statement_timestamp()) - interval '1 second'",
       []
     )
   end
 
   defp count do
-    [[count]] = Repo.query!("SELECT count(*) FROM lichess_oauth_attempts", []).rows
+    [[count]] = Repo.query!("SELECT count(*) FROM oauth_attempts", []).rows
     count
   end
 end

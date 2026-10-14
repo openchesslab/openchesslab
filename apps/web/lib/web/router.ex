@@ -42,9 +42,9 @@ defmodule Web.Router do
   scope "/", Web do
     pipe_through(:browser)
 
-    post("/auth/lichess", LichessAuthController, :create)
-    get("/auth/lichess/callback", LichessAuthController, :callback)
     post("/auth/logout", SessionController, :delete)
+    post("/auth/:provider", OAuthController, :create)
+    get("/auth/:provider/callback", OAuthController, :callback)
 
     live_session :public, on_mount: {Web.UserAuth, :default} do
       live("/", HomeLive, :index)
@@ -56,7 +56,10 @@ defmodule Web.Router do
   scope "/", Web do
     pipe_through([:browser, :authenticated])
 
+    post("/auth/:provider/link", OAuthController, :link)
+
     live_session :authenticated, on_mount: {Web.UserAuth, :required} do
+      live("/account", AccountLive, :index)
       live("/library", LibraryLive, :index)
       live("/library/:id", PersonalAnalysisLive, :show)
     end

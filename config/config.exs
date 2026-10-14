@@ -34,7 +34,7 @@ config :mime, :types, %{"application/x-chess-pgn" => ["pgn"]}
 
 config :phoenix,
        :filter_parameters,
-       ~w(password secret code state code_verifier access_token user_token browser_token error_description)
+       ~w(password secret client_secret code state nonce code_verifier access_token id_token refresh_token user_token browser_token error_description)
 
 config :phoenix, :json_library, Jason
 

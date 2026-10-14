@@ -2,7 +2,7 @@ defmodule Web.AuthRuntimeConfigTest do
   use ExUnit.Case, async: false
 
   @runtime Path.expand("../../../../config/runtime.exs", __DIR__)
-  @variables ~w(ACCOUNT_SUBJECT_HMAC_KEY LICHESS_CLIENT_ID LICHESS_REDIRECT_URI SECRET_KEY_BASE DATABASE_URL DNS_CLUSTER_QUERY PORT POOL_SIZE)
+  @variables ~w(GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET GOOGLE_REDIRECT_URI ACCOUNT_SUBJECT_HMAC_KEY LICHESS_CLIENT_ID LICHESS_REDIRECT_URI SECRET_KEY_BASE DATABASE_URL DNS_CLUSTER_QUERY PORT POOL_SIZE)
   @key Base.encode64(String.duplicate("private-test-key", 3))
 
   setup do
@@ -25,7 +25,52 @@ defmodule Web.AuthRuntimeConfigTest do
   test "unconfigured authentication stays disabled without generating an identity key" do
     config = read(:prod)
     assert config[:web][:lichess_oauth] == nil
+    assert config[:web][:google_oauth] == nil
     refute Keyword.has_key?(config[:analysis], :account_subject_hmac_key)
+  end
+
+  test "Google can be enabled independently with a secret, stable HMAC key and HTTPS" do
+    System.put_env("GOOGLE_CLIENT_ID", "google-test-client")
+    System.put_env("GOOGLE_CLIENT_SECRET", "private-test-secret")
+    System.put_env("GOOGLE_REDIRECT_URI", "https://example.org/auth/google/callback")
+
+    assert_raise RuntimeError,
+                 "ACCOUNT_SUBJECT_HMAC_KEY is required for production Google authentication",
+                 fn -> read(:prod) end
+
+    System.put_env("ACCOUNT_SUBJECT_HMAC_KEY", @key)
+    config = read(:prod)
+    assert config[:web][:google_oauth].client_id == "google-test-client"
+    assert config[:web][:google_oauth].client_secret == "private-test-secret"
+    assert config[:web][:lichess_oauth] == nil
+
+    System.put_env("GOOGLE_REDIRECT_URI", "http://localhost:4000/auth/google/callback")
+
+    assert_raise RuntimeError, "GOOGLE_REDIRECT_URI must use HTTPS in production", fn ->
+      read(:prod)
+    end
+
+    assert read(:dev)[:web][:google_oauth].redirect_uri ==
+             "http://localhost:4000/auth/google/callback"
+  end
+
+  test "partial or unsafe Google configuration fails without disclosing credentials" do
+    for {key, value} <- [
+          {"GOOGLE_CLIENT_ID", nil},
+          {"GOOGLE_CLIENT_SECRET", nil},
+          {"GOOGLE_REDIRECT_URI", nil},
+          {"GOOGLE_CLIENT_SECRET", " "},
+          {"GOOGLE_REDIRECT_URI", "http://remote.example/private-secret"}
+        ] do
+      System.put_env("GOOGLE_CLIENT_ID", "google-test-client")
+      System.put_env("GOOGLE_CLIENT_SECRET", "private-test-secret")
+      System.put_env("GOOGLE_REDIRECT_URI", "https://example.org/auth/google/callback")
+      if value, do: System.put_env(key, value), else: System.delete_env(key)
+      error = assert_raise RuntimeError, fn -> read(:prod) end
+
+      assert error.message ==
+               "GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and GOOGLE_REDIRECT_URI must contain valid OAuth configuration"
+    end
   end
 
   test "decodes a stable identity key without requiring OAuth configuration" do

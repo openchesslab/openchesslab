@@ -138,6 +138,35 @@ The catalogue covers exact state, material, pawns, placement, mobility, center, 
 - `config/dev.exs` and `config/test.exs` contain separate **non-production development/test HMAC keys**. The key is loaded at runtime by `Accounts` using `Application.fetch_env!(:analysis, :account_subject_hmac_key)` and requires ≥32 bytes. **Production HMAC key has not been configured in `config/runtime.exs` at baseline**; do so via a stable secret before calling account resolution/linking in a production OAuth flow. Losing/rotating the key naively breaks lookup of existing account links; design key rotation deliberately.
 - Tests in `apps/analysis/test/analysis/user_identity_test.exs` cover UUID-only user shape, no raw subject in account table, distinct providers, linking conflicts, shared libraries, deletes and FK behavior. No authentication/authorization is enforced by these raw domain APIs; add it at trusted boundary.
 
+### Current Google/Lichess login and explicit linking — 2026-10-14
+
+`Web.OAuthController` now owns both provider callbacks and CSRF-protected login/link
+starts. `Web.OAuthAttempts` and `oauth_attempts` generalize the earlier Lichess-only
+handshake (migration `20261014160000` renames the table). Encrypted attempt context
+contains provider, login/link intent, nonce and initiating credential hash. Hash-only
+PostgreSQL consumption remains atomic and independent of the account transaction.
+Old pending handshakes must restart; existing account identities/sessions are unaffected.
+
+`POST /auth/:provider/link` requires authentication. The callback checks the exact
+initiating credential, then rechecks it after provider verification under `FOR UPDATE`
+on its session row. Account linkage, replacement session issuance and old-session
+revocation commit together. Existing provider ownership produces a conflict, never a
+transfer or merge. Ordinary login resolves its own provider identity without linking.
+`/account` uses required HTTP/LiveView guards and shows connected provider types only.
+
+Google uses confidential-server OIDC with `openid`, PKCE and nonce, accepting identity
+only from its direct TLS-verified token response. The response origin is authenticated
+by HTTPS/client-secret exchange under Google's documented server-flow contract;
+there is no browser-ID-token API or independent JWT signature verifier. Claims check
+issuer, client audience/authorized party, expiry/issued-at and nonce. Only the HMAC of
+`sub` is persisted. No emails, names or grants are stored; no offline access is requested.
+Google tokens are discarded, while existing Lichess token revocation remains unchanged.
+A linked Lichess identity is not a stored data-access grant. Import/sync remains future work.
+
+See [Google setup and verification](google-auth.md) for configuration, deployment and
+manual smoke tests. Earlier subsections below describe the incremental implementation
+history; their Lichess-only names and pending-work statements are historical.
+
 ### Implemented after the baseline: revocable session storage
 
 `Analysis.UserSessions` provides trusted `create/1`, bearer-token resolution with `user_for_token/1`, and idempotent `revoke/1` / `revoke_all/1`. Migration `20261013170000_create_user_sessions.exs` adds `user_sessions`: a 32-byte SHA-256 token hash primary key, UUID user FK with cascading deletion, UTC creation/expiry timestamps, and a user index. PostgreSQL enforces hash size and expiry after creation. Credentials contain 256 random bits and use unpadded base64url; raw credentials never enter SQL. Session queries disable parameter logging.

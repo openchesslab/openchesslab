@@ -7,7 +7,7 @@ defmodule Web.LichessCallbackTest do
   alias Analysis.Users
   alias Analysis.UserSessions
   alias OpenChessLab.Repo
-  alias Web.LichessOAuthAttempts, as: Attempts
+  alias Web.OAuthAttempts, as: Attempts
 
   @origin "https://openchesslab.example"
   @config %{client_id: "openchesslab.example", redirect_uri: @origin <> "/auth/lichess/callback"}
@@ -22,7 +22,7 @@ defmodule Web.LichessCallbackTest do
     Application.put_env(:web, :lichess_oauth, @config)
 
     on_exit(fn ->
-      Repo.query!("DELETE FROM lichess_oauth_attempts", [])
+      Repo.query!("DELETE FROM oauth_attempts", [])
       Enum.each(user_ids() -- before_ids, &Users.delete/1)
 
       Enum.each(settings, fn
@@ -163,7 +163,7 @@ defmodule Web.LichessCallbackTest do
     expired = start_login()
 
     Repo.query!(
-      "UPDATE lichess_oauth_attempts SET created_at = timezone('UTC', statement_timestamp()) - interval '10 minutes', expires_at = timezone('UTC', statement_timestamp()) - interval '1 second'",
+      "UPDATE oauth_attempts SET created_at = timezone('UTC', statement_timestamp()) - interval '10 minutes', expires_at = timezone('UTC', statement_timestamp()) - interval '1 second'",
       []
     )
 

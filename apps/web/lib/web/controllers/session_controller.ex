@@ -31,6 +31,12 @@ defmodule Web.SessionController do
       same_site: "Lax"
     )
     |> put_resp_header("cache-control", "no-store")
+    |> delete_resp_cookie("_ocl_google_attempt",
+      path: "/auth/google",
+      secure: @secure_cookie,
+      http_only: true,
+      same_site: "Lax"
+    )
     |> put_resp_header("referrer-policy", "no-referrer")
     |> redirect(to: ~p"/")
   end

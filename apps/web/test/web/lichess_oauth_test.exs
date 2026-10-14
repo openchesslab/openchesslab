@@ -5,7 +5,7 @@ defmodule Web.LichessOAuthTest do
 
   alias OpenChessLab.Repo
   alias Web.LichessOAuth
-  alias Web.LichessOAuthAttempts, as: Attempts
+  alias Web.OAuthAttempts, as: Attempts
 
   @config %{
     client_id: "openchesslab-test",
@@ -19,7 +19,7 @@ defmodule Web.LichessOAuthTest do
   }
 
   setup do
-    on_exit(fn -> Repo.query!("DELETE FROM lichess_oauth_attempts", []) end)
+    on_exit(fn -> Repo.query!("DELETE FROM oauth_attempts", []) end)
     :ok
   end
 
@@ -133,7 +133,7 @@ defmodule Web.LichessOAuthTest do
              )
 
     Repo.query!(
-      "UPDATE lichess_oauth_attempts SET created_at = timezone('UTC', statement_timestamp()) - interval '10 minutes', expires_at = timezone('UTC', statement_timestamp()) - interval '1 second'",
+      "UPDATE oauth_attempts SET created_at = timezone('UTC', statement_timestamp()) - interval '10 minutes', expires_at = timezone('UTC', statement_timestamp()) - interval '1 second'",
       []
     )
 

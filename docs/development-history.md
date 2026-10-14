@@ -348,9 +348,27 @@ Full analysis seed `398267`: 602 passed; full web seed `511632`: 179 passed.
 Asset build (outside sandbox), root formatter and diff checks passed. No production deployment;
 the normal release migration must apply the new column before the new app code starts.
 
+### Google login and explicit account linking — 2026-10-14
+
+Started from clean `main` at `ff0a191`. Generalize pending OAuth attempts and the browser
+controller for Google and Lichess, preserving one-time PKCE/CSRF/cookie handling.
+Google requests only openid; direct authenticated HTTPS token exchange and checked
+claims yield the opaque subject for existing HMAC storage. The account page offers
+explicit fresh-provider linking, bound to the same session and revalidated under a
+session-row lock after exchange. Conflicts preserve both owners; session-insert failures
+roll back linking. No automatic merging, grants/import, unlinking or deployment.
+See architecture section 6 and google-auth.md for trust boundaries and setup.
+
+Validation so far: first targeted auth run 63 passed (seed 988516); expanded full web
+197 passed (seed 511632); full analysis 602 passed (seed 398267); database 4 passed.
+Dev/test migration 20261014160000 applied. Test migration and assetbuild encountered
+local sandbox Mix hard-link denial; retry outside the sandbox is the established remedy.
+Final assetbuild, root formatter and diff checks passed; the final web rerun also passed 197 tests. Real Google login needs configured
+client credentials and manual verification; no provider credentials were installed.
+
 **Near-term (next green vertical slices):**
 
-- **OAuth security foundation:** production login/logout and cross-tab disconnection have been user-verified. Private library routes/events now require a valid session. Explicit provider account linking and private analysis editing/sharing policies remain separate work.
+- **OAuth security foundation:** production login/logout and cross-tab disconnection have been user-verified. Private library routes/events now require a valid session. Google/Lichess linking and private editing are implemented; unlinking/recovery and sharing policies remain separate work.
 - **Lichess first-provider login:** provisioned and verified; distinguish any future provider account linking from requesting study/game scopes.
 - **Library access in LiveView:** authenticated listing/removal, personal titles, independent copies and private editing exist. Next add private position setup/tools and explicit copy-back sharing. Never reopen a personal copy by silently adding it to a shared room.
 - **Tests / infra:** update auth/migration/release coverage, health/readiness where relevant, and test helpers for new tables; check app scopes and prevents accidental access to other users. Keep manual production deployment.

@@ -48,6 +48,30 @@ else
   config :web, :lichess_oauth, nil
 end
 
+google_config = %{
+  client_id: System.get_env("GOOGLE_CLIENT_ID"),
+  client_secret: System.get_env("GOOGLE_CLIENT_SECRET"),
+  redirect_uri: System.get_env("GOOGLE_REDIRECT_URI")
+}
+
+if Enum.any?(Map.values(google_config), &(not is_nil(&1))) do
+  if Web.GoogleOAuth.validate_config(google_config) != :ok do
+    raise "GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and GOOGLE_REDIRECT_URI must contain valid OAuth configuration"
+  end
+
+  if config_env() == :prod do
+    if is_nil(account_key),
+      do: raise("ACCOUNT_SUBJECT_HMAC_KEY is required for production Google authentication")
+
+    if URI.parse(google_config.redirect_uri).scheme != "https",
+      do: raise("GOOGLE_REDIRECT_URI must use HTTPS in production")
+  end
+
+  config :web, :google_oauth, google_config
+else
+  config :web, :google_oauth, nil
+end
+
 if System.get_env("PHX_SERVER") do
   config :web, Web.Endpoint, server: true
 end

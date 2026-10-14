@@ -2,7 +2,7 @@ defmodule Web.LichessAuthControllerTest do
   use Web.ConnCase, async: false
 
   alias OpenChessLab.Repo
-  alias Web.LichessOAuthAttempts, as: Attempts
+  alias Web.OAuthAttempts, as: Attempts
 
   @origin "https://openchesslab.example"
   @config %{client_id: "openchesslab.example", redirect_uri: @origin <> "/auth/lichess/callback"}
@@ -13,7 +13,7 @@ defmodule Web.LichessAuthControllerTest do
     Application.put_env(:web, :lichess_oauth, @config)
 
     on_exit(fn ->
-      Repo.query!("DELETE FROM lichess_oauth_attempts", [])
+      Repo.query!("DELETE FROM oauth_attempts", [])
 
       case original do
         {:ok, value} -> Application.put_env(:web, :lichess_oauth, value)
@@ -167,7 +167,7 @@ defmodule Web.LichessAuthControllerTest do
     do: conn |> redirected_to() |> URI.parse() |> Map.fetch!(:query) |> URI.decode_query()
 
   defp attempt_count,
-    do: Repo.query!("SELECT count(*) FROM lichess_oauth_attempts", []).rows |> hd() |> hd()
+    do: Repo.query!("SELECT count(*) FROM oauth_attempts", []).rows |> hd() |> hd()
 
   defp identity_counts do
     Repo.query!(
