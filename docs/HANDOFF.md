@@ -38,7 +38,7 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 - Remote: `git@github.com:openchesslab/openchesslab.git`; branch `main`.
 - Laatste geverifieerde implementatiecommit: `7c24777`, gepusht op main (homepage).
-- De gebruiker heeft `7ea45e1` gedeployed.
+- De gebruiker bevestigde op 2026-10-14 deployment van de laatste wijzigingen (header, privé-editor en homepage).
 - Afgeronde slice: `Allow private editing of personal analysis copies`, commit/push `05c3cf6`.
 - Privéroute `/library/:id`: bord, varianten, opmerkingen/NAGs, revisionconflicten en toegang per event/navigatie.
 - Gericht: 5 domeintests, 17 bibliotheek/editortests en daarna 10 editortests geslaagd. Eerste webrun 16/17: conflictbericht
@@ -52,7 +52,7 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   actieposities/hoogtes gelijk, Create-knop/caption stabiel na onbekende code, geen horizontale overflow.
 - Volledige websuite **175 geslaagd**, seed `511632`; assetbuild en formatter/diffcontrole geslaagd.
 - Previewserver gestopt; werkboom na beide implementatiecommits schoon en HEAD gelijk aan origin/main.
-- Header `15562fc`, privé-editor `05c3cf6` en homepage `7c24777`: **geen deployment uitgevoerd/bevestigd**.
+- Header `15562fc`, privé-editor `05c3cf6` en homepage `7c24777`: **deployment bevestigd door gebruiker**.
 - Deze afsluitende documentatiecommit registreert de geverifieerde commit/push-status.
 
 ## Eerstvolgende productwerk
@@ -62,6 +62,25 @@ De privé-editor vereist een eigen bibliotheeklink zonder roomlidmaatschap of an
 Geen room wordt aangemaakt of gekoppeld. Controleer de actuele werkboom en tests voor voortzetting.
 Vervolg naar keuze: rijkere bibliotheeklabels of privé-position setup/tools. Expliciet terugdelen
 en gewijzigde roomretentie komen later; introduceer geen automatische synchronisatie.
+
+## Compact overzicht resterend werk
+
+Dit is een overzicht, geen vastgelegde uitvoeringsvolgorde:
+
+- **Persoonlijke werkruimte:** herkenbare analysetitels/labels en position setup/tools in de privé-editor.
+- **Delen en levensduur:** expliciet kopiëren terug naar rooms; bewaartermijn en verwijderen van gevulde rooms;
+  beleid voor verweesde analyses, bibliotheekverwijdering en accountverwijdering.
+- **Lichess-data:** eigen partijen/studies importeren; later synchronisatie, herkomst, retries en minimale toestemmingen.
+- **Echte engine en partijreview:** providerkeuze (browser/server), evaluaties/varianten; daarna partijanalyse,
+  fouten/momenten en evaluatiegrafieken. Huidige enginepaneel is nog geen echte engine.
+- **Zoeken:** echte corpuszoekresultaten aan UI koppelen; later geïndexeerd zoeken op schaakkenmerken,
+  structuren/plannen en gelijkenis op grote schaal.
+- **Samenwerkingsrechten/accounts:** rollen, delen/eigenaarschap en expliciet accounts koppelen/herstelbeleid.
+- **UX/export:** resterende punten uit de historische UI-catalogus eerst aan actuele code toetsen;
+  onder meer analysebeheer, partijmetadata, rijkere export, grafieken en een tour met gerichte highlights.
+- **Techniek/schaal:** bekende `:invalid_occurrences`-suitefout; grote importbenchmarks, monitoring,
+  queryprestaties en pas bij concrete behoefte een importqueue/verdere regio-uitbreiding.
+- **Lager/later:** overige UI-polish en eventuele internationale SAN-notatie.
 
 Afgesproken model:
 
@@ -134,6 +153,6 @@ git push origin main
 
 Header is gepusht in `15562fc`; privé-editor in `05c3cf6`; homepage in `7c24777`.
 Controleer na pull de werkelijke HEAD en werkboom; commit/push staan afzonderlijk hierboven.
-Geen deployment uitgevoerd; ook deployment van de header is niet bevestigd.
+Deployment van de laatste wijzigingen is op 2026-10-14 door de gebruiker bevestigd.
 Geen resterende controles of implementatie voor deze twee slices.
 Expliciet terugdelen, gewijzigde roomretentie en privé-position setup/tools blijven later werk.
