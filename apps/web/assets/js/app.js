@@ -1151,6 +1151,19 @@ const AppUI = {
       const typing = target?.matches?.(
         "input, textarea, select, [contenteditable='true']",
       );
+
+      // Escape closes an open modal even while typing in one of its fields;
+      // unlike letter shortcuts it is never input text.
+      if (
+        event.key === "Escape" &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey
+      ) {
+        this.pushEvent("close-modal", {});
+        return;
+      }
+
       if (typing || event.metaKey || event.ctrlKey || event.altKey) return;
 
       if (document.querySelector("[data-tour-dialog]")) {
@@ -1160,9 +1173,6 @@ const AppUI = {
         } else if (event.key === "ArrowRight") {
           event.preventDefault();
           this.pushEvent("tour-next", {});
-        } else if (event.key === "Escape") {
-          event.preventDefault();
-          this.pushEvent("close-modal", {});
         }
         return;
       }
@@ -1223,8 +1233,6 @@ const AppUI = {
       if (event.key === "?") {
         event.preventDefault();
         this.pushEvent("open-shortcuts", {});
-      } else if (event.key === "Escape") {
-        this.pushEvent("close-modal", {});
       } else if (event.key.toLowerCase() === "b" && this.el.dataset.roomCode) {
         event.preventDefault();
         this.el
