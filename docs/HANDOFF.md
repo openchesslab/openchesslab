@@ -34,7 +34,7 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Implementatie groen:** `Add Google login and explicit account linking`, gestart op schone `ff0a191`.
+- **Afgerond en gepusht:** `Add Google login and explicit account linking`, commit `2640d90`, gestart op schone `ff0a191`.
   Google OIDC (alleen openid), gezamenlijke OAuth-controller, expliciet koppelen via /account.
   Koppelen vereist dezelfde nog geldige sessie bij start/callback en na providerexchange;
   bestaand eigenaarschap wordt niet overgedragen of samengevoegd. Lichess-import blijft later.
@@ -43,7 +43,7 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   Gericht 63 geslaagd (seed 988516); uitgebreid volledig web **197 geslaagd** (seed 511632),
   analyse **602 geslaagd** (seed 398267), database **4 geslaagd** incl. release-idempotentie.
   Assetbuild, formatter en diffcontrole geslaagd. Geen testfouten; Mix-lock blokkeerde
-  enkele starts vóór uitvoering, buiten sandbox uitgevoerd. Nog geen commit/push/deployment.
+  enkele starts vóór uitvoering, buiten sandbox uitgevoerd. Commit/push `2640d90` geverifieerd; niet gedeployed.
   Setup en handmatige acceptatie: [docs/google-auth.md](google-auth.md).
   Google-clientconfiguratie en echte providerlogin zijn nog niet uitgevoerd; productie niet gewijzigd.
 
@@ -67,7 +67,7 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   Configuratie en deze overdracht reizen samen in de infra-commit; controleer HEAD/origin na pull.
 
 - Remote: `git@github.com:openchesslab/openchesslab.git`; branch `main`.
-- Laatste geverifieerde implementatiecommit: `cc392f3`, gepusht op main (bibliotheektitels).
+- Laatste geverifieerde implementatiecommit: `2640d90`, gepusht op main (Google-login/accountkoppeling).
 - De gebruiker bevestigde op 2026-10-14 deployment van de laatste wijzigingen (header, privé-editor en homepage).
 - Afgeronde slice: `Allow private editing of personal analysis copies`, commit/push `05c3cf6`.
 - Privéroute `/library/:id`: bord, varianten, opmerkingen/NAGs, revisionconflicten en toegang per event/navigatie.
@@ -193,4 +193,5 @@ Geen resterende controles of implementatie voor deze twee slices.
 Bibliotheektitels zijn groen en gepusht in `cc392f3`; deze nieuwe slice is niet gedeployed.
 Expliciet terugdelen, gewijzigde roomretentie en privé-position setup/tools blijven later werk.
 
-Google-login en accountkoppeling: implementatie en controles groen; commit/push-status bovenaan.
+Google-login en accountkoppeling: groen en gepusht in `2640d90`; niet gedeployed.
+Deze documentatiecommit registreert de geverifieerde overdracht; geen app-code gewijzigd.
