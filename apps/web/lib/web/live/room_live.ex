@@ -254,14 +254,10 @@ defmodule Web.RoomLive do
     {:noreply, assign(socket, ui_modal: nil, engine_settings_open: false)}
   end
 
-  def handle_event("open-library", _params, socket), do: Web.ShellPanels.open_library(socket)
   def handle_event("open-account", _params, socket), do: Web.ShellPanels.open_account(socket)
 
   def handle_event("unlink-provider", %{"provider" => provider}, socket),
     do: Web.ShellPanels.unlink_provider(socket, provider)
-
-  def handle_event("library-" <> event, params, socket),
-    do: Web.ShellPanels.handle_library_event(event, params, socket)
 
   def handle_event("close-promotion", _params, socket),
     do: {:noreply, assign(socket, :pending_promotion, nil)}
@@ -281,8 +277,56 @@ defmodule Web.RoomLive do
 
   def handle_event("set-import-source", %{"source" => source}, socket)
       when source in ["paste", "library", "lichess", "chesscom"] do
-    {:noreply, assign(socket, import_source: source, provider: source)}
+    socket = assign(socket, import_source: source, provider: source)
+    if source == "library", do: Web.ShellPanels.load_library(socket), else: {:noreply, socket}
   end
+
+  # The three ways a library entry enters this room: only the underlying game,
+  # an independent snapshot copy, or the live analysis itself. The credential
+  # is refreshed before each event; parameters never select the owner or entry.
+  def handle_event("library-add-game", %{"id" => id}, %{assigns: %{current_user: nil}} = socket),
+    do: {:noreply, socket}
+
+  def handle_event("library-add-game", %{"id" => id}, socket) do
+    with {:ok, new_id} <-
+           UserLibrary.branch_game(socket.assigns.current_user.id, id),
+         :ok <- Rooms.add_analysis(socket.assigns.room_code, new_id) do
+      added(socket, new_id, "room.libraryAdded")
+    else
+      {:error, _reason} -> library_add_failed(socket)
+    end
+  end
+
+  def handle_event("library-add-copy", %{"id" => id}, %{assigns: %{current_user: nil}} = socket),
+    do: {:noreply, socket}
+
+  def handle_event("library-add-copy", %{"id" => id}, socket) do
+    with {:ok, new_id} <-
+           UserLibrary.branch_analysis(socket.assigns.current_user.id, id),
+         :ok <- Rooms.add_analysis(socket.assigns.room_code, new_id) do
+      added(socket, new_id, "room.libraryAdded")
+    else
+      {:error, _reason} -> library_add_failed(socket)
+    end
+  end
+
+  def handle_event("library-share", %{"id" => id}, %{assigns: %{current_user: nil}} = socket),
+    do: {:noreply, socket}
+
+  def handle_event("library-share", %{"id" => id}, socket) do
+    with :ok <- UserLibrary.authorize_share(socket.assigns.current_user.id, id),
+         :ok <- Rooms.add_analysis(socket.assigns.room_code, id) do
+      shared(socket, id)
+    else
+      {:error, _reason} -> library_add_failed(socket)
+    end
+  end
+
+  # Rename, removal and paging inside the My Library tab stay shared
+  # with the shell panel logic. This generic head deliberately sits after
+  # the specific library-add actions above.
+  def handle_event("library-" <> event, params, socket),
+    do: Web.ShellPanels.handle_library_event(event, params, socket)
 
   def handle_event("open-search", _params, socket) do
     {:noreply,
@@ -1278,6 +1322,27 @@ defmodule Web.RoomLive do
         else: []
 
     assign(socket, :tracked_ids, tracked)
+  end
+
+  # Adding from the library closes the import dialog, refreshes the room,
+  # selects the analysis and reports what happened.
+  defp added(socket, analysis_id, message_key) do
+    socket =
+      socket
+      |> assign(:ui_modal, nil)
+      |> refresh_room()
+      |> notify(Web.I18n.t(message_key, socket.assigns.locale))
+
+    {:noreply,
+     socket
+     |> assign(:current_path, [])
+     |> push_patch(to: analysis_url(socket.assigns.room_code, analysis_id))}
+  end
+
+  defp shared(socket, analysis_id), do: added(socket, analysis_id, "room.libraryShared")
+
+  defp library_add_failed(socket) do
+    {:noreply, notify(socket, Web.I18n.t("room.libraryAddFailed", socket.assigns.locale), :error)}
   end
 
   defp create_analysis(socket, position) do

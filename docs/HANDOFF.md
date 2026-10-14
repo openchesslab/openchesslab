@@ -34,6 +34,23 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, wacht op commit/push:** `Open library entries into rooms from the import modal`,
+  gestart op schone `e3dd2ee`. Het "My Library"-tab van de importmodal is nu de echte en
+  énige bibliotheekinterface (room-only); de account-menu-knop en het bibliotheek-modal zijn
+  verwijderd. `UserLibrary.page/2` rapporteert per entry de onderliggende partij
+  (codec-decode). Drie expliciete branch-acties per entry: `branch_game/2` (alleen de partij
+  via `Analyses.create_from_game_record/2`; privé-analyse blijft privé), `branch_analysis/2`
+  (onafhankelijke momentopname) en `authorize_share/2` (live delen: zelfde analyse, roomwerk
+  verschijnt in de bibliotheek; ster vult). Toevoegen sluit de modal, ververst de room,
+  selecteert de analyse en meldt het resultaat; gasten/ingetrokken sessies kunnen niet
+  branchen. Demo-tab vervangen; paste-demo onaangeroerd. Geen migratie. Hernoemen/verwijderen/
+  paging werken in het tab (gedeelde ShellPanels-events). Gericht: analyse library_branch/
+  library_tracking/library_title **13/13**, web library_import/library_tracking/
+  personal_analysis/room_live/auth_controls **65/67→na herstel groen** (auto-select-redirect
+  en nul-gepadde paging-ids gecorrigeerd); volledig analyse **610 geslaagd** (seed 398267)
+  en web **204 geslaagd** (seed 511632); formatter en diffcontrole geslaagd.
+  Niet gecommit; niet gedeployed.
+
 - **Afgerond, wacht op commit/push:** `Track room analyses from a library star`, gestart op
   schone `0270cd6`. Vast productmodel ( zie "Afgesproken model"): room→bibliotheek is nu een
   **live referentie** via een ster op iedere analyse-entry (`UserLibrary.track_from_room/3`,

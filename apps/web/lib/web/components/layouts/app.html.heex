@@ -163,15 +163,6 @@
           <button
             :if={@current_user}
             type="button"
-            id="personal-library-button"
-            class="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-panel-hover"
-            phx-click={
-              JS.remove_attribute("open", to: "#account-menu") |> JS.push("open-library")
-            }
-          >{Web.I18n.t("library.title", @locale)}</button>
-          <button
-            :if={@current_user}
-            type="button"
             id="linked-accounts-button"
             class="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-panel-hover"
             phx-click={
@@ -419,17 +410,6 @@
       </div>
     </section>
   </div>
-
-  <.library_modal
-    :if={@ui_modal == "library"}
-    locale={@locale}
-    current_user={@current_user}
-    entries={@library_entries}
-    cursor={@library_cursor}
-    next_cursor={@library_next_cursor}
-    editing={@library_editing}
-    title_error={@library_title_error}
-  />
 
   <.account_modal
     :if={@ui_modal == "account"}

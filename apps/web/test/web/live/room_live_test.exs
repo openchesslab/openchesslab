@@ -472,7 +472,7 @@ defmodule Web.RoomLiveTest do
 
     html = render_click(view, "set-import-source", %{"source" => "library"})
     assert html =~ "h-[min(35rem,calc(100dvh-2rem))]"
-    assert html =~ "local demo fixtures"
+    assert html =~ Web.I18n.t("auth.loginRequired", "en")
   end
 
   test "the black reply remains on the main line and variations are indented", %{code: code} do

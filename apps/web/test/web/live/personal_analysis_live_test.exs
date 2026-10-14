@@ -47,9 +47,6 @@ defmodule Web.PersonalAnalysisLiveTest do
   end
 
   test "library opens a private editor and restores persisted edits without a room", ctx do
-    {:ok, home, _} = live(conn(ctx.session), "/")
-    render_click(home, "open-library")
-    assert has_element?(home, "a[href='/library/#{ctx.id}']")
     {:ok, view, html} = live(conn(ctx.session), "/library/#{ctx.id}")
     assert html =~ "Personal analysis"
     assert has_element?(view, "#chess-board")

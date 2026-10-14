@@ -154,12 +154,15 @@ revocation commit together. Existing provider ownership produces a conflict, nev
 transfer or merge. Ordinary login resolves its own provider identity without linking.
 Callbacks redirect to `/`; link conflicts surface as a flash on the home page.
 
-My library and Linked accounts are shell modals over the home and room LiveViews
+Linked accounts are a shell modal over the home and room LiveViews
 (`Web.ShellPanels` + `Web.Layouts` templates), opened from the header account menu;
-there are no `/library` and `/account` pages. Modal events stay host-level, so
-`Web.UserAuth` revalidates the browser credential before every handler, and every
-action re-checks the resolved user: guests and revoked credentials only receive the
-login variant. The authenticated live session now contains only the private editor.
+there are no `/library` and `/account` pages. **My library** is the import modal's
+tab inside rooms (`Web.ShellPanels.load_library/2` + `handle_library_event/3`), the
+single library surface where entries are branched into room work. Modal and tab
+events stay host-level, so `Web.UserAuth` revalidates the browser credential before
+every handler, and every action re-checks the resolved user: guests and revoked
+credentials only receive the login variant. The authenticated live session now
+contains only the private editor.
 
 `Analysis.Accounts.unlink/2` (shell modal event `unlink-provider`, host-level and
 revalidated per event) removes all identities of one provider after locking the
@@ -319,7 +322,7 @@ Existing references need no tree reads or backfill; users can label them directl
 
 The home/room header links signed-in users to the library. The page has English/Dutch text, keeps the document theme/locale, and offers removal of a saved reference without deleting the analysis or another user's reference. This first interface shows analysis identifiers and saved dates; opening a saved analysis, richer labels and private analysis editing/sharing are subsequent slices. Tests cover HTTP and connected-mount denial, event/navigation revocation, user deletion, forged owner parameters, paging and shared-analysis preservation.
 
-The shared home/room header groups authentication and the library link under **Account**. **Help** (shortcuts/tour) and piece-set controls are available only in room workspaces, where they have relevant content; the home entry page has language, theme and Account controls. A single theme button cycles system → light → dark → system using the existing preference-persistence event; its accessible label and tooltip identify the current and next setting. Native disclosure menus support keyboard use, Escape and outside-click dismissal. Room controls are available on mobile too. Home Create/Join cards align their primary action row and size independently, so a Join error does not move the Create button or caption.
+The shared home/room header groups authentication and the linked-accounts control under **Account**; the personal library is reached from the room workspace's import modal. **Help** (shortcuts/tour) and piece-set controls are available only in room workspaces, where they have relevant content; the home entry page has language, theme and Account controls. A single theme button cycles system → light → dark → system using the existing preference-persistence event; its accessible label and tooltip identify the current and next setting. Native disclosure menus support keyboard use, Escape and outside-click dismissal. Room controls are available on mobile too. Home Create/Join cards align their primary action row and size independently, so a Join error does not move the Create button or caption.
 
 ### Library stars and live references — 2026-10-14
 
@@ -349,6 +352,28 @@ the association only, so orphan cleanup/user deletion semantics need a separate 
 Opening a live reference in the private editor is deliberately refused until branching
 materializes a private copy; room expiry/cleanup behavior is unchanged (references are
 durable today because analysis rows outlive rooms).
+
+### Branching library entries into rooms — 2026-10-14
+
+The import modal's **My Library** tab lists the user's entries with `UserLibrary.page/2`
+(including per-entry underlying-game availability). Each entry offers the three explicit
+branch actions, all verified against the resolved user's library and added through the
+room server (`Rooms.add_analysis/3` broadcasts to every member):
+
+- **Game only** (`branch_game/2`): `Analyses.create_from_game_record/2` builds a fresh
+  analysis from the entry's underlying game — the canonical main line without the entry's
+  variations, comments or NAGs, so private analysis stays private. Entries without a game
+  do not offer the action (`:game_not_available`).
+- **Analysis copy** (`branch_analysis/2`): a snapshot copy with a fresh id preserving the
+  whole aggregate; later room work never flows back into the entry.
+- **Share live** (`authorize_share/2` + the room add): the entry's exact analysis joins the
+  room under its own identity — work in the room appears in the library entry (the star),
+  which is the across-days collaboration mode.
+
+Adding closes the import modal, refreshes the room, selects the analysis and reports the
+result. Guests and revoked credentials cannot branch; forged owner, entry or room
+parameters are ignored. The paste-import demo fixtures are untouched; the earlier demo
+library-tab fixtures were replaced by the real library.
 
 ### Private personal editor — 2026-10-14
 

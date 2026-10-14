@@ -29,7 +29,10 @@ defmodule Analysis.LibraryTitleTest do
     assert :ok = UserLibrary.rename(ctx.user.id, ctx.id, "  Sicilian\n  plans  ")
     assert {:ok, "Sicilian plans"} = UserLibrary.title(ctx.user.id, ctx.id)
     assert {:ok, nil} = UserLibrary.title(ctx.other.id, ctx.id)
-    assert [%{id: id, title: "Sicilian plans"}] = UserLibrary.page(ctx.user.id).entries
+
+    assert [%{id: id, title: "Sicilian plans", game_record_id: nil}] =
+             UserLibrary.page(ctx.user.id).entries
+
     assert id == ctx.id
     assert {:ok, analysis, 1} = AnalysisStore.get(ctx.id)
     assert analysis.metadata == %{}

@@ -59,7 +59,7 @@ defmodule Web.AuthControlsTest do
       conn = Plug.Test.init_test_session(build_conn(), %{user_token: context.session.token})
       {:ok, view, html} = live(conn, path <> "?locale=nl")
       assert has_element?(view, "#auth-logout[action='/auth/logout'][method='post']", "Uitloggen")
-      assert has_element?(view, "#account-menu #personal-library-button", "Mijn bibliotheek")
+      refute has_element?(view, "#account-menu #personal-library-button")
       assert has_element?(view, "#account-menu #linked-accounts-button", "Gekoppelde accounts")
       refute has_element?(view, "#auth-login")
       refute html =~ context.user.id

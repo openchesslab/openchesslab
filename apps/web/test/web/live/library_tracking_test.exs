@@ -40,11 +40,13 @@ defmodule Web.LibraryTrackingTest do
     assert {:ok, _, 1} = AnalysisStore.get(ctx.id)
   end
 
-  test "the library modal lists a tracked analysis; the private editor refuses it", ctx do
+  test "the library tab lists a tracked analysis; the private editor refuses it", ctx do
     assert {:ok, :tracked} = UserLibrary.track_from_room(ctx.user.id, ctx.code, ctx.id)
 
-    {:ok, view, _} = live(authenticated(ctx), "/")
-    render_click(view, "open-library")
+    {:ok, view, _} = live(authenticated(ctx), "/rooms/#{ctx.code}?a=#{ctx.id}")
+    render_click(view, "open-import", %{})
+    render_click(view, "set-import-source", %{"source" => "library"})
+
     assert has_element?(view, "#library-entries li", ctx.id)
     assert has_element?(view, "a[href='/library/#{ctx.id}']")
 

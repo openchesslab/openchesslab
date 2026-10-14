@@ -9,6 +9,8 @@ defmodule Analysis.UserLibrary do
   """
 
   alias Analysis.Analyses
+  alias Analysis.Analysis, as: AnalysisModel
+  alias Analysis.AnalysisCodec
   alias Analysis.AnalysisStore
   alias OpenChessLab.Repo
 
@@ -200,6 +202,130 @@ defmodule Analysis.UserLibrary do
 
   def tracked(_, _), do: []
 
+  @own_record_sql """
+  SELECT a.record
+  FROM user_analyses AS ua
+  JOIN analyses AS a ON a.analysis_id = ua.analysis_id
+  WHERE ua.user_id = $1 AND ua.analysis_id = $2
+  FOR SHARE OF ua, a
+  """
+
+  @doc """
+  Branch only the underlying game of the user's library entry into a fresh analysis.
+
+  The fresh analysis contains the game's start position and canonical main line
+  without the entry's variations, comments or NAGs, so private analysis stays
+  private. Entries without an underlying game fail with `:game_not_available`.
+  The caller authenticates the user and owns the room flow that adds the fresh
+  analysis to a room.
+  """
+  @spec branch_game(String.t(), String.t()) ::
+          {:ok, String.t()}
+          | {:error, :invalid_identity | :analysis_not_found | :game_not_available | term()}
+  def branch_game(user_id, analysis_id) when is_binary(analysis_id) do
+    with {:ok, db_id} <- Ecto.UUID.dump(user_id),
+         {:ok, record} <- owned_record(db_id, analysis_id),
+         {:ok, game_record_id} <- source_game_record_id(record) do
+      id = fresh_analysis_id()
+
+      case Analyses.create_from_game_record(id, game_record_id) do
+        {:ok, _analysis, _revision} -> {:ok, id}
+        {:error, reason} -> {:error, reason}
+      end
+    else
+      :error -> {:error, :invalid_identity}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  def branch_game(_, _), do: {:error, :invalid_identity}
+
+  @doc """
+  Branch the user's library entry into an independent snapshot copy.
+
+  The fresh copy preserves all variations, comments, NAGs, start context,
+  metadata and source-game reference. Later work in the room never flows back
+  into the entry, and the original keeps its identity: other users' references
+  to it are untouched. The caller authenticates the user and owns the room flow.
+  """
+  @spec branch_analysis(String.t(), String.t()) ::
+          {:ok, String.t()} | {:error, :invalid_identity | :analysis_not_found}
+  def branch_analysis(user_id, analysis_id) when is_binary(analysis_id) do
+    case Ecto.UUID.dump(user_id) do
+      {:ok, db_id} ->
+        Repo.transaction(fn ->
+          case Repo.query!(@own_record_sql, [db_id, analysis_id], log: false).rows do
+            [[record]] ->
+              with {:ok, analysis} <- AnalysisCodec.decode(record),
+                   id = fresh_analysis_id(),
+                   {:ok, _revision} <- AnalysisStore.insert(%{analysis | id: id}) do
+                id
+              else
+                _other -> Repo.rollback(:analysis_not_found)
+              end
+
+            [] ->
+              Repo.rollback(:analysis_not_found)
+          end
+        end)
+
+      :error ->
+        {:error, :invalid_identity}
+    end
+  end
+
+  def branch_analysis(_, _), do: {:error, :invalid_identity}
+
+  @doc """
+  Verify that the user's library entry exists, permitting the caller to share its
+  analysis live with a room. Live sharing keeps the analysis's identity: work in
+  the room appears in the library entry and in every other user's reference to
+  it. The caller authenticates the user and owns the room flow and its broadcast.
+  """
+  @spec authorize_share(String.t(), String.t()) ::
+          :ok | {:error, :invalid_identity | :analysis_not_found}
+  def authorize_share(user_id, analysis_id) when is_binary(analysis_id) do
+    case Ecto.UUID.dump(user_id) do
+      {:ok, db_id} ->
+        if Repo.query!(
+             "SELECT 1 FROM user_analyses WHERE user_id = $1 AND analysis_id = $2",
+             [db_id, analysis_id],
+             log: false
+           ).rows == [] do
+          {:error, :analysis_not_found}
+        else
+          :ok
+        end
+
+      :error ->
+        {:error, :invalid_identity}
+    end
+  end
+
+  def authorize_share(_, _), do: {:error, :invalid_identity}
+
+  defp owned_record(db_id, analysis_id) do
+    case Repo.query!(@own_record_sql, [db_id, analysis_id], log: false).rows do
+      [[record]] -> {:ok, record}
+      [] -> {:error, :analysis_not_found}
+    end
+  end
+
+  defp source_game_record_id(record) do
+    case AnalysisCodec.decode(record) do
+      {:ok, %AnalysisModel{source_game_record_id: game_record_id}}
+      when not is_nil(game_record_id) ->
+        {:ok, game_record_id}
+
+      _other ->
+        {:error, :game_not_available}
+    end
+  end
+
+  defp fresh_analysis_id do
+    "analysis-" <> Base.url_encode64(:crypto.strong_rand_bytes(16), padding: false)
+  end
+
   @save_sql """
   INSERT INTO user_analyses (user_id, analysis_id)
   SELECT users.id, analyses.analysis_id
@@ -265,25 +391,33 @@ defmodule Analysis.UserLibrary do
 
   def list(_), do: []
 
-  @doc "Read at most 50 saved references, using the existing user/analysis unique index for keyset paging."
+  @doc "Read at most 50 saved references with underlying-game availability, using the existing user/analysis unique index for keyset paging."
   @spec page(String.t(), String.t() | nil) :: %{entries: [map()], next_cursor: String.t() | nil}
   def page(user_id, after_id \\ nil) do
     with {:ok, db_id} <- Ecto.UUID.dump(user_id),
          true <- is_nil(after_id) or is_binary(after_id) do
       {predicate, params} =
-        if is_nil(after_id), do: {"", [db_id]}, else: {" AND analysis_id > $2", [db_id, after_id]}
+        if is_nil(after_id),
+          do: {"", [db_id]},
+          else: {" AND ua.analysis_id > $2", [db_id, after_id]}
 
       rows =
         Repo.query!(
-          "SELECT analysis_id, created_at, title FROM user_analyses WHERE user_id = $1" <>
-            predicate <> " ORDER BY analysis_id LIMIT 51",
+          "SELECT ua.analysis_id, ua.created_at, ua.title, a.record FROM user_analyses AS ua JOIN analyses AS a ON a.analysis_id = ua.analysis_id WHERE ua.user_id = $1" <>
+            predicate <> " ORDER BY ua.analysis_id LIMIT 51",
           params
         ).rows
 
       entries =
-        Enum.map(Enum.take(rows, 50), fn [id, saved_at, title] ->
-          %{id: id, saved_at: saved_at, title: title}
-        end)
+        for [id, saved_at, title, record] <- Enum.take(rows, 50) do
+          game_record_id =
+            case AnalysisCodec.decode(record) do
+              {:ok, %AnalysisModel{source_game_record_id: game_record_id}} -> game_record_id
+              _other -> nil
+            end
+
+          %{id: id, saved_at: saved_at, title: title, game_record_id: game_record_id}
+        end
 
       cursor = if length(rows) > 50, do: List.last(entries).id
       %{entries: entries, next_cursor: cursor}

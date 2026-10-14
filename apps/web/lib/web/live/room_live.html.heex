@@ -1282,41 +1282,135 @@
         </form>
       <% else %>
         <%= if @import_source == "library" do %>
-          <p class="text-sm text-muted">{Web.I18n.t("demo.libraryNote", @locale)}</p>
+          <p class="text-sm text-muted">{Web.I18n.t("library.description", @locale)}</p>
 
-          <p :if={@library_games == []} class="text-sm text-muted">
-            {Web.I18n.t("room.libraryEmpty", @locale)}
+          <p :if={!@current_user} class="text-sm text-muted">
+            {Web.I18n.t("auth.loginRequired", @locale)}
           </p>
 
-          <ul class="divide-y divide-border rounded-lg border border-border p-0">
-            <li
-              :for={game <- @library_games}
-              class="flex flex-wrap items-center justify-between gap-3 p-3"
-            >
-              <div>
-                <strong>{game.white} – {game.black}</strong><p class="mb-0 mt-1 text-xs text-muted">
-                  {game.opening} · {game.date} · {game.ply_count} plies
-                </p>
-              </div>
+          <div :if={@current_user}>
+            <p :if={@library_entries == []} id="library-empty" class="text-sm text-muted">
+              {Web.I18n.t("library.empty", @locale)}
+            </p>
 
-              <div class="flex gap-2">
-                <button
-                  type="button"
-                  class="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-panel-hover"
-                  phx-click="open-demo-game"
-                  phx-value-id={game.id}
-                >{Web.I18n.t("room.searchOpenInRoom", @locale)}</button>
-                <button
-                  :if={String.starts_with?(game.id, "local-")}
-                  type="button"
-                  class="rounded-md border border-border px-3 py-1.5 text-xs text-muted hover:bg-panel-hover"
-                  aria-label={Web.I18n.t("room.libraryRemove", @locale)}
-                  phx-click="remove-library-game"
-                  phx-value-id={game.id}
-                ><.icon name="close" class="h-4 w-4" /></button>
-              </div>
-            </li>
-          </ul>
+            <ul
+              id="library-entries"
+              class="m-0 divide-y divide-border rounded-lg border border-border p-0"
+            >
+              <li
+                :for={entry <- @library_entries}
+                id={"saved-#{entry.id}"}
+                class="flex flex-wrap items-center justify-between gap-3 p-3"
+              >
+                <div class="min-w-0">
+                  <.link
+                    href={~p"/library/#{entry.id}"}
+                    class="m-0 break-words font-semibold underline"
+                  >{entry.title || Web.I18n.t("library.untitled", @locale)}</.link>
+                  <p class="mb-0 mt-1 break-all font-mono text-xs text-faint">{entry.id}</p>
+                  <p class="mb-0 mt-1 text-xs text-muted">
+                    {Web.I18n.t("library.saved", @locale)}
+                    <time datetime={NaiveDateTime.to_iso8601(entry.saved_at) <> "Z"}>{Calendar.strftime(
+                      entry.saved_at,
+                      "%Y-%m-%d"
+                    )}</time>
+                  </p>
+                </div>
+
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    :if={entry.game_record_id}
+                    type="button"
+                    class="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-panel-hover"
+                    title={Web.I18n.t("room.libraryAddGameHelp", @locale)}
+                    phx-click="library-add-game"
+                    phx-value-id={entry.id}
+                  >{Web.I18n.t("room.libraryAddGame", @locale)}</button>
+                  <button
+                    type="button"
+                    class="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-panel-hover"
+                    title={Web.I18n.t("room.libraryAddCopyHelp", @locale)}
+                    phx-click="library-add-copy"
+                    phx-value-id={entry.id}
+                  >{Web.I18n.t("room.libraryAddCopy", @locale)}</button>
+                  <button
+                    type="button"
+                    class="rounded-md border border-accent px-3 py-1.5 text-xs text-accent hover:bg-panel-hover"
+                    title={Web.I18n.t("room.libraryShareHelp", @locale)}
+                    phx-click="library-share"
+                    phx-value-id={entry.id}
+                  >{Web.I18n.t("room.libraryShare", @locale)}</button>
+                  <button
+                    type="button"
+                    class="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-panel-hover"
+                    phx-click="library-start-rename"
+                    phx-value-id={entry.id}
+                  >{Web.I18n.t("library.rename", @locale)}</button>
+                  <button
+                    type="button"
+                    class="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-panel-hover"
+                    phx-click="library-remove"
+                    phx-value-id={entry.id}
+                  >{Web.I18n.t("library.remove", @locale)}</button>
+                </div>
+
+                <form
+                  :if={@library_editing && @library_editing.id == entry.id}
+                  id="library-rename-form"
+                  phx-submit="library-rename"
+                  class="w-full space-y-3 pt-3"
+                >
+                  <label for="library-title" class="block text-sm font-semibold">{Web.I18n.t(
+                    "library.titleLabel",
+                    @locale
+                  )}</label>
+                  <input
+                    id="library-title"
+                    name="title"
+                    value={@library_editing.title || ""}
+                    maxlength="120"
+                    aria-describedby="library-title-help"
+                    class="w-full rounded-md border border-border bg-canvas px-3 py-2"
+                  />
+                  <p id="library-title-help" class="text-xs text-muted">
+                    {Web.I18n.t("library.titleHelp", @locale)}
+                  </p>
+                  <p :if={@library_title_error} role="alert" class="text-sm text-error">
+                    {@library_title_error}
+                  </p>
+                  <div class="flex flex-wrap gap-2">
+                    <button
+                      type="submit"
+                      class="rounded-md border border-border px-3 py-2 text-sm"
+                    >{Web.I18n.t(
+                      "library.saveTitle",
+                      @locale
+                    )}</button>
+                    <button
+                      type="button"
+                      phx-click="library-cancel-rename"
+                      class="rounded-md border border-border px-3 py-2 text-sm"
+                    >{Web.I18n.t("library.cancel", @locale)}</button>
+                  </div>
+                </form>
+              </li>
+            </ul>
+
+            <nav class="mt-4 flex gap-3" aria-label={Web.I18n.t("library.pages", @locale)}>
+              <button
+                :if={@library_cursor}
+                type="button"
+                phx-click="library-first-page"
+                class="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-panel-hover"
+              >{Web.I18n.t("library.first", @locale)}</button>
+              <button
+                :if={@library_next_cursor}
+                type="button"
+                phx-click="library-next-page"
+                class="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-panel-hover"
+              >{Web.I18n.t("library.next", @locale)}</button>
+            </nav>
+          </div>
         <% else %>
           <form phx-submit="mock-provider-search" class="flex flex-col gap-3">
             <p class="text-sm text-muted">
