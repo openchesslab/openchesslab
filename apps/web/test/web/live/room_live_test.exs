@@ -920,6 +920,23 @@ defmodule Web.RoomLiveTest do
     html = render_click(view, "toggle-engine", %{})
     assert html =~ "aria-checked=\"true\""
     refute html =~ "id=\"engine-settings-form\""
+
+    # Settings stay editable while the engine runs; the hook restarts the
+    # search when depth or lines change.
+    render_click(view, "open-engine-settings", %{})
+
+    html =
+      render_change(view, "update-engine-settings", %{
+        "depth" => "30",
+        "multipv" => "4"
+      })
+
+    assert html =~ ~r/name="depth"[^>]*value="30"/
+    assert html =~ ~r/name="multipv"[^>]*value="4"/
+    assert html =~ "data-depth=\"30\""
+    assert html =~ "data-multipv=\"4\""
+    refute html =~ ~r/name="depth"[^>]*disabled/
+    refute html =~ ~r/name="multipv"[^>]*disabled/
   end
 
   test "modal backdrops blur without a dark overlay", %{conn: conn, code: code} do
