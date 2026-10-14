@@ -636,6 +636,27 @@ defmodule Web.RoomLiveTest do
 
     assert move_item =~ "⁉"
     refute move_item =~ "‼"
+
+    # Annotations carry semantic colours: positive good/brilliant, negative
+    # mistake/blunder, attention-coloured interesting/dubious.
+    for {nag, glyph, css} <- [
+          {1, "!", "text-success"},
+          {2, "?", "text-error"},
+          {3, "‼", "text-success"},
+          {4, "⁇", "text-error"},
+          {5, "⁉", "text-warning"},
+          {6, "⁈", "text-warning"}
+        ] do
+      html = render_click(view, "toggle-nag", %{"nag" => to_string(nag)})
+
+      assert [move_item] =
+               Regex.run(~r/<button[^>]*data-move-path="0"[^>]*>(.*?)<\/button>/s, html,
+                 capture: :all_but_first
+               )
+
+      assert move_item =~ glyph
+      assert move_item =~ css
+    end
   end
 
   test "move-list arrows navigate occurrences and keep one roving tab stop", %{

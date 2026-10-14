@@ -139,9 +139,10 @@ defmodule Web.MoveListComponents do
       <% else %>
         <span :if={@show_number} class="mr-1 text-faint">{@entry.prefix}</span>
         <span>{@entry.label}</span>
-        <span :if={@entry.nags != []} class="ml-0.5 font-bold text-warning">
-          {nag_glyphs(@entry.nags)}
-        </span>
+        <span
+          :for={nag <- @entry.nags || []}
+          class={"ml-0.5 font-bold " <> nag_class(nag)}
+        >{nag_glyph(nag)}</span>
       <% end %>
     </button>
     """
@@ -173,7 +174,12 @@ defmodule Web.MoveListComponents do
     path == active_path or (active_path == [] and path == [0])
   end
 
-  defp nag_glyphs(nags), do: Enum.map_join(nags || [], &nag_glyph/1)
+  # Semantic annotation colours: good/brilliant moves read positive, mistakes
+  # and blunders negative, interesting/dubious stay attention-coloured.
+  defp nag_class(nag) when nag in [1, 3], do: "text-success"
+  defp nag_class(nag) when nag in [2, 4], do: "text-error"
+  defp nag_class(_nag), do: "text-warning"
+
   defp nag_glyph(1), do: "!"
   defp nag_glyph(2), do: "?"
   defp nag_glyph(3), do: "‼"

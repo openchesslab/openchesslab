@@ -34,6 +34,17 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, door agent gecommit en gepusht:** `Color move annotations by their meaning`,
+  gestart op schone `5005b64` (gebruikersidee 2026-10-14). NAG's in de zettenlijst (room + privé-editor,
+  zelfde `move_list`-component) zijn nu per glyf gekleurd naar eigen betekenis: goed/brilliant
+  (1 `!`, 3 `‼`) → `text-success`, fout/blunder (2 `?`, 4 `⁇`) → `text-error`, interessant/dubieus
+  (5 `⁉`, 6 `⁈`) → `text-warning` (was: alles oranje). Gebruikt de net thema-adaptieve tokens, dus
+  AA-contrast in beide thema's; per-glyf spans i.p.v. één span. De NAG-paletknoppen blijven neutraal
+  (besturing, geen annotatie). Web-only; geen migratie/i18n. Test: bestaande NAG-test uitgebreid met
+  alle zes klassen; gericht room_live + personal_analysis **54/54**; volledig web **219 geslaagd**
+  (seed 511632); formatter, assetbuild, compile --warnings-as-errors en diffcontrole geslaagd.
+  Browsergeverifieerd op devserver (licht thema): 2/4 → #a84848, 3 → #387038, 5/6 → #8f6120.
+
 - **Afgerond, door agent gecommit en gepusht:** `Make status colors theme-adaptive for light-mode
   contrast`, gestart op schone `8fb222b` (bevinding UI-pass 2026-10-14: `--error` mat 2.82:1 op wit —
   WCAG-AA-faal; `--warning`/~2.3:1 en `--success`/~2.0:1 hadden hetzelfde gebrek). `--error/--success/
