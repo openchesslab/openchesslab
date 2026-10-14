@@ -34,6 +34,15 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, door agent gecommit en gepusht:** `Make status colors theme-adaptive for light-mode
+  contrast`, gestart op schone `8fb222b` (bevinding UI-pass 2026-10-14: `--error` mat 2.82:1 op wit —
+  WCAG-AA-faal; `--warning`/~2.3:1 en `--success`/~2.0:1 hadden hetzelfde gebrek). `--error/--success/
+  --warning` zijn nu thema-adaptief zoals `--focus`/`--highlight` (beide light-blokken in app.css):
+  licht `#a84848`/`#387038`/`#8f6120`, donker ongewijzigd. CSS-only. Browsergeverifieerd op devserver:
+  delete-knop 5.70:1 (was 2.82), NAG-waarschuwing 4.90:1, success-dot zichtbaar; donkere tokens
+  ongewijzigd (geen regressie). Websuite **219 geslaagd** (seed 511632); formatter, assetbuild en
+  diffcontrole geslaagd.
+
 - **Afgerond, door agent gecommit en gepusht:** `Return to the room after login, link or logout`,
   gestart op schone `3f06461` (gebruikersbevinding 2026-10-14: inloggen/uitloggen in een room
   stuurde naar home; terugkeren naar de room gewenst, zoals het oude blunderfest-project via de

@@ -60,6 +60,9 @@
   --faint: #6f6f6f;
   --focus: #24447c;
   --highlight: #0b7285;
+  --error: #a84848;
+  --success: #387038;
+  --warning: #8f6120;
   --board-selected: rgba(69, 196, 233, .45);
   --board-legal: rgba(20, 30, 20, .3);
 }
@@ -77,6 +80,9 @@
     --faint: #6f6f6f;
     --focus: #24447c;
     --highlight: #0b7285;
+    --error: #a84848;
+    --success: #387038;
+    --warning: #8f6120;
     --board-selected: rgba(69, 196, 233, .45);
     --board-legal: rgba(20, 30, 20, .3);
   }
