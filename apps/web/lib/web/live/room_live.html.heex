@@ -173,7 +173,7 @@
                 :if={@current_user}
                 type="button"
                 id={"track-#{analysis.id}"}
-                class="absolute right-1.5 top-1.5 inline-flex min-h-7 min-w-7 items-center justify-center rounded-md bg-transparent text-muted hover:bg-panel-hover hover:text-accent"
+                class="absolute right-1.5 top-1.5 inline-flex min-h-7 min-w-7 items-center justify-center rounded-md bg-transparent text-muted hover:bg-panel-hover hover:text-highlight"
                 aria-pressed={if tracked, do: "true", else: "false"}
                 aria-label={
                   Web.I18n.t(
@@ -184,7 +184,14 @@
                 title={Web.I18n.t(if(tracked, do: "room.untrack", else: "room.track"), @locale)}
                 phx-click={if tracked, do: "untrack-analysis", else: "track-analysis"}
                 phx-value-id={analysis.id}
-              ><.icon name="star" class={["h-4 w-4", tracked && "fill-current text-accent"]} /></button>
+              ><.icon
+                name="star"
+                class={
+                  if tracked,
+                    do: "h-4 w-4 fill-current text-highlight",
+                    else: "h-4 w-4"
+                }
+              /></button>
             </li>
           <% end %>
         </ul>
@@ -1336,7 +1343,7 @@
                   >{Web.I18n.t("room.libraryAddCopy", @locale)}</button>
                   <button
                     type="button"
-                    class="rounded-md border border-accent px-3 py-1.5 text-xs text-accent hover:bg-panel-hover"
+                    class="rounded-md border border-accent-strong bg-accent px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent-strong"
                     title={Web.I18n.t("room.libraryShareHelp", @locale)}
                     phx-click="library-share"
                     phx-value-id={entry.id}

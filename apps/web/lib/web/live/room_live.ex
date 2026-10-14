@@ -284,7 +284,7 @@ defmodule Web.RoomLive do
   # The three ways a library entry enters this room: only the underlying game,
   # an independent snapshot copy, or the live analysis itself. The credential
   # is refreshed before each event; parameters never select the owner or entry.
-  def handle_event("library-add-game", %{"id" => id}, %{assigns: %{current_user: nil}} = socket),
+  def handle_event("library-add-game", %{"id" => _id}, %{assigns: %{current_user: nil}} = socket),
     do: {:noreply, socket}
 
   def handle_event("library-add-game", %{"id" => id}, socket) do
@@ -297,7 +297,7 @@ defmodule Web.RoomLive do
     end
   end
 
-  def handle_event("library-add-copy", %{"id" => id}, %{assigns: %{current_user: nil}} = socket),
+  def handle_event("library-add-copy", %{"id" => _id}, %{assigns: %{current_user: nil}} = socket),
     do: {:noreply, socket}
 
   def handle_event("library-add-copy", %{"id" => id}, socket) do
@@ -310,7 +310,7 @@ defmodule Web.RoomLive do
     end
   end
 
-  def handle_event("library-share", %{"id" => id}, %{assigns: %{current_user: nil}} = socket),
+  def handle_event("library-share", %{"id" => _id}, %{assigns: %{current_user: nil}} = socket),
     do: {:noreply, socket}
 
   def handle_event("library-share", %{"id" => id}, socket) do
@@ -360,7 +360,7 @@ defmodule Web.RoomLive do
 
   def handle_event("create-analysis", _params, socket), do: create_analysis(socket, nil)
 
-  def handle_event("track-analysis", %{"id" => id}, %{assigns: %{current_user: nil}} = socket) do
+  def handle_event("track-analysis", %{"id" => _id}, %{assigns: %{current_user: nil}} = socket) do
     # Stars are not rendered for guests; forged events fail closed.
     {:noreply, socket}
   end
@@ -391,7 +391,7 @@ defmodule Web.RoomLive do
     end
   end
 
-  def handle_event("untrack-analysis", %{"id" => id}, %{assigns: %{current_user: nil}} = socket) do
+  def handle_event("untrack-analysis", %{"id" => _id}, %{assigns: %{current_user: nil}} = socket) do
     {:noreply, socket}
   end
 
@@ -406,9 +406,6 @@ defmodule Web.RoomLive do
       {:noreply, socket}
     end
   end
-
-  defp analysis_in_room?(socket, id),
-    do: Enum.any?(socket.assigns.analyses, &(&1.id == id))
 
   def handle_event("select-analysis", %{"id" => id}, socket) do
     if Enum.any?(socket.assigns.analyses, &(&1.id == id)) do
@@ -447,16 +444,6 @@ defmodule Web.RoomLive do
       {:noreply, follow_notice(socket, participant_id)}
     else
       {:noreply, socket}
-    end
-  end
-
-  defp follow_notice(socket, participant_id) do
-    case Map.get(socket.assigns.participants, participant_id) do
-      %{display_name: name} when is_binary(name) and name != "" ->
-        notify(socket, Web.I18n.t("room.followedViewer", socket.assigns.locale, %{name: name}))
-
-      _other ->
-        socket
     end
   end
 
@@ -1363,6 +1350,19 @@ defmodule Web.RoomLive do
 
   defp library_add_failed(socket) do
     {:noreply, notify(socket, Web.I18n.t("room.libraryAddFailed", socket.assigns.locale), :error)}
+  end
+
+  defp analysis_in_room?(socket, id),
+    do: Enum.any?(socket.assigns.analyses, &(&1.id == id))
+
+  defp follow_notice(socket, participant_id) do
+    case Map.get(socket.assigns.participants, participant_id) do
+      %{display_name: name} when is_binary(name) and name != "" ->
+        notify(socket, Web.I18n.t("room.followedViewer", socket.assigns.locale, %{name: name}))
+
+      _other ->
+        socket
+    end
   end
 
   defp create_analysis(socket, position) do

@@ -7,7 +7,7 @@ Geen geheimen, tokens of lokale databases opnemen.
 
 ## Startprompt
 
-> Ga verder met OpenChessLab. Lees eerst docs/HANDOFF.md en AGENTS.md, daarna de relevante delen van docs/architecture.md en docs/development-history.md. Inspecteer git status, branch, HEAD en recente commits. Rond eventueel openstaand werk hieronder eerst af. Werk in kleine slices met tests. Commit en push zijn toegestaan na geslaagde controles; deployment vereist altijd expliciete toestemming. Houd docs/HANDOFF.md bijgewerkt. Communiceer bondig in het Nederlands en bespaar context door gericht te lezen. Gebruik geen subagents tenzij gevraagd.
+> Ga verder met OpenChessLab. Lees eerst docs/HANDOFF.md en AGENTS.md, daarna de relevante delen van docs/architecture.md en docs/development-history.md. Inspecteer git status, branch, HEAD en recente commits. Rond eventueel openstaand werk hieronder eerst af. Werk in kleine slices met tests. Commit en push zijn toegestaan na geslaagde controles (de agent mag sinds 2026-10-14 zelf committen en pushen, met vermelding in dit bestand); deployment vereist altijd expliciete toestemming. Houd docs/HANDOFF.md bijgewerkt. Communiceer bondig in het Nederlands en bespaar context door gericht te lezen. Gebruik geen subagents tenzij gevraagd.
 
 ## Modelkeuze
 
@@ -33,6 +33,22 @@ Meld expliciet wanneer een wissel zinvol is, met één concrete reden; laat de g
 Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoerd.
 
 ## Repository en huidige status
+
+- **Afgerond, door agent gecommit en gepusht (nieuwe werkwijze):** `Fix dark-mode contrast of the
+  share and star actions`, gestart op schone `3f58fb5`. Diagnose: `--accent` (#35507e) is een
+  bewuste vulkleur (altijd met witte tekst; niet thema-adaptief) — accent als tekst/rand op
+  panel (~2:1 in dark mode) was mijn afwijking, geen designkeuze. Share live-knop nu het
+  gevestigde primair-actiepatroon (`bg-accent text-white border-accent-strong`); ster gebruikt
+  het thema-adaptieve `--highlight` (cyan in dark, donker teal in light), net als actieve
+  selecties. Ook opgeruimd: drie ongebruikte `id`'s in gast-guardheads, en de twee midden in
+  de eventclausules geplaatste `defp`s (clausulegroeperingswaarschuwingen) verplaatst naar het
+  privé-helpergebied; `mix compile --warnings-as-errors` nu schoon. Gericht **57/57**; volledig
+  web **205 geslaagd** (seed 511632); formatter, assetbuild en diffcontrole geslaagd.
+  Deployment volgt gebruikersgericht.
+
+- **Afgerond en gedeployed:** `Make following another viewer perceptible`, commit `3f58fb5` —
+  door de gebruiker gepusht en gedeployed op 2026-10-14; follow-melding en stale-knopverberging
+  live in productie.
 
 - **Afgerond, wacht op commit/push:** `Make following another viewer perceptible`, gestart op
   schone `946fc21`. `follow-viewer` meldt nu altijd wat er gebeurde (`room.followedViewer`,
