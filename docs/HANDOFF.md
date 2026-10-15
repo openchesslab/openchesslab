@@ -34,6 +34,18 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Make room names per-room
+  pseudonyms for signed-in users`, bovenop `b4b3626`. Privacy-beslissing 2026-10-16: het
+  stabiele accountlabel in elke kamer tonen maakt gebruikers kamer-overstijgend herkenbaar.
+  Nu `DisplayName.for_room(user_id, room_code)` (sha256 over kamercode + user-id): in elke
+  kamer een stabiel maar anders pseudoniem; het accountmenu behoudt `for_user/1` (alleen voor
+  de gebruiker zelf zichtbaar). Alle toewijzingspaden gebruiken het: presence in publieke
+  kamers, lidmaatschapslabels bij aanmaken/invite/bibliotheek (de labelberekening verplaatst
+  naar ná de kamercode-generatie in `home_live` en `shell_panels`). Gasten houden
+  willekeurige namen; bestaande opgeslagen lidlabels blijven. Serieel: web **244**,
+  formatter, assetbuild, diffcontrole. Browsertest: UIUX01 stabiel "Calm Lynx 96" over
+  reloads, nieuwe kamer "Keen Wolf 32", accountmenu "Mighty Panda 41".
+
 - **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
   `Use the stable account label as the room name for signed-in users` (`7a998e6`), bovenop
   `c97a0b7`. Bugrapport 2026-10-16: een ingelogde

@@ -31,6 +31,15 @@ defmodule Web.DisplayNameTest do
     refute DisplayName.for_user(id_a) == DisplayName.for_user(id_b)
   end
 
+  test "room labels are stable per user per room but differ across rooms" do
+    id = Ecto.UUID.generate()
+
+    assert DisplayName.for_room(id, "AAAAAA") == DisplayName.for_room(id, "AAAAAA")
+    refute DisplayName.for_room(id, "AAAAAA") == DisplayName.for_room(id, "BBBBBB")
+    # A room label is not the account label.
+    refute DisplayName.for_room(id, "AAAAAA") == DisplayName.for_user(id)
+  end
+
   test "initials and badge colors are deterministic per name" do
     assert DisplayName.initials("Wise Otter 42") == "WO"
     assert DisplayName.initials("Happy Panda 10") == "HP"

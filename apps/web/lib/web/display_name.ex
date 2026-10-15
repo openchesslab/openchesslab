@@ -26,8 +26,20 @@ defmodule Web.DisplayName do
   """
   @spec for_user(String.t()) :: String.t()
   def for_user(user_id) when is_binary(user_id) do
-    <<a, b, n, _rest::binary>> = :crypto.hash(:sha256, "display-name:" <> user_id)
+    name_from(:crypto.hash(:sha256, "display-name:" <> user_id))
+  end
 
+  @doc """
+  The stable room label for a user: the same user always gets the same name
+  in the same room, but a different name in every other room — presence
+  stays per-room pseudonymous and is not linkable across rooms.
+  """
+  @spec for_room(String.t(), String.t()) :: String.t()
+  def for_room(user_id, room_code) when is_binary(user_id) and is_binary(room_code) do
+    name_from(:crypto.hash(:sha256, "display-name:" <> room_code <> ":" <> user_id))
+  end
+
+  defp name_from(<<a, b, n, _rest::binary>>) do
     "#{Enum.at(@adjectives, rem(a, length(@adjectives)))} #{Enum.at(@animals, rem(b, length(@animals)))} #{rem(n, 90) + 10}"
   end
 

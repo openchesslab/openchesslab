@@ -120,29 +120,27 @@ defmodule Web.HomeLive do
 
   def handle_event(_event, _params, socket), do: {:noreply, socket}
 
-  # The owner's member label is their stable account label, stored once at
+  # The owner's member label is their stable per-room label, stored once at
   # creation and shown in the private room's member list and presence.
-  defp create_room(nil = _owner) do
-    create_room(@room_create_attempts, nil, nil)
-  rescue
-    error -> {:error, error}
-  end
-
   defp create_room(owner) do
-    create_room(@room_create_attempts, owner, DisplayName.for_user(owner))
+    create_room(@room_create_attempts, owner)
   rescue
     error -> {:error, error}
   end
 
-  defp create_room(0, _owner, _name), do: {:error, :room_code_collisions}
+  defp create_room(0, _owner), do: {:error, :room_code_collisions}
 
-  defp create_room(attempts, owner, name) do
+  defp create_room(attempts, owner) do
     code = new_room_code()
-    opts = if owner, do: [owner: owner, owner_display_name: name], else: []
+
+    opts =
+      if owner,
+        do: [owner: owner, owner_display_name: DisplayName.for_room(owner, code)],
+        else: []
 
     case Rooms.create_room(code, opts) do
       {:ok, _room} -> {:ok, code}
-      {:error, :already_exists} -> create_room(attempts - 1, owner, name)
+      {:error, :already_exists} -> create_room(attempts - 1, owner)
       {:error, _reason} = error -> error
     end
   end

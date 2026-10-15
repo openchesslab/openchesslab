@@ -21,7 +21,7 @@ defmodule Web.RoomInviteController do
       |> put_resp_header("referrer-policy", "no-referrer")
 
     if user = conn.assigns.current_user do
-      case Rooms.consume_invite(code, user.id, token, DisplayName.for_user(user.id)) do
+      case Rooms.consume_invite(code, user.id, token, DisplayName.for_room(user.id, code)) do
         {:ok, :joined} ->
           redirect(conn, to: ~p"/rooms/#{code}")
 

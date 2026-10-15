@@ -27,7 +27,7 @@ defmodule Web.RoomLiveTest do
     {:ok, code: code}
   end
 
-  test "a signed-in user's room presence uses their stable account label", %{
+  test "a signed-in user's room presence uses their stable per-room label", %{
     conn: conn,
     code: code
   } do
@@ -38,7 +38,7 @@ defmodule Web.RoomLiveTest do
     conn = Plug.Test.init_test_session(conn, %{user_token: session.token})
     {:ok, _view, html} = live(conn, "/rooms/#{code}")
 
-    assert html =~ Web.DisplayName.for_user(user.id)
+    assert html =~ Web.DisplayName.for_room(user.id, code)
   end
 
   test "renders an empty room and starts an analysis", %{conn: conn, code: code} do

@@ -103,7 +103,7 @@ defmodule Web.RoomLive do
       board_shapes: [],
       participants: %{},
       participant_id: participant_id(),
-      display_name: display_name_for(socket.assigns.current_user),
+      display_name: display_name_for(socket.assigns.current_user, code),
       joined_at: System.system_time(:second),
       chat_messages: [],
       chat_error: nil,
@@ -2656,10 +2656,11 @@ defmodule Web.RoomLive do
 
   defdelegate initials(name), to: DisplayName
 
-  # Signed-in users get their stable account label in room presence (the same
-  # name the account menu shows); guests get an ephemeral random one.
-  defp display_name_for(nil), do: DisplayName.generate()
-  defp display_name_for(%{id: user_id}), do: DisplayName.for_user(user_id)
+  # Signed-in users get a stable per-room label in presence (the same name on
+  # every visit to this room, a different name in other rooms); guests get an
+  # ephemeral random one.
+  defp display_name_for(nil, _code), do: DisplayName.generate()
+  defp display_name_for(%{id: user_id}, code), do: DisplayName.for_room(user_id, code)
 
   defp analysis_viewers(analysis_id, participants, participant_id) do
     Enum.count(participants, fn {id, meta} ->
