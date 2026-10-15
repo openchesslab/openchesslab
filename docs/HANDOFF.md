@@ -34,6 +34,13 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Style shortcut keys as physical
+  keycaps`, bovenop `c1d5752`. UX-verzoek 2026-10-15: `<kbd>`-toetsen moeten eruitzien als
+  fysieke toetsen. Eén globale `kbd`-regel in `@layer base` (app.css): verhoogd vlak
+  (`--panel-hover`), rand `--border-strong`, dikkere onderrand (2px) als drukkant, afgeronde
+  hoeken, `--foreground`-tekst — thematokens, dus licht én donker kloppen. Serieel: web **239**,
+  formatter, assetbuild, diffcontrole. Browsertest: screenshots licht + donker gecontroleerd.
+
 - **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
   `Widen the shortcuts dialog and use kbd elements for keys` (`8975ea5`), bovenop `da20157`. UX-feedback 2026-10-15: de sneltoetsenpopup was te
   smal ("Vorige / volgende zet · Shift + ← / →" brak over twee regels). Nu `max-w-2xl` +
