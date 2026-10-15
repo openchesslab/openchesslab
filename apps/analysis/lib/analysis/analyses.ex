@@ -304,6 +304,65 @@ defmodule Analysis.Analyses do
   end
 
   defp play(analysis, revision, path, move) do
+    with {:ok, updated_analysis, resulting_path} <- play_unpersisted(analysis, path, move) do
+      case persist(
+             updated_analysis,
+             revision
+           ) do
+        {:ok, new_revision} ->
+          {:ok, updated_analysis, new_revision, resulting_path}
+
+        {:error, _reason} = error ->
+          error
+      end
+    end
+  end
+
+  @doc """
+  Plays a whole line of moves in one transaction: a single revision bump and
+  one persisted aggregate, used when an engine principal variation is added.
+
+  A failed move discards the whole line; the analysis stays unchanged.
+  """
+  @spec play_line(Analysis.Analysis.id(), Analysis.Analysis.path(), [Move.t()]) ::
+          {:ok, Analysis.Analysis.t(), pos_integer(), Analysis.Analysis.path()}
+          | {:error,
+             :analysis_not_found
+             | :node_not_found
+             | :position_not_found
+             | :illegal_move
+             | :conflict
+             | position_store_error()}
+  def play_line(_analysis_id, _path, []), do: {:error, :empty_line}
+
+  def play_line(analysis_id, path, moves)
+      when is_binary(analysis_id) and is_list(path) and is_list(moves) do
+    case get(analysis_id) do
+      {:ok, analysis, revision} ->
+        with {:ok, updated_analysis, resulting_path} <-
+               play_line_unpersisted(analysis, path, moves) do
+          case persist(updated_analysis, revision) do
+            {:ok, new_revision} -> {:ok, updated_analysis, new_revision, resulting_path}
+            {:error, _reason} = error -> error
+          end
+        end
+
+      :not_found ->
+        {:error, :analysis_not_found}
+    end
+  end
+
+  defp play_line_unpersisted(analysis, path, [move | rest]) do
+    with {:ok, analysis, next_path} <- play_unpersisted(analysis, path, move) do
+      play_line_unpersisted(analysis, next_path, rest)
+    end
+  end
+
+  defp play_line_unpersisted(analysis, path, []), do: {:ok, analysis, path}
+
+  # One move without persistence: position rules plus tree edit, so a whole
+  # engine line can be appended inside a single transaction.
+  defp play_unpersisted(analysis, path, move) do
     with %Node{} = node <-
            Analysis.Analysis.node_at(
              analysis,
@@ -337,19 +396,7 @@ defmodule Analysis.Analyses do
           position_id
         )
 
-      resulting_path =
-        path ++ [child_index]
-
-      case persist(
-             updated_analysis,
-             revision
-           ) do
-        {:ok, new_revision} ->
-          {:ok, updated_analysis, new_revision, resulting_path}
-
-        {:error, _reason} = error ->
-          error
-      end
+      {:ok, updated_analysis, path ++ [child_index]}
     else
       nil ->
         {:error, :node_not_found}

@@ -297,6 +297,53 @@ defmodule Analysis.AnalysesTest do
     assert position.side_to_move == :black
   end
 
+  test "plays a whole line in one transaction with a single revision bump", %{
+    analysis_id: analysis_id
+  } do
+    position_id = PositionStore.append(Position.starting_position())
+    analysis = AnalysisModel.new(analysis_id, position_id)
+
+    assert {:ok, 1} = Analyses.insert(analysis)
+
+    moves = [move("e2", "e4"), move("e7", "e5"), move("g1", "f3")]
+
+    assert {:ok, updated_analysis, 2, [0, 0, 0]} =
+             Analyses.play_line(analysis_id, [], moves)
+
+    nf3 = AnalysisModel.node_at(updated_analysis, [0, 0, 0])
+    assert Node.transition(nf3) == Transition.move(hd(Enum.reverse(moves)))
+
+    assert {:ok, position} = PositionStore.get(Node.position_id(nf3))
+    assert Position.piece_at(position, Square.from_algebraic("f3")) == {:white, :knight}
+    assert position.side_to_move == :black
+
+    # Playing the same line again finds the existing children, no duplicates.
+    assert {:ok, again, 3, [0, 0, 0]} = Analyses.play_line(analysis_id, [], moves)
+
+    assert [_, _, _] = [
+             AnalysisModel.node_at(again, [0]),
+             AnalysisModel.node_at(again, [0, 0]),
+             AnalysisModel.node_at(again, [0, 0, 0])
+           ]
+
+    assert length(Node.children(AnalysisModel.node_at(again, []))) == 1
+  end
+
+  test "a failing move discards the whole line and persists nothing", %{
+    analysis_id: analysis_id
+  } do
+    position_id = PositionStore.append(Position.starting_position())
+    analysis = AnalysisModel.new(analysis_id, position_id)
+
+    assert {:ok, 1} = Analyses.insert(analysis)
+
+    assert {:error, :illegal_move} =
+             Analyses.play_line(analysis_id, [], [move("e2", "e4"), move("e4", "e5")])
+
+    assert {:ok, unchanged, 1} = Analyses.get(analysis_id)
+    assert Node.children(AnalysisModel.node_at(unchanged, [])) == []
+  end
+
   test "returns analysis_not_found for an unknown analysis", %{analysis_id: analysis_id} do
     assert Analyses.play(analysis_id, [], move("e2", "e4")) ==
              {:error, :analysis_not_found}

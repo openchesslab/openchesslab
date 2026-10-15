@@ -140,6 +140,7 @@ defmodule Web.RoomLive do
       engine_error: nil,
       engine_peek: nil,
       engine_evals: %{},
+      engine_pv_cache: %{},
       engine_cached: nil,
       engine_review: nil,
       engine_settings_open: false,
@@ -990,6 +991,7 @@ defmodule Web.RoomLive do
       assign(socket,
         engine_on: on?,
         engine_preview: nil,
+        engine_pv_cache: %{},
         engine_cached: nil,
         engine_error: nil,
         engine_peek: nil,
@@ -1059,7 +1061,7 @@ defmodule Web.RoomLive do
   def handle_event("engine-update", params, %{assigns: %{engine_on: true}} = socket) do
     with %{"fen" => fen, "lines" => [_ | _] = lines} <- params,
          true <- fen == current_fen(socket),
-         {:ok, preview} <- engine_preview(lines, params, socket) do
+         {:ok, preview, pv_cache} <- engine_preview(lines, params, socket) do
       # Deeper results for the same position keep an open peek; only a fresh
       # position invalidates it.
       peek_stale? =
@@ -1068,7 +1070,13 @@ defmodule Web.RoomLive do
           _ -> false
         end
 
-      socket = assign(socket, engine_preview: preview, engine_error: nil)
+      socket =
+        assign(socket,
+          engine_preview: preview,
+          engine_error: nil,
+          engine_pv_cache: pv_cache
+        )
+
       socket = if peek_stale?, do: assign(socket, :engine_peek, nil), else: socket
       socket = store_engine_eval(socket, preview, Node.position_id(socket.assigns.current_node))
 
@@ -2815,30 +2823,46 @@ defmodule Web.RoomLive do
     flip = if position.side_to_move == :black, do: -1, else: 1
     context = AnalysisView.move_context(socket.assigns.analysis, socket.assigns.current_path)
 
-    pv =
+    {pv, pv_cache} =
       lines
       |> Enum.sort_by(fn line -> engine_int(line["multipv"]) end)
-      |> Enum.map(fn line ->
-        uci_moves = String.split(line["pv"] || "", " ", trim: true)
+      |> Enum.map_reduce(socket.assigns.engine_pv_cache, fn line, cache ->
+        pv_key = line["pv"] || ""
 
-        moves =
-          uci_moves
-          |> Enum.zip(UCI.pv_to_san(position, line["pv"] || ""))
-          |> Enum.map(fn {uci, san} -> %{uci: uci, san: san} end)
+        case Map.fetch(cache, pv_key) do
+          # Parsing every move of every line against the legal-move rules is
+          # the hot path; the pv string identifies the parsed result.
+          {:ok, moves} ->
+            {%{
+               multipv: engine_int(line["multipv"]),
+               score: score_label(line, flip),
+               moves: moves
+             }, cache}
 
-        case moves do
-          [] ->
-            nil
+          :error ->
+            moves =
+              pv_key
+              |> String.split(" ", trim: true)
+              |> Enum.zip(UCI.pv_to_san(position, pv_key))
+              |> Enum.map(fn {uci, san} -> %{uci: uci, san: san} end)
 
-          _ ->
-            %{
-              multipv: engine_int(line["multipv"]),
-              score: score_label(line, flip),
-              moves: add_move_labels(moves, context)
-            }
+            case moves do
+              [] ->
+                {nil, cache}
+
+              _ ->
+                moves = add_move_labels(moves, context)
+
+                {%{
+                   multipv: engine_int(line["multipv"]),
+                   score: score_label(line, flip),
+                   moves: moves
+                 }, Map.put(cache, pv_key, moves)}
+            end
         end
       end)
-      |> Enum.reject(&is_nil/1)
+
+    pv = Enum.reject(pv, &is_nil/1)
 
     case pv do
       [] ->
@@ -2856,7 +2880,7 @@ defmodule Web.RoomLive do
            nodes: engine_int(params["nodes"]),
            nps: engine_int(params["nps"]),
            pv: pv
-         }}
+         }, pv_cache}
     end
   end
 
@@ -2911,28 +2935,36 @@ defmodule Web.RoomLive do
   end
 
   # Plays the first ply + 1 moves of an engine line into the analysis at the
-  # current path, one `Analyses.play/3` per move so the tree and revision
-  # handling stay identical to board play.
+  # current path: the UCI coordinates resolve to legal moves up front, then a
+  # single Analyses.play_line/3 persists the whole line in one transaction
+  # (one revision bump, one broadcast — not one round trip per move).
   defp play_uci_line(socket, moves, ply) do
-    analysis_id = socket.assigns.selected_analysis_id
+    with {:ok, resolved} <- resolve_uci_moves(socket.assigns.position, Enum.take(moves, ply + 1)),
+         {:ok, analysis, revision, path} <-
+           Analyses.play_line(
+             socket.assigns.selected_analysis_id,
+             socket.assigns.current_path,
+             resolved
+           ) do
+      {:ok, analysis, revision, path}
+    else
+      _ -> :error
+    end
+  end
 
+  defp resolve_uci_moves(position, moves) do
     moves
-    |> Enum.take(ply + 1)
-    |> Enum.reduce_while({socket.assigns.position, socket.assigns.current_path, nil}, fn move,
-                                                                                         {position,
-                                                                                          path,
-                                                                                          _last} ->
-      with {:ok, legal} <- UCI.parse_move(position, move.uci),
-           {:ok, analysis, revision, next_path} <- Analyses.play(analysis_id, path, legal),
-           {:ok, next_position} <- Position.apply_move(position, legal) do
-        {:cont, {next_position, next_path, {analysis, revision}}}
+    |> Enum.reduce_while({:ok, position, []}, fn move, {:ok, current, acc} ->
+      with {:ok, legal} <- UCI.parse_move(current, move.uci),
+           {:ok, next} <- Position.apply_move(current, legal) do
+        {:cont, {:ok, next, [legal | acc]}}
       else
         _ -> {:halt, :error}
       end
     end)
     |> case do
-      {_position, path, {analysis, revision}} -> {:ok, analysis, revision, path}
-      _ -> :error
+      {:ok, _position, resolved} -> {:ok, Enum.reverse(resolved)}
+      :error -> :error
     end
   end
 
@@ -3219,7 +3251,12 @@ defmodule Web.RoomLive do
           )
 
         :miss ->
-          assign(socket, engine_preview: nil, engine_cached: nil, engine_peek: nil)
+          assign(socket,
+            engine_preview: nil,
+            engine_pv_cache: %{},
+            engine_cached: nil,
+            engine_peek: nil
+          )
       end
     else
       socket

@@ -34,6 +34,15 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, gecommit en gepusht; deploy volgt door gebruiker:** `Batch engine-line insertion
+  and lighten engine updates`, bovenop `d4d839a`. Productie-lag (NL↔AMS): (1) `Analyses.
+  play_line/3` — een hele engine-lijn in één transactie (één revisiebump, één broadcast) i.p.v.
+  N× play/3; gedeelde `play_unpersisted` met play/3. (2) `engine-update` werd per 250ms-PV-pars
+  lichter: geparsde lijnen gecachet op pv-string (`engine_pv_cache`, per positie leeggemaakt),
+  en lijnen tonen max 8 zetten + "…" (volledige UCI blijft voor play). Volledig serieel: analysis
+  **630**, web **231**; formatter, assetbuild, diffcontrole. Browsertest: diepe PV-klik 120 ms
+  lokaal (was ~1 s), 8 zetten + ellipsis per lijn.
+
 - **Afgerond, gecommit, gepusht en door gebruiker gedeployed (bevestigd 2026-10-15):**
   `Cache all computed lines and honor engine settings over the cache` (+ HANDOFF-record
   `f540852`), bovenop `f540852`. Gebruikersbug: instellingen wijzigen
