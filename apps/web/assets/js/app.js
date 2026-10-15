@@ -1366,6 +1366,18 @@ const EngineAnalysis = {
     const key = [fen, depth, multipv].join("|");
     if (key === this.searchKey) return;
     this.searchKey = key;
+
+    // Coverage from the shared cache (or a just-finished compute) means no
+    // local recompute: the panel already shows an evaluation of this position
+    // at the requested depth or deeper.
+    const cachedFen = this.el.dataset.cachedFen || "";
+    const cachedDepth = parseInt(this.el.dataset.cachedDepth || "0", 10);
+
+    if (cachedFen === fen && cachedDepth >= depth) {
+      this.stopSearch();
+      return;
+    }
+
     this.startSearch({ fen, depth, multipv });
   },
 
@@ -1408,6 +1420,13 @@ const EngineAnalysis = {
     }
 
     if (line.startsWith("bestmove")) {
+      // The final result always goes out: cancel any pending throttled flush
+      // so the completed search is the one that gets persisted.
+      if (this.flushTimer) {
+        clearTimeout(this.flushTimer);
+        this.flushTimer = null;
+      }
+
       if (this.reviewing !== null && this.reviewing !== undefined) {
         // Terminal positions yield no info lines; report mate 0 (the side to
         // move is mated) so the review never stalls.
@@ -1516,6 +1535,7 @@ const EngineAnalysis = {
           nodes: this.best?.nodes || 0,
           nps: this.best?.nps || 0,
           lines,
+          final,
         });
       },
       final ? 0 : 250,

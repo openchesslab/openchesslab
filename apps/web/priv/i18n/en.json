@@ -400,7 +400,7 @@
   "room.markBlunder": "Blunder",
   "room.markMistake": "Mistake",
   "room.markInaccuracy": "Inaccuracy",
-  "room.engineNote": "Stockfish 19 runs locally in your browser (WASM); positions never leave your device.",
+  "room.engineNote": "Stockfish 19 runs locally in your browser (WASM); finished evaluations are cached per position and shared.",
   "room.engineSettingsNote": "Depth and lines apply to the local engine and stay in this session.",
   "room.engineLocal": "Stockfish 19 (local)",
   "room.engineLoading": "Starting the local engine…",

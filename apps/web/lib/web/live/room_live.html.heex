@@ -803,6 +803,8 @@
                   do: @engine_review.current,
                   else: ""
               }
+              data-cached-fen={@engine_cached && @engine_cached.fen}
+              data-cached-depth={@engine_cached && @engine_cached.depth}
             >
               <header class="flex items-center justify-between gap-2">
                 <div class="flex items-center gap-2">

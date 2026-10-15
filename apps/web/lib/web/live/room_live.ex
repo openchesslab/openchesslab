@@ -10,6 +10,7 @@ defmodule Web.RoomLive do
   alias Analysis.GameSearch
   alias Analysis.Node
   alias Analysis.PgnAnalysisImporter
+  alias Analysis.PositionEvals
   alias Analysis.RoomChat
   alias Analysis.RoomEvents
   alias Analysis.Rooms
@@ -24,6 +25,9 @@ defmodule Web.RoomLive do
   alias Web.Presence
 
   @shape_colors ~w(yellow blue red orange purple)
+  # The vendored engine build identity; cached evaluations are per engine.
+  @engine_id "stockfish-19-lite-single"
+  @engine_review_depth 12
   @nag_labels %{
     1 => "room.nagGood",
     2 => "room.nagMistake",
@@ -136,6 +140,7 @@ defmodule Web.RoomLive do
       engine_error: nil,
       engine_peek: nil,
       engine_evals: %{},
+      engine_cached: nil,
       engine_review: nil,
       engine_settings_open: false,
       engine_settings: %{depth: 20, multipv: 3}
@@ -985,10 +990,34 @@ defmodule Web.RoomLive do
       assign(socket,
         engine_on: on?,
         engine_preview: nil,
+        engine_cached: nil,
         engine_error: nil,
         engine_peek: nil,
         engine_settings_open: false
       )
+
+    # A shared evaluation from the durable cache fills the panel instantly and
+    # covers the request without starting the local worker (the hook sees the
+    # coverage and skips the compute). Shallower cached results still compute.
+    socket =
+      if on? do
+        case cached_engine_eval(socket) do
+          {:ok, cached} ->
+            preview = engine_preview_from_cache(socket, cached)
+
+            socket
+            |> assign(
+              engine_preview: preview,
+              engine_cached: %{fen: preview.fen, depth: preview.depth}
+            )
+            |> merge_cached_graph_evals()
+
+          :miss ->
+            socket
+        end
+      else
+        socket
+      end
 
     {:noreply, assign(socket, :board_shapes, board_shapes(socket))}
   end
@@ -1038,6 +1067,16 @@ defmodule Web.RoomLive do
       socket = assign(socket, engine_preview: preview, engine_error: nil)
       socket = if peek_stale?, do: assign(socket, :engine_peek, nil), else: socket
       socket = store_engine_eval(socket, preview, Node.position_id(socket.assigns.current_node))
+
+      # The panel now shows a fresh evaluation of this position at this depth.
+      socket =
+        assign(socket, :engine_cached, %{fen: preview.fen, depth: preview.depth})
+
+      # A completed (bestmove) search persists the result for everyone.
+      if params["final"] do
+        persist_engine_eval(socket, preview, lines)
+      end
+
       {:noreply, assign(socket, :board_shapes, board_shapes(socket))}
     else
       _ -> {:noreply, socket}
@@ -1131,6 +1170,14 @@ defmodule Web.RoomLive do
       socket =
         case AnalysisModel.node_at(socket.assigns.analysis, List.duplicate(0, ply)) do
           %Analysis.Node{} = node ->
+            # Review results are finished computations at the review depth;
+            # they persist like interactive bestmove results.
+            PositionEvals.put(Node.position_id(node), @engine_id, %{
+              depth: @engine_review_depth,
+              eval_cp: cp,
+              mate: mate
+            })
+
             store_engine_eval(socket, %{eval_cp: cp, mate_in: mate}, Node.position_id(node))
 
           _ ->
@@ -3142,6 +3189,100 @@ defmodule Web.RoomLive do
   end
 
   defp review_fen(_assigns), do: ""
+
+  # Reads the durable cache for the position on the board; only a cached
+  # result at least as deep as requested counts as coverage.
+  defp cached_engine_eval(socket) do
+    with %Node{} = node <- socket.assigns.current_node,
+         {:ok, cached} <- PositionEvals.get(Node.position_id(node), @engine_id),
+         true <- cached.depth >= socket.assigns.engine_settings.depth do
+      {:ok, cached}
+    else
+      _ -> :miss
+    end
+  end
+
+  # Cached evaluations are stored white-relative, matching the panel.
+  defp engine_preview_from_cache(socket, cached) do
+    position = socket.assigns.position
+    context = AnalysisView.move_context(socket.assigns.analysis, socket.assigns.current_path)
+
+    moves =
+      (cached.pv || "")
+      |> String.split(" ", trim: true)
+      |> Enum.zip(UCI.pv_to_san(position, cached.pv || ""))
+      |> Enum.map(fn {uci, san} -> %{uci: uci, san: san} end)
+      |> add_move_labels(context)
+
+    score = eval_label(%{eval_cp: cached.eval_cp, mate_in: cached.mate})
+
+    %{
+      fen: current_fen(socket),
+      eval_cp: cached.eval_cp,
+      mate_in: cached.mate,
+      depth: cached.depth,
+      nodes: cached.nodes,
+      nps: nil,
+      pv: [%{multipv: 1, score: score, moves: moves}]
+    }
+  end
+
+  # Fills the evaluation graph from the cache for every mainline position.
+  defp merge_cached_graph_evals(socket) do
+    case mainline_position_ids(socket) do
+      [] ->
+        socket
+
+      ids ->
+        cached = PositionEvals.get_many(ids, @engine_id)
+
+        evals =
+          Map.new(cached, fn {id, eval} ->
+            {id,
+             %{
+               cp: eval.eval_cp,
+               mate: eval.mate,
+               label: eval_label(%{eval_cp: eval.eval_cp, mate_in: eval.mate})
+             }}
+          end)
+
+        assign(socket, :engine_evals, Map.merge(evals, socket.assigns.engine_evals))
+    end
+  end
+
+  defp mainline_position_ids(socket) do
+    case socket.assigns.analysis do
+      %AnalysisModel{} = analysis ->
+        for ply <- 0..socket.assigns.mainline_length,
+            node = AnalysisModel.node_at(analysis, List.duplicate(0, ply)),
+            not is_nil(node) do
+          Node.position_id(node)
+        end
+
+      _ ->
+        []
+    end
+  end
+
+  # Persists a completed search; deepest-wins upsert keeps the best result.
+  defp persist_engine_eval(socket, preview, lines) do
+    case socket.assigns.current_node do
+      %Node{} = node ->
+        first_pv = lines |> List.first() |> then(&(&1 && &1["pv"]))
+
+        PositionEvals.put(Node.position_id(node), @engine_id, %{
+          depth: preview.depth,
+          eval_cp: preview.eval_cp,
+          mate: preview.mate_in,
+          best_move: first_pv && first_pv |> String.split(" ") |> List.first(),
+          pv: first_pv,
+          nodes: preview.nodes
+        })
+
+      _ ->
+        :ok
+    end
+  end
 
   # Marks only color the graph once the review classified them.
   defp review_marks(%{status: :done, marks: marks}), do: marks

@@ -34,6 +34,20 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, gecommit en gepusht; deploy volgt door gebruiker:** `Persist engine evaluations per
+  canonical position`, bovenop `abf39ad`. Nieuwe tabel `position_evals` (migratie
+  `20261015140000`, pk position_id+engine, FK cascade) + `Analysis.PositionEvals` (get,
+  get_many, deepest-wins upsert). Toggle aan: cachehit vult paneel + balk + arrow + grafiek
+  direct; de hook slaat de worker over zolang de cachede diepte ≥ de gevraagde diepte is
+  (dieper instellen herstart gewoon). Persist op `bestmove` (hook markeert final; een pending
+  throttle-flush wordt dan eerst afgebroken) en per review-positie op diepte 12. Evals zijn
+  wit-relatief opgeslagen, engine-geversioneerd, volgen transposities via canonieke ids.
+  engineNote-tekst geeft nu eerlijk aan dat resultaten gedeeld worden. Volledig serieel:
+  analysis **626**, web **228**, chess onveranderd groen; root-compile --warnings-as-errors
+  (per-app compile in apps/web waarschuwt vals-positief op sibling-volgorde; root is canoniek).
+  Browsertest: eerste compute diepte 14, daarna toggle uit/aan → eval in 824 ms zonder
+  laadstatus, data-cached-depth=14.
+
 - **Afgerond, gecommit, gepusht en door gebruiker gedeployed (bevestigd 2026-10-15):**
   `Add structural position search modes to game search` (+ architectuur-notitie `a0ac76d`),
   bovenop `3427bdf`. De position-mode-selectie is terug, nu echt: exacte

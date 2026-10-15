@@ -400,7 +400,7 @@
   "room.markBlunder": "Blunder",
   "room.markMistake": "Fout",
   "room.markInaccuracy": "Onauwkeurigheid",
-  "room.engineNote": "Stockfish 19 draait lokaal in je browser (WASM); stellingen verlaten je apparaat nooit.",
+  "room.engineNote": "Stockfish 19 draait lokaal in je browser (WASM); afgeronde evaluaties worden per stelling gecachet en gedeeld.",
   "room.engineSettingsNote": "Diepte en lijnen gelden voor de lokale engine en blijven in deze sessie.",
   "room.engineLocal": "Stockfish 19 (lokaal)",
   "room.engineLoading": "De lokale engine start…",

@@ -1103,6 +1103,95 @@ defmodule Web.RoomLiveTest do
     assert html =~ "0 inaccuracies"
   end
 
+  test "a cached evaluation fills the panel instantly, no local compute needed", %{
+    conn: conn,
+    code: code
+  } do
+    position_id = PositionStore.append(Position.starting_position())
+    # Other tests share the canonical start position; start from a clean row.
+    Repo.query!("DELETE FROM position_evals WHERE position_id = $1", [position_id])
+
+    :ok =
+      Analysis.PositionEvals.put(position_id, "stockfish-19-lite-single", %{
+        depth: 20,
+        eval_cp: 42,
+        mate: nil,
+        best_move: "e2e4",
+        pv: "e2e4 e7e5",
+        nodes: 999_999
+      })
+
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    render_click(view, "create-analysis", %{})
+
+    html = render_click(view, "toggle-engine", %{})
+
+    # No engine-update round trip: the panel and bar come from the cache.
+    assert html =~ "+0.42"
+    assert html =~ "999999"
+    assert html =~ "data-cached-depth=\"20\""
+    assert html =~ "data-eval-bar"
+
+    # A shallower cached result does not cover the requested depth. (The
+    # deepest-wins upsert refuses to downgrade, so clear the row first.)
+    Repo.query!("DELETE FROM position_evals WHERE position_id = $1", [position_id])
+
+    :ok =
+      Analysis.PositionEvals.put(position_id, "stockfish-19-lite-single", %{
+        depth: 12,
+        eval_cp: 10
+      })
+
+    # The room now has an analysis, so a fresh visit redirects to it.
+    analysis_id = room_analysis_id!(code)
+    {:ok, view2, _html} = live(build_conn(), "/rooms/#{code}?a=#{analysis_id}")
+
+    # Default depth is 20; the depth-12 cache must not masquerade as coverage.
+    assert render_click(view2, "toggle-engine", %{}) =~ "Starting the local engine"
+
+    Repo.query!("DELETE FROM position_evals WHERE position_id = $1", [position_id])
+  end
+
+  test "a finished search persists the evaluation for the whole corpus", %{
+    conn: conn,
+    code: code
+  } do
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    render_click(view, "create-analysis", %{})
+    render_click(view, "toggle-engine", %{})
+
+    position_id = PositionStore.append(Position.starting_position())
+    # The canonical start position is shared; start from a clean cache row.
+    Repo.query!("DELETE FROM position_evals WHERE position_id = $1", [position_id])
+
+    # Intermediate updates never persist.
+    render_click(view, "engine-update", %{
+      "fen" => "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "depth" => 8,
+      "nodes" => 1,
+      "nps" => 1,
+      "lines" => [%{"multipv" => 1, "score_cp" => 20, "pv" => "e2e4"}]
+    })
+
+    assert :not_found = Analysis.PositionEvals.get(position_id, "stockfish-19-lite-single")
+
+    render_click(view, "engine-update", %{
+      "fen" => "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "depth" => 20,
+      "nodes" => 612_345,
+      "nps" => 1,
+      "final" => true,
+      "lines" => [%{"multipv" => 1, "score_cp" => 34, "pv" => "e2e4 e7e5"}]
+    })
+
+    assert {:ok, cached} = Analysis.PositionEvals.get(position_id, "stockfish-19-lite-single")
+    assert cached.depth == 20
+    assert cached.eval_cp == 34
+    assert cached.best_move == "e2e4"
+
+    Repo.query!("DELETE FROM position_evals WHERE position_id = $1", [position_id])
+  end
+
   test "engine errors surface honestly and switch the engine off", %{conn: conn, code: code} do
     {:ok, view, _html} = live(conn, "/rooms/#{code}")
     render_click(view, "create-analysis", %{})
