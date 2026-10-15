@@ -73,14 +73,18 @@ defmodule Web.AuthControlsTest do
     end
   end
 
-  test "the account menu shows the stable identity badge and name", %{
-    session: session,
-    user: user
+  test "the account menu shows the session identity badge and name", %{
+    session: session
   } do
-    conn = Plug.Test.init_test_session(build_conn(), %{user_token: session.token})
-    {:ok, view, _html} = live(conn, "/")
+    # The first visit assigns a session name; the account menu shows it.
+    conn =
+      build_conn()
+      |> Plug.Test.init_test_session(%{user_token: session.token})
+      |> get("/")
 
-    name = Web.DisplayName.for_user(user.id)
+    name = get_session(conn, :display_name)
+
+    {:ok, view, _html} = live(recycle(conn), "/")
 
     # The button is the initials badge with the name's deterministic color.
     assert has_element?(view, "#account-badge", Web.DisplayName.initials(name))

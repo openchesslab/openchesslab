@@ -3,10 +3,10 @@ defmodule Web.DisplayName do
   Server-generated display names, such as "Brave Otter 42".
 
   Curated English words avoid accepting profile data or user-entered names.
-  Room labels are ephemeral (`generate/0`) and neither unique identifiers nor
-  proof of authentication. `for_user/1` derives a stable label per internal
-  user id — the account identity shown in the account menu — and
-  `name_color/1` gives each label a deterministic, theme-adaptive badge color.
+  A name is generated once per browser session (`Web.SessionName`) and is the
+  single identity in presence, chat and the account menu; it is neither a
+  unique identifier nor proof of authentication. `name_color/1` gives each
+  label a deterministic, theme-adaptive badge color.
   """
 
   @adjectives ~w(Brave Calm Clever Daring Elegant Fierce Gentle Happy Jolly Keen
@@ -18,29 +18,6 @@ defmodule Web.DisplayName do
   @spec generate() :: String.t()
   def generate do
     "#{Enum.random(@adjectives)} #{Enum.random(@animals)} #{Enum.random(10..99)}"
-  end
-
-  @doc """
-  The stable account label for a user: the same user id always derives the
-  same name. Deterministic from the internal id — no profile data involved.
-  """
-  @spec for_user(String.t()) :: String.t()
-  def for_user(user_id) when is_binary(user_id) do
-    name_from(:crypto.hash(:sha256, "display-name:" <> user_id))
-  end
-
-  @doc """
-  The stable room label for a user: the same user always gets the same name
-  in the same room, but a different name in every other room — presence
-  stays per-room pseudonymous and is not linkable across rooms.
-  """
-  @spec for_room(String.t(), String.t()) :: String.t()
-  def for_room(user_id, room_code) when is_binary(user_id) and is_binary(room_code) do
-    name_from(:crypto.hash(:sha256, "display-name:" <> room_code <> ":" <> user_id))
-  end
-
-  defp name_from(<<a, b, n, _rest::binary>>) do
-    "#{Enum.at(@adjectives, rem(a, length(@adjectives)))} #{Enum.at(@animals, rem(b, length(@animals)))} #{rem(n, 90) + 10}"
   end
 
   @doc "Two-letter uppercase initials for a display name, e.g. \"Wise Otter 42\" → \"WO\"."

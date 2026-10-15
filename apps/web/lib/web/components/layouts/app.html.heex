@@ -168,7 +168,7 @@
           title={Web.I18n.t("auth.account", @locale)}
         >
           <%= if @current_user do %>
-            <% account_name = Web.DisplayName.for_user(@current_user.id) %>
+            <% account_name = @session_name %>
             <span
               id="account-badge"
               class="grid h-6 w-6 place-items-center rounded-full text-[.6rem] font-bold text-white"
@@ -185,7 +185,7 @@
             id="account-identity"
             class="mb-1 flex items-center gap-2 border-b border-border pb-2"
           >
-            <% account_name = Web.DisplayName.for_user(@current_user.id) %>
+            <% account_name = @session_name %>
             <span
               class="grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-bold text-white"
               style={"background-color: " <> Web.DisplayName.name_color(account_name)}

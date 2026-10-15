@@ -63,6 +63,7 @@ defmodule Web.UserAuth do
     socket =
       socket
       |> assign(:current_user, resolve(token))
+      |> assign(:session_name, session["display_name"])
       |> assign(:login_enabled, not is_nil(Application.get_env(:web, :lichess_oauth)))
       |> assign(:google_login_enabled, not is_nil(Application.get_env(:web, :google_oauth)))
       |> attach_hook(:refresh_authentication, :handle_event, fn _event, _params, socket ->

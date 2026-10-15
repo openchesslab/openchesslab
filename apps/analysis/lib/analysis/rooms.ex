@@ -73,13 +73,6 @@ defmodule Analysis.Rooms do
         ]
   def members(room_id), do: RoomStore.members(room_id)
 
-  @doc "This member's display name for private-room presence; guests never match."
-  @spec member_display_name(Room.id(), String.t() | nil) :: {:ok, String.t()} | :not_found
-  def member_display_name(room_id, user_id) when is_binary(user_id),
-    do: RoomStore.member_display_name(room_id, user_id)
-
-  def member_display_name(_room_id, _user_id), do: :not_found
-
   @doc """
   Remove one member of a private room; only the owner may remove, and the
   owner's own membership is immutable (ownership itself is never transferable

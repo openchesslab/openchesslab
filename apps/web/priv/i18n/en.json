@@ -73,7 +73,7 @@
   "auth.loginWithLichess": "Log in with Lichess",
   "auth.logout": "Log out",
   "auth.signedIn": "Signed in",
-  "auth.generatedNameHelp": "Your account label is generated and non-identifying — it is not linked to your login and never changes.",
+  "auth.generatedNameHelp": "Your label is generated and non-identifying — it is not linked to your login and lasts as long as this session.",
   "auth.loginFailed": "Lichess login failed. Please try again.",
   "theme.label": "Theme",
   "demo.label": "DEMO",

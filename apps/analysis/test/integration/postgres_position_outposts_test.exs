@@ -81,8 +81,8 @@ defmodule Analysis.PostgresPositionOutpostsTest do
     # the white semi-open-file condition (the e-file becomes open).
     no_semi_open = white_outpost_position()
 
-    # Keeping the pawns but replacing the knight removes the outpost.
-    no_outpost = place(source, "e5", {:white, :bishop})
+    # A black f-pawn attacks e5, so the square is no hole and no outpost.
+    no_outpost = place(source, "f6", {:black, :pawn})
 
     source_id = PositionStore.append(source)
     rook_id = PositionStore.append(with_rook)

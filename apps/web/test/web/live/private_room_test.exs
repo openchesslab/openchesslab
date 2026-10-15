@@ -120,9 +120,9 @@ defmodule Web.PrivateRoomTest do
     assert redirected_to(conn) == "/rooms/#{ctx.code}"
     assert Rooms.member?(ctx.code, ctx.other.id)
 
-    # Joining stores the stable per-room label as the member name.
-    assert {:ok, member_name} = Rooms.member_display_name(ctx.code, ctx.other.id)
-    assert member_name == Web.DisplayName.for_room(ctx.other.id, ctx.code)
+    # Joining stores a generated per-membership label.
+    [joined] = Enum.filter(Rooms.members(ctx.code), &(&1.user_id == ctx.other.id))
+    assert joined.display_name =~ ~r/^\S+ \S+ \d{2}$/
 
     {:ok, view, html} =
       live(authenticated(ctx.other_session.token), "/rooms/#{ctx.code}?a=#{ctx.analysis_id}")

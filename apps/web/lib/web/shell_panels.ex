@@ -157,7 +157,7 @@ defmodule Web.ShellPanels do
 
   defp open_room(user_id, id, attempts) do
     code = Base.encode16(:crypto.strong_rand_bytes(6))
-    name = Web.DisplayName.for_room(user_id, code)
+    name = Web.DisplayName.generate()
 
     case UserLibrary.open_room(user_id, id, code, name) do
       {:error, :already_exists} -> open_room(user_id, id, attempts - 1)

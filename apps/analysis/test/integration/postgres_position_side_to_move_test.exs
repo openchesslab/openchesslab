@@ -68,7 +68,8 @@ defmodule Analysis.PostgresPositionSideToMoveTest do
     with_rook = place(source, "a1", {:white, :rook})
     with_bishop = place(source, "c1", {:white, :bishop})
     black_to_move = %{source | side_to_move: :black}
-    no_outpost = place(source, "e5", {:white, :bishop})
+    # A black f-pawn attacks e5, so the square is no hole and no outpost.
+    no_outpost = place(source, "f6", {:black, :pawn})
 
     source_id = PositionStore.append(source)
     rook_id = PositionStore.append(with_rook)

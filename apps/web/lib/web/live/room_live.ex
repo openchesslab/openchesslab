@@ -103,7 +103,7 @@ defmodule Web.RoomLive do
       board_shapes: [],
       participants: %{},
       participant_id: participant_id(),
-      display_name: display_name_for(socket.assigns.current_user, code),
+      display_name: socket.assigns.session_name || DisplayName.generate(),
       joined_at: System.system_time(:second),
       chat_messages: [],
       chat_error: nil,
@@ -160,17 +160,6 @@ defmodule Web.RoomLive do
           {:ok, gate_socket(socket, base_assigns, code)}
         else
           chat_messages = room_chat(code)
-
-          # In a private room every viewer is a member: presence uses the
-          # stored member label, so the sidebar matches the member list.
-          base_assigns =
-            case Rooms.member_display_name(
-                   code,
-                   socket.assigns.current_user && socket.assigns.current_user.id
-                 ) do
-              {:ok, member_name} -> %{base_assigns | display_name: member_name}
-              :not_found -> base_assigns
-            end
 
           socket =
             socket
@@ -2655,12 +2644,6 @@ defmodule Web.RoomLive do
   end
 
   defdelegate initials(name), to: DisplayName
-
-  # Signed-in users get a stable per-room label in presence (the same name on
-  # every visit to this room, a different name in other rooms); guests get an
-  # ephemeral random one.
-  defp display_name_for(nil, _code), do: DisplayName.generate()
-  defp display_name_for(%{id: user_id}, code), do: DisplayName.for_room(user_id, code)
 
   defp analysis_viewers(analysis_id, participants, participant_id) do
     Enum.count(participants, fn {id, meta} ->

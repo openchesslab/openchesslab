@@ -34,6 +34,21 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Give every browser session one
+  display name`, bovenop `ccf6952`. Productbeslissing 2026-10-16: meerdere identiteiten
+  (accountlabel vs. kamerlabel) verwarren; de stabiele accountidentiteit verdwijnt. Nu: een
+  nieuwe `Web.SessionName`-plug genereert bij het eerste bezoek een naam in de sessie —
+  die naam geldt voor gast én ingelogde gebruiker, in presence, chat en het accountmenu
+  (badge + dropdown + helptekst aangepast). `DisplayName.for_user/1` en `for_room/2` zijn weg;
+  lidmaatschapslabels in private kamers zijn weer per-lidmaatschap willekeurig (duurzaam
+  beheerlabel, bewust géén accountidentiteit) en presence gebruikt overal de sessienaam
+  (de member-override en `Rooms.member_display_name/2` zijn verwijderd). De identiteit leeft
+  in de sessie, niets nieuws in de DB. Meer ontwerp volgt in een later stadium. Serieel:
+  analysis **634**, web **243**, chess **591**; formatter, assetbuild, diffcontrole.
+  Browsertest: accountbadge == presencebadge ("Kind Gecko 59"), stabiel over reloads, ook voor
+  gasten. NB: de outpost-fixtures in de analysis-integratietests zijn aangepast aan de
+  gecorrigeerde outpostdefinitie (SQL-extractie deelt `PositionProperties.outposts/1`).
+
 - **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
   `Make room names per-room pseudonyms for signed-in users` (`de1df1a`), bovenop `b4b3626`. Privacy-beslissing 2026-10-16: het
   stabiele accountlabel in elke kamer tonen maakt gebruikers kamer-overstijgend herkenbaar.

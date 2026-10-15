@@ -27,7 +27,7 @@ defmodule Web.RoomLiveTest do
     {:ok, code: code}
   end
 
-  test "a signed-in user's room presence uses their stable per-room label", %{
+  test "a signed-in user's room presence uses the session name", %{
     conn: conn,
     code: code
   } do
@@ -35,10 +35,18 @@ defmodule Web.RoomLiveTest do
     {:ok, session} = UserSessions.create(user.id)
     on_exit(fn -> Users.delete(user.id) end)
 
-    conn = Plug.Test.init_test_session(conn, %{user_token: session.token})
-    {:ok, _view, html} = live(conn, "/rooms/#{code}")
+    conn =
+      conn
+      |> Plug.Test.init_test_session(%{user_token: session.token})
+      |> get("/")
 
-    assert html =~ Web.DisplayName.for_room(user.id, code)
+    name = get_session(conn, :display_name)
+
+    {:ok, view, _html} = live(recycle(conn), "/rooms/#{code}")
+
+    # The one identity: presence badge and account badge agree.
+    assert has_element?(view, "[title='#{name}']")
+    assert has_element?(view, "#account-badge[title='#{name}']")
   end
 
   test "renders an empty room and starts an analysis", %{conn: conn, code: code} do

@@ -61,6 +61,7 @@ defmodule Web.LichessCallbackTest do
 
     assert Enum.sort(Map.keys(get_session(browser))) == [
              "_csrf_token",
+             "display_name",
              "live_socket_id",
              "localize_locale",
              "ui_theme",

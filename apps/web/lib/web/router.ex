@@ -9,6 +9,7 @@ defmodule Web.Router do
   pipeline :browser do
     plug(:accepts, ["html"])
     plug(:fetch_session)
+    plug(Web.SessionName)
     plug(Web.UserAuth)
     plug(Web.BrowserPreferences)
 

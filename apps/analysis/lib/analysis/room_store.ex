@@ -192,27 +192,6 @@ defmodule Analysis.RoomStore do
     end)
   end
 
-  @member_name_of_sql """
-  SELECT display_name
-  FROM room_members
-  WHERE room_id = $1 AND user_id = $2
-  """
-
-  @doc "This member's display name; `:not_found` for non-members and guests."
-  @spec member_display_name(String.t(), String.t()) :: {:ok, String.t()} | :not_found
-  def member_display_name(room_id, user_id) when is_binary(room_id) do
-    case Ecto.UUID.dump(user_id) do
-      {:ok, db_user} ->
-        case Repo.query!(@member_name_of_sql, [room_id, db_user], log: false).rows do
-          [[display_name]] -> {:ok, display_name}
-          [] -> :not_found
-        end
-
-      _ ->
-        :not_found
-    end
-  end
-
   @remove_member_sql """
   DELETE FROM room_members
   WHERE room_id = $1 AND user_id = $2
