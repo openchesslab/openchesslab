@@ -34,8 +34,9 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond, gecommit en gepusht; deploy volgt door gebruiker:** `Add structural position search
-  modes to game search`, bovenop `3427bdf`. De position-mode-selectie is terug, nu echt: exacte
+- **Afgerond, gecommit, gepusht en door gebruiker gedeployed (bevestigd 2026-10-15):**
+  `Add structural position search modes to game search` (+ architectuur-notitie `a0ac76d`),
+  bovenop `3427bdf`. De position-mode-selectie is terug, nu echt: exacte
   stelling (`equivalent/1`), zelfde pionnenstructuur (`pawn_structure/1`), of elke symmetrie
   (`pawn_structure_symmetries/1` — exact + kleurverwisseling + lijnspiegeling + combinatie).
   Alleen zichtbaar zodra er een FEN staat. Web-test met een extra transpositie-partij bewijst de
