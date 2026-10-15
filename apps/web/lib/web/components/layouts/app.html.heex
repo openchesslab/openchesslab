@@ -307,7 +307,7 @@
     class="fixed inset-0 z-[60] grid place-items-center bg-transparent p-4 backdrop-blur-xs backdrop-saturate-[.9]"
   >
     <section
-      class="max-h-[90dvh] w-full max-w-xl overflow-auto rounded-xl border border-border-strong bg-panel p-5 shadow-2xl"
+      class="max-h-[90dvh] w-full max-w-2xl overflow-auto rounded-xl border border-border-strong bg-panel p-5 shadow-2xl"
       role="dialog"
       aria-modal="true"
       aria-labelledby="shortcuts-title"
@@ -333,47 +333,27 @@
           </h3>
 
           <dl class="space-y-2 text-sm">
-            <div class="flex justify-between gap-4">
-              <dt>{Web.I18n.t("shortcuts.firstLast", @locale)}</dt><dd class="m-0 font-mono text-muted">
-                Home / End
-              </dd>
-            </div>
-
-            <div class="flex justify-between gap-4">
-              <dt>{Web.I18n.t("shortcuts.previousNext", @locale)}</dt><dd class="m-0 font-mono text-muted">
-                ← / →
-              </dd>
-            </div>
-
-            <div class="flex justify-between gap-4">
-              <dt>{Web.I18n.t("shortcuts.flip", @locale)}</dt><dd class="m-0 font-mono text-muted">
-                F
-              </dd>
-            </div>
-
-            <div class="flex justify-between gap-4">
-              <dt>{Web.I18n.t("shortcuts.focusBoard", @locale)}</dt><dd class="m-0 font-mono text-muted">
-                B
-              </dd>
-            </div>
-
-            <div class="flex justify-between gap-4">
-              <dt>{Web.I18n.t("shortcuts.focusMoveTree", @locale)}</dt><dd class="m-0 font-mono text-muted">
-                M
-              </dd>
-            </div>
-
-            <div class="flex justify-between gap-4">
-              <dt>{Web.I18n.t("shortcuts.helpRow", @locale)}</dt><dd class="m-0 font-mono text-muted">
-                ?
-              </dd>
-            </div>
-
-            <div class="flex justify-between gap-4">
-              <dt>{Web.I18n.t("shortcuts.escRow", @locale)}</dt><dd class="m-0 font-mono text-muted">
-                Esc
-              </dd>
-            </div>
+            <.shortcut_row label={Web.I18n.t("shortcuts.firstLast", @locale)}>
+              <kbd>Home</kbd> / <kbd>End</kbd>
+            </.shortcut_row>
+            <.shortcut_row label={Web.I18n.t("shortcuts.previousNext", @locale)}>
+              <kbd>←</kbd> / <kbd>→</kbd>
+            </.shortcut_row>
+            <.shortcut_row label={Web.I18n.t("shortcuts.flip", @locale)}>
+              <kbd>F</kbd>
+            </.shortcut_row>
+            <.shortcut_row label={Web.I18n.t("shortcuts.focusBoard", @locale)}>
+              <kbd>B</kbd>
+            </.shortcut_row>
+            <.shortcut_row label={Web.I18n.t("shortcuts.focusMoveTree", @locale)}>
+              <kbd>M</kbd>
+            </.shortcut_row>
+            <.shortcut_row label={Web.I18n.t("shortcuts.helpRow", @locale)}>
+              <kbd>?</kbd>
+            </.shortcut_row>
+            <.shortcut_row label={Web.I18n.t("shortcuts.escRow", @locale)}>
+              <kbd>Esc</kbd>
+            </.shortcut_row>
           </dl>
         </section>
 
@@ -383,47 +363,27 @@
           </h3>
 
           <dl class="space-y-2 text-sm">
-            <div class="flex justify-between gap-4">
-              <dt>{Web.I18n.t("shortcuts.boardCursor", @locale)}</dt><dd class="m-0 font-mono text-muted">
-                ← ↑ → ↓
-              </dd>
-            </div>
-
-            <div class="flex justify-between gap-4">
-              <dt>{Web.I18n.t("shortcuts.previousNext", @locale)}</dt><dd class="m-0 font-mono text-muted">
-                Shift + ← / →
-              </dd>
-            </div>
-
-            <div class="flex justify-between gap-4">
-              <dt>{Web.I18n.t("shortcuts.boardSelect", @locale)}</dt><dd class="m-0 font-mono text-muted">
-                Enter
-              </dd>
-            </div>
-
-            <div class="flex justify-between gap-4">
-              <dt>{Web.I18n.t("shortcuts.boardHighlight", @locale)}</dt><dd class="m-0 font-mono text-muted">
-                H
-              </dd>
-            </div>
-
-            <div class="flex justify-between gap-4">
-              <dt>{Web.I18n.t("shortcuts.boardArrow", @locale)}</dt><dd class="m-0 font-mono text-muted">
-                A
-              </dd>
-            </div>
-
-            <div class="flex justify-between gap-4">
-              <dt>{Web.I18n.t("shortcuts.boardCancel", @locale)}</dt><dd class="m-0 font-mono text-muted">
-                Esc
-              </dd>
-            </div>
-
-            <div class="flex justify-between gap-4">
-              <dt>{Web.I18n.t("shortcuts.boardColor", @locale)}</dt><dd class="m-0 font-mono text-muted">
-                1–5
-              </dd>
-            </div>
+            <.shortcut_row label={Web.I18n.t("shortcuts.boardCursor", @locale)}>
+              <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd>
+            </.shortcut_row>
+            <.shortcut_row label={Web.I18n.t("shortcuts.previousNext", @locale)}>
+              <kbd>Shift</kbd> + <kbd>←</kbd> / <kbd>→</kbd>
+            </.shortcut_row>
+            <.shortcut_row label={Web.I18n.t("shortcuts.boardSelect", @locale)}>
+              <kbd>Enter</kbd>
+            </.shortcut_row>
+            <.shortcut_row label={Web.I18n.t("shortcuts.boardHighlight", @locale)}>
+              <kbd>H</kbd>
+            </.shortcut_row>
+            <.shortcut_row label={Web.I18n.t("shortcuts.boardArrow", @locale)}>
+              <kbd>A</kbd>
+            </.shortcut_row>
+            <.shortcut_row label={Web.I18n.t("shortcuts.boardCancel", @locale)}>
+              <kbd>Esc</kbd>
+            </.shortcut_row>
+            <.shortcut_row label={Web.I18n.t("shortcuts.boardColor", @locale)}>
+              <kbd>1</kbd>–<kbd>5</kbd>
+            </.shortcut_row>
           </dl>
         </section>
       </div>

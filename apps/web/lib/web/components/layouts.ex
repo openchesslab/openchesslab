@@ -28,6 +28,22 @@ defmodule Web.Layouts do
   def tour_steps_count, do: length(@tour_steps)
   def tour_step(index), do: Enum.at(@tour_steps, max(index - 1, 0), hd(@tour_steps))
 
+  # One keyboard-shortcut row: the action on the left, its keys on the right.
+  # Keys are <kbd> elements (the semantic element for user input); the key cell
+  # never wraps so a combination always stays on one line.
+  attr :label, :string, required: true
+  slot :inner_block, required: true
+
+  defp shortcut_row(assigns) do
+    ~H"""
+    <div class="flex justify-between gap-4">
+      <dt>{@label}</dt><dd class="m-0 shrink-0 whitespace-nowrap font-mono text-muted">
+        {render_slot(@inner_block)}
+      </dd>
+    </div>
+    """
+  end
+
   def next_theme("system"), do: "light"
   def next_theme("light"), do: "dark"
   def next_theme("dark"), do: "system"

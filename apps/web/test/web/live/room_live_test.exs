@@ -1636,6 +1636,10 @@ defmodule Web.RoomLiveTest do
     assert html =~ "Start and finish an arrow"
     assert html =~ "Cancel the draft"
     assert html =~ "Previous / next move"
+    # Keys are semantic <kbd> elements in non-wrapping cells.
+    assert html =~ ~r/<kbd[^>]*>Shift<\/kbd> \+ <kbd[^>]*>←<\/kbd> \/ <kbd[^>]*>→<\/kbd>/
+    assert html =~ ~r/<kbd[^>]*>Home<\/kbd> \/ <kbd[^>]*>End<\/kbd>/
+    assert html =~ "whitespace-nowrap"
   end
 
   test "notices expire without clearing newer ones", %{conn: conn, code: code} do
