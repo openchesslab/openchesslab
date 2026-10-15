@@ -34,6 +34,15 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Swallow board shortcuts while a
+  dialog is open`, bovenop `8dbb337`. Bugrapport 2026-10-15: met de sneltoetsenpopup open
+  lekten toetsen naar de app eronder (F draaide het bord, pijlen stapten door de partij).
+  Beide keydown-handlers (AppUI op document, Board op het bord) stoppen nu zodra er een
+  `[aria-modal='true']` in de DOM staat; Escape blijft de dialoog sluiten en de rondleiding
+  behoudt zijn pijltjesnavigatie. Serieel: web **239**, formatter, assetbuild, diffcontrole.
+  Browsertest: F/pijlen dood onder de popup, na Escape werkt F weer; tourpijlen en Escape
+  ongewijzigd.
+
 - **Afgerond; deploy door mij (deployvrijheid gegeven):** `Style shortcut keys as physical
   keycaps`, bovenop `c1d5752`. UX-verzoek 2026-10-15: `<kbd>`-toetsen moeten eruitzien als
   fysieke toetsen. Eén globale `kbd`-regel in `@layer base` (app.css): verhoogd vlak

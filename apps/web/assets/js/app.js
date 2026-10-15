@@ -167,6 +167,10 @@ const Board = {
     };
 
     this.keyDown = (event) => {
+      // An open dialog owns the keyboard; the key still bubbles to the
+      // document handler, which closes the dialog on Escape.
+      if (document.querySelector("[aria-modal='true']")) return;
+
       if (event.key === "Escape") {
         if (this.arrowStart !== null || this.drawing) {
           this.cancelArrow();
@@ -1247,13 +1251,17 @@ const AppUI = {
 
       if (typing || event.metaKey || event.ctrlKey || event.altKey) return;
 
-      if (document.querySelector("[data-tour-dialog]")) {
-        if (event.key === "ArrowLeft") {
-          event.preventDefault();
-          this.pushEvent("tour-back", {});
-        } else if (event.key === "ArrowRight") {
-          event.preventDefault();
-          this.pushEvent("tour-next", {});
+      // An open dialog owns the keyboard: the guided tour keeps its arrow
+      // navigation, everything else is swallowed (Escape still closes it).
+      if (document.querySelector("[aria-modal='true']")) {
+        if (document.querySelector("[data-tour-dialog]")) {
+          if (event.key === "ArrowLeft") {
+            event.preventDefault();
+            this.pushEvent("tour-back", {});
+          } else if (event.key === "ArrowRight") {
+            event.preventDefault();
+            this.pushEvent("tour-next", {});
+          }
         }
         return;
       }
