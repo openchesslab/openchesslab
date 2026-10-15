@@ -9,6 +9,7 @@ defmodule Web.RoomLive do
   alias Analysis.GameRecordQuery
   alias Analysis.GameSearch
   alias Analysis.Node
+  alias Analysis.OpeningBook
   alias Analysis.PgnAnalysisImporter
   alias Analysis.PositionEvals
   alias Analysis.RoomChat
@@ -143,6 +144,9 @@ defmodule Web.RoomLive do
       engine_pv_cache: %{},
       engine_cached: nil,
       engine_review: nil,
+      engine_tab: "engine",
+      book_moves: [],
+      book_opening: nil,
       engine_settings_open: false,
       engine_settings: %{depth: 20, multipv: 3}
     }
@@ -1133,6 +1137,28 @@ defmodule Web.RoomLive do
   def handle_event("engine-peek-clear", _params, socket),
     do: {:noreply, assign(socket, :engine_peek, nil)}
 
+  # The engine column's source tabs: Engine is the local Stockfish panel,
+  # Book is the corpus opening book with ECO classification.
+  def handle_event("select-engine-tab", %{"tab" => tab}, socket)
+      when tab in ["engine", "book"] do
+    {:noreply, socket |> assign(:engine_tab, tab) |> maybe_load_book()}
+  end
+
+  # Plays a book move into the analysis, like playing it on the board.
+  def handle_event("book-play-move", %{"uci" => uci}, socket) do
+    with {:ok, move} <- UCI.parse_move(socket.assigns.position, uci),
+         {:ok, analysis, revision, path} <-
+           Analyses.play(
+             socket.assigns.selected_analysis_id,
+             socket.assigns.current_path,
+             move
+           ) do
+      {:noreply, update_analysis(socket, analysis, revision, path)}
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
   # A review walks the mainline of the current analysis: the local worker
   # evaluates every position at a fixed depth, one at a time, and the results
   # classify big eval swings. The panel's data attributes drive the hook;
@@ -1214,9 +1240,6 @@ defmodule Web.RoomLive do
         {:noreply, socket}
     end
   end
-
-  defp check_review_revision(revision, revision), do: :ok
-  defp check_review_revision(_review_revision, _analysis_revision), do: :cancelled
 
   def handle_event("engine-error", _params, socket) do
     socket =
@@ -1692,6 +1715,7 @@ defmodule Web.RoomLive do
           pending_promotion: nil
         )
         |> refresh_engine_position()
+        |> maybe_load_book()
         |> refresh_presence()
 
       :not_found ->
@@ -3196,6 +3220,15 @@ defmodule Web.RoomLive do
     marks |> Map.values() |> Enum.count(&(&1.mark == mark))
   end
 
+  defp check_review_revision(revision, revision), do: :ok
+  defp check_review_revision(_review_revision, _analysis_revision), do: :cancelled
+
+  # A book move's W/D/L segment width as a share of its recorded results.
+  defp book_share(count, move) do
+    total = move.white + move.draws + move.black
+    if total > 0, do: Float.round(count / total * 100, 1), else: 0.0
+  end
+
   @review_clamp_cp 1000
 
   # Win% from a white-relative eval, the logistic curve lichess fits to real
@@ -3277,6 +3310,32 @@ defmodule Web.RoomLive do
 
   # Reads the durable cache for the position on the board; only a cached
   # result at least as deep as requested counts as coverage.
+  # The book tab reloads when the position changes while it is visible.
+  defp maybe_load_book(socket) do
+    if socket.assigns.engine_tab == "book" and not is_nil(socket.assigns.position) do
+      load_book(socket)
+    else
+      socket
+    end
+  end
+
+  defp load_book(socket) do
+    opening =
+      case OpeningBook.classify_line(socket.assigns.analysis, socket.assigns.current_path) do
+        {:ok, classification} -> classification
+        :not_found -> nil
+      end
+
+    moves =
+      OpeningBook.moves(
+        socket.assigns.position,
+        Node.position_id(socket.assigns.current_node),
+        limit: 12
+      )
+
+    assign(socket, book_opening: opening, book_moves: moves)
+  end
+
   # A cached evaluation covers the request only when it is at least as deep
   # AND computed with at least as many lines — a cache row always carries
   # every line that was computed, so coverage is honest on both axes.

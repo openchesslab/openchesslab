@@ -34,6 +34,24 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond; deploy door mij (gebruiker gaf deployvrijheid vanaf 2026-10-15):** `Add the
+  opening book tab with ECO classification and corpus move stats`, bovenop `bbd542d`.
+  Engine-kolom krijgt tabs Engine|Book. Vendored CC0 lichess-org/chess-openings (TSV's onder
+  apps/database/priv/openings) → migratie `20261015170000` seedt `openings` (position_record,
+  eco, name) door elke PGN-lijn met onze eigen regels te replayen; `game_occurrences.move`
+  (migratie `20261015173000`) wordt bij import gevuld + `GameStore.backfill_occurrence_moves/0`
+  repareert oudere rijen. `Analysis.OpeningBook`: classify (exacte stelling), classify_line
+  (diepste match langs de lijn), moves (aantallen per zet + W/D/L per record + opening na de
+  zet). Tab toont de huidige opening en klikbare zetten met aantallen en W/D/L-balken; spelen
+  werkt via Analyses.play. Nieuw in chess: `Notation.UCI.format/1`. database-app dep op chess
+  toegevoegd (migratie-seed). Volledig serieel: chess **584**, analysis **633-634** (één run
+  raakte de bekende `:invalid_occurrences`-suiteflake — nu ook waargenomen in
+  PgnAnalysisImporterTest; gedocumenteerde backlog, mechanisme: concurrente import + truncate),
+  web **233**; formatter, root-compile --warnings-as-errors, assetbuild, diffcontrole geslaagd.
+  Browsertest: tab met e4/d4/Nf3 aantallen + openingsnamen, klik speelt, classificatie volgt
+  de lijn (King's Pawn Game B00 → C20). Na deploy: `fly ssh console -C 'eval
+  "Analysis.GameStore.backfill_occurrence_moves()"' -a openchesslab` uitvoeren.
+
 - **Afgerond en door mij gedeployed (gebruiker gaf deployvrijheid vanaf 2026-10-15);
   productie-stresstest geverifieerd:**
   `Speed up the move list and cancel reviews when the tree changes`, bovenop `117b32e`.

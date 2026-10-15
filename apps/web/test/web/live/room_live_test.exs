@@ -1372,6 +1372,38 @@ defmodule Web.RoomLiveTest do
     Repo.query!("DELETE FROM position_evals WHERE position_id = $1", [position_id])
   end
 
+  test "the book tab shows corpus moves with ECO classification and plays them", %{
+    conn: conn,
+    code: code
+  } do
+    corpus = seed_search_corpus()
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    render_click(view, "create-analysis", %{})
+
+    # The engine tab is the default; the book tab loads on selection.
+    assert has_element?(view, "#engine-tab-engine[aria-selected='true']")
+
+    html = render_click(view, "select-engine-tab", %{"tab" => "book"})
+
+    # The starting position is unnamed, but the corpus moves are there:
+    # 1.e4 in two games, 1.d4 and 1.Nf3 in one each.
+    refute has_element?(view, "#book-opening")
+
+    assert has_element?(view, "#book-moves button[phx-value-uci='e2e4']", "e4")
+    assert has_element?(view, "#book-moves button[phx-value-uci='d2d4']", "d4")
+    assert has_element?(view, "#book-moves button[phx-value-uci='g1f3']", "Nf3")
+
+    # Playing a book move plays it into the analysis.
+    html = render_click(view, "book-play-move", %{"uci" => "e2e4"})
+    assert has_element?(view, "#move-list button[data-move-path='0']", "e4")
+
+    # After 1.e4 the book names the King's Pawn Game and the tab follows the move.
+    assert has_element?(view, "#book-opening", "King's Pawn Game")
+    assert has_element?(view, "#book-opening", "B00")
+
+    cleanup_search_corpus(corpus)
+  end
+
   test "engine errors surface honestly and switch the engine off", %{conn: conn, code: code} do
     {:ok, view, _html} = live(conn, "/rooms/#{code}")
     render_click(view, "create-analysis", %{})

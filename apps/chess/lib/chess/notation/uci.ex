@@ -60,6 +60,20 @@ defmodule Chess.Notation.UCI do
     |> Enum.reverse()
   end
 
+  @doc "Formats a move in UCI coordinate notation, e.g. `e2e4` or `e7e8q`."
+  @spec format(Move.t()) :: String.t()
+  def format(%Move{from: from, to: to, promotion: promotion}) do
+    Square.to_algebraic(from) <>
+      Square.to_algebraic(to) <>
+      case promotion do
+        nil -> ""
+        :queen -> "q"
+        :rook -> "r"
+        :bishop -> "b"
+        :knight -> "n"
+      end
+  end
+
   defp parse_move(position, from, to, promotion) do
     with from_square when is_integer(from_square) <- Square.from_algebraic(from),
          to_square when is_integer(to_square) <- Square.from_algebraic(to) do

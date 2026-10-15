@@ -17,6 +17,7 @@ defmodule Analysis.GameStore do
   alias Analysis.GameFingerprint
   alias Analysis.GameOccurrence
   alias Analysis.PositionStore
+  alias Chess.Notation.UCI
   alias OpenChessLab.Repo
 
   @type game_id :: pos_integer()
@@ -47,15 +48,20 @@ defmodule Analysis.GameStore do
     INSERT INTO game_occurrences (
       game_id,
       ply,
-      position_id
+      position_id,
+      move
     )
     SELECT
       inserted_game.id,
       occurrence.ordinality - 1,
-      occurrence.position_id
+      occurrence.position_id,
+      move.move
     FROM inserted_game
     CROSS JOIN unnest($3::bigint[])
       WITH ORDINALITY AS occurrence(position_id, ordinality)
+    LEFT JOIN unnest($4::text[])
+      WITH ORDINALITY AS move(move, ordinality)
+      ON move.ordinality = occurrence.ordinality
     ORDER BY
       occurrence.ordinality
     RETURNING game_id
@@ -136,7 +142,8 @@ defmodule Analysis.GameStore do
           put_game(
             fingerprint,
             encoded_content,
-            position_ids
+            position_ids,
+            content |> GameContent.moves() |> Enum.map(&UCI.format/1)
           )
         end
       end)
@@ -145,6 +152,41 @@ defmodule Analysis.GameStore do
 
   def put(_fingerprint, _content, _position_ids) do
     {:error, :invalid_game_content}
+  end
+
+  @doc """
+  One-off backfill: fills `game_occurrences.move` for games stored before the
+  column existed, replaying each game's content. Idempotent and bounded by
+  the current corpus; returns how many occurrences were filled.
+  """
+  @spec backfill_occurrence_moves() :: {:ok, non_neg_integer()}
+  def backfill_occurrence_moves do
+    Repo.transaction(fn ->
+      "SELECT id, content FROM games ORDER BY id"
+      |> Repo.query!([], log: false)
+      |> Map.get(:rows)
+      |> Enum.reduce(0, fn [game_id, encoded], count ->
+        case GameContentCodec.decode(encoded) do
+          {:ok, content} ->
+            content
+            |> GameContent.moves()
+            |> Enum.map(&UCI.format/1)
+            |> Enum.with_index()
+            |> Enum.each(fn {move, ply} ->
+              Repo.query!(
+                "UPDATE game_occurrences SET move = $3 WHERE game_id = $1 AND ply = $2 AND move IS NULL",
+                [game_id, ply, move],
+                log: false
+              )
+            end)
+
+            count + length(GameContent.moves(content))
+
+          _ ->
+            count
+        end
+      end)
+    end)
   end
 
   @spec find(
@@ -346,7 +388,7 @@ defmodule Analysis.GameStore do
     false
   end
 
-  defp put_game(fingerprint, encoded_content, position_ids) do
+  defp put_game(fingerprint, encoded_content, position_ids, moves) do
     case find_record(
            fingerprint,
            encoded_content
@@ -358,7 +400,8 @@ defmodule Analysis.GameStore do
         insert_game(
           fingerprint,
           encoded_content,
-          position_ids
+          position_ids,
+          moves
         )
 
       {:error, _reason} = error ->
@@ -366,7 +409,7 @@ defmodule Analysis.GameStore do
     end
   end
 
-  defp insert_game(fingerprint, encoded_content, position_ids) do
+  defp insert_game(fingerprint, encoded_content, position_ids, moves) do
     expected_count =
       length(position_ids)
 
@@ -375,7 +418,8 @@ defmodule Analysis.GameStore do
            [
              fingerprint,
              encoded_content,
-             position_ids
+             position_ids,
+             moves
            ]
          ) do
       {:ok,

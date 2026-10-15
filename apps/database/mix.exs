@@ -25,6 +25,8 @@ defmodule Database.MixProject do
   defp deps do
     [
       {:benchee, "~> 1.5", only: :dev},
+      # Migrations seed reference data (openings) by replaying with the rules.
+      {:chess, in_umbrella: true},
       {:ecto_sql, "~> 3.14.0"},
       {:postgrex, "~> 0.22.4"}
     ]

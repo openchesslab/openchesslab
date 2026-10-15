@@ -49,6 +49,24 @@ defmodule Chess.Notation.UCITest do
     assert UCI.pv_to_san(start, "") == []
   end
 
+  test "formats moves as UCI coordinates, round-tripping through parse_move" do
+    start = Position.starting_position()
+
+    for uci <- ["e2e4", "g1f3", "b1c3"] do
+      {:ok, move} = UCI.parse_move(start, uci)
+      assert UCI.format(move) == uci
+    end
+
+    position =
+      Position.new()
+      |> Position.put_piece(Square.from_algebraic("e1"), {:white, :king})
+      |> Position.put_piece(Square.from_algebraic("e8"), {:black, :king})
+      |> Position.put_piece(Square.from_algebraic("a7"), {:white, :pawn})
+
+    {:ok, promotion} = UCI.parse_move(position, "a7a8q")
+    assert UCI.format(promotion) == "a7a8q"
+  end
+
   test "renders castling in a principal variation" do
     start = Position.starting_position()
 
