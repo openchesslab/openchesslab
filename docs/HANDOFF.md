@@ -34,8 +34,8 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Turn the guided tour into a
-  spotlight walkthrough`, bovenop `08aaac0`. Productklacht 2026-10-15: de "rondleiding" was een
+- **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
+  `Turn the guided tour into a spotlight walkthrough` (`f37c8e0`), bovenop `08aaac0`. Productklacht 2026-10-15: de "rondleiding" was een
   popup met feature-uitleg. Nu: elke stap highlight zijn `data-tour`-anker (bord, analyses,
   zetten, engine, import, zoeken, help) met een accentring + een blur-achtergrond met uitsparing
   (clip-path-gat), en de uitlegkaart wordt per stap naast het element gepositioneerd door een
