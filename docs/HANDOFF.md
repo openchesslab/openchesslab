@@ -34,8 +34,8 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Debounce the position URL sync and
-  skip redundant patch loads`, bovenop `74e2d75`. Gebruikersbug: pijltje ingedrukt houden → URL
+- **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond (health/ready
+  200):** `Debounce the position URL sync and skip redundant patch loads`, bovenop `74e2d75`. Gebruikersbug: pijltje ingedrukt houden → URL
   accumuleerde ",0" maar het scherm bevroor tot de burst eindigde. Root cause (live.js):
   elke push_patch zet een pendingLink; terwijl die open staat buffert `update()` alle render-diffs
   (`view.ts`) — een patch per toets = continue pending link = bevroren scherm. Fix: select_path
@@ -43,7 +43,9 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   zodra de navigatie tot rust komt, en `handle_params` slaat het herladen over als de patch met de
   huidige staat overeenkomt. Volledig serieel: web **233**, analysis **634**, chess **584**;
   formatter en diffcontrole geslaagd. Browserverificatie van held-key volgt zodra de
-  Playwright-MCP weer verbonden is (playwright server crashte; herstel via /mcps).
+  Playwright-MCP weer verbonden is (playwright server crashte; herstel via /mcps), of de
+  gebruiker verifieert handmatig op productie: pijltje ingedrukt houden in een 51-zetten partij
+  moet nu continu tracken met de URL die na het loslaten eenmalig synchroniseert.
 
 - **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie geverifieerd:**
   `Add the opening book tab with ECO classification and corpus move stats`, bovenop `bbd542d`.
