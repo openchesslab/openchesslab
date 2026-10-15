@@ -640,7 +640,7 @@
             >
               <button
                 type="button"
-                class={strip_tab_class(@selected_tab, "material")}
+                class={tab_class(@selected_tab, "material")}
                 role="tab"
                 aria-selected={@selected_tab == "material"}
                 phx-click="select-strip-tab"
@@ -650,7 +650,7 @@
               )}</span></button>
               <button
                 type="button"
-                class={strip_tab_class(@selected_tab, "space")}
+                class={tab_class(@selected_tab, "space")}
                 role="tab"
                 aria-selected={@selected_tab == "space"}
                 phx-click="select-strip-tab"
@@ -658,7 +658,7 @@
               >{Web.I18n.t("room.space", @locale)}</button>
               <button
                 type="button"
-                class={strip_tab_class(@selected_tab, "layers")}
+                class={tab_class(@selected_tab, "layers")}
                 role="tab"
                 aria-selected={@selected_tab == "layers"}
                 phx-click="select-strip-tab"
@@ -771,9 +771,9 @@
           data-cached-depth={@engine_cached && @engine_cached.depth}
           data-cached-multipv={@engine_cached && @engine_cached.multipv}
         >
-          <header class="flex min-h-10 shrink-0 items-center justify-between gap-2 border-b border-border px-3">
+          <header class="flex min-h-10 shrink-0 border-b border-border px-3">
             <div
-              class="flex items-center gap-1"
+              class="flex items-stretch gap-1"
               role="tablist"
               aria-label={Web.I18n.t("room.engine", @locale)}
             >
@@ -784,11 +784,7 @@
                 aria-selected={to_string(@engine_tab == "engine")}
                 phx-click="select-engine-tab"
                 phx-value-tab="engine"
-                class={[
-                  "rounded px-2 py-1 text-xs font-semibold uppercase tracking-widest",
-                  @engine_tab == "engine" && "bg-panel-hover text-foreground",
-                  @engine_tab != "engine" && "text-muted hover:bg-panel-hover"
-                ]}
+                class={tab_class(@engine_tab, "engine")}
               >{Web.I18n.t("room.engine", @locale)}</button>
               <button
                 type="button"
@@ -797,59 +793,55 @@
                 aria-selected={to_string(@engine_tab == "book")}
                 phx-click="select-engine-tab"
                 phx-value-tab="book"
-                class={[
-                  "rounded px-2 py-1 text-xs font-semibold uppercase tracking-widest",
-                  @engine_tab == "book" && "bg-panel-hover text-foreground",
-                  @engine_tab != "book" && "text-muted hover:bg-panel-hover"
-                ]}
+                class={tab_class(@engine_tab, "book")}
               >{Web.I18n.t("room.bookTab", @locale)}</button>
-            </div>
-
-            <div :if={@engine_tab == "engine"} class="flex shrink-0 items-center gap-1">
-              <button
-                type="button"
-                class="inline-flex h-8 w-8 items-center justify-center rounded border border-border text-muted hover:bg-panel-hover hover:text-foreground"
-                aria-label={Web.I18n.t("room.engineSettings", @locale)}
-                title={Web.I18n.t("room.engineSettings", @locale)}
-                aria-haspopup="true"
-                aria-expanded={if @engine_settings_open, do: "true", else: "false"}
-                phx-click={
-                  if @engine_settings_open,
-                    do: "close-engine-settings",
-                    else: "open-engine-settings"
-                }
-              ><.icon name="settings" class="h-4 w-4" /></button>
-              <button
-                id="engine-toggle"
-                type="button"
-                role="switch"
-                aria-checked={if @engine_on, do: "true", else: "false"}
-                aria-label={Web.I18n.t("room.engineToggle", @locale)}
-                title={Web.I18n.t("room.engineToggle", @locale)}
-                class={[
-                  "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors",
-                  @engine_on && "border-accent-strong bg-accent",
-                  not @engine_on && "border-border-strong bg-panel"
-                ]}
-                phx-click="toggle-engine"
-              >
-                <span
-                  aria-hidden="true"
-                  class={[
-                    "absolute left-0.5 h-3.5 w-3.5 rounded-full transition-transform",
-                    @engine_on && "translate-x-4 bg-white",
-                    not @engine_on && "bg-muted"
-                  ]}
-                ></span>
-              </button>
             </div>
           </header>
 
           <div class="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3 max-[860px]:overflow-visible">
             <%= if @engine_tab == "engine" do %>
+              <div class="flex shrink-0 items-center justify-end gap-1">
+                <button
+                  type="button"
+                  class="inline-flex h-8 w-8 items-center justify-center rounded border border-border text-muted hover:bg-panel-hover hover:text-foreground"
+                  aria-label={Web.I18n.t("room.engineSettings", @locale)}
+                  title={Web.I18n.t("room.engineSettings", @locale)}
+                  aria-haspopup="true"
+                  aria-expanded={if @engine_settings_open, do: "true", else: "false"}
+                  phx-click={
+                    if @engine_settings_open,
+                      do: "close-engine-settings",
+                      else: "open-engine-settings"
+                  }
+                ><.icon name="settings" class="h-4 w-4" /></button>
+                <button
+                  id="engine-toggle"
+                  type="button"
+                  role="switch"
+                  aria-checked={if @engine_on, do: "true", else: "false"}
+                  aria-label={Web.I18n.t("room.engineToggle", @locale)}
+                  title={Web.I18n.t("room.engineToggle", @locale)}
+                  class={[
+                    "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors",
+                    @engine_on && "border-accent-strong bg-accent",
+                    not @engine_on && "border-border-strong bg-panel"
+                  ]}
+                  phx-click="toggle-engine"
+                >
+                  <span
+                    aria-hidden="true"
+                    class={[
+                      "absolute left-0.5 h-3.5 w-3.5 rounded-full transition-transform",
+                      @engine_on && "translate-x-4 bg-white",
+                      not @engine_on && "bg-muted"
+                    ]}
+                  ></span>
+                </button>
+              </div>
+
               <div
                 :if={@engine_settings_open}
-                class="absolute right-2 top-11 z-40 flex max-h-[80dvh] w-[17rem] max-w-[calc(100%-1rem)] flex-col gap-2 overflow-auto rounded-lg border border-border bg-panel p-3 shadow-xl"
+                class="absolute right-3 top-[5.5rem] z-40 flex max-h-[80dvh] w-[17rem] max-w-[calc(100%-1rem)] flex-col gap-2 overflow-auto rounded-lg border border-border bg-panel p-3 shadow-xl"
                 role="group"
                 aria-label={Web.I18n.t("room.engineSettings", @locale)}
                 phx-click-away="close-engine-settings"

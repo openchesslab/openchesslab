@@ -2786,7 +2786,7 @@ defmodule Web.RoomLive do
   defp layer_label_key("king_zone"), do: "room.layerKingZone"
   defp layer_label_key("outposts"), do: "room.layerOutposts"
 
-  defp strip_tab_class(selected, tab) do
+  defp tab_class(selected, tab) do
     base =
       "flex items-center gap-2 border-b-2 px-3 py-2 text-xs font-medium uppercase tracking-wider max-[860px]:py-[.3rem]"
 

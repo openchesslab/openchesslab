@@ -34,6 +34,17 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Unify engine tabs with the strip
+  style and move engine controls into the tab content`, bovenop `385c522`. UX-feedback
+  2026-10-15: (1) de actieve ENGINE/BOEK-tab week af (grijze pill) van de
+  MATERIAAL/RUIMTE/LAGEN-tabs (cyan + ononderstreping) — beide gebruiken nu één gedeelde
+  `tab_class/2` (hernoemd van `strip_tab_class/2`); (2) het instellingentandwiel en de
+  engine-aan/uit-schakelaar stonden in de tabbalk — ze zitten nu in een werkbalk bovenaan de
+  ENGINE-tabinhoud; het instellingenpopover opent er direct onder (`top-[5.5rem] right-3`,
+  nog steeds verankerd aan `#engine-panel` zodat `overflow-hidden` niet clipt). Serieel: web
+  **239**, formatter, assetbuild, diffcontrole. Browsertest: tabstijlen identiek aan de strip,
+  popover-positionering en boek-tab gecontroleerd.
+
 - **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
   `Turn the guided tour into a spotlight walkthrough` (`f37c8e0`), bovenop `08aaac0`. Productklacht 2026-10-15: de "rondleiding" was een
   popup met feature-uitleg. Nu: elke stap highlight zijn `data-tour`-anker (bord, analyses,
