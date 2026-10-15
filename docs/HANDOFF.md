@@ -34,8 +34,8 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Fix outpost detection to the
-  standard definition`, bovenop `80171f5`. Bugrapport 2026-10-16: de outpostlaag markeerde
+- **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
+  `Fix outpost detection to the standard definition` (`9d10658`), bovenop `80171f5`. Bugrapport 2026-10-16: de outpostlaag markeerde
   elke pion-gedekte paard in de vijandelijke helft. Nu de Wikipedia-definitie: het VELD is de
   outpost — pion-gedekt, op de 4e–7e rij (vanuit de eigen kleur), en geen vijandelijke pion kan
   het ooit bereiken (ook niet "later": pionnen op aangrenzende lijnen die nog niet voorbij zijn
