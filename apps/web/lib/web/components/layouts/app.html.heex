@@ -165,9 +165,41 @@
           aria-label={Web.I18n.t("auth.account", @locale)}
           title={Web.I18n.t("auth.account", @locale)}
         >
-          <.icon name="person" class="h-4 w-4" />
+          <%= if @current_user do %>
+            <% account_name = Web.DisplayName.for_user(@current_user.id) %>
+            <span
+              id="account-badge"
+              class="grid h-6 w-6 place-items-center rounded-full text-[.6rem] font-bold text-white"
+              style={"background-color: " <> Web.DisplayName.name_color(account_name)}
+              title={account_name}
+            >{Web.DisplayName.initials(account_name)}</span>
+          <% else %>
+            <.icon name="person" class="h-4 w-4" />
+          <% end %>
         </summary>
         <div class="absolute right-0 top-full z-40 mt-2 flex w-56 flex-col gap-1 rounded-lg border border-border bg-panel p-2 shadow-xl">
+          <div
+            :if={@current_user}
+            id="account-identity"
+            class="mb-1 flex items-center gap-2 border-b border-border pb-2"
+          >
+            <% account_name = Web.DisplayName.for_user(@current_user.id) %>
+            <span
+              class="grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-bold text-white"
+              style={"background-color: " <> Web.DisplayName.name_color(account_name)}
+            >{Web.DisplayName.initials(account_name)}</span>
+            <div class="min-w-0 flex-1">
+              <p class="m-0 truncate text-sm font-semibold text-foreground">{account_name}</p>
+              <p class="m-0 text-xs text-muted">{Web.I18n.t("auth.signedIn", @locale)}</p>
+            </div>
+            <span
+              id="account-name-help"
+              class="cursor-help self-start text-muted hover:text-foreground"
+              title={Web.I18n.t("auth.generatedNameHelp", @locale)}
+              aria-label={Web.I18n.t("auth.generatedNameHelp", @locale)}
+            ><.icon name="question" class="h-3.5 w-3.5" /></span>
+          </div>
+
           <button
             :if={@current_user}
             type="button"

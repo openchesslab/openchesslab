@@ -72,6 +72,8 @@
   "auth.login": "Inloggen",
   "auth.loginWithLichess": "Inloggen met Lichess",
   "auth.logout": "Uitloggen",
+  "auth.signedIn": "Ingelogd",
+  "auth.generatedNameHelp": "Je accountlabel is gegenereerd en niet identificerend — het is niet aan je login gekoppeld en verandert nooit.",
   "auth.loginFailed": "Inloggen met Lichess is mislukt. Probeer het opnieuw.",
   "theme.label": "Thema",
   "demo.label": "DEMO",

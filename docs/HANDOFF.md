@@ -34,6 +34,17 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Show a stable identity badge and name
+  in the account menu`, bovenop `7f14d7d`. Productbeslissing 2026-10-15: gegenereerde namen waren
+  per-mount — niet herkenbaar. Nu: `DisplayName.for_user/1` (deterministisch uit het interne
+  user-id via sha256 over dezelfde woordenlijsten), `name_color/1` (hsl-hue uit de naamhash,
+  vast S/L, witte initialen), `initials/1` (gedeeld met de room-presence). De accountknop toont
+  de initialen-badge; het dropdownmenu opent met avatar + volledige naam + "Ingelogd" + een
+  hulp-icoon dat het gegenereerde label uitlegt. Volledig serieel: web **236** (seed 511632);
+  formatter, root-compile, assetbuild, diffcontrole geslaagd. Browsertest: badge MP groen,
+  dropdown toont "Mighty Panda 41 · Ingelogd" + hulptekst. Room-presence behoudt per-mount namen;
+  unificatie is een aparte beslissing.
+
 - **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond (health/ready
   200):** `Debounce the position URL sync and skip redundant patch loads`, bovenop `74e2d75`. Gebruikersbug: pijltje ingedrukt houden → URL
   accumuleerde ",0" maar het scherm bevroor tot de burst eindigde. Root cause (live.js):

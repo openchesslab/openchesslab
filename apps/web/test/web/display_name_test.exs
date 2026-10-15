@@ -17,4 +17,26 @@ defmodule Web.DisplayNameTest do
       assert number =~ ~r/\A[1-9][0-9]\z/
     end
   end
+
+  test "user labels are stable per user id and use the curated words" do
+    id_a = Ecto.UUID.generate()
+    id_b = Ecto.UUID.generate()
+
+    assert DisplayName.for_user(id_a) == DisplayName.for_user(id_a)
+
+    assert [adjective, animal, number] = String.split(DisplayName.for_user(id_a), " ")
+    assert adjective == String.capitalize(String.downcase(adjective))
+    assert number =~ ~r/\A[1-9][0-9]\z/
+    # Almost always different users get different labels.
+    refute DisplayName.for_user(id_a) == DisplayName.for_user(id_b)
+  end
+
+  test "initials and badge colors are deterministic per name" do
+    assert DisplayName.initials("Wise Otter 42") == "WO"
+    assert DisplayName.initials("Happy Panda 10") == "HP"
+
+    color = DisplayName.name_color("Wise Otter 42")
+    assert color == DisplayName.name_color("Wise Otter 42")
+    assert color =~ ~r/\Ahsl\(\d{1,3} 55% 45%\)\z/
+  end
 end

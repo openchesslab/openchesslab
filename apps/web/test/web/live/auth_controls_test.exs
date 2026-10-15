@@ -66,11 +66,38 @@ defmodule Web.AuthControlsTest do
       assert has_element?(view, "#account-menu #linked-accounts-button svg")
       assert has_element?(view, "#auth-logout button svg")
       assert has_element?(view, "#account-menu summary[title='Account']")
-      assert has_element?(view, "#account-menu summary svg")
+      assert has_element?(view, "#account-badge")
       refute has_element?(view, "#auth-login")
       refute html =~ context.user.id
       refute html =~ context.session.token
     end
+  end
+
+  test "the account menu shows the stable identity badge and name", %{
+    session: session,
+    user: user
+  } do
+    conn = Plug.Test.init_test_session(build_conn(), %{user_token: session.token})
+    {:ok, view, _html} = live(conn, "/")
+
+    name = Web.DisplayName.for_user(user.id)
+
+    # The button is the initials badge with the name's deterministic color.
+    assert has_element?(view, "#account-badge", Web.DisplayName.initials(name))
+
+    badge_style =
+      view
+      |> element("#account-badge")
+      |> render()
+      |> then(fn html -> Regex.run(~r/background-color: ([^"]+)/, html) end)
+
+    assert [_, "hsl(" <> _hue] = badge_style
+
+    # The dropdown header carries the full name and avatar, with a help icon
+    # explaining the generated label.
+    assert has_element?(view, "#account-identity", name)
+    assert has_element?(view, "#account-identity", "Signed in")
+    assert has_element?(view, "#account-name-help[title*='generated']")
   end
 
   test "revocation updates the header on the next event", %{session: session} do

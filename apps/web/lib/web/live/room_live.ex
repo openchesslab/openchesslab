@@ -2654,13 +2654,7 @@ defmodule Web.RoomLive do
     if value == "", do: "-", else: value
   end
 
-  defp initials(name) do
-    name
-    |> String.split(~r/\s+/, trim: true)
-    |> Enum.take(2)
-    |> Enum.map_join(&String.first/1)
-    |> String.upcase()
-  end
+  defdelegate initials(name), to: DisplayName
 
   defp analysis_viewers(analysis_id, participants, participant_id) do
     Enum.count(participants, fn {id, meta} ->
