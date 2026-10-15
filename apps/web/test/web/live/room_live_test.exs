@@ -10,6 +10,8 @@ defmodule Web.RoomLiveTest do
   alias Analysis.Node
   alias Analysis.PositionStore
   alias Analysis.Rooms
+  alias Analysis.UserSessions
+  alias Analysis.Users
   alias Chess.Move
   alias Chess.Position
   alias Chess.Square
@@ -23,6 +25,20 @@ defmodule Web.RoomLiveTest do
     {:ok, _room} = Rooms.start_room(code)
     on_exit(fn -> Rooms.stop_room(code) end)
     {:ok, code: code}
+  end
+
+  test "a signed-in user's room presence uses their stable account label", %{
+    conn: conn,
+    code: code
+  } do
+    {:ok, user} = Users.create()
+    {:ok, session} = UserSessions.create(user.id)
+    on_exit(fn -> Users.delete(user.id) end)
+
+    conn = Plug.Test.init_test_session(conn, %{user_token: session.token})
+    {:ok, _view, html} = live(conn, "/rooms/#{code}")
+
+    assert html =~ Web.DisplayName.for_user(user.id)
   end
 
   test "renders an empty room and starts an analysis", %{conn: conn, code: code} do

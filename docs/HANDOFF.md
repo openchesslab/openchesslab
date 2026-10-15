@@ -34,6 +34,19 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Use the stable account label as the
+  room name for signed-in users`, bovenop `c97a0b7`. Bugrapport 2026-10-16: een ingelogde
+  gebruiker heette "Keen Beaver 72" in de kamer maar "Lively Ferret 81" in het accountmenu —
+  kamerpresence gebruikte per-mount willekeurige namen. Nu krijgt een ingelogde gebruiker
+  overal het stabiele accountlabel (`DisplayName.for_user/1`): kamerpresence (publieke kamers),
+  het opgeslagen lidmaatschapslabel bij kamer-aanmaken, invite-accepteren en bibliotheek-openen.
+  Bestaande lidmaatschapslabels blijven ongewijzigd (duurzaam); gasten houden willekeurige
+  namen. Privacy-notitie: het label is pseudoniem maar nu wel kamer-overstijgend herkenbaar —
+  bewuste afweging (dit was de eerder uitgesplitste presence-unificatie). Ook: twee
+  ongebruikte opponent-half-maskers uit `PositionProperties` weg (waarschuwing uit de
+  outpostslic). Serieel: chess **591**, web **243**; formatter, assetbuild, diffcontrole.
+  Browsertest: presence-badge "MP · Mighty Panda 41" == accountbadge.
+
 - **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
   `Fix outpost detection to the standard definition` (`9d10658`), bovenop `80171f5`. Bugrapport 2026-10-16: de outpostlaag markeerde
   elke pion-gedekte paard in de vijandelijke helft. Nu de Wikipedia-definitie: het VELD is de

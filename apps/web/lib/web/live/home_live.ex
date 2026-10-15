@@ -120,8 +120,8 @@ defmodule Web.HomeLive do
 
   def handle_event(_event, _params, socket), do: {:noreply, socket}
 
-  # The owner's member label is generated once at creation and shown in the
-  # private room's member list and presence.
+  # The owner's member label is their stable account label, stored once at
+  # creation and shown in the private room's member list and presence.
   defp create_room(nil = _owner) do
     create_room(@room_create_attempts, nil, nil)
   rescue
@@ -129,7 +129,7 @@ defmodule Web.HomeLive do
   end
 
   defp create_room(owner) do
-    create_room(@room_create_attempts, owner, DisplayName.generate())
+    create_room(@room_create_attempts, owner, DisplayName.for_user(owner))
   rescue
     error -> {:error, error}
   end

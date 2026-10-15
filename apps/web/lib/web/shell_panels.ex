@@ -82,7 +82,7 @@ defmodule Web.ShellPanels do
         %{"id" => id},
         %{assigns: %{current_user: %{id: user_id}}} = socket
       ) do
-    case open_room(user_id, id, Web.DisplayName.generate(), 5) do
+    case open_room(user_id, id, Web.DisplayName.for_user(user_id), 5) do
       {:ok, %{room_id: code, analysis_id: analysis_id}} ->
         {:noreply,
          Phoenix.LiveView.redirect(socket,

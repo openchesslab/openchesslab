@@ -13,8 +13,6 @@ defmodule Chess.PositionProperties do
   @board_mask 0xFFFFFFFFFFFFFFFF
   @not_a_file 0xFEFEFEFEFEFEFEFE
   @not_h_file 0x7F7F7F7F7F7F7F7F
-  @white_opponent_half 0xFFFFFFFF00000000
-  @black_opponent_half 0x00000000FFFFFFFF
 
   @file_masks %{
     a: 0x0101010101010101,

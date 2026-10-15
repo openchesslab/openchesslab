@@ -120,6 +120,10 @@ defmodule Web.PrivateRoomTest do
     assert redirected_to(conn) == "/rooms/#{ctx.code}"
     assert Rooms.member?(ctx.code, ctx.other.id)
 
+    # Joining stores the stable account label as the member name.
+    assert {:ok, member_name} = Rooms.member_display_name(ctx.code, ctx.other.id)
+    assert member_name == Web.DisplayName.for_user(ctx.other.id)
+
     {:ok, view, html} =
       live(authenticated(ctx.other_session.token), "/rooms/#{ctx.code}?a=#{ctx.analysis_id}")
 
