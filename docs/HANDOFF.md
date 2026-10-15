@@ -34,8 +34,9 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Use the stable account label as the
-  room name for signed-in users`, bovenop `c97a0b7`. Bugrapport 2026-10-16: een ingelogde
+- **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
+  `Use the stable account label as the room name for signed-in users` (`7a998e6`), bovenop
+  `c97a0b7`. Bugrapport 2026-10-16: een ingelogde
   gebruiker heette "Keen Beaver 72" in de kamer maar "Lively Ferret 81" in het accountmenu —
   kamerpresence gebruikte per-mount willekeurige namen. Nu krijgt een ingelogde gebruiker
   overal het stabiele accountlabel (`DisplayName.for_user/1`): kamerpresence (publieke kamers),
