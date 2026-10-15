@@ -797,6 +797,12 @@
               data-fen={if @position, do: to_fen(@position), else: ""}
               data-depth={@engine_settings.depth}
               data-multipv={@engine_settings.multipv}
+              data-review-fen={review_fen(assigns)}
+              data-review-ply={
+                if @engine_review && @engine_review.status == :running,
+                  do: @engine_review.current,
+                  else: ""
+              }
             >
               <header class="flex items-center justify-between gap-2">
                 <div class="flex items-center gap-2">
@@ -929,76 +935,6 @@
                     <strong>{@engine_preview.nps}</strong>
                   </div>
 
-                  <% graph =
-                    eval_graph(
-                      @engine_evals,
-                      @selected_analysis_id,
-                      @mainline_length,
-                      @current_path
-                    ) %>
-
-                  <div :if={graph.any} id="engine-graph" class="mt-3">
-                    <svg
-                      viewBox="0 0 300 60"
-                      class="h-14 w-full rounded border border-border bg-canvas"
-                      role="img"
-                      aria-label={Web.I18n.t("room.evaluationGraph", @locale)}
-                    >
-                      <line
-                        x1="0"
-                        y1="30"
-                        x2="300"
-                        y2="30"
-                        stroke="var(--border)"
-                        stroke-width="1"
-                      />
-
-                      <polyline
-                        :for={points <- graph.groups}
-                        points={points}
-                        fill="none"
-                        stroke="var(--foreground)"
-                        stroke-width="1.5"
-                        stroke-linejoin="round"
-                        stroke-linecap="round"
-                      />
-
-                      <circle
-                        :for={dot <- graph.dots}
-                        cx={dot.x}
-                        cy={dot.y}
-                        r="2"
-                        fill="var(--foreground)"
-                      >
-                        <title>{dot.label}</title>
-                      </circle>
-
-                      <rect
-                        :if={@current_path != []}
-                        x={graph.current_x - 1.5}
-                        y="0"
-                        width="3"
-                        height="60"
-                        fill="var(--accent)"
-                        opacity="0.7"
-                      />
-
-                      <rect
-                        :for={column <- graph.columns}
-                        x={column.x}
-                        y="0"
-                        width={column.w}
-                        height="60"
-                        fill="transparent"
-                        class="cursor-pointer"
-                        phx-click="select-path"
-                        phx-value-path={column.path}
-                      >
-                        <title>{column.path}</title>
-                      </rect>
-                    </svg>
-                  </div>
-
                   <h4 class="mb-1 mt-3 text-[.68rem] font-semibold uppercase tracking-wide text-muted">
                     {Web.I18n.t("room.enginePvHeading", @locale)}
                   </h4>
@@ -1062,6 +998,139 @@
                   <p class="mb-0 mt-2 text-xs text-muted">
                     {Web.I18n.t("room.evalUnavailable", @locale)}
                   </p>
+              <% end %>
+
+              <%= if @analysis do %>
+                <% graph =
+                  eval_graph(
+                    @engine_evals,
+                    @analysis,
+                    @mainline_length,
+                    @current_path,
+                    review_marks(@engine_review)
+                  ) %>
+
+                <div :if={graph.any} id="engine-graph" class="mt-3">
+                  <svg
+                    viewBox="0 0 300 60"
+                    class="h-14 w-full rounded border border-border bg-canvas"
+                    role="img"
+                    aria-label={Web.I18n.t("room.evaluationGraph", @locale)}
+                  >
+                    <line
+                      x1="0"
+                      y1="30"
+                      x2="300"
+                      y2="30"
+                      stroke="var(--border)"
+                      stroke-width="1"
+                    />
+
+                    <polyline
+                      :for={points <- graph.groups}
+                      points={points}
+                      fill="none"
+                      stroke="var(--foreground)"
+                      stroke-width="1.5"
+                      stroke-linejoin="round"
+                      stroke-linecap="round"
+                    />
+
+                    <circle
+                      :for={dot <- graph.dots}
+                      cx={dot.x}
+                      cy={dot.y}
+                      r="2"
+                      fill={dot.color}
+                    >
+                      <title>{dot.label}</title>
+                    </circle>
+
+                    <rect
+                      :if={@current_path != []}
+                      x={graph.current_x - 1.5}
+                      y="0"
+                      width="3"
+                      height="60"
+                      fill="var(--accent)"
+                      opacity="0.7"
+                    />
+
+                    <rect
+                      :for={column <- graph.columns}
+                      x={column.x}
+                      y="0"
+                      width={column.w}
+                      height="60"
+                      fill="transparent"
+                      class="cursor-pointer"
+                      phx-click="select-path"
+                      phx-value-path={column.path}
+                    >
+                      <title>{column.path}</title>
+                    </rect>
+                  </svg>
+                </div>
+
+                <div :if={@mainline_length >= 1} id="engine-review" class="mt-3">
+                  <%= case @engine_review do %>
+                    <% nil -> %>
+                      <button
+                        id="engine-review-start"
+                        type="button"
+                        class="rounded-md border border-border px-2 py-1 text-xs hover:bg-panel-hover"
+                        title={Web.I18n.t("room.reviewHelp", @locale)}
+                        phx-click="engine-review-start"
+                      >{Web.I18n.t("room.review", @locale)}</button>
+                    <% %{status: :running} = review -> %>
+                      <div class="flex items-center justify-between gap-2 rounded bg-canvas p-2 text-xs">
+                        <span class="text-muted" role="status">
+                          {Web.I18n.t("room.reviewProgress", @locale, %{
+                            done: review.done,
+                            total: review.total + 1
+                          })}
+                        </span>
+                        <button
+                          id="engine-review-cancel"
+                          type="button"
+                          class="text-muted underline"
+                          phx-click="engine-review-cancel"
+                        >{Web.I18n.t("common.cancel", @locale)}</button>
+                      </div>
+                    <% %{status: :done} = review -> %>
+                      <div class="rounded bg-canvas p-2 text-xs">
+                        <p class="m-0 text-muted">
+                          {Web.I18n.t("room.reviewDone", @locale, %{
+                            blunders: review.counts.blunders,
+                            mistakes: review.counts.mistakes,
+                            inaccuracies: review.counts.inaccuracies
+                          })}
+                        </p>
+
+                        <ul :if={review.marks != %{}} class="m-0 mt-1 list-none space-y-0.5 p-0">
+                          <li :for={moment <- review_critical_moments(@move_entries, review)}>
+                            <button
+                              type="button"
+                              class={[
+                                "font-mono hover:underline",
+                                moment.mark in ["?", "??"] && "text-error",
+                                moment.mark == "?!" && "text-warning"
+                              ]}
+                              phx-click="select-path"
+                              phx-value-path={moment.path}
+                            >{moment.label} {moment.mark}</button>
+                          </li>
+                        </ul>
+
+                        <button
+                          id="engine-review-again"
+                          type="button"
+                          class="mt-1 text-muted underline"
+                          phx-click="engine-review-start"
+                        >{Web.I18n.t("room.reviewAgain", @locale)}</button>
+                      </div>
+                  <% end %>
+                </div>
               <% end %>
             </section>
 

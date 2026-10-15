@@ -34,6 +34,18 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, gecommit en gepusht; deploy volgt na deze reeks (door gebruiker toegestaan):**
+  engine-vervolgserie op `fee8abc` — `fc1e40d` (leesbare/interactieve engine-lijnen),
+  `5bc9bd4` (instellingen aanpasbaar terwijl de engine draait + debounce), `018b816`
+  (groene best-move-arrow op het bord), `e4a19aa` (evaluatiegrafiek), en nu **partijreview**
+  (`Review game`): de hook loopt de hoofdlijn af op vaste diepte 12, de server classificeert
+  wit-relatieve swings (??/?/?! bij >300/>150/>80 cp), grafiek-prikkels kleuren mee en een
+  samenvatting linkt naar kritieke momenten. De sessie-evalstore is nu op **canonieke
+  positie-id** gekeyed (stabiel bij edits, volgt transposities). Gericht: room_live 48;
+  volledig serieel: web **234**, analysis **619**, chess **583**; formatter, --warnings-as-errors,
+  assetbuild, diffcontrole geslaagd. Browsertest: review doorloopt 4 plys, grafiek vult,
+  samenvatting + Review again; instellingen typbaar terwijl de engine draait.
+
 - **Afgerond, wacht op commit/push:** `Make engine lines readable and interactive`, bovenop
   `fee8abc` (Stockfish-slice). Regels zijn nu genummerde, afzonderlijk klikbare zetten
   (wrap breekt tussen zetten); klik op zet N speelt de lijn t/m N in de analyse (één

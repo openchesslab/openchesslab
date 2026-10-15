@@ -133,6 +133,7 @@ defmodule Web.RoomLive do
       engine_error: nil,
       engine_peek: nil,
       engine_evals: %{},
+      engine_review: nil,
       engine_settings_open: false,
       engine_settings: %{depth: 20, multipv: 3}
     }
@@ -1035,7 +1036,7 @@ defmodule Web.RoomLive do
 
       socket = assign(socket, engine_preview: preview, engine_error: nil)
       socket = if peek_stale?, do: assign(socket, :engine_peek, nil), else: socket
-      socket = store_engine_eval(socket, preview)
+      socket = store_engine_eval(socket, preview, Node.position_id(socket.assigns.current_node))
       {:noreply, assign(socket, :board_shapes, board_shapes(socket))}
     else
       _ -> {:noreply, socket}
@@ -1075,6 +1076,65 @@ defmodule Web.RoomLive do
 
   def handle_event("engine-peek-clear", _params, socket),
     do: {:noreply, assign(socket, :engine_peek, nil)}
+
+  # A review walks the mainline of the current analysis: the local worker
+  # evaluates every position at a fixed depth, one at a time, and the results
+  # classify big eval swings. The panel's data attributes drive the hook;
+  # revision changes (tree edits) invalidate an in-flight review.
+  def handle_event("engine-review-start", _params, socket) do
+    case {socket.assigns.analysis, socket.assigns.mainline_length} do
+      {%AnalysisModel{}, length} when length >= 1 ->
+        {:noreply,
+         assign(socket,
+           engine_review: %{
+             status: :running,
+             revision: socket.assigns.analysis_revision,
+             total: length,
+             done: 0,
+             current: 0,
+             queue: Enum.to_list(1..length),
+             evals: %{}
+           },
+           engine_peek: nil
+         )}
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("engine-review-cancel", _params, socket),
+    do: {:noreply, assign(socket, :engine_review, nil)}
+
+  def handle_event("engine-review-result", params, socket) do
+    with %{status: :running, current: current, revision: revision} = review <-
+           socket.assigns.engine_review || %{},
+         true <- revision == socket.assigns.analysis_revision,
+         {ply, ""} when ply == current <- Integer.parse(params["ply"] || ""),
+         cp <- params["cp"],
+         mate <- params["mate"],
+         true <- is_integer(cp) or is_integer(mate) do
+      # UCI scores are relative to the side to move; reviews and the graph
+      # store them white-relative, like the interactive engine updates.
+      side = review_side(socket.assigns.analysis, ply)
+      {cp, mate} = review_score_to_white(cp, mate, side)
+
+      review = put_in(review.evals[ply], %{cp: cp, mate: mate})
+
+      socket =
+        case AnalysisModel.node_at(socket.assigns.analysis, List.duplicate(0, ply)) do
+          %Analysis.Node{} = node ->
+            store_engine_eval(socket, %{eval_cp: cp, mate_in: mate}, Node.position_id(node))
+
+          _ ->
+            socket
+        end
+
+      advance_review(socket, review)
+    else
+      _ -> {:noreply, socket}
+    end
+  end
 
   def handle_event("engine-error", _params, socket) do
     socket =
@@ -2786,36 +2846,39 @@ defmodule Web.RoomLive do
     end
   end
 
-  # Every evaluated position feeds a small session store keyed by analysis and
-  # path, which the evaluation graph renders. Nothing is persisted: recomputing
-  # is cheap and the graph refills as you navigate with the engine on.
-  defp store_engine_eval(socket, preview) do
-    key = eval_key(socket.assigns.selected_analysis_id, socket.assigns.current_path)
+  # Every evaluated position feeds a small session store keyed by canonical
+  # position id, which the evaluation graph renders. Nothing is persisted:
+  # recomputing is cheap and the graph refills as you navigate with the engine
+  # on. Position ids are stable across edits, and evals even follow
+  # transpositions between lines.
+  defp store_engine_eval(socket, preview, position_id) do
+    label = eval_label(%{eval_cp: preview.eval_cp, mate_in: preview.mate_in})
 
     assign(
       socket,
       :engine_evals,
-      Map.put(socket.assigns.engine_evals, key, %{
+      Map.put(socket.assigns.engine_evals, position_id, %{
         cp: preview.eval_cp,
         mate: preview.mate_in,
-        label: eval_label(preview)
+        label: label
       })
     )
   end
-
-  defp eval_key(analysis_id, path), do: "#{analysis_id}:#{Enum.join(path, ",")}"
 
   @eval_graph_max_cp 600
 
   # Data for the evaluation graph: one point per mainline ply with a session
   # eval, click columns for every ply, and the marker for the current path.
-  defp eval_graph(evals, analysis_id, mainline_length, current_path) do
+  # Review marks color the dot of the position a move landed on.
+  defp eval_graph(evals, analysis, mainline_length, current_path, marks) do
     width = 300
     step = width / (mainline_length + 1)
 
     points =
       for ply <- 0..mainline_length,
-          eval = Map.get(evals, eval_key(analysis_id, List.duplicate(0, ply))),
+          node = AnalysisModel.node_at(analysis, List.duplicate(0, ply)),
+          not is_nil(node),
+          eval = Map.get(evals, Node.position_id(node)),
           not is_nil(eval) do
         cp = graph_cp(eval)
         x = Float.round(step * (ply + 0.5), 1)
@@ -2857,12 +2920,24 @@ defmodule Web.RoomLive do
     %{
       any: points != [],
       groups: groups,
-      dots: Enum.map(points, fn {_ply, x, y, label} -> %{x: x, y: y, label: label} end),
+      dots:
+        Enum.map(points, fn {ply, x, y, label} ->
+          %{
+            x: x,
+            y: y,
+            label: label,
+            color: review_dot_color(marks[ply - 1])
+          }
+        end),
       columns: columns,
       current_x: Float.round(step * (current_ply + 0.5), 1),
       height: 60
     }
   end
+
+  defp review_dot_color(nil), do: "var(--foreground)"
+  defp review_dot_color(%{mark: mark}) when mark in ["?", "??"], do: "var(--error)"
+  defp review_dot_color(%{mark: "?!"}), do: "var(--warning)"
 
   defp graph_cp(%{mate: mate}) when is_integer(mate) and mate > 0, do: @eval_graph_max_cp
   defp graph_cp(%{mate: mate}) when is_integer(mate) and mate < 0, do: -@eval_graph_max_cp
@@ -2871,6 +2946,136 @@ defmodule Web.RoomLive do
     do: max(-@eval_graph_max_cp, min(@eval_graph_max_cp, cp))
 
   defp graph_cp(_eval), do: 0
+
+  defp advance_review(socket, review) do
+    case review.queue do
+      [next | rest] ->
+        {:noreply,
+         assign(socket,
+           engine_review: %{
+             review
+             | done: review.done + 1,
+               current: next,
+               queue: rest
+           }
+         )}
+
+      [] ->
+        {:noreply,
+         assign(socket,
+           engine_review: classify_review(socket.assigns.analysis, review)
+         )}
+    end
+  end
+
+  # Compares consecutive mainline evals from the mover's perspective and marks
+  # big swings, roughly following common review thresholds.
+  defp classify_review(analysis, review) do
+    marks =
+      for ply <- 0..(review.total - 1),
+          before_eval = review.evals[ply],
+          after_eval = review.evals[ply + 1],
+          before_eval != nil and after_eval != nil do
+        side =
+          case AnalysisView.move_context(analysis, List.duplicate(0, ply)) do
+            %{side: side} -> side
+            _ -> :white
+          end
+
+        loss =
+          (review_cp(before_eval) - review_cp(after_eval)) * if(side == :white, do: 1, else: -1)
+
+        mark =
+          cond do
+            loss > 300 -> "??"
+            loss > 150 -> "?"
+            loss > 80 -> "?!"
+            true -> nil
+          end
+
+        mark && {ply, %{mark: mark, loss: loss}}
+      end
+      |> Enum.reject(&is_nil/1)
+      |> Map.new()
+
+    Map.merge(review, %{
+      status: :done,
+      done: review.total + 1,
+      marks: marks,
+      counts: %{
+        blunders: count_marks(marks, "??"),
+        mistakes: count_marks(marks, "?"),
+        inaccuracies: count_marks(marks, "?!")
+      }
+    })
+  end
+
+  defp count_marks(marks, mark) do
+    marks |> Map.values() |> Enum.count(&(&1.mark == mark))
+  end
+
+  @review_clamp_cp 1000
+
+  defp review_side(analysis, ply) do
+    case AnalysisView.move_context(analysis, List.duplicate(0, ply)) do
+      %{side: side} -> side
+      _ -> :white
+    end
+  end
+
+  defp review_score_to_white(cp, mate, side) do
+    flip = if side == :black, do: -1, else: 1
+
+    cond do
+      is_integer(mate) and mate != 0 -> {nil, mate * flip}
+      # mate 0: the side to move is checkmated — a terminal position
+      is_integer(mate) and side == :white -> {-@review_clamp_cp, nil}
+      is_integer(mate) -> {@review_clamp_cp, nil}
+      true -> {cp * flip, nil}
+    end
+  end
+
+  defp review_cp(%{mate: mate}) when is_integer(mate) and mate > 0, do: @review_clamp_cp
+  defp review_cp(%{mate: mate}) when is_integer(mate) and mate < 0, do: -@review_clamp_cp
+
+  defp review_cp(%{cp: cp}) when is_integer(cp),
+    do: max(-@review_clamp_cp, min(@review_clamp_cp, cp))
+
+  defp review_cp(_eval), do: 0
+
+  # The FEN of the position the review is currently analyzing; empty when no
+  # review is running, which returns the hook to interactive mode.
+  defp review_fen(%{engine_review: %{status: :running, current: ply}, analysis: analysis})
+       when is_integer(ply) do
+    case AnalysisView.current_position(analysis, List.duplicate(0, ply)) do
+      {:ok, _node, position} -> to_fen(position)
+      _ -> ""
+    end
+  end
+
+  defp review_fen(_assigns), do: ""
+
+  # Marks only color the graph once the review classified them.
+  defp review_marks(%{status: :done, marks: marks}), do: marks
+  defp review_marks(_review), do: %{}
+
+  # Critical moments for the review summary: the biggest swings, worst first.
+  defp review_critical_moments(move_entries, review) do
+    review.marks
+    |> Enum.sort_by(fn {_ply, mark} -> -mark.loss end)
+    |> Enum.take(5)
+    |> Enum.map(fn {ply, mark} ->
+      path = List.duplicate(0, ply + 1)
+      entry = Enum.find(move_entries, &(&1.path == path))
+
+      %{
+        ply: ply,
+        mark: mark.mark,
+        label: if(entry, do: "#{entry.prefix} #{entry.label}", else: ""),
+        path: Enum.join(path, ",")
+      }
+    end)
+  end
 
   defp engine_int(value) when is_integer(value), do: value
 

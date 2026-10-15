@@ -1336,6 +1336,22 @@ const EngineAnalysis = {
   },
 
   sync() {
+    // A running review owns the worker: it walks the mainline positions one
+    // by one at a fixed depth and reports each back on bestmove.
+    const reviewFen = this.el.dataset.reviewFen || "";
+    const reviewPly = this.el.dataset.reviewPly || "";
+
+    if (reviewFen && reviewPly !== "") {
+      const key = ["review", reviewPly, reviewFen].join("|");
+      if (key === this.searchKey) return;
+      this.searchKey = key;
+      this.reviewing = reviewPly;
+      this.startSearch({ fen: reviewFen, depth: 12, multipv: 1 });
+      return;
+    }
+
+    this.reviewing = null;
+
     const on = this.el.dataset.engineOn === "true";
     const fen = this.el.dataset.fen || "";
     const depth = parseInt(this.el.dataset.depth || "20", 10);
@@ -1391,7 +1407,27 @@ const EngineAnalysis = {
       return;
     }
 
-    if (line.startsWith("bestmove")) this.flush(true);
+    if (line.startsWith("bestmove")) {
+      if (this.reviewing !== null && this.reviewing !== undefined) {
+        // Terminal positions yield no info lines; report mate 0 (the side to
+        // move is mated) so the review never stalls.
+        const best = this.lines.get(1);
+        const payload = { ply: this.reviewing };
+
+        if (best) {
+          if (best.scoreKind === "mate") payload.mate = best.score;
+          else payload.cp = best.score;
+        } else {
+          payload.mate = 0;
+        }
+
+        this.pushEvent("engine-review-result", payload);
+      } else {
+        this.flush(true);
+      }
+
+      return;
+    }
   },
 
   startSearch(search) {

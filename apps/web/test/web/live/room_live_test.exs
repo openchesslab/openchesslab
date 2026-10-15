@@ -917,6 +917,52 @@ defmodule Web.RoomLiveTest do
     assert html =~ "id=\"engine-graph\""
   end
 
+  test "a game review walks the mainline and marks the big swings", %{conn: conn, code: code} do
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    render_click(view, "create-analysis", %{})
+
+    view |> element("#chess-board-square-e2") |> render_click()
+    view |> element("#chess-board-square-e4") |> render_click()
+    view |> element("#chess-board-square-e7") |> render_click()
+    view |> element("#chess-board-square-e5") |> render_click()
+
+    # Starting a review points the worker at the root position.
+    html = render_click(view, "engine-review-start", %{})
+
+    assert html =~ "Reviewing"
+    assert html =~ "0/3"
+    assert html =~ "data-review-fen=\"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1\""
+
+    # Out-of-order results are ignored.
+    render_click(view, "engine-review-result", %{"ply" => "2", "cp" => 10})
+    assert render(view) =~ "0/3"
+
+    # Root and 1.e4 stay roughly equal; 1...e5 drops 4.5 pawns for Black.
+    render_click(view, "engine-review-result", %{"ply" => "0", "cp" => 30})
+    assert render(view) =~ "1/3"
+    refute render(view) =~ "data-review-fen=\"\""
+
+    render_click(view, "engine-review-result", %{"ply" => "1", "cp" => -50})
+    render_click(view, "engine-review-result", %{"ply" => "2", "cp" => 400})
+
+    html = render(view)
+
+    assert html =~ "Review complete"
+    assert html =~ "1 blunders"
+    assert html =~ "e5"
+    assert html =~ "??"
+
+    # The blunder dot is marked on the graph; the review offers to run again.
+    assert html =~ "var(--error)"
+    assert has_element?(view, "#engine-review-again")
+    assert html =~ "data-review-fen=\"\""
+
+    # A stale result after completion changes nothing.
+    html = render_click(view, "engine-review-result", %{"ply" => "0", "cp" => -900})
+    assert html =~ "1 blunders"
+    refute html =~ "-9.00"
+  end
+
   test "engine errors surface honestly and switch the engine off", %{conn: conn, code: code} do
     {:ok, view, _html} = live(conn, "/rooms/#{code}")
     render_click(view, "create-analysis", %{})
