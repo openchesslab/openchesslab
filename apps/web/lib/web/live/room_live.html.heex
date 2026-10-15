@@ -767,6 +767,7 @@
           }
           data-cached-fen={@engine_cached && @engine_cached.fen}
           data-cached-depth={@engine_cached && @engine_cached.depth}
+          data-cached-multipv={@engine_cached && @engine_cached.multipv}
         >
           <header class="flex min-h-10 shrink-0 items-center justify-between gap-2 border-b border-border px-3">
             <h2 class="m-0 text-xs font-semibold uppercase tracking-widest text-muted">
@@ -1042,7 +1043,7 @@
 
               <ol class="m-0 min-h-16 flex-1 list-none space-y-1 overflow-y-auto p-0 text-xs leading-relaxed text-muted">
                 <li
-                  :for={line <- @engine_preview.pv}
+                  :for={line <- Enum.take(@engine_preview.pv, @engine_settings.multipv)}
                   class="flex flex-wrap items-baseline gap-x-1"
                 >
                   <strong class="mr-1 font-mono text-foreground">{line.score}</strong>

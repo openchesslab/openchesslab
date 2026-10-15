@@ -34,6 +34,15 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, gecommit en gepusht; deploy volgt door gebruiker:** `Cache all computed lines and
+  honor engine settings over the cache`, bovenop `f540852`. Gebruikersbug: instellingen wijzigen
+  deed niets meer — de cache-skip keek alleen naar fen+diepte, blind voor MultiPV, en de cache
+  bevatte sowieso maar één lijn. Nu: `position_evals` krijgt `multipv` + `lines` (jsonb,
+  migratie `20261015160000` met backfill), de skip vereist dekking op beide assen, het paneel
+  toont de eerste N gevraagde lijnen van de volledige set (render-time take, geen destructief
+  snijden), en de review persist blijft 1-lijn. Volledig serieel: analysis **628**, web **231**;
+  formatter, assetbuild, diffcontrole geslaagd. Browsertest: lijnen 3→2→3 direct uit cache.
+
 - **Afgerond, gecommit en gepusht; deploy volgt door gebruiker:** `Keep the evaluation bar
   visible while the engine computes`, bovenop `7233565`. De evaluatiebalk rendeert nu zodra de
   engine aan staat (niet pas bij de eerste evaluatie) en toont neutraal gedimd "—" tijdens

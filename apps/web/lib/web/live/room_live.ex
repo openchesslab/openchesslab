@@ -1008,7 +1008,11 @@ defmodule Web.RoomLive do
             socket
             |> assign(
               engine_preview: preview,
-              engine_cached: %{fen: preview.fen, depth: preview.depth}
+              engine_cached: %{
+                fen: preview.fen,
+                depth: preview.depth,
+                multipv: length(preview.pv)
+              }
             )
             |> merge_cached_graph_evals()
 
@@ -1070,7 +1074,11 @@ defmodule Web.RoomLive do
 
       # The panel now shows a fresh evaluation of this position at this depth.
       socket =
-        assign(socket, :engine_cached, %{fen: preview.fen, depth: preview.depth})
+        assign(socket, :engine_cached, %{
+          fen: preview.fen,
+          depth: preview.depth,
+          multipv: length(preview.pv)
+        })
 
       # A completed (bestmove) search persists the result for everyone.
       if params["final"] do
@@ -3202,7 +3210,11 @@ defmodule Web.RoomLive do
 
           assign(socket,
             engine_preview: preview,
-            engine_cached: %{fen: preview.fen, depth: preview.depth},
+            engine_cached: %{
+              fen: preview.fen,
+              depth: preview.depth,
+              multipv: length(preview.pv)
+            },
             engine_peek: nil
           )
 
@@ -3216,29 +3228,49 @@ defmodule Web.RoomLive do
 
   # Reads the durable cache for the position on the board; only a cached
   # result at least as deep as requested counts as coverage.
+  # A cached evaluation covers the request only when it is at least as deep
+  # AND computed with at least as many lines — a cache row always carries
+  # every line that was computed, so coverage is honest on both axes.
   defp cached_engine_eval(socket) do
     with %Node{} = node <- socket.assigns.current_node,
          {:ok, cached} <- PositionEvals.get(Node.position_id(node), @engine_id),
-         true <- cached.depth >= socket.assigns.engine_settings.depth do
+         true <- cached.depth >= socket.assigns.engine_settings.depth,
+         true <- cached.multipv >= socket.assigns.engine_settings.multipv do
       {:ok, cached}
     else
       _ -> :miss
     end
   end
 
-  # Cached evaluations are stored white-relative, matching the panel.
+  # Cached evaluations are stored white-relative, matching the panel. Every
+  # computed line comes back, so the panel can serve any MultiPV request the
+  # cache covers; the template shows the first requested ones.
   defp engine_preview_from_cache(socket, cached) do
     position = socket.assigns.position
     context = AnalysisView.move_context(socket.assigns.analysis, socket.assigns.current_path)
 
-    moves =
-      (cached.pv || "")
-      |> String.split(" ", trim: true)
-      |> Enum.zip(UCI.pv_to_san(position, cached.pv || ""))
-      |> Enum.map(fn {uci, san} -> %{uci: uci, san: san} end)
-      |> add_move_labels(context)
+    pv =
+      (cached.lines || [])
+      |> Enum.map(fn line ->
+        moves =
+          (line["pv"] || "")
+          |> String.split(" ", trim: true)
+          |> Enum.zip(UCI.pv_to_san(position, line["pv"] || ""))
+          |> Enum.map(fn {uci, san} -> %{uci: uci, san: san} end)
 
-    score = eval_label(%{eval_cp: cached.eval_cp, mate_in: cached.mate})
+        case moves do
+          [] ->
+            nil
+
+          _ ->
+            %{
+              multipv: engine_int(line["multipv"]),
+              score: eval_label(%{eval_cp: line["score_cp"], mate_in: line["score_mate"]}),
+              moves: add_move_labels(moves, context)
+            }
+        end
+      end)
+      |> Enum.reject(&is_nil/1)
 
     %{
       fen: current_fen(socket),
@@ -3247,7 +3279,7 @@ defmodule Web.RoomLive do
       depth: cached.depth,
       nodes: cached.nodes,
       nps: nil,
-      pv: [%{multipv: 1, score: score, moves: moves}]
+      pv: pv
     }
   end
 
@@ -3288,7 +3320,8 @@ defmodule Web.RoomLive do
     end
   end
 
-  # Persists a completed search; deepest-wins upsert keeps the best result.
+  # Persists a completed search with every computed line; deepest-wins upsert
+  # keeps the best result.
   defp persist_engine_eval(socket, preview, lines) do
     case socket.assigns.current_node do
       %Node{} = node ->
@@ -3300,13 +3333,23 @@ defmodule Web.RoomLive do
           mate: preview.mate_in,
           best_move: first_pv && first_pv |> String.split(" ") |> List.first(),
           pv: first_pv,
-          nodes: preview.nodes
+          nodes: preview.nodes,
+          multipv: length(lines),
+          lines:
+            Enum.map(lines, fn line ->
+              %{"multipv" => engine_int(line["multipv"]), "pv" => line["pv"]}
+              |> maybe_put_score("score_cp", line["score_cp"])
+              |> maybe_put_score("score_mate", line["score_mate"])
+            end)
         })
 
       _ ->
         :ok
     end
   end
+
+  defp maybe_put_score(map, _key, nil), do: map
+  defp maybe_put_score(map, key, value), do: Map.put(map, key, engine_int(value))
 
   # Marks only color the graph once the review classified them.
   defp review_marks(%{status: :done, marks: marks}), do: marks

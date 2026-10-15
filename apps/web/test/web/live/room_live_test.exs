@@ -1122,7 +1122,13 @@ defmodule Web.RoomLiveTest do
         mate: nil,
         best_move: "e2e4",
         pv: "e2e4 e7e5",
-        nodes: 999_999
+        nodes: 999_999,
+        multipv: 3,
+        lines: [
+          %{"multipv" => 1, "score_cp" => 42, "pv" => "e2e4 e7e5"},
+          %{"multipv" => 2, "score_cp" => 20, "pv" => "d2d4 d7d5"},
+          %{"multipv" => 3, "score_cp" => 11, "pv" => "g1f3"}
+        ]
       })
 
     {:ok, view, _html} = live(conn, "/rooms/#{code}")
@@ -1222,7 +1228,13 @@ defmodule Web.RoomLiveTest do
         depth: 20,
         eval_cp: 37,
         best_move: "e2e4",
-        pv: "e2e4 e7e5"
+        pv: "e2e4 e7e5",
+        multipv: 3,
+        lines: [
+          %{"multipv" => 1, "score_cp" => 37, "pv" => "e2e4 e7e5"},
+          %{"multipv" => 2, "score_cp" => 20, "pv" => "d2d4 d7d5"},
+          %{"multipv" => 3, "score_cp" => 11, "pv" => "g1f3"}
+        ]
       })
 
     # The engine turns on after the move: no cache there, so it analyzes.
@@ -1274,6 +1286,62 @@ defmodule Web.RoomLiveTest do
     assert cached.depth == 20
     assert cached.eval_cp == 34
     assert cached.best_move == "e2e4"
+
+    Repo.query!("DELETE FROM position_evals WHERE position_id = $1", [position_id])
+  end
+
+  test "settings stay effective over a cached evaluation on both axes", %{
+    conn: conn,
+    code: code
+  } do
+    position_id = PositionStore.append(Position.starting_position())
+    Repo.query!("DELETE FROM position_evals WHERE position_id = $1", [position_id])
+
+    :ok =
+      Analysis.PositionEvals.put(position_id, "stockfish-19-lite-single", %{
+        depth: 20,
+        eval_cp: 37,
+        best_move: "e2e4",
+        pv: "e2e4 e7e5",
+        multipv: 3,
+        lines: [
+          %{"multipv" => 1, "score_cp" => 37, "pv" => "e2e4 e7e5"},
+          %{"multipv" => 2, "score_cp" => 20, "pv" => "d2d4 d7d5"},
+          %{"multipv" => 3, "score_cp" => 11, "pv" => "g1f3"}
+        ]
+      })
+
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    render_click(view, "create-analysis", %{})
+
+    # The cache covers the defaults: all three lines show instantly.
+    html = render_click(view, "toggle-engine", %{})
+    assert html =~ "+0.37"
+    assert html =~ "data-cached-depth=\"20\""
+    assert html =~ "data-cached-multipv=\"3\""
+    assert has_element?(view, "#engine-panel ol li button", "Nf3")
+
+    # Fewer lines is served from the same cache: the third line leaves.
+    html =
+      render_change(view, "update-engine-settings", %{
+        "depth" => "10",
+        "multipv" => "2"
+      })
+
+    refute has_element?(view, "#engine-panel ol li button", "Nf3")
+    assert has_element?(view, "#engine-panel ol li button[phx-value-line='2']", "d4")
+
+    # An uncovered combination (more lines than cached) keeps showing the
+    # cached lines while the hook recomputes: the coverage attribute is what
+    # drives the worker restart.
+    html =
+      render_change(view, "update-engine-settings", %{
+        "depth" => "10",
+        "multipv" => "5"
+      })
+
+    assert html =~ "data-cached-multipv=\"3\""
+    assert has_element?(view, "#engine-panel ol li button[phx-value-line='2']", "d4")
 
     Repo.query!("DELETE FROM position_evals WHERE position_id = $1", [position_id])
   end

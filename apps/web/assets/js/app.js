@@ -1369,11 +1369,12 @@ const EngineAnalysis = {
 
     // Coverage from the shared cache (or a just-finished compute) means no
     // local recompute: the panel already shows an evaluation of this position
-    // at the requested depth or deeper.
+    // at the requested depth AND at least as many lines.
     const cachedFen = this.el.dataset.cachedFen || "";
     const cachedDepth = parseInt(this.el.dataset.cachedDepth || "0", 10);
+    const cachedMultipv = parseInt(this.el.dataset.cachedMultipv || "0", 10);
 
-    if (cachedFen === fen && cachedDepth >= depth) {
+    if (cachedFen === fen && cachedDepth >= depth && cachedMultipv >= multipv) {
       this.stopSearch();
       return;
     }

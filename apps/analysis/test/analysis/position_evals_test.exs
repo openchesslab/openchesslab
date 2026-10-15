@@ -32,6 +32,8 @@ defmodule Analysis.PositionEvalsTest do
     assert eval.best_move == "e2e4"
     assert eval.pv == "e2e4 e7e5 g1f3"
     assert eval.nodes == 612_345
+    assert eval.multipv == 1
+    assert [%{"multipv" => 1, "score_cp" => 34, "pv" => "e2e4 e7e5 g1f3"}] = eval.lines
 
     # Another engine identity is a separate row.
     assert :not_found = PositionEvals.get(position_id, "stockfish-16")
@@ -54,6 +56,30 @@ defmodule Analysis.PositionEvalsTest do
 
     assert {:ok, %{depth: 20, eval_cp: 31, best_move: "d2d4"}} =
              PositionEvals.get(position_id, "engine")
+  end
+
+  test "multi-line evaluations round-trip with their multipv coverage" do
+    position_id = PositionStore.append(Position.starting_position())
+
+    lines = [
+      %{"multipv" => 1, "score_cp" => 30, "pv" => "e2e4 e7e5"},
+      %{"multipv" => 2, "score_cp" => 12, "pv" => "d2d4"},
+      %{"multipv" => 3, "score_mate" => -2, "pv" => "g1f3"}
+    ]
+
+    :ok =
+      PositionEvals.put(position_id, "engine", %{
+        depth: 18,
+        eval_cp: 30,
+        best_move: "e2e4",
+        pv: "e2e4 e7e5",
+        multipv: 3,
+        lines: lines
+      })
+
+    assert {:ok, eval} = PositionEvals.get(position_id, "engine")
+    assert eval.multipv == 3
+    assert eval.lines == lines
   end
 
   test "positions can be removed; their evaluations go with them" do
