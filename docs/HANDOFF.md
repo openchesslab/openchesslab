@@ -34,6 +34,17 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, gecommit en gepusht; deploy volgt door gebruiker:** `Move the engine panel into its
+  own column beside the board`, bovenop `d0e6f36`. Layoutwijziging (productbeslissing 2026-10-15):
+  de engine-inhoud (toggle, settings, stats, grafiek, review, PV-lijnen, peek) verhuist van de
+  rechterzijbalk naar een eigen vol-hoogte kolom tussen bord en zijbalk (210px, 180px ≤1100px,
+  gestapeld vóór de zetten op mobiel). De zijbalk houdt zetten + commentaar over; de commentaarbox
+  is weer in beeld. PV-lijnen wrappen nu echt (flex-wrap; HEEx laat geen whitespace tussen
+  for-comprehension-spans, dus inline-flow brak niet). Tourtekst bijgewerkt. Volledig serieel: web
+  **228 geslaagd** (seed 511632); formatter, root-compile --warnings-as-errors, assetbuild,
+  diffcontrole geslaagd. Browsertests: desktop (commentaar zichtbaar zonder scrollen, lijnen
+  wrappen binnen de kolom) en mobiel 430px (sectie stapelt na de strip).
+
 - **Afgerond, gecommit en gepusht; deploy volgt door gebruiker:** `Import annotated PGN
   variations into the analysis tree`, bovenop `8f31baf`. `PgnAnalysisImporter` parseert nu het
   volledige movetext als boom: een variatie na een zet is een alternatief voor die zet (sibling
