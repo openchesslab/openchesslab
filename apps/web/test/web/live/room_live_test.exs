@@ -3,12 +3,17 @@ defmodule Web.RoomLiveTest do
 
   alias Analysis.Analysis, as: AnalysisModel
   alias Analysis.Analyses
+  alias Analysis.AnalysisStore
+  alias Analysis.GameContent
   alias Analysis.GameRecords
+  alias Analysis.GameStart
   alias Analysis.Node
   alias Analysis.PositionStore
   alias Analysis.Rooms
   alias Chess.Move
   alias Chess.Position
+  alias Chess.Square
+  alias OpenChessLab.Repo
   alias Web.AnalysisView
   alias Web.DemoData
 
@@ -291,23 +296,75 @@ defmodule Web.RoomLiveTest do
     assert Position.piece_at(position, 28) == {:white, :pawn}
   end
 
-  test "game search uses clearly labelled local fixtures", %{conn: conn, code: code} do
+  test "game search runs against the real corpus and opens hits in the room", %{
+    conn: conn,
+    code: code
+  } do
     {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    corpus = seed_search_corpus()
 
     html =
       view
       |> render_click("open-search", %{})
-      |> then(fn _ ->
-        render_submit(view, "search-games", %{
-          "player" => "Alice",
-          "color" => "either",
-          "result" => "either",
-          "opening" => ""
-        })
-      end)
+      |> then(fn _ -> render_submit(view, "search-games", %{"player" => "carlsen"}) end)
 
-    assert html =~ "DEMO search uses a few local fixtures"
-    assert html =~ "Alice Example"
+    # Real results, no fixtures: the case-insensitive substring matches.
+    refute html =~ "DEMO"
+    assert has_element?(view, "#corpus-#{corpus.carlsen_win}")
+    refute has_element?(view, "#corpus-#{corpus.other_win}")
+
+    # Colour scoping: the opponent won as Black in the loss record; as White
+    # that record no longer matches.
+    html =
+      render_submit(view, "search-games", %{
+        "player" => "opponent",
+        "color" => "black",
+        "result" => "0-1"
+      })
+
+    assert has_element?(view, "#corpus-#{corpus.carlsen_loss}")
+    refute has_element?(view, "#corpus-#{corpus.carlsen_win}")
+
+    html =
+      render_submit(view, "search-games", %{
+        "player" => "opponent",
+        "color" => "white",
+        "result" => "0-1"
+      })
+
+    refute has_element?(view, "#corpus-#{corpus.carlsen_loss}")
+
+    # Position search: only games that actually reached the position qualify.
+    html =
+      render_submit(view, "search-games", %{
+        "player" => "",
+        "color" => "either",
+        "result" => "either",
+        "fen" => "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
+      })
+
+    assert has_element?(view, "#corpus-#{corpus.carlsen_win}")
+    refute has_element?(view, "#corpus-#{corpus.carlsen_loss}")
+
+    # An unparseable FEN is an honest error, not an empty result set.
+    html = render_submit(view, "search-games", %{"fen" => "not a fen"})
+    assert html =~ "id=\"search-error\""
+    assert html =~ "could not be parsed"
+
+    # A hit opens as a fresh analysis in the room.
+    render_submit(view, "search-games", %{"player" => "carlsen"})
+    html = render_click(view, "open-corpus-game", %{"id" => corpus.carlsen_win})
+
+    assert {:ok, room} = Analysis.RoomStore.get(code)
+    assert length(room.analysis_ids) == 1
+    assert html =~ "Added to this room."
+
+    {:ok, analysis, _revision} =
+      AnalysisStore.get(hd(room.analysis_ids))
+
+    assert analysis.source_game_record_id == corpus.carlsen_win
+
+    cleanup_search_corpus(corpus)
   end
 
   test "presence and chat are shared by LiveViews in the same room", %{conn: conn, code: code} do
@@ -1351,6 +1408,52 @@ defmodule Web.RoomLiveTest do
         Process.sleep(10)
         wait_until_room_unregistered(code, attempts - 1)
     end
+  end
+
+  defp corpus_move(from, to),
+    do: Move.new(Square.from_algebraic(from), Square.from_algebraic(to))
+
+  # A tiny real corpus: Carlsen wins with 1.e4 e5, loses with 1.d4 d5, and
+  # somebody else wins with 1.e4 c5. Cleanup deletes only the records; the
+  # canonical games and positions stay shared and suite-truncated.
+  defp seed_search_corpus do
+    suffix = Base.encode16(:crypto.strong_rand_bytes(4))
+    start_id = PositionStore.append(Position.starting_position())
+
+    {:ok, win} =
+      GameRecords.create(
+        "search-win-#{suffix}",
+        GameContent.new(start_id, [corpus_move("e2", "e4"), corpus_move("e7", "e5")]),
+        GameStart.standard(),
+        %{"white" => "Magnus Carlsen", "black" => "Opponent", "result" => "1-0"}
+      )
+
+    {:ok, loss} =
+      GameRecords.create(
+        "search-loss-#{suffix}",
+        GameContent.new(start_id, [corpus_move("d2", "d4"), corpus_move("d7", "d5")]),
+        GameStart.standard(),
+        %{"white" => "Magnus Carlsen", "black" => "Opponent", "result" => "0-1"}
+      )
+
+    {:ok, other} =
+      GameRecords.create(
+        "search-other-#{suffix}",
+        GameContent.new(start_id, [corpus_move("e2", "e4"), corpus_move("c7", "c5")]),
+        GameStart.standard(),
+        %{"white" => "Somebody Else", "black" => "Opponent", "result" => "1-0"}
+      )
+
+    %{
+      carlsen_win: win.id,
+      carlsen_loss: loss.id,
+      other_win: other.id,
+      record_ids: [win.id, loss.id, other.id]
+    }
+  end
+
+  defp cleanup_search_corpus(corpus) do
+    Repo.query!("DELETE FROM game_records WHERE record_id = ANY($1)", [corpus.record_ids])
   end
 
   defp room_analysis_id!(code) do

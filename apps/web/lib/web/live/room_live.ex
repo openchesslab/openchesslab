@@ -6,12 +6,15 @@ defmodule Web.RoomLive do
   alias Analysis.Analysis, as: AnalysisModel
   alias Analysis.AnalysisEvents
   alias Analysis.Analyses
+  alias Analysis.GameRecordQuery
+  alias Analysis.GameSearch
   alias Analysis.Node
   alias Analysis.PgnAnalysisImporter
   alias Analysis.RoomChat
   alias Analysis.RoomEvents
   alias Analysis.Rooms
   alias Analysis.UserLibrary
+  alias Chess.Notation.FEN
   alias Chess.Notation.UCI
   alias Chess.Position
   alias Chess.PositionDraft
@@ -483,16 +486,13 @@ defmodule Web.RoomLive do
      assign(socket,
        ui_modal: "search",
        search_results: [],
+       search_cursor: nil,
+       search_error: nil,
        search_filters: %{
          "player" => "",
          "color" => "either",
          "result" => "either",
-         "opening" => "",
-         "date_from" => "",
-         "date_to" => "",
-         "position_mode" => "exact",
-         "fen" => "",
-         "substitutions" => ""
+         "fen" => ""
        }
      )}
   end
@@ -1153,9 +1153,78 @@ defmodule Web.RoomLive do
     {:noreply, assign(socket, :board_shapes, board_shapes(socket))}
   end
 
+  # The search runs against the real canonical corpus: position predicates go
+  # through PositionQuery/GameSearch (PostgreSQL, keyset-paged), name filters
+  # are case-insensitive substrings on the PGN metadata.
   def handle_event("search-games", params, socket) do
-    results = DemoData.search_games(params)
-    {:noreply, assign(socket, search_filters: params, search_results: results)}
+    filters = Map.merge(socket.assigns.search_filters, params)
+
+    case corpus_search(filters, nil) do
+      {:ok, results, cursor} ->
+        {:noreply,
+         assign(socket,
+           search_filters: filters,
+           search_results: results,
+           search_cursor: cursor,
+           search_error: nil
+         )}
+
+      {:error, :invalid_fen} ->
+        {:noreply,
+         assign(socket,
+           search_filters: filters,
+           search_results: [],
+           search_cursor: nil,
+           search_error: "room.searchInvalidFen"
+         )}
+    end
+  end
+
+  def handle_event("search-more", _params, socket) do
+    case socket.assigns.search_cursor do
+      nil ->
+        {:noreply, socket}
+
+      cursor ->
+        case corpus_search(socket.assigns.search_filters, cursor) do
+          {:ok, results, next} ->
+            known = MapSet.new(Enum.map(socket.assigns.search_results, & &1.id))
+            fresh = Enum.reject(results, &MapSet.member?(known, &1.id))
+
+            {:noreply,
+             assign(socket,
+               search_results: socket.assigns.search_results ++ fresh,
+               search_cursor: next
+             )}
+
+          {:error, _reason} ->
+            {:noreply, socket}
+        end
+    end
+  end
+
+  # Opens a corpus hit as a fresh room analysis, like branching a library game.
+  def handle_event("open-corpus-game", %{"id" => record_id}, socket) do
+    new_id = new_analysis_id()
+
+    with {:ok, _analysis, _revision} <- Analyses.create_from_game_record(new_id, record_id),
+         :ok <- Rooms.add_analysis(socket.assigns.room_code, new_id) do
+      added(socket, new_id, "room.libraryAdded")
+    else
+      _ ->
+        {:noreply,
+         notify(
+           socket,
+           Web.I18n.t("room.searchOpenFailed", socket.assigns.locale, %{message: record_id}),
+           :error
+         )}
+    end
+  end
+
+  def handle_event("search-use-board-fen", _params, socket) do
+    fen = if socket.assigns.position, do: to_fen(socket.assigns.position), else: ""
+    filters = Map.put(socket.assigns.search_filters, "fen", fen)
+    {:noreply, assign(socket, :search_filters, filters)}
   end
 
   def handle_event("mock-provider-search", %{"provider" => provider, "query" => query}, socket) do
@@ -3143,6 +3212,97 @@ defmodule Web.RoomLive do
     do: to_fen(position)
 
   defp current_fen(_socket), do: nil
+
+  @search_page_size 25
+
+  # One bounded GameSearch page per request; entries arrive occurrence-level
+  # (one row per position a game passes through) and the list shows one row
+  # per game record, keeping the first occurrence it reached.
+  defp corpus_search(filters, cursor) do
+    with {:ok, position_query} <- search_position_query(filters["fen"]) do
+      record_query = search_record_query(filters)
+
+      options =
+        if cursor,
+          do: [limit: @search_page_size, cursor: cursor],
+          else: [limit: @search_page_size]
+
+      case GameSearch.page(position_query, record_query, options) do
+        {:ok, page} ->
+          {results, _seen} =
+            Enum.reduce(page.entries, {[], MapSet.new()}, fn {record, occurrence}, {acc, seen} ->
+              if MapSet.member?(seen, record.id) do
+                {acc, seen}
+              else
+                {[corpus_result(record, occurrence) | acc], MapSet.put(seen, record.id)}
+              end
+            end)
+
+          {:ok, Enum.reverse(results), page.next}
+
+        {:error, _reason} ->
+          {:error, :search_failed}
+      end
+    end
+  end
+
+  defp search_position_query(fen) when fen in ["", nil], do: {:ok, true}
+
+  defp search_position_query(fen) do
+    case FEN.parse(String.trim(to_string(fen))) do
+      {:ok, %{position: position}} -> {:ok, Analysis.PositionQuery.equivalent(position)}
+      _ -> {:error, :invalid_fen}
+    end
+  end
+
+  defp search_record_query(filters) do
+    player = filters["player"] |> to_string() |> String.trim()
+
+    player_queries =
+      case {player, filters["color"]} do
+        {"", _} ->
+          []
+
+        {name, "white"} ->
+          [GameRecordQuery.metadata_value_contains("white", name)]
+
+        {name, "black"} ->
+          [GameRecordQuery.metadata_value_contains("black", name)]
+
+        {name, _color} ->
+          [
+            GameRecordQuery.any([
+              GameRecordQuery.metadata_value_contains("white", name),
+              GameRecordQuery.metadata_value_contains("black", name)
+            ])
+          ]
+      end
+
+    result_queries =
+      if filters["result"] in ["1-0", "0-1", "1/2-1/2", "*"],
+        do: [GameRecordQuery.metadata_contains(%{"result" => filters["result"]})],
+        else: []
+
+    case player_queries ++ result_queries do
+      [] -> GameRecordQuery.match_all()
+      [single] -> single
+      queries -> GameRecordQuery.all(queries)
+    end
+  end
+
+  defp corpus_result(record, occurrence) do
+    metadata = record.metadata
+
+    %{
+      id: record.id,
+      white: metadata["white"] || "?",
+      black: metadata["black"] || "?",
+      event: metadata["event"],
+      date: metadata["date"],
+      result: metadata["result"] || "*",
+      ply: occurrence.ply
+    }
+  end
 
   # The peek board renders the position in visual order following the main
   # board's orientation: White at the bottom by default.

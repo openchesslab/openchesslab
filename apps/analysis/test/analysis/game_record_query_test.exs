@@ -25,6 +25,17 @@ defmodule Analysis.GameRecordQueryTest do
              false
   end
 
+  test "builds substring and junction queries for the search UI" do
+    assert GameRecordQuery.metadata_value_contains("white", "carlsen") ==
+             {:metadata_value_contains, "white", "carlsen"}
+
+    assert GameRecordQuery.all([true, GameRecordQuery.match_none()]) ==
+             {:and, [true, false]}
+
+    assert GameRecordQuery.any([GameRecordQuery.match_none()]) ==
+             {:or, [false]}
+  end
+
   test "rejects invalid metadata" do
     assert_raise ArgumentError, fn ->
       apply(

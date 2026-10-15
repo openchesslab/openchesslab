@@ -5,8 +5,10 @@ defmodule Analysis.GameSearchTest do
   alias Analysis.GameFingerprint
   alias Analysis.GameRecord
   alias Analysis.GameRecordQuery
+  alias Analysis.GameRecords
   alias Analysis.GameRecordStore
   alias Analysis.GameSearch
+  alias Analysis.GameStart
   alias Analysis.GameStore
   alias Analysis.PositionQuery, as: Query
   alias Analysis.PositionStore
@@ -139,6 +141,79 @@ defmodule Analysis.GameSearchTest do
 
     assert occurrence.position_id ==
              first_position_id
+  end
+
+  test "combines player substring, result and exact position in one search" do
+    start_id = PositionStore.append(Position.starting_position())
+
+    {:ok, after_e4} =
+      Position.apply_move(Position.starting_position(), move("e2", "e4"))
+
+    # Carlsen wins with 1.e4 e5; the same player loses with 1.d4 d5; a third
+    # game with 1.e4 belongs to someone else.
+    {:ok, carlsen_win} =
+      GameRecords.create(
+        "record-carlsen-win",
+        GameContent.new(start_id, [move("e2", "e4"), move("e7", "e5")]),
+        GameStart.standard(),
+        %{"white" => "Magnus Carlsen", "black" => "Opponent", "result" => "1-0"}
+      )
+
+    {:ok, _carlsen_loss} =
+      GameRecords.create(
+        "record-carlsen-loss",
+        GameContent.new(start_id, [move("d2", "d4"), move("d7", "d5")]),
+        GameStart.standard(),
+        %{"white" => "Magnus Carlsen", "black" => "Opponent", "result" => "0-1"}
+      )
+
+    {:ok, _other} =
+      GameRecords.create(
+        "record-other",
+        GameContent.new(start_id, [move("e2", "e4"), move("c7", "c5")]),
+        GameStart.standard(),
+        %{"white" => "Somebody Else", "black" => "Opponent", "result" => "1-0"}
+      )
+
+    record_query =
+      GameRecordQuery.all([
+        GameRecordQuery.any([
+          GameRecordQuery.metadata_value_contains("white", "carlsen"),
+          GameRecordQuery.metadata_value_contains("black", "carlsen")
+        ]),
+        GameRecordQuery.metadata_contains(%{"result" => "1-0"})
+      ])
+
+    assert {:ok, %GameSearch.Page{entries: [{record, occurrence}], next: nil}} =
+             GameSearch.page(Query.equivalent(after_e4), record_query, limit: 10)
+
+    assert record.id == carlsen_win.id
+    assert occurrence.game_id == carlsen_win.game_id
+
+    # The substring match is case-insensitive and scopes to one colour.
+    # Entries are occurrence-level: three records, each with an occurrence at
+    # every position their game passes through (start + two moves).
+    assert {:ok, %GameSearch.Page{entries: black_games}} =
+             GameSearch.page(
+               true,
+               GameRecordQuery.metadata_value_contains("black", "OPPONENT"),
+               limit: 10
+             )
+
+    assert length(black_games) == 9
+
+    assert black_games
+           |> Enum.map(fn {record, _occurrence} -> record.id end)
+           |> Enum.uniq()
+           |> length() == 3
+
+    # Wildcard characters in names are literal text, not ILIKE wildcards.
+    assert {:ok, %GameSearch.Page{entries: []}} =
+             GameSearch.page(
+               true,
+               GameRecordQuery.metadata_value_contains("white", "100%"),
+               limit: 10
+             )
   end
 
   test "pages the joined result relation without duplicates or omissions" do

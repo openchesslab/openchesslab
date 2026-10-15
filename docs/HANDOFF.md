@@ -34,6 +34,18 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, gecommit en gepusht; deploy volgt door gebruiker:** `Wire game search to the real
+  corpus queries`, bovenop `3130242`. De zoekmodal draait nu echt op `GameSearch.page/3`:
+  spelersnaam (case-insensitive ILIKE-substring, nieuwe `GameRecordQuery.metadata_value_contains/2`
+  + `all/1`/`any/1`-juncties), kleur, resultaat (exacte JSONB-containment) en exacte stelling via
+  `PositionQuery.equivalent/1` (de demo-FEN deed voorheen helemaal niets). Keyset-paging met
+  "Toon meer", één rij per record (dedupe), ongeldige FEN is een eerlijke fout, ⌖-knop vult de
+  bordstelling. Hit openen = `Analyses.create_from_game_record/2` in de room. Demovelden opening/
+  datum/mode/substitutions verwijderd; de import-modal providermock blijft bewust demo.
+  Gericht: game_search 13 incl. nieuwe combinatietest; volledig serieel: analysis **623**,
+  web **226**, chess **583**; formatter, --warnings-as-errors, assetbuild, diffcontrole geslaagd.
+  Browsertest op dev met 3-partijen corpus: substring/colour/FEN/filter/error/open-in-room ok.
+
 - **Afgerond, gecommit, gepusht en door de gebruiker gedeployed (bevestigd 2026-10-15):**
   twee slices bovenop de engine-serie. `45e96ea` — reviewclassificatie volgt
   nu lichess' gepubliceerde Win%-model (scalachess is MIT; de curve is gefit op echte partijen):
