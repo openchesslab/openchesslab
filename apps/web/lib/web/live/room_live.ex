@@ -492,6 +492,7 @@ defmodule Web.RoomLive do
          "player" => "",
          "color" => "either",
          "result" => "either",
+         "position_mode" => "exact",
          "fen" => ""
        }
      )}
@@ -3219,7 +3220,8 @@ defmodule Web.RoomLive do
   # (one row per position a game passes through) and the list shows one row
   # per game record, keeping the first occurrence it reached.
   defp corpus_search(filters, cursor) do
-    with {:ok, position_query} <- search_position_query(filters["fen"]) do
+    with {:ok, position_query} <-
+           search_position_query(filters["fen"], filters["position_mode"]) do
       record_query = search_record_query(filters)
 
       options =
@@ -3246,12 +3248,20 @@ defmodule Web.RoomLive do
     end
   end
 
-  defp search_position_query(fen) when fen in ["", nil], do: {:ok, true}
+  defp search_position_query(fen, _mode) when fen in ["", nil], do: {:ok, true}
 
-  defp search_position_query(fen) do
+  defp search_position_query(fen, mode) do
     case FEN.parse(String.trim(to_string(fen))) do
-      {:ok, %{position: position}} -> {:ok, Analysis.PositionQuery.equivalent(position)}
-      _ -> {:error, :invalid_fen}
+      {:ok, %{position: position}} ->
+        {:ok,
+         case mode do
+           "structure" -> Analysis.PositionQuery.pawn_structure(position)
+           "structure_symmetries" -> Analysis.PositionQuery.pawn_structure_symmetries(position)
+           _ -> Analysis.PositionQuery.equivalent(position)
+         end}
+
+      _ ->
+        {:error, :invalid_fen}
     end
   end
 

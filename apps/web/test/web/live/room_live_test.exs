@@ -340,11 +340,33 @@ defmodule Web.RoomLiveTest do
         "player" => "",
         "color" => "either",
         "result" => "either",
-        "fen" => "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
+        "fen" => "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2"
       })
 
     assert has_element?(view, "#corpus-#{corpus.carlsen_win}")
     refute has_element?(view, "#corpus-#{corpus.carlsen_loss}")
+    refute has_element?(view, "#corpus-#{corpus.transpo}")
+
+    # Structural modes widen honestly: the transposition game shares the pawn
+    # structure but not the exact position; the d4/d5 game is a file-reflected
+    # pawn symmetry of it.
+    html =
+      render_submit(view, "search-games", %{
+        "fen" => "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+        "position_mode" => "structure"
+      })
+
+    assert has_element?(view, "#corpus-#{corpus.carlsen_win}")
+    assert has_element?(view, "#corpus-#{corpus.transpo}")
+    refute has_element?(view, "#corpus-#{corpus.carlsen_loss}")
+
+    html =
+      render_submit(view, "search-games", %{
+        "fen" => "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+        "position_mode" => "structure_symmetries"
+      })
+
+    assert has_element?(view, "#corpus-#{corpus.carlsen_loss}")
 
     # An unparseable FEN is an honest error, not an empty result set.
     html = render_submit(view, "search-games", %{"fen" => "not a fen"})
@@ -1444,11 +1466,25 @@ defmodule Web.RoomLiveTest do
         %{"white" => "Somebody Else", "black" => "Opponent", "result" => "1-0"}
       )
 
+    # Same pawn structure as after 1.e4 e5, but a different exact position
+    # (the knight is already on f3): 1.Nf3 e5 2.e4.
+    {:ok, transpo} =
+      GameRecords.create(
+        "search-transpo-#{suffix}",
+        GameContent.new(
+          start_id,
+          [corpus_move("g1", "f3"), corpus_move("e7", "e5"), corpus_move("e2", "e4")]
+        ),
+        GameStart.standard(),
+        %{"white" => "Transpo Player", "black" => "Opponent", "result" => "1/2-1/2"}
+      )
+
     %{
       carlsen_win: win.id,
       carlsen_loss: loss.id,
       other_win: other.id,
-      record_ids: [win.id, loss.id, other.id]
+      transpo: transpo.id,
+      record_ids: [win.id, loss.id, other.id, transpo.id]
     }
   end
 

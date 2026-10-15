@@ -34,6 +34,15 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, gecommit en gepusht; deploy volgt door gebruiker:** `Add structural position search
+  modes to game search`, bovenop `3427bdf`. De position-mode-selectie is terug, nu echt: exacte
+  stelling (`equivalent/1`), zelfde pionnenstructuur (`pawn_structure/1`), of elke symmetrie
+  (`pawn_structure_symmetries/1` — exact + kleurverwisseling + lijnspiegeling + combinatie).
+  Alleen zichtbaar zodra er een FEN staat. Web-test met een extra transpositie-partij bewijst de
+  discriminatie; browsertest op dev bevestigt exact/structuur/symmetrie (de d4-d5-partij matcht
+  als lijngespiegde symmetrie). Volledig serieel: web **226 geslaagd** (seed 511632);
+  formatter en diffcontrole geslaagd.
+
 - **Afgerond, gecommit, gepusht en door gebruiker gedeployed (bevestigd 2026-10-15):**
   `Wire game search to the real corpus queries`, bovenop `3130242`. De zoekmodal draait nu echt op `GameSearch.page/3`:
   spelersnaam (case-insensitive ILIKE-substring, nieuwe `GameRecordQuery.metadata_value_contains/2`

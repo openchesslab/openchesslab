@@ -1841,6 +1841,25 @@
             >⌖</button>
           </div>
         </div>
+        <label
+          :if={@search_filters["fen"] |> to_string() |> String.trim() != ""}
+          class="flex flex-col gap-1 text-xs text-muted"
+        >{Web.I18n.t("room.searchPositionMode", @locale)}<select
+          name="position_mode"
+          class="rounded-md border border-border px-2 py-2 text-sm text-foreground"
+        ><option value="exact" selected={@search_filters["position_mode"] == "exact"}>
+          {Web.I18n.t("room.searchModeExact", @locale)}
+        </option><option
+          value="structure"
+          selected={@search_filters["position_mode"] == "structure"}
+        >
+          {Web.I18n.t("room.searchModeStructure", @locale)}
+        </option><option
+          value="structure_symmetries"
+          selected={@search_filters["position_mode"] == "structure_symmetries"}
+        >
+          {Web.I18n.t("room.searchModeStructureSymmetries", @locale)}
+        </option></select></label>
 
         <button
           type="submit"
