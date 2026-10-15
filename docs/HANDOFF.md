@@ -34,7 +34,7 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond, gecommit en gepusht; deploy volgt na deze reeks (door gebruiker toegestaan):**
+- **Afgerond, gecommit, gepusht en gedeployed (gebruiker stond deploy toe, 2026-10-15):**
   engine-vervolgserie op `fee8abc` — `fc1e40d` (leesbare/interactieve engine-lijnen),
   `5bc9bd4` (instellingen aanpasbaar terwijl de engine draait + debounce), `018b816`
   (groene best-move-arrow op het bord), `e4a19aa` (evaluatiegrafiek), en nu **partijreview**
@@ -45,6 +45,8 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   volledig serieel: web **234**, analysis **619**, chess **583**; formatter, --warnings-as-errors,
   assetbuild, diffcontrole geslaagd. Browsertest: review doorloopt 4 plys, grafiek vult,
   samenvatting + Review again; instellingen typbaar terwijl de engine draait.
+  Productieverificatie: /health + /ready 200, wasm 200 (application/wasm); live op
+  openchesslab.com: kamer CGRUL2 aangemaakt, eval +0.39, balk, arrow, review compleet.
 
 - **Afgerond, wacht op commit/push:** `Make engine lines readable and interactive`, bovenop
   `fee8abc` (Stockfish-slice). Regels zijn nu genummerde, afzonderlijk klikbare zetten
