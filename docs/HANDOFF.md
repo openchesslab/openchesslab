@@ -34,6 +34,17 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, gecommit en gepusht; deploy wacht op gebruikerswoord (niet expliciet toegestaan
+  voor dit paar):** twee slices bovenop de engine-serie. `45e96ea` — reviewclassificatie volgt
+  nu lichess' gepubliceerde Win%-model (scalachess is MIT; de curve is gefit op echte partijen):
+  cp → Win% (logistisch, clamp ±1000, mate satureert), merken bij >30/>20/>10 procentpunten
+  daling voor de zetter. Positie-onafhankelijk: een 300cp-swing in een gewonnen stelling markeert
+  niet meer (test bewijst het). En `Render review marks in the move list` — marks renderen inline
+  naast de zet (rood ??/?, amber ?!; tooltip "Blunder · −45%"), heropbouw bij classificatie,
+  wissen bij nieuwe run; nieuwe i18n room.markBlunder/Mistake/Inaccuracy EN+NL. Volledig serieel:
+  web **226 geslaagd** (seed 511632), room_live 50; formatter, --warnings-as-errors, diffcontrole.
+  Browsertest: Fool's mate → "2. g4 ??" in de zettenlijst, samenvatting, grafiek-prikkel rood.
+
 - **Afgerond en gepusht — `Preserve PGN comments and annotations in room imports` (`08077d0`)**, vanaf
   schone `c045f13`. Correctie op de todo: SetUp/FEN-import bestond al sinds `1634dc32f`;
   de nieuwe webtest bevestigt ook zwart-aan-zet en het oorspronkelijke zetnummer.

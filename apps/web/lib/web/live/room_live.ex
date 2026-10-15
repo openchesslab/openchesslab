@@ -1084,6 +1084,9 @@ defmodule Web.RoomLive do
   def handle_event("engine-review-start", _params, socket) do
     case {socket.assigns.analysis, socket.assigns.mainline_length} do
       {%AnalysisModel{}, length} when length >= 1 ->
+        # A fresh run clears the previous review's marks from the move list.
+        move_list = AnalysisView.move_list_data(socket.assigns.analysis, socket.assigns.locale)
+
         {:noreply,
          assign(socket,
            engine_review: %{
@@ -1095,7 +1098,10 @@ defmodule Web.RoomLive do
              queue: Enum.to_list(1..length),
              evals: %{}
            },
-           engine_peek: nil
+           engine_peek: nil,
+           move_entries: move_list.entries,
+           move_rows: move_list.rows,
+           move_focus_paths: move_list.focus_paths
          )}
 
       _ ->
@@ -1509,7 +1515,11 @@ defmodule Web.RoomLive do
   defp set_analysis(socket, analysis, revision, path) do
     case AnalysisView.current_position(analysis, path) do
       {:ok, node, position} ->
-        move_list = AnalysisView.move_list_data(analysis, socket.assigns.locale)
+        move_list =
+          analysis
+          |> AnalysisView.move_list_data(socket.assigns.locale)
+          |> with_review_marks(socket.assigns.engine_review)
+
         mainline_length = length(AnalysisView.mainline_path(AnalysisModel.root(analysis)))
         {last_from, last_to} = last_move_squares(node)
 
@@ -2939,9 +2949,20 @@ defmodule Web.RoomLive do
          )}
 
       [] ->
+        classified = classify_review(socket.assigns.analysis, review)
+
+        # Classification lands on the move list as well as the summary.
+        move_list =
+          socket.assigns.analysis
+          |> AnalysisView.move_list_data(socket.assigns.locale)
+          |> with_review_marks(classified)
+
         {:noreply,
          assign(socket,
-           engine_review: classify_review(socket.assigns.analysis, review)
+           engine_review: classified,
+           move_entries: move_list.entries,
+           move_rows: move_list.rows,
+           move_focus_paths: move_list.focus_paths
          )}
     end
   end
@@ -3055,6 +3076,39 @@ defmodule Web.RoomLive do
   # Marks only color the graph once the review classified them.
   defp review_marks(%{status: :done, marks: marks}), do: marks
   defp review_marks(_review), do: %{}
+
+  # Merges a completed review's marks into the move list. Marks are keyed by
+  # the ply the move was played from; the move's entry sits one ply deeper.
+  defp with_review_marks(move_list, review) do
+    case review_marks(review) do
+      marks when marks == %{} ->
+        move_list
+
+      marks ->
+        %{
+          move_list
+          | entries: Enum.map(move_list.entries, &mark_entry(&1, marks)),
+            rows: Enum.map(move_list.rows, &mark_row(&1, marks))
+        }
+    end
+  end
+
+  defp mark_row(%{type: :mainline, moves: moves} = row, marks) do
+    %{row | moves: Enum.map(moves, fn move -> %{move | entry: mark_entry(move.entry, marks)} end)}
+  end
+
+  defp mark_row(row, _marks), do: row
+
+  defp mark_entry(entry, marks) do
+    if entry.path != [] and Enum.all?(entry.path, &(&1 == 0)) do
+      case marks[length(entry.path) - 1] do
+        nil -> entry
+        mark -> Map.put(entry, :review, mark)
+      end
+    else
+      entry
+    end
+  end
 
   # Critical moments for the review summary: the biggest swings, worst first.
   defp review_critical_moments(move_entries, review) do

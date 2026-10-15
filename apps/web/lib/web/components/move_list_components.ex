@@ -143,6 +143,11 @@ defmodule Web.MoveListComponents do
           :for={nag <- @entry.nags || []}
           class={"ml-0.5 font-bold " <> nag_class(nag)}
         >{nag_glyph(nag)}</span>
+        <span
+          :if={@entry[:review]}
+          class={"ml-0.5 font-bold " <> review_mark_class(@entry[:review].mark)}
+          title={review_mark_title(@entry[:review], @locale)}
+        >{@entry[:review].mark}</span>
       <% end %>
     </button>
     """
@@ -179,6 +184,21 @@ defmodule Web.MoveListComponents do
   defp nag_class(nag) when nag in [1, 3], do: "text-success"
   defp nag_class(nag) when nag in [2, 4], do: "text-error"
   defp nag_class(_nag), do: "text-warning"
+
+  # Review marks reuse the NAG colors: errors red, inaccuracies amber.
+  defp review_mark_class(mark) when mark in ["?", "??"], do: "text-error"
+  defp review_mark_class(_mark), do: "text-warning"
+
+  defp review_mark_title(%{mark: mark, loss: loss}, locale) do
+    key =
+      case mark do
+        "??" -> "room.markBlunder"
+        "?" -> "room.markMistake"
+        _ -> "room.markInaccuracy"
+      end
+
+    "#{Web.I18n.t(key, locale)} · −#{round(loss)}%"
+  end
 
   defp nag_glyph(1), do: "!"
   defp nag_glyph(2), do: "?"

@@ -986,10 +986,17 @@ defmodule Web.RoomLiveTest do
     assert has_element?(view, "#engine-review-again")
     assert html =~ "data-review-fen=\"\""
 
+    # The move list carries the mark as well, with the swing in the tooltip.
+    assert has_element?(view, "#move-list span.text-error[title*='Blunder']", "??")
+
     # A stale result after completion changes nothing.
     html = render_click(view, "engine-review-result", %{"ply" => "0", "cp" => -900})
     assert html =~ "1 blunders"
     refute html =~ "-9.00"
+
+    # A fresh run clears the old marks while it recomputes.
+    html = render_click(view, "engine-review-start", %{})
+    refute has_element?(view, "#move-list span.text-error", "??")
   end
 
   test "review classification is position-independent, unlike raw centipawns", %{
