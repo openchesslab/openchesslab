@@ -34,6 +34,17 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, gecommit en gepusht; deploy volgt door gebruiker (samen met de kolom-slice
+  `1f004db`, nog niet gedeployed):** `Keep the engine panel stable and honest during play`,
+  bovenop `1f004db`. Twee vervolgfixes: (1) de PV-lijst is nu een begrensd, intern scrollend
+  gebied (`flex-1 overflow-y-auto`) zodat grafiek en review niet meer verspringen terwijl lijnen
+  verdiepen; (2) na een zet of navigatie toont het paneel nooit meer een stale evaluatie —
+  `set_analysis` ververst de enginepositie: cachehit vult direct (de hook slaat compute over),
+  anders eerlijke "Analyzing…"-toestand tot de eerste verse update (ook de reden dat "de engine
+  lijkt niet te analyseren": het oude resultaat bleef zichtbaar). room.engineLoading hernoemd
+  naar Analyzing/Analyseren. Volledig serieel: web **230 geslaagd** (seed 511632); formatter,
+  root-compile, assetbuild, diffcontrole geslaagd. Browsertest: grafiek stabiel tijdens verdieping.
+
 - **Afgerond, gecommit en gepusht; deploy volgt door gebruiker:** `Move the engine panel into its
   own column beside the board`, bovenop `d0e6f36`. Layoutwijziging (productbeslissing 2026-10-15):
   de engine-inhoud (toggle, settings, stats, grafiek, review, PV-lijnen, peek) verhuist van de

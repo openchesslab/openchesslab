@@ -1663,6 +1663,7 @@ defmodule Web.RoomLive do
           draft_reasons: [],
           pending_promotion: nil
         )
+        |> refresh_engine_position()
         |> refresh_presence()
 
       :not_found ->
@@ -3189,6 +3190,29 @@ defmodule Web.RoomLive do
   end
 
   defp review_fen(_assigns), do: ""
+
+  # On every position change the panel must reflect the CURRENT position: a
+  # cached evaluation fills it instantly, anything else resets to the honest
+  # analyzing state. A stale evaluation of the previous position never shows.
+  defp refresh_engine_position(socket) do
+    if socket.assigns.engine_on do
+      case cached_engine_eval(socket) do
+        {:ok, cached} ->
+          preview = engine_preview_from_cache(socket, cached)
+
+          assign(socket,
+            engine_preview: preview,
+            engine_cached: %{fen: preview.fen, depth: preview.depth},
+            engine_peek: nil
+          )
+
+        :miss ->
+          assign(socket, engine_preview: nil, engine_cached: nil, engine_peek: nil)
+      end
+    else
+      socket
+    end
+  end
 
   # Reads the durable cache for the position on the board; only a cached
   # result at least as deep as requested counts as coverage.

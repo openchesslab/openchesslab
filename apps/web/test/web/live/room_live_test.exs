@@ -818,7 +818,7 @@ defmodule Web.RoomLiveTest do
     assert html =~ "role=\"switch\""
     assert html =~ "aria-checked=\"true\""
     assert html =~ "data-engine-on=\"true\""
-    assert html =~ "Starting the local engine"
+    assert html =~ "Analyzing"
     refute html =~ "data-eval-bar"
 
     # Throttled UCI info from the worker fills the stats, lines and eval bar.
@@ -1147,7 +1147,83 @@ defmodule Web.RoomLiveTest do
     {:ok, view2, _html} = live(build_conn(), "/rooms/#{code}?a=#{analysis_id}")
 
     # Default depth is 20; the depth-12 cache must not masquerade as coverage.
-    assert render_click(view2, "toggle-engine", %{}) =~ "Starting the local engine"
+    assert render_click(view2, "toggle-engine", %{}) =~ "Analyzing"
+
+    Repo.query!("DELETE FROM position_evals WHERE position_id = $1", [position_id])
+  end
+
+  test "a move never shows a stale evaluation: analyzing state until fresh results", %{
+    conn: conn,
+    code: code
+  } do
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    render_click(view, "create-analysis", %{})
+
+    render_click(view, "toggle-engine", %{})
+
+    render_click(view, "engine-update", %{
+      "fen" => "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "depth" => 18,
+      "nodes" => 1,
+      "nps" => 1,
+      "lines" => [%{"multipv" => 1, "score_cp" => 30, "pv" => "e2e4"}]
+    })
+
+    assert render(view) =~ "+0.30"
+
+    # Playing 1.e4 clears the old evaluation immediately; the panel shows the
+    # honest analyzing state until the worker reports on the new position.
+    view |> element("#chess-board-square-e2") |> render_click()
+    html = view |> element("#chess-board-square-e4") |> render_click()
+
+    refute has_element?(view, "#engine-eval")
+    assert html =~ "Analyzing"
+    refute html =~ "data-eval-bar"
+
+    # Fresh results for the new position take over. (Black to move: UCI +12
+    # means Black is slightly better, so the white-relative panel shows minus.)
+    html =
+      render_click(view, "engine-update", %{
+        "fen" => "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+        "depth" => 18,
+        "nodes" => 1,
+        "nps" => 1,
+        "lines" => [%{"multipv" => 1, "score_cp" => 12, "pv" => "e7e5"}]
+      })
+
+    assert html =~ "-0.12"
+  end
+
+  test "navigating to a cached position shows its evaluation without a worker round trip", %{
+    conn: conn,
+    code: code
+  } do
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    render_click(view, "create-analysis", %{})
+
+    view |> element("#chess-board-square-e2") |> render_click()
+    view |> element("#chess-board-square-e4") |> render_click()
+
+    position_id = PositionStore.append(Position.starting_position())
+    Repo.query!("DELETE FROM position_evals WHERE position_id = $1", [position_id])
+
+    :ok =
+      Analysis.PositionEvals.put(position_id, "stockfish-19-lite-single", %{
+        depth: 20,
+        eval_cp: 37,
+        best_move: "e2e4",
+        pv: "e2e4 e7e5"
+      })
+
+    # The engine turns on after the move: no cache there, so it analyzes.
+    render_click(view, "toggle-engine", %{})
+    assert render(view) =~ "Analyzing"
+
+    # Navigating back to the root shows the cached evaluation instantly.
+    html = render_click(view, "select-path", %{"path" => ""})
+
+    assert html =~ "+0.37"
+    refute html =~ "Analyzing"
 
     Repo.query!("DELETE FROM position_evals WHERE position_id = $1", [position_id])
   end

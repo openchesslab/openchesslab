@@ -403,7 +403,7 @@
   "room.engineNote": "Stockfish 19 draait lokaal in je browser (WASM); afgeronde evaluaties worden per stelling gecachet en gedeeld.",
   "room.engineSettingsNote": "Diepte en lijnen gelden voor de lokale engine en blijven in deze sessie.",
   "room.engineLocal": "Stockfish 19 (lokaal)",
-  "room.engineLoading": "De lokale engine start…",
+  "room.engineLoading": "Analyseren…",
   "room.engineError": "De lokale engine kon niet starten in deze browser.",
   "room.enginePlayToHere": "Speel de lijn tot deze zet",
   "room.eval": "Eval",
