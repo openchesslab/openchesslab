@@ -34,8 +34,8 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond, gecommit en gepusht; deploy volgt door gebruiker:** `Persist engine evaluations per
-  canonical position`, bovenop `abf39ad`. Nieuwe tabel `position_evals` (migratie
+- **Afgerond, gecommit, gepusht en door gebruiker gedeployed (bevestigd 2026-10-15):**
+  `Persist engine evaluations per canonical position`, bovenop `abf39ad`. Nieuwe tabel `position_evals` (migratie
   `20261015140000`, pk position_id+engine, FK cascade) + `Analysis.PositionEvals` (get,
   get_many, deepest-wins upsert). Toggle aan: cachehit vult paneel + balk + arrow + grafiek
   direct; de hook slaat de worker over zolang de cachede diepte ≥ de gevraagde diepte is
