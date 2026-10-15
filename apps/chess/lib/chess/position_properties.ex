@@ -220,9 +220,11 @@ defmodule Chess.PositionProperties do
   end
 
   @doc """
-  Outposts for `color`: squares in the opponent's half occupied by a
-  knight, not attackable by an enemy pawn, and defended by a friendly
-  pawn.
+  Outposts for `color`: squares on the color's fourth to seventh rank that
+  a friendly pawn protects and no enemy pawn can ever attack — holes in the
+  opponent's pawn cover. Per the standard definition the square itself is
+  the outpost; occupation by a piece (classically a knight) is not
+  required, so empty outpost squares are listed too.
   """
   @spec outposts(Position.t() | Bitboard.t()) :: %{white: [0..63], black: [0..63]}
   def outposts(%Position{} = position) do
@@ -232,24 +234,45 @@ defmodule Chess.PositionProperties do
   end
 
   def outposts(%Bitboard{} = board) do
-    white_control = pawn_attack_mask_from_pawns(board.white_pawns, :white)
-    black_control = pawn_attack_mask_from_pawns(board.black_pawns, :black)
+    %{white: outpost_squares(board, :white), black: outpost_squares(board, :black)}
+  end
 
-    white_outposts =
-      board.white_knights
-      |> Bitwise.band(@white_opponent_half)
-      |> Bitwise.band(white_control)
-      |> Bitwise.band(Bitwise.bnot(black_control))
-      |> squares_in()
+  # White's 4th–7th rank is rank indexes 3..6; black's (counted from black's
+  # side) is 1..4.
+  defp outpost_squares(board, color) do
+    own_control = pawn_attack_mask_from_pawns(pawns(board, color), color)
+    enemy_pawns = pawns(board, opposite(color))
+    ranks = if color == :white, do: 3..6, else: 1..4
 
-    black_outposts =
-      board.black_knights
-      |> Bitwise.band(@black_opponent_half)
-      |> Bitwise.band(black_control)
-      |> Bitwise.band(Bitwise.bnot(white_control))
-      |> squares_in()
+    for rank <- ranks,
+        file <- 0..7,
+        square = rank * 8 + file,
+        attacked_by?(own_control, square),
+        not pawn_can_ever_attack?(square, enemy_pawns, color),
+        do: square
+  end
 
-    %{white: white_outposts, black: black_outposts}
+  # An enemy pawn can only ever attack `square` from an adjacent file and
+  # only while it has not advanced past the rank the square sits on.
+  defp pawn_can_ever_attack?(square, enemy_pawns, color) do
+    file = rem(square, 8)
+    rank = div(square, 8)
+
+    Enum.any?([file - 1, file + 1], fn
+      adjacent when adjacent in 0..7 ->
+        pawns_on_file = Bitwise.band(enemy_pawns, @file_masks[Enum.at(@files, adjacent)])
+
+        if color == :white do
+          # Black pawns on a higher rank can still reach rank + 1 and attack.
+          Bitwise.bsr(pawns_on_file, (rank + 1) * 8) != 0
+        else
+          # White pawns on a lower rank can still reach rank - 1 and attack.
+          Bitwise.band(pawns_on_file, Bitwise.bsl(1, rank * 8) - 1) != 0
+        end
+
+      _adjacent ->
+        false
+    end)
   end
 
   @doc """

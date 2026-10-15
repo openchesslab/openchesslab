@@ -35,8 +35,13 @@ defmodule Chess.PositionPropertiesBitboardTest do
 
     board = Bitboard.from_position(position)
 
-    assert PositionProperties.outposts(board).white == [square("e5")]
-    assert PositionProperties.outposts(board).black == [square("a4")]
+    # c5 is an (empty) hole too: the b5 pawn has already advanced past it.
+    assert PositionProperties.outposts(board).white == [square("c5"), square("e5")]
+
+    # The e6 pawn covers d5 and f5 as well, and no white pawn can reach them.
+    assert PositionProperties.outposts(board).black ==
+             [square("a4"), square("c4"), square("d5"), square("f5")]
+
     assert :e in PositionProperties.semi_open_files(board).white
     assert :d in PositionProperties.semi_open_files(board).black
   end

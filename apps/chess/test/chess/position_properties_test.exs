@@ -392,6 +392,81 @@ defmodule Chess.PositionPropertiesTest do
 
       refute e5 in PositionProperties.outposts(position).white
     end
+
+    test "rejects squares an enemy pawn could reach later (a hole is permanent)" do
+      e5 = Square.from_algebraic("e5")
+
+      # The f7 pawn does not attack e5 yet, but it can advance to f6 and
+      # drive a piece off e5 — so e5 is no outpost.
+      position =
+        Position.new()
+        |> Position.put_piece(Square.from_algebraic("e1"), {:white, :king})
+        |> Position.put_piece(Square.from_algebraic("e8"), {:black, :king})
+        |> Position.put_piece(Square.from_algebraic("d4"), {:white, :pawn})
+        |> Position.put_piece(e5, {:white, :knight})
+        |> Position.put_piece(Square.from_algebraic("f7"), {:black, :pawn})
+
+      refute e5 in PositionProperties.outposts(position).white
+    end
+
+    test "the outpost is the square: occupation by a piece is not required" do
+      e5 = Square.from_algebraic("e5")
+
+      position =
+        Position.new()
+        |> Position.put_piece(Square.from_algebraic("e1"), {:white, :king})
+        |> Position.put_piece(Square.from_algebraic("e8"), {:black, :king})
+        |> Position.put_piece(Square.from_algebraic("d4"), {:white, :pawn})
+
+      assert e5 in PositionProperties.outposts(position).white
+    end
+
+    test "only the fourth to seventh rank count" do
+      e3 = Square.from_algebraic("e3")
+
+      # Defended by the d2 pawn, but the third rank is too shallow.
+      position =
+        Position.new()
+        |> Position.put_piece(Square.from_algebraic("e1"), {:white, :king})
+        |> Position.put_piece(Square.from_algebraic("e8"), {:black, :king})
+        |> Position.put_piece(Square.from_algebraic("d2"), {:white, :pawn})
+        |> Position.put_piece(e3, {:white, :knight})
+
+      refute e3 in PositionProperties.outposts(position).white
+
+      # The eighth rank is past the opponent's pawns, not an outpost either.
+      e8 = Square.from_algebraic("e8")
+
+      position =
+        Position.new()
+        |> Position.put_piece(Square.from_algebraic("e1"), {:white, :king})
+        |> Position.put_piece(Square.from_algebraic("a8"), {:black, :king})
+        |> Position.put_piece(Square.from_algebraic("d7"), {:white, :pawn})
+        |> Position.put_piece(Square.from_algebraic("e8"), {:white, :rook})
+
+      refute e8 in PositionProperties.outposts(position).white
+    end
+
+    test "mirrors the definition for black" do
+      e4 = Square.from_algebraic("e4")
+
+      # Black's fifth rank, defended by the d5 pawn; the white f2 pawn can
+      # still advance to f3 and chase a piece off e4, so no outpost.
+      position =
+        Position.new()
+        |> Position.put_piece(Square.from_algebraic("e1"), {:white, :king})
+        |> Position.put_piece(Square.from_algebraic("e8"), {:black, :king})
+        |> Position.put_piece(Square.from_algebraic("d5"), {:black, :pawn})
+        |> Position.put_piece(e4, {:black, :knight})
+        |> Position.put_piece(Square.from_algebraic("f2"), {:white, :pawn})
+
+      refute e4 in PositionProperties.outposts(position).black
+
+      # Without the f2 pawn it is a hole and an outpost.
+      position = Position.remove_piece(position, Square.from_algebraic("f2"))
+
+      assert e4 in PositionProperties.outposts(position).black
+    end
   end
 
   describe "space/1" do

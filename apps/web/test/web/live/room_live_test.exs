@@ -1565,6 +1565,30 @@ defmodule Web.RoomLiveTest do
     assert html =~ "Defended pieces"
   end
 
+  test "outpost layer marks pawn-protected holes", %{conn: conn, code: code} do
+    position =
+      Position.new()
+      |> Position.put_piece(Square.from_algebraic("e1"), {:white, :king})
+      |> Position.put_piece(Square.from_algebraic("e8"), {:black, :king})
+      |> Position.put_piece(Square.from_algebraic("d4"), {:white, :pawn})
+
+    {:ok, analysis, _revision} = Analyses.create("outpost", position: position)
+    :ok = Rooms.add_analysis(code, analysis.id)
+    {:ok, view, _html} = live(conn, "/rooms/#{code}?a=outpost")
+
+    html = render_click(view, "toggle-layer", %{"layer" => "outposts"})
+    assert html =~ "border-purple-700/70"
+  end
+
+  test "the starting position has no outposts", %{conn: conn, code: code} do
+    {:ok, analysis, _revision} = Analyses.create("outpost-start")
+    :ok = Rooms.add_analysis(code, analysis.id)
+    {:ok, view, _html} = live(conn, "/rooms/#{code}?a=outpost-start")
+
+    html = render_click(view, "toggle-layer", %{"layer" => "outposts"})
+    refute html =~ "border-purple-700/70"
+  end
+
   test "switching locale relocalizes the move tree", %{conn: conn} do
     Application.ensure_all_started(:analysis)
     code = "NL" <> Base.encode16(:crypto.strong_rand_bytes(2))
