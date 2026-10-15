@@ -392,6 +392,7 @@
   "room.depth": "Diepte",
   "room.multipv": "MultiPV",
   "room.evaluationBar": "Evaluatiebalk",
+  "room.evaluationGraph": "Evaluatieverloop van de partij",
   "room.engineNote": "Stockfish 19 draait lokaal in je browser (WASM); stellingen verlaten je apparaat nooit.",
   "room.engineSettingsNote": "Diepte en lijnen gelden voor de lokale engine en blijven in deze sessie.",
   "room.engineLocal": "Stockfish 19 (lokaal)",

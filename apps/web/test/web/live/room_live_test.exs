@@ -873,6 +873,50 @@ defmodule Web.RoomLiveTest do
     refute html =~ "id=\"engine-peek\""
   end
 
+  test "evaluated positions fill the evaluation graph, and it navigates", %{
+    conn: conn,
+    code: code
+  } do
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    render_click(view, "create-analysis", %{})
+
+    render_click(view, "toggle-engine", %{})
+
+    # No graph until the first evaluation lands.
+    refute render(view) =~ "id=\"engine-graph\""
+
+    render_click(view, "engine-update", %{
+      "fen" => "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "depth" => 14,
+      "nodes" => 1,
+      "nps" => 1,
+      "lines" => [%{"multipv" => 1, "score_cp" => 30, "pv" => "e2e4"}]
+    })
+
+    view |> element("#chess-board-square-e2") |> render_click()
+    view |> element("#chess-board-square-e4") |> render_click()
+
+    render_click(view, "engine-update", %{
+      "fen" => "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+      "depth" => 14,
+      "nodes" => 1,
+      "nps" => 1,
+      "lines" => [%{"multipv" => 1, "score_cp" => -15, "pv" => "e7e5"}]
+    })
+
+    html = render(view)
+
+    # Two consecutive plies evaluated: one dot each, connected by a polyline.
+    assert html =~ "id=\"engine-graph\""
+    assert html =~ "<polyline"
+    assert html =~ ~r/<circle[^>]*>.*?<\/circle>/s
+
+    # Clicking a graph column navigates: back to the root position.
+    html = render_click(view, "select-path", %{"path" => ""})
+    assert html =~ "data-fen=\"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1\""
+    assert html =~ "id=\"engine-graph\""
+  end
+
   test "engine errors surface honestly and switch the engine off", %{conn: conn, code: code} do
     {:ok, view, _html} = live(conn, "/rooms/#{code}")
     render_click(view, "create-analysis", %{})

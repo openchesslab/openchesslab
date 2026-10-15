@@ -132,6 +132,7 @@ defmodule Web.RoomLive do
       engine_preview: nil,
       engine_error: nil,
       engine_peek: nil,
+      engine_evals: %{},
       engine_settings_open: false,
       engine_settings: %{depth: 20, multipv: 3}
     }
@@ -1034,6 +1035,7 @@ defmodule Web.RoomLive do
 
       socket = assign(socket, engine_preview: preview, engine_error: nil)
       socket = if peek_stale?, do: assign(socket, :engine_peek, nil), else: socket
+      socket = store_engine_eval(socket, preview)
       {:noreply, assign(socket, :board_shapes, board_shapes(socket))}
     else
       _ -> {:noreply, socket}
@@ -2783,6 +2785,92 @@ defmodule Web.RoomLive do
         :error
     end
   end
+
+  # Every evaluated position feeds a small session store keyed by analysis and
+  # path, which the evaluation graph renders. Nothing is persisted: recomputing
+  # is cheap and the graph refills as you navigate with the engine on.
+  defp store_engine_eval(socket, preview) do
+    key = eval_key(socket.assigns.selected_analysis_id, socket.assigns.current_path)
+
+    assign(
+      socket,
+      :engine_evals,
+      Map.put(socket.assigns.engine_evals, key, %{
+        cp: preview.eval_cp,
+        mate: preview.mate_in,
+        label: eval_label(preview)
+      })
+    )
+  end
+
+  defp eval_key(analysis_id, path), do: "#{analysis_id}:#{Enum.join(path, ",")}"
+
+  @eval_graph_max_cp 600
+
+  # Data for the evaluation graph: one point per mainline ply with a session
+  # eval, click columns for every ply, and the marker for the current path.
+  defp eval_graph(evals, analysis_id, mainline_length, current_path) do
+    width = 300
+    step = width / (mainline_length + 1)
+
+    points =
+      for ply <- 0..mainline_length,
+          eval = Map.get(evals, eval_key(analysis_id, List.duplicate(0, ply))),
+          not is_nil(eval) do
+        cp = graph_cp(eval)
+        x = Float.round(step * (ply + 0.5), 1)
+        y = Float.round(30 - cp / @eval_graph_max_cp * 26, 1)
+        {ply, x, y, eval.label}
+      end
+
+    runs =
+      points
+      |> Enum.reduce([], fn point, acc ->
+        {ply, _x, _y, _label} = point
+
+        case acc do
+          [[{last_ply, _, _, _} | _] = run | rest] when ply == last_ply + 1 ->
+            [[point | run] | rest]
+
+          _ ->
+            [[point] | acc]
+        end
+      end)
+      |> Enum.map(&Enum.reverse/1)
+
+    groups =
+      for run <- runs,
+          length(run) > 1,
+          do: Enum.map_join(run, " ", fn {_ply, x, y, _label} -> "#{x},#{y}" end)
+
+    columns =
+      for ply <- 0..mainline_length do
+        %{
+          x: Float.round(step * ply, 1),
+          w: Float.round(step, 1),
+          path: Enum.join(List.duplicate(0, ply), ",")
+        }
+      end
+
+    current_ply = min(length(current_path), mainline_length)
+
+    %{
+      any: points != [],
+      groups: groups,
+      dots: Enum.map(points, fn {_ply, x, y, label} -> %{x: x, y: y, label: label} end),
+      columns: columns,
+      current_x: Float.round(step * (current_ply + 0.5), 1),
+      height: 60
+    }
+  end
+
+  defp graph_cp(%{mate: mate}) when is_integer(mate) and mate > 0, do: @eval_graph_max_cp
+  defp graph_cp(%{mate: mate}) when is_integer(mate) and mate < 0, do: -@eval_graph_max_cp
+
+  defp graph_cp(%{cp: cp}) when is_integer(cp),
+    do: max(-@eval_graph_max_cp, min(@eval_graph_max_cp, cp))
+
+  defp graph_cp(_eval), do: 0
 
   defp engine_int(value) when is_integer(value), do: value
 
