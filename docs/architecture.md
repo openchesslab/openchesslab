@@ -95,13 +95,17 @@ Entrypoints are `apps/analysis/lib/analysis/pgn_importer.ex` and `pgn_batch_impo
 | `import_stream/2`, `import_stream/3`, `import_file/2` | Bounded streaming parsing; default parsed group size **10**. Each group commits atomically using replayed batch persistence; on group failure retries individual games in input order to preserve original successful-prefix + **one-based failure index** behavior. Explicit group size 1 uses original path. |
 | `import_stream_parallel/3` or `/4`, `import_file_parallel/3` or `/4` | Explicit throughput mode; bounded concurrent windows, **one transaction per game**, failures collected with one-based source index, and processing continues after failures. **Not successful-prefix semantics**. |
 
-**Room analysis import (2026-10-15):** `Analysis.PgnAnalysisImporter.import/3` wraps
-single-game parsing with mainline annotation extraction. Brace/semicolon comments,
+**Room analysis import (2026-10-15, variations added same day):** `Analysis.PgnAnalysisImporter.import/3` wraps
+single-game parsing with a full annotated-tree import. Brace/semicolon comments,
 root comments, numeric NAGs and symbolic move suffixes are retained in the analysis;
-`[%...]` machine commands are stripped from comments. Side variations and their
-annotations remain excluded. The annotation scanner checks its ply count against the
-validated mainline and rejects invalid/excessive NAGs before persistence. Canonical
-content and deduplication remain unchanged. The game record and annotated aggregate
+`[%...]` machine commands are stripped from comments. Side variations graft as real
+branches with their annotations intact: a variation following a move is an alternative
+to that move, a sibling of the mainline child (nested arbitrarily deep), with positions
+resolved through the legal-move rules and appended to the canonical position store.
+The parser rejects unbalanced/unclosed variations, variations without a preceding move,
+illegal variation moves, and invalid/excessive NAGs before persistence. Canonical
+content and deduplication remain unchanged: the game record keeps only the mainline.
+The game record and annotated aggregate
 commit in one PostgreSQL transaction; failure rolls both back. RoomLive uses this path
 for both pasted PGN and file upload, then adds the complete analysis through Rooms.
 Custom SetUp/FEN starts, including black-to-move/fullmove context, were already supported

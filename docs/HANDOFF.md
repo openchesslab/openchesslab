@@ -34,6 +34,18 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, gecommit en gepusht; deploy volgt door gebruiker:** `Import annotated PGN
+  variations into the analysis tree`, bovenop `8f31baf`. `PgnAnalysisImporter` parseert nu het
+  volledige movetext als boom: een variatie na een zet is een alternatief voor die zet (sibling
+  van het hoofdlijkind), willekeurig diep genest, met opmerkingen/NAG's op de juiste knopen en
+  posities via legale-zettenreplay in de canonieke position store. Hoofdlijn blijft uit de
+  game-record-tree geannoteerd; voorloopcommentaar hoort bij de root. Verifieert: ongebalanceerde/
+  ongesloten variaties, variatie zonder voorgaande zet, illegale variatiezetten en NAG-regels
+  falen de import atoomair (record + analyse committen of rollbacken samen). Canonieke partij
+  blijft hoofdlijn-only. Volledig serieel: analysis **627**, web **228**; formatter, root-compile
+  --warnings-as-errors, diffcontrole geslaagd. Browsertest op dev: geneste genoteerde PGN importeert
+  met alle takken en opmerkingen zichtbaar in de zettenlijst.
+
 - **Afgerond, gecommit, gepusht en door gebruiker gedeployed (bevestigd 2026-10-15):**
   `Persist engine evaluations per canonical position`, bovenop `abf39ad`. Nieuwe tabel `position_evals` (migratie
   `20261015140000`, pk position_id+engine, FK cascade) + `Analysis.PositionEvals` (get,

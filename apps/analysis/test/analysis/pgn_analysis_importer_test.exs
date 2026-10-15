@@ -2,7 +2,10 @@ defmodule Analysis.PgnAnalysisImporterTest do
   use ExUnit.Case, async: false
 
   alias Analysis.{Analyses, AnalysisStore, GameRecords, GameStart, PgnAnalysisImporter}
+  alias Chess.{Position, Square}
   alias OpenChessLab.Repo
+
+  defp position_of(node), do: Analysis.PositionStore.get(node.position_id)
 
   defp import_pgn(pgn) do
     suffix = Ecto.UUID.generate()
@@ -22,9 +25,17 @@ defmodule Analysis.PgnAnalysisImporterTest do
     assert {:ok, analysis, revision} = import_pgn(pgn)
     assert {:ok, ^analysis, ^revision} = AnalysisStore.get(analysis.id)
     assert analysis.root.comment == "Opening note"
-    [e4] = analysis.root.children
+
+    # The mainline child keeps its annotations; the variations (1.d4 and,
+    # nested inside it, 1.c4 — an alternative to d4) graft as its siblings.
+    [e4, d4, c4] = analysis.root.children
     assert e4.comment == "Human  text\nSecond note"
     assert e4.nags == [1]
+    assert d4.nags == [4]
+    assert d4.comment == "Do not attach this"
+    assert d4.children == []
+    assert c4.nags == [3]
+
     [e5] = e4.children
     assert e5.comment == "Black's reply"
     assert e5.nags == [14]
@@ -70,11 +81,57 @@ defmodule Analysis.PgnAnalysisImporterTest do
           "1. e4 $1 $2 $3 $4 $5 $6 $7 $8 $9 e5 *",
           "1. e4 {unfinished",
           "1. e4 (1. d4 *",
-          "1. e4 ThisIsNotSAN *"
+          "1. e4 ThisIsNotSAN *",
+          "(1. d4) 1. e4 *",
+          "1. e4 (1. ThisIsNotSAN) *",
+          "1. e4 ) *"
         ] do
       assert {:error, {:invalid_pgn, _}} = import_pgn(pgn)
       assert counts() == before
     end
+  end
+
+  test "variations graft as annotated branches with real positions, nested arbitrarily" do
+    pgn = """
+    [Event "Branches"]
+
+    1. e4 {King pawn} (1. d4!? {Queen pawn} d5) (1. c4) 1... e5
+    (1... c5 {Sicilian} 2. Nf3 (2. c3)) 2. Nf3 Nc6 *
+    """
+
+    assert {:ok, analysis, _revision} = import_pgn(pgn)
+
+    # Two alternatives to 1.e4 graft as its siblings, in PGN order.
+    [e4, d4, c4] = analysis.root.children
+    assert e4.comment == "King pawn"
+    assert d4.nags == [5]
+    assert d4.comment == "Queen pawn"
+    assert c4.comment == nil
+
+    # The d4 variation continues: d5 is its mainline child.
+    [d5] = d4.children
+    assert %Analysis.Node{transition: {:move, %Chess.Move{}}} = d5
+
+    # The e5 alternatives: c5 (with its own continuation and nested c3 sibling).
+    [e5, c5] = e4.children
+    assert c5.comment == "Sicilian"
+    [nf3_var, c3_var] = c5.children
+    assert nf3_var.children == []
+    assert c3_var.children == []
+
+    # The mainline continues after the variations: Nf3 Nc6 are there.
+    [nf3] = e5.children
+    [nc6] = nf3.children
+    assert nc6.children == []
+
+    # Positions are real: the c5 node's position resolves black's c-pawn push.
+    assert {:ok, c5_position} = position_of(c5)
+    assert Position.piece_at(c5_position, Chess.Square.from_algebraic("c5")) == {:black, :pawn}
+
+    # The canonical game keeps only the mainline: 4 moves, 5 occurrences.
+    assert {:ok, _record, content, occurrences} = GameRecords.load(analysis.source_game_record_id)
+    assert length(content.moves) == 4
+    assert length(occurrences) == 5
   end
 
   test "analysis identity collision rolls back the new game record and canonical content" do
