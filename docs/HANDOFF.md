@@ -34,8 +34,8 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Make room names per-room
-  pseudonyms for signed-in users`, bovenop `b4b3626`. Privacy-beslissing 2026-10-16: het
+- **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
+  `Make room names per-room pseudonyms for signed-in users` (`de1df1a`), bovenop `b4b3626`. Privacy-beslissing 2026-10-16: het
   stabiele accountlabel in elke kamer tonen maakt gebruikers kamer-overstijgend herkenbaar.
   Nu `DisplayName.for_room(user_id, room_code)` (sha256 over kamercode + user-id): in elke
   kamer een stabiel maar anders pseudoniem; het accountmenu behoudt `for_user/1` (alleen voor
