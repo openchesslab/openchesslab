@@ -34,6 +34,19 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Split the attacks layer into
+  coverage and defended-pieces layers`, bovenop `46d7ce8`. UX-bespreking 2026-10-16: de
+  aanvalslaag telde ook eigen bezet velden mee ("verdedigd"), waardoor de beginstelling
+  onleesbaar oplichtte. Beslissing van de gebruiker: twee aparte lagen. Semantiek in
+  `Chess.PositionProperties` aangepast: `attacked_squares/1` = dekking (leeg of vijandig bezet,
+  eigen bezetting gemaskeerd); nieuwe `defended_squares/1` = eigen stukken die de eigen kleur
+  dekt (disjuncte verzamelingen, getest). De boardlaag "Attacked squares" toont nu alleen
+  dekking (beginstelling = exact de 3e/6e rij-frontier); nieuwe laag "Defended pieces" markeert
+  verdedigde eigen stukken met een hoekpunt in de kleur van de verdediger. Features-catalogus
+  onaangeroerd (eigen implementatie). Serieel: chess **587**, web **240**; formatter,
+  assetbuild, diffcontrole. Browsertest: beide lagen op de beginstelling gecontroleerd
+  (frontier + hoekpunten; torens terecht onverdedigd).
+
 - **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
   `Swallow board shortcuts while a dialog is open` (`59f9161`), bovenop `8dbb337`. Bugrapport 2026-10-15: met de sneltoetsenpopup open
   lekten toetsen naar de app eronder (F draaide het bord, pijlen stapten door de partij).

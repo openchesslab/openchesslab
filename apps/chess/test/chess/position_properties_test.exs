@@ -282,6 +282,45 @@ defmodule Chess.PositionPropertiesTest do
       assert Square.from_algebraic("a4") in attacked.white
       refute Square.from_algebraic("a5") in attacked.white
     end
+
+    test "excludes squares occupied by the color's own pieces" do
+      attacked = PositionProperties.attacked_squares(Position.starting_position())
+
+      # The frontier is covered...
+      assert Square.from_algebraic("d3") in attacked.white
+      assert Square.from_algebraic("f3") in attacked.white
+      # ...but defended own pieces (d2 by the b1-knight, e2 by king/queen/bishop)
+      # are not "attacked".
+      refute Square.from_algebraic("d2") in attacked.white
+      refute Square.from_algebraic("e2") in attacked.white
+      refute Square.from_algebraic("e1") in attacked.white
+    end
+  end
+
+  describe "defended_squares/1" do
+    test "lists own pieces the color itself attacks in the starting position" do
+      defended = PositionProperties.defended_squares(Position.starting_position())
+
+      # d2: b1-knight, c1-bishop and the queen; f2: the king; a2: the a1-rook.
+      assert Square.from_algebraic("d2") in defended.white
+      assert Square.from_algebraic("f2") in defended.white
+      assert Square.from_algebraic("a2") in defended.white
+
+      # Empty covered squares and undefended own pieces are not defended:
+      # the rooks defend their neighbours but are themselves undefended.
+      refute Square.from_algebraic("d3") in defended.white
+      refute Square.from_algebraic("a1") in defended.white
+      refute Square.from_algebraic("h1") in defended.white
+    end
+
+    test "defended and attacked squares never overlap" do
+      position = Position.starting_position()
+      attacked = PositionProperties.attacked_squares(position)
+      defended = PositionProperties.defended_squares(position)
+
+      assert MapSet.disjoint?(MapSet.new(attacked.white), MapSet.new(defended.white))
+      assert MapSet.disjoint?(MapSet.new(attacked.black), MapSet.new(defended.black))
+    end
   end
 
   describe "attacked_pieces/1" do

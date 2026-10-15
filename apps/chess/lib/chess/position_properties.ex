@@ -129,8 +129,10 @@ defmodule Chess.PositionProperties do
   end
 
   @doc """
-  Every square attacked by `color`, including squares occupied by its
-  own pieces (a pinned or defended piece still attacks).
+  Every square attacked by `color` that is empty or holds an enemy piece:
+  the color's coverage — squares it could capture on or control. Squares
+  holding the color's own pieces are defended, not attacked; those are
+  reported by `defended_squares/1` so each layer shows a distinct fact.
   """
   @spec attacked_squares(Position.t()) :: %{white: [0..63], black: [0..63]}
   def attacked_squares(%Position{} = position) do
@@ -139,6 +141,20 @@ defmodule Chess.PositionProperties do
     %{
       white: attacked_squares(board, :white),
       black: attacked_squares(board, :black)
+    }
+  end
+
+  @doc """
+  Squares occupied by `color`'s own pieces that the color itself attacks:
+  the defended pieces.
+  """
+  @spec defended_squares(Position.t()) :: %{white: [0..63], black: [0..63]}
+  def defended_squares(%Position{} = position) do
+    board = Bitboard.from_position(position)
+
+    %{
+      white: defended_squares(board, :white),
+      black: defended_squares(board, :black)
     }
   end
 
@@ -288,13 +304,29 @@ defmodule Chess.PositionProperties do
 
   defp attacked_squares(board, color) do
     board
+    |> raw_attacks(color)
+    |> Bitwise.band(Bitwise.bnot(own_pieces(board, color)))
+    |> squares_in()
+  end
+
+  defp defended_squares(board, color) do
+    board
+    |> raw_attacks(color)
+    |> Bitwise.band(own_pieces(board, color))
+    |> squares_in()
+  end
+
+  defp raw_attacks(board, color) do
+    board
     |> Bitboard.pieces()
     |> Enum.filter(fn {_square, {piece_color, _kind}} -> piece_color == color end)
     |> Enum.reduce(0, fn {square, {_color, kind}}, acc ->
       Bitwise.bor(acc, attack_bitboard(board, kind, color, square))
     end)
-    |> squares_in()
   end
+
+  defp own_pieces(board, :white), do: Bitboard.white_pieces(board)
+  defp own_pieces(board, :black), do: Bitboard.black_pieces(board)
 
   defp attack_bitboard(_board, :pawn, color, square), do: Bitboard.pawn_attacks(color, square)
 

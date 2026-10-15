@@ -95,7 +95,7 @@ defmodule Web.RoomLive do
       cursor_square: 0,
       legal_targets: [],
       orientation: "white",
-      layers: %{files: false, attacks: false, king_zone: false, outposts: false},
+      layers: %{files: false, attacks: false, defended: false, king_zone: false, outposts: false},
       selected_tab: "material",
       strip_open: true,
       annotation_color: "blue",
@@ -687,7 +687,7 @@ defmodule Web.RoomLive do
   end
 
   def handle_event("toggle-layer", %{"layer" => layer}, socket)
-      when layer in ["files", "attacks", "king_zone", "outposts"] do
+      when layer in ["files", "attacks", "defended", "king_zone", "outposts"] do
     layers = Map.update!(socket.assigns.layers, String.to_existing_atom(layer), &(!&1))
     {:noreply, assign(socket, :layers, layers)}
   end
@@ -2783,6 +2783,7 @@ defmodule Web.RoomLive do
 
   defp layer_label_key("files"), do: "room.layerFiles"
   defp layer_label_key("attacks"), do: "room.layerAttacks"
+  defp layer_label_key("defended"), do: "room.layerDefended"
   defp layer_label_key("king_zone"), do: "room.layerKingZone"
   defp layer_label_key("outposts"), do: "room.layerOutposts"
 

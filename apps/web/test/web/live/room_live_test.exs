@@ -1548,6 +1548,23 @@ defmodule Web.RoomLiveTest do
     assert html =~ "border-cyan-700/90"
   end
 
+  test "attacks and defended layers render distinct markers", %{conn: conn, code: code} do
+    {:ok, analysis, _revision} = Analyses.create("layers")
+    :ok = Rooms.add_analysis(code, analysis.id)
+    {:ok, view, _html} = live(conn, "/rooms/#{code}?a=layers")
+
+    # Coverage fill for empty/enemy squares only...
+    html = render_click(view, "toggle-layer", %{"layer" => "attacks"})
+    assert html =~ "bg-blue-500/20"
+
+    # ...and a separate layer marks defended own pieces with a corner dot.
+    html = render_click(view, "toggle-layer", %{"layer" => "defended"})
+    assert html =~ "bg-blue-600/80"
+
+    html = render_click(view, "select-strip-tab", %{"tab" => "layers"})
+    assert html =~ "Defended pieces"
+  end
+
   test "switching locale relocalizes the move tree", %{conn: conn} do
     Application.ensure_all_started(:analysis)
     code = "NL" <> Base.encode16(:crypto.strong_rand_bytes(2))

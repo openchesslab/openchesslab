@@ -293,6 +293,7 @@
   "room.layersTab": "Layers",
   "room.layerFiles": "Open files",
   "room.layerAttacks": "Attacked squares",
+  "room.layerDefended": "Defended pieces",
   "room.layerKingZone": "King zone",
   "room.layerOutposts": "Outposts",
   "room.legendWhiteAttacks": "White attacks",

@@ -63,7 +63,11 @@ defmodule Web.ChessComponents do
             @layers[:attacks] && @insights && @insights[:attacked_squares] &&
               square in @insights.attacked_squares.white %> <% black_attack =
             @layers[:attacks] && @insights && @insights[:attacked_squares] &&
-              square in @insights.attacked_squares.black %> <% white_king_zone =
+              square in @insights.attacked_squares.black %> <% white_defended =
+            @layers[:defended] && @insights && @insights[:defended_squares] &&
+              square in @insights.defended_squares.white %> <% black_defended =
+            @layers[:defended] && @insights && @insights[:defended_squares] &&
+              square in @insights.defended_squares.black %> <% white_king_zone =
             @layers[:king_zone] && @insights && @insights[:king_zone] &&
               square in @insights.king_zone.white.squares %> <% black_king_zone =
             @layers[:king_zone] && @insights && @insights[:king_zone] &&
@@ -108,6 +112,16 @@ defmodule Web.ChessComponents do
             <span
               :if={black_attack}
               class="pointer-events-none absolute inset-0 z-[2] bg-red-500/20"
+              aria-hidden="true"
+            ></span>
+            <span
+              :if={white_defended}
+              class="pointer-events-none absolute right-[6%] top-[6%] z-[2] h-[16%] w-[16%] rounded-full bg-blue-600/80"
+              aria-hidden="true"
+            ></span>
+            <span
+              :if={black_defended}
+              class="pointer-events-none absolute right-[6%] top-[6%] z-[2] h-[16%] w-[16%] rounded-full bg-red-600/80"
               aria-hidden="true"
             ></span>
             <span

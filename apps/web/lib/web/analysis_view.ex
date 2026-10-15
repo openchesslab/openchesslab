@@ -105,6 +105,7 @@ defmodule Web.AnalysisView do
       open_files: PositionProperties.open_files(position),
       semi_open_files: PositionProperties.semi_open_files(position),
       attacked_squares: PositionProperties.attacked_squares(position),
+      defended_squares: PositionProperties.defended_squares(position),
       attacked_pieces: PositionProperties.attacked_pieces(position),
       king_zone: %{
         white: PositionProperties.king_zone(position, :white),
