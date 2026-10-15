@@ -34,6 +34,13 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, gecommit en gepusht; deploy volgt door gebruiker:** `Keep the evaluation bar
+  visible while the engine computes`, bovenop `7233565`. De evaluatiebalk rendeert nu zodra de
+  engine aan staat (niet pas bij de eerste evaluatie) en toont neutraal gedimd "—" tijdens
+  compute; het bord reserveert de balkruimte altijd bij engine-aan, dus geen layoutshift of
+  flicker meer bij PV-klik of bordzet. Tests: 54 gericht, volledig web **230** (seed 511632);
+  browsertest: MutationObserver zag de balk nooit verdwijnen tijdens PV-play en bordzetten.
+
 - **Afgerond, gecommit en gepusht; deploy volgt door gebruiker (samen met de kolom-slice
   `1f004db`, nog niet gedeployed):** `Keep the engine panel stable and honest during play`,
   bovenop `1f004db`. Twee vervolgfixes: (1) de PV-lijst is nu een begrensd, intern scrollend
