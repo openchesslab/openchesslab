@@ -124,16 +124,20 @@ defmodule Web.RoomLiveTest do
     assert render(view) =~ ~s(aria-label="occupied by white pawn e4")
 
     render_click(view, "first-move", %{})
-    assert_patch(view, root_url)
+    # Navigation renders instantly; the URL syncs with a trailing debounce.
     assert render(view) =~ ~s(aria-label="occupied by white pawn e2")
+    Process.sleep(400)
+    assert_patch(view, root_url, 800)
 
     render_click(view, "next-move", %{})
-    assert_patch(view, first_move_url)
     assert render(view) =~ ~s(aria-label="occupied by white pawn e4")
+    Process.sleep(400)
+    assert_patch(view, first_move_url, 800)
 
     render_click(view, "previous-move", %{})
-    assert_patch(view, root_url)
     assert render(view) =~ ~s(aria-label="occupied by white pawn e2")
+    Process.sleep(400)
+    assert_patch(view, root_url, 800)
 
     # A fresh LiveView can always restore the current bookmarkable move link.
     {:ok, _restored, html} = live(build_conn(), first_move_url)

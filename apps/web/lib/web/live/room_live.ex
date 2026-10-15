@@ -26,6 +26,7 @@ defmodule Web.RoomLive do
   alias Web.Presence
 
   @shape_colors ~w(yellow blue red orange purple)
+  @url_sync_debounce_ms 300
   # The vendored engine build identity; cached evaluations are per engine.
   @engine_id "stockfish-19-lite-single"
   @engine_review_depth 12
@@ -230,12 +231,21 @@ defmodule Web.RoomLive do
 
     path = if is_binary(params["p"]), do: parse_path(params["p"]), else: []
 
+    # A debounced patch that matches the loaded state must not re-fetch and
+    # re-render the whole analysis.
+    already_loaded? =
+      selected_id == socket.assigns.selected_analysis_id and
+        not is_nil(socket.assigns.analysis) and
+        path == socket.assigns.current_path
+
     socket =
       socket
       |> subscribe_analysis(selected_id)
       |> assign(url_analysis_id: requested_id, url_path: params["p"])
       |> assign(:selected_analysis_id, selected_id)
-      |> maybe_load_analysis(selected_id, path)
+      |> then(fn s ->
+        if already_loaded?, do: s, else: maybe_load_analysis(s, selected_id, path)
+      end)
       |> refresh_presence()
 
     if selected_id && requested_id != selected_id do
@@ -1501,6 +1511,10 @@ defmodule Web.RoomLive do
   def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   @impl true
+  def handle_info(:sync_position_url, socket) do
+    {:noreply, sync_position_url(socket)}
+  end
+
   # A membership change rechecks this view's own member: a removed member is
   # cut off immediately, before any further room content reaches them.
   def handle_info({:membership_changed, _room_code}, socket) do
@@ -1917,14 +1931,19 @@ defmodule Web.RoomLive do
     |> sync_position_url()
   end
 
+  # Navigation renders instantly and syncs the URL with a trailing debounce:
+  # a push_patch per keypress keeps a pending link open, which buffers every
+  # render diff until the burst ends (the screen freezes while the URL moves).
+  # The timer is idempotent: sync_position_url no-ops when the URL matches.
   defp select_path(socket, path) do
     case socket.assigns.analysis do
       %AnalysisModel{} = analysis ->
         if AnalysisModel.node_at(analysis, path) do
+          Process.send_after(self(), :sync_position_url, @url_sync_debounce_ms)
+
           socket
           |> set_analysis(analysis, socket.assigns.analysis_revision, path)
           |> assign(:annotations, [])
-          |> sync_position_url()
         else
           socket
         end
