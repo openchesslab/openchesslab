@@ -34,8 +34,9 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond, gecommit en gepusht; deploy volgt door gebruiker:** `Cache all computed lines and
-  honor engine settings over the cache`, bovenop `f540852`. Gebruikersbug: instellingen wijzigen
+- **Afgerond, gecommit, gepusht en door gebruiker gedeployed (bevestigd 2026-10-15):**
+  `Cache all computed lines and honor engine settings over the cache` (+ HANDOFF-record
+  `f540852`), bovenop `f540852`. Gebruikersbug: instellingen wijzigen
   deed niets meer — de cache-skip keek alleen naar fen+diepte, blind voor MultiPV, en de cache
   bevatte sowieso maar één lijn. Nu: `position_evals` krijgt `multipv` + `lines` (jsonb,
   migratie `20261015160000` met backfill), de skip vereist dekking op beide assen, het paneel
