@@ -34,8 +34,8 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Show a stable identity badge and name
-  in the account menu`, bovenop `7f14d7d`. Productbeslissing 2026-10-15: gegenereerde namen waren
+- **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
+  `Show a stable identity badge and name in the account menu`, bovenop `7f14d7d`. Productbeslissing 2026-10-15: gegenereerde namen waren
   per-mount — niet herkenbaar. Nu: `DisplayName.for_user/1` (deterministisch uit het interne
   user-id via sha256 over dezelfde woordenlijsten), `name_color/1` (hsl-hue uit de naamhash,
   vast S/L, witte initialen), `initials/1` (gedeeld met de room-presence). De accountknop toont
