@@ -34,6 +34,15 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond; deploy door mij (gebruiker heeft deployvrijheid gegeven vanaf 2026-10-15):**
+  `Speed up the move list and cancel reviews when the tree changes`, bovenop `117b32e`.
+  (1) `PositionStore.get_many/1` + preload in `AnalysisView.move_list_data`: de zettenlijst
+  laadt alle posities in één query i.p.v. één per zet — de resterende PV-kliklag bij 40+ zetten.
+  (2) Mid-review een zet spelen cancellde de review voorheen NIET (het resultaat werd stilletjes
+  gedropt op revisiemismatch → eeuwige "Reviewing…"); nu eerlijke cancel met melding, en de hook
+  keert terug naar interactief. Volledig serieel: analysis **630**, web **232**; formatter,
+  assetbuild, diffcontrole geslaagd.
+
 - **Afgerond, gecommit en gepusht; deploy volgt door gebruiker:** `Batch engine-line insertion
   and lighten engine updates`, bovenop `d4d839a`. Productie-lag (NL↔AMS): (1) `Analyses.
   play_line/3` — een hele engine-lijn in één transactie (één revisiebump, één broadcast) i.p.v.

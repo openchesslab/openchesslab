@@ -151,9 +151,11 @@ defmodule Web.AnalysisView do
         }
   def move_list_data(%AnalysisModel{} = analysis, locale) do
     root = AnalysisModel.root(analysis)
+    # One position query for the whole tree instead of one per move.
+    positions = preload_positions(analysis)
 
-    case position_for(root) do
-      %Position{} = root_position ->
+    case Map.fetch(positions, Node.position_id(root)) do
+      {:ok, %Position{} = root_position} ->
         tree =
           collect_move_tree(
             Node.children(root),
@@ -161,7 +163,8 @@ defmodule Web.AnalysisView do
             root_position,
             analysis,
             root_position.side_to_move,
-            locale
+            locale,
+            positions
           )
 
         rows = mainline_rows(tree, Enum.drop(tree, 1))
@@ -223,7 +226,15 @@ defmodule Web.AnalysisView do
   defp mainline_leaf(%Node{children: []}, path), do: path
   defp mainline_leaf(%Node{children: [child | _]}, path), do: mainline_leaf(child, path ++ [0])
 
-  defp collect_move_tree(children, parent_path, parent_position, analysis, root_side, locale) do
+  defp collect_move_tree(
+         children,
+         parent_path,
+         parent_position,
+         analysis,
+         root_side,
+         locale,
+         positions
+       ) do
     children
     |> Enum.with_index()
     |> Enum.map(fn {node, index} ->
@@ -231,7 +242,7 @@ defmodule Web.AnalysisView do
       context = AnalysisModel.move_context(analysis, root_side, parent_path)
       transition = Node.transition(node)
       label = transition_label(transition, parent_position, locale)
-      child_position = position_for(node)
+      child_position = Map.get(positions, Node.position_id(node))
 
       entry = %{
         path: path,
@@ -256,7 +267,8 @@ defmodule Web.AnalysisView do
               child_position,
               analysis,
               root_side,
-              locale
+              locale,
+              positions
             )
           )
 
@@ -333,6 +345,23 @@ defmodule Web.AnalysisView do
       {:ok, %Position{} = position} -> position
       _ -> nil
     end
+  end
+
+  # Every position id in the analysis tree, loaded in one query: the move
+  # list rebuild walks every node and must not issue a query per move.
+  defp preload_positions(%AnalysisModel{} = analysis) do
+    analysis
+    |> AnalysisModel.root()
+    |> collect_position_ids([])
+    |> PositionStore.get_many()
+  end
+
+  defp collect_position_ids(%Node{} = node, acc) do
+    acc = [Node.position_id(node) | acc]
+
+    node
+    |> Node.children()
+    |> Enum.reduce(acc, fn child, acc -> collect_position_ids(child, acc) end)
   end
 
   defp transition_label({:move, _move} = transition, parent_position, locale) do

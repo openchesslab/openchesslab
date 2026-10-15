@@ -1171,7 +1171,7 @@ defmodule Web.RoomLive do
   def handle_event("engine-review-result", params, socket) do
     with %{status: :running, current: current, revision: revision} = review <-
            socket.assigns.engine_review || %{},
-         true <- revision == socket.assigns.analysis_revision,
+         :ok <- check_review_revision(revision, socket.assigns.analysis_revision),
          {ply, ""} when ply == current <- Integer.parse(params["ply"] || ""),
          cp <- params["cp"],
          mate <- params["mate"],
@@ -1202,9 +1202,21 @@ defmodule Web.RoomLive do
 
       advance_review(socket, review)
     else
-      _ -> {:noreply, socket}
+      # The tree changed mid-review; the marks would attach to the wrong
+      # moves. Cancel honestly instead of stalling forever.
+      :cancelled ->
+        {:noreply,
+         socket
+         |> assign(:engine_review, nil)
+         |> notify(Web.I18n.t("room.reviewCancelledEdit", socket.assigns.locale), :error)}
+
+      _ ->
+        {:noreply, socket}
     end
   end
+
+  defp check_review_revision(revision, revision), do: :ok
+  defp check_review_revision(_review_revision, _analysis_revision), do: :cancelled
 
   def handle_event("engine-error", _params, socket) do
     socket =

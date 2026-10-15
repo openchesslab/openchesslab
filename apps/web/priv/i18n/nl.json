@@ -397,6 +397,7 @@
   "room.reviewProgress": "Bezig met reviewen… {done}/{total}",
   "room.reviewDone": "Review klaar: {blunders} blunders, {mistakes} fouten, {inaccuracies} onauwkeurigheden",
   "room.reviewAgain": "Opnieuw reviewen",
+  "room.reviewCancelledEdit": "Review afgebroken — de analyse is tijdens het reviewen gewijzigd.",
   "room.markBlunder": "Blunder",
   "room.markMistake": "Fout",
   "room.markInaccuracy": "Onauwkeurigheid",

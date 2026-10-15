@@ -397,6 +397,7 @@
   "room.reviewProgress": "Reviewing… {done}/{total}",
   "room.reviewDone": "Review complete: {blunders} blunders, {mistakes} mistakes, {inaccuracies} inaccuracies",
   "room.reviewAgain": "Review again",
+  "room.reviewCancelledEdit": "Review cancelled — the analysis changed while reviewing.",
   "room.markBlunder": "Blunder",
   "room.markMistake": "Mistake",
   "room.markInaccuracy": "Inaccuracy",

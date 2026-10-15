@@ -170,6 +170,12 @@ defmodule Analysis.PositionStore do
   WHERE id = $1
   """
 
+  @get_many_sql """
+  SELECT id, record
+  FROM positions
+  WHERE id = ANY($1::bigint[])
+  """
+
   @find_sql """
   SELECT id
   FROM positions
@@ -237,6 +243,26 @@ defmodule Analysis.PositionStore do
 
   def get(_position_id) do
     :not_found
+  end
+
+  @doc """
+  Loads many positions in one query, as `%{position_id => position}`.
+
+  Used by the move-list rebuild, which walks every node of an analysis and
+  would otherwise issue one query per move.
+  """
+  @spec get_many([position_id()]) :: %{position_id() => Position.t()}
+  def get_many(position_ids) when is_list(position_ids) do
+    case Repo.query(@get_many_sql, [Enum.uniq(position_ids)]) do
+      {:ok, %{rows: rows}} ->
+        Map.new(rows, fn [position_id, record] ->
+          {:ok, position} = decode_record(record)
+          {position_id, position}
+        end)
+
+      {:error, _reason} ->
+        %{}
+    end
   end
 
   @spec find(Position.t()) ::
