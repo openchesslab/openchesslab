@@ -964,13 +964,15 @@ defmodule Web.RoomLiveTest do
     render_click(view, "engine-review-result", %{"ply" => "2", "cp" => 10})
     assert render(view) =~ "0/3"
 
-    # Root and 1.e4 stay roughly equal; 1...e5 drops 4.5 pawns for Black.
+    # Root and 1.e4 stay roughly equal; 1...e5 runs into mate for White.
+    # (Engine scores arrive UCI-relative to the side to move; the review
+    # stores them white-relative before classifying by Win% drop.)
     render_click(view, "engine-review-result", %{"ply" => "0", "cp" => 30})
     assert render(view) =~ "1/3"
     refute render(view) =~ "data-review-fen=\"\""
 
     render_click(view, "engine-review-result", %{"ply" => "1", "cp" => -50})
-    render_click(view, "engine-review-result", %{"ply" => "2", "cp" => 400})
+    render_click(view, "engine-review-result", %{"ply" => "2", "mate" => 4})
 
     html = render(view)
 
@@ -988,6 +990,31 @@ defmodule Web.RoomLiveTest do
     html = render_click(view, "engine-review-result", %{"ply" => "0", "cp" => -900})
     assert html =~ "1 blunders"
     refute html =~ "-9.00"
+  end
+
+  test "review classification is position-independent, unlike raw centipawns", %{
+    conn: conn,
+    code: code
+  } do
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    render_click(view, "create-analysis", %{})
+
+    view |> element("#chess-board-square-e2") |> render_click()
+    view |> element("#chess-board-square-e4") |> render_click()
+    render_click(view, "engine-review-start", %{})
+
+    # A 300cp swing from an already-won position (+800 → +500) is a raw-cp
+    # blunder but barely moves the win probability (95.4% → 84.7%), so the
+    # Win% model rightly marks nothing.
+    render_click(view, "engine-review-result", %{"ply" => "0", "cp" => 800})
+    render_click(view, "engine-review-result", %{"ply" => "1", "cp" => -500})
+
+    html = render(view)
+
+    assert html =~ "Review complete"
+    assert html =~ "0 blunders"
+    assert html =~ "0 mistakes"
+    assert html =~ "0 inaccuracies"
   end
 
   test "engine errors surface honestly and switch the engine off", %{conn: conn, code: code} do

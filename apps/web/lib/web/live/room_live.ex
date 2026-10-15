@@ -2946,8 +2946,13 @@ defmodule Web.RoomLive do
     end
   end
 
-  # Compares consecutive mainline evals from the mover's perspective and marks
-  # big swings, roughly following common review thresholds.
+  # Classification follows lichess's published model: centipawns map to a win
+  # probability with a logistic curve fitted to real games (scalachess
+  # eval.scala, MIT; https://lichess.org/page/accuracy), and a move is marked
+  # by how much it drops the mover's Win%: >30 points is a blunder, >20 a
+  # mistake, >10 an inaccuracy. Unlike raw centipawn loss this is
+  # position-independent — big cp swings in already-decided games barely move
+  # Win%, so they no longer misclassify.
   defp classify_review(analysis, review) do
     marks =
       for ply <- 0..(review.total - 1),
@@ -2960,18 +2965,26 @@ defmodule Web.RoomLive do
             _ -> :white
           end
 
-        loss =
-          (review_cp(before_eval) - review_cp(after_eval)) * if(side == :white, do: 1, else: -1)
+        win_before = win_percent(before_eval)
+        win_after = win_percent(after_eval)
+        drop = (win_before - win_after) * if(side == :white, do: 1, else: -1)
 
         mark =
           cond do
-            loss > 300 -> "??"
-            loss > 150 -> "?"
-            loss > 80 -> "?!"
+            drop > 30 -> "??"
+            drop > 20 -> "?"
+            drop > 10 -> "?!"
             true -> nil
           end
 
-        mark && {ply, %{mark: mark, loss: loss}}
+        mark &&
+          {ply,
+           %{
+             mark: mark,
+             loss: drop,
+             win_before: Float.round(win_before, 1),
+             win_after: Float.round(win_after, 1)
+           }}
       end
       |> Enum.reject(&is_nil/1)
       |> Map.new()
@@ -2994,6 +3007,20 @@ defmodule Web.RoomLive do
 
   @review_clamp_cp 1000
 
+  # Win% from a white-relative eval, the logistic curve lichess fits to real
+  # games: 0cp ≈ 50%, +100 ≈ 59%, +400 ≈ 81%, mates saturate at 0/100.
+  @win_percent_multiplier -0.00368208
+
+  defp win_percent(%{mate: mate}) when is_integer(mate) and mate > 0, do: 100.0
+  defp win_percent(%{mate: mate}) when is_integer(mate) and mate < 0, do: 0.0
+
+  defp win_percent(%{cp: cp}) when is_integer(cp) do
+    cp = max(-@review_clamp_cp, min(@review_clamp_cp, cp))
+    50 + 50 * (2 / (1 + :math.exp(@win_percent_multiplier * cp)) - 1)
+  end
+
+  defp win_percent(_eval), do: 50.0
+
   defp review_side(analysis, ply) do
     case AnalysisView.move_context(analysis, List.duplicate(0, ply)) do
       %{side: side} -> side
@@ -3012,14 +3039,6 @@ defmodule Web.RoomLive do
       true -> {cp * flip, nil}
     end
   end
-
-  defp review_cp(%{mate: mate}) when is_integer(mate) and mate > 0, do: @review_clamp_cp
-  defp review_cp(%{mate: mate}) when is_integer(mate) and mate < 0, do: -@review_clamp_cp
-
-  defp review_cp(%{cp: cp}) when is_integer(cp),
-    do: max(-@review_clamp_cp, min(@review_clamp_cp, cp))
-
-  defp review_cp(_eval), do: 0
 
   # The FEN of the position the review is currently analyzing; empty when no
   # review is running, which returns the hook to interactive mode.
