@@ -34,7 +34,7 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond, gereed voor commit/push — `Preserve PGN comments and annotations in room imports`**, vanaf
+- **Afgerond en gepusht — `Preserve PGN comments and annotations in room imports` (`08077d0`)**, vanaf
   schone `c045f13`. Correctie op de todo: SetUp/FEN-import bestond al sinds `1634dc32f`;
   de nieuwe webtest bevestigt ook zwart-aan-zet en het oorspronkelijke zetnummer.
   Nieuwe PgnAnalysisImporter bewaart hoofdlijnopmerkingen en NAG's in de analyse,
@@ -42,9 +42,10 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   Partijrecord + geannoteerde analyse worden atomair opgeslagen. Plakken/upload delen
   dezelfde importflow. Variaties blijven buiten scope en worden nog overgeslagen.
   Gericht: domain **21** en room_live **49** groen. Volledig: analysis **621** (seed 632190),
-  web **225** met --warnings-as-errors (seed 552158). Assetbuild, formatter en diffcontrole groen.
+  web **225** met --warnings-as-errors (seed 552158). Assetbuild, compile --warnings-as-errors,
+  formatter en diffcontrole groen.
   Eerste testcompilatie faalde door helpernaam `import` (Elixir-macro); hernoemd en opgelost.
-  Geen migratie. Commit/push nog niet; deployment niet uitgevoerd/toegestaan.
+  Geen migratie. Commit `08077d0` gepusht naar `origin/main`; deployment niet uitgevoerd/toegestaan.
 
 - **Afgerond en gepusht — `Open personal analyses in private rooms` (`d3be41c`)**, vanaf schone `main`
   `d5ec8e9`. Gebruiker bevestigt: geen losse privé-editor; een privé-room is een gewone room.
