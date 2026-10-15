@@ -34,8 +34,8 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond; deploy door mij (gebruiker gaf deployvrijheid vanaf 2026-10-15):** `Add the
-  opening book tab with ECO classification and corpus move stats`, bovenop `bbd542d`.
+- **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie geverifieerd:**
+  `Add the opening book tab with ECO classification and corpus move stats`, bovenop `bbd542d`.
   Engine-kolom krijgt tabs Engine|Book. Vendored CC0 lichess-org/chess-openings (TSV's onder
   apps/database/priv/openings) → migratie `20261015170000` seedt `openings` (position_record,
   eco, name) door elke PGN-lijn met onze eigen regels te replayen; `game_occurrences.move`
@@ -49,8 +49,10 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   PgnAnalysisImporterTest; gedocumenteerde backlog, mechanisme: concurrente import + truncate),
   web **233**; formatter, root-compile --warnings-as-errors, assetbuild, diffcontrole geslaagd.
   Browsertest: tab met e4/d4/Nf3 aantallen + openingsnamen, klik speelt, classificatie volgt
-  de lijn (King's Pawn Game B00 → C20). Na deploy: `fly ssh console -C 'eval
-  "Analysis.GameStore.backfill_occurrence_moves()"' -a openchesslab` uitvoeren.
+  de lijn (King's Pawn Game B00 → C20). Productie: 3865 openings geseed via release-migratie;
+  backfill was een no-op (0) want de productiecorpus is nog leeg — het boek vult zodra partijen
+  geïmporteerd worden (room-play maakt geen canonieke partijen). Live geverifieerd: eerlijke
+  lege toestand op startpositie, King's Pawn Game B00 na 1.e4.
 
 - **Afgerond en door mij gedeployed (gebruiker gaf deployvrijheid vanaf 2026-10-15);
   productie-stresstest geverifieerd:**
