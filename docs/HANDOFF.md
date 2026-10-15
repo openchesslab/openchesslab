@@ -34,8 +34,8 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond, gecommit en gepusht; deploy volgt door gebruiker:** `Wire game search to the real
-  corpus queries`, bovenop `3130242`. De zoekmodal draait nu echt op `GameSearch.page/3`:
+- **Afgerond, gecommit, gepusht en door gebruiker gedeployed (bevestigd 2026-10-15):**
+  `Wire game search to the real corpus queries`, bovenop `3130242`. De zoekmodal draait nu echt op `GameSearch.page/3`:
   spelersnaam (case-insensitive ILIKE-substring, nieuwe `GameRecordQuery.metadata_value_contains/2`
   + `all/1`/`any/1`-juncties), kleur, resultaat (exacte JSONB-containment) en exacte stelling via
   `PositionQuery.equivalent/1` (de demo-FEN deed voorheen helemaal niets). Keyset-paging met
