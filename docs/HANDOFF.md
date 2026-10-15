@@ -34,8 +34,9 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Split the attacks layer into
-  coverage and defended-pieces layers`, bovenop `46d7ce8`. UX-bespreking 2026-10-16: de
+- **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
+  `Split the attacks layer into coverage and defended-pieces layers` (`6eeb80e`), bovenop
+  `46d7ce8`. UX-bespreking 2026-10-16: de
   aanvalslaag telde ook eigen bezet velden mee ("verdedigd"), waardoor de beginstelling
   onleesbaar oplichtte. Beslissing van de gebruiker: twee aparte lagen. Semantiek in
   `Chess.PositionProperties` aangepast: `attacked_squares/1` = dekking (leeg of vijandig bezet,
