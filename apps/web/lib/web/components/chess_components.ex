@@ -365,5 +365,6 @@ defmodule Web.ChessComponents do
   defp shape_color("red"), do: "#d6453d"
   defp shape_color("orange"), do: "#e08a1e"
   defp shape_color("purple"), do: "#8b5cf6"
+  defp shape_color("engine"), do: "#2fbf71"
   defp shape_color(_color), do: "#3b6fe0"
 end

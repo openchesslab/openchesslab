@@ -754,6 +754,26 @@ defmodule Web.RoomLiveTest do
 
     assert html =~ "data-eval-bar"
 
+    # The best move of the top line shows as a green arrow on the board.
+    assert html =~ "data-shape-key=\"arrow-12-28-engine\""
+
+    # The arrow follows the position: after 1.e4 the stale line drops it until
+    # a fresh evaluation arrives for the new position.
+    view |> element("#chess-board-square-e2") |> render_click()
+    view |> element("#chess-board-square-e4") |> render_click()
+    refute render(view) =~ "data-shape-key=\"arrow-12-28-engine\""
+
+    html =
+      render_click(view, "engine-update", %{
+        "fen" => "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+        "depth" => 18,
+        "nodes" => 1,
+        "nps" => 1,
+        "lines" => [%{"multipv" => 1, "score_cp" => 20, "pv" => "e7e5"}]
+      })
+
+    assert html =~ "data-shape-key=\"arrow-52-36-engine\""
+
     # Stale results for another position are dropped; the panel keeps the
     # current evaluation instead of regressing.
     html =
@@ -765,7 +785,7 @@ defmodule Web.RoomLiveTest do
         "lines" => [%{"multipv" => 1, "score_cp" => -900, "pv" => "a1a2"}]
       })
 
-    assert html =~ "+0.34"
+    assert html =~ "-0.20"
     refute html =~ "-9.00"
   end
 

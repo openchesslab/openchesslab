@@ -978,14 +978,16 @@ defmodule Web.RoomLive do
   def handle_event("toggle-engine", _params, socket) do
     on? = not socket.assigns.engine_on
 
-    {:noreply,
-     assign(socket,
-       engine_on: on?,
-       engine_preview: nil,
-       engine_error: nil,
-       engine_peek: nil,
-       engine_settings_open: false
-     )}
+    socket =
+      assign(socket,
+        engine_on: on?,
+        engine_preview: nil,
+        engine_error: nil,
+        engine_peek: nil,
+        engine_settings_open: false
+      )
+
+    {:noreply, assign(socket, :board_shapes, board_shapes(socket))}
   end
 
   def handle_event("open-engine-settings", _params, socket),
@@ -1030,8 +1032,9 @@ defmodule Web.RoomLive do
           _ -> false
         end
 
+      socket = assign(socket, engine_preview: preview, engine_error: nil)
       socket = if peek_stale?, do: assign(socket, :engine_peek, nil), else: socket
-      {:noreply, assign(socket, engine_preview: preview, engine_error: nil)}
+      {:noreply, assign(socket, :board_shapes, board_shapes(socket))}
     else
       _ -> {:noreply, socket}
     end
@@ -1072,12 +1075,14 @@ defmodule Web.RoomLive do
     do: {:noreply, assign(socket, :engine_peek, nil)}
 
   def handle_event("engine-error", _params, socket) do
-    {:noreply,
-     assign(socket,
-       engine_on: false,
-       engine_preview: nil,
-       engine_error: "room.engineError"
-     )}
+    socket =
+      assign(socket,
+        engine_on: false,
+        engine_preview: nil,
+        engine_error: "room.engineError"
+      )
+
+    {:noreply, assign(socket, :board_shapes, board_shapes(socket))}
   end
 
   def handle_event("search-games", params, socket) do
@@ -2147,7 +2152,20 @@ defmodule Web.RoomLive do
         end
       end)
 
-    remote ++ socket.assigns.annotations
+    # The engine arrow sits under everyone's annotations.
+    engine_best_move_shape(socket) ++ remote ++ socket.assigns.annotations
+  end
+
+  # A green arrow for the engine's top move, only while the preview matches
+  # the position on the board.
+  defp engine_best_move_shape(socket) do
+    with %{fen: fen, pv: [%{moves: [%{uci: uci} | _]} | _]} <- socket.assigns.engine_preview,
+         true <- socket.assigns.engine_on and fen == current_fen(socket),
+         {:ok, move} <- UCI.parse_move(socket.assigns.position, uci) do
+      [%{type: :arrow, from: move.from, to: move.to, color: "engine"}]
+    else
+      _ -> []
+    end
   end
 
   defp selectable_piece?(%Position{} = position, square) do
@@ -2584,6 +2602,7 @@ defmodule Web.RoomLive do
   defp shape_color("red"), do: "#d6453d"
   defp shape_color("orange"), do: "#e08a1e"
   defp shape_color("purple"), do: "#8b5cf6"
+  defp shape_color("engine"), do: "#2fbf71"
   defp shape_color(_color), do: "#3b6fe0"
 
   defp engine_setting_bounds("depth"), do: {1, 40}
