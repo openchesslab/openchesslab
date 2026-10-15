@@ -7,7 +7,7 @@ defmodule Web.RoomLive do
   alias Analysis.AnalysisEvents
   alias Analysis.Analyses
   alias Analysis.Node
-  alias Analysis.PgnImporter
+  alias Analysis.PgnAnalysisImporter
   alias Analysis.RoomChat
   alias Analysis.RoomEvents
   alias Analysis.Rooms
@@ -1877,16 +1877,12 @@ defmodule Web.RoomLive do
     record_id =
       new_game_record_id()
 
-    case PgnImporter.import_game(
-           record_id,
-           pgn
-         ) do
-      {:ok, record} ->
-        case create_imported_analysis(
-               socket,
-               record.id
-             ) do
-          {:ok, analysis_id} ->
+    case PgnAnalysisImporter.import(new_analysis_id(), record_id, pgn) do
+      {:ok, analysis, _revision} ->
+        case Rooms.add_analysis(socket.assigns.room_code, analysis.id) do
+          :ok ->
+            analysis_id = analysis.id
+
             socket =
               refresh_room(socket)
 
@@ -1959,24 +1955,6 @@ defmodule Web.RoomLive do
                }
              )
          )}
-    end
-  end
-
-  defp create_imported_analysis(socket, game_record_id) do
-    analysis_id =
-      new_analysis_id()
-
-    with {:ok, analysis, _revision} <-
-           Analyses.create_from_game_record(
-             analysis_id,
-             game_record_id
-           ),
-         :ok <-
-           Rooms.add_analysis(
-             socket.assigns.room_code,
-             analysis.id
-           ) do
-      {:ok, analysis.id}
     end
   end
 

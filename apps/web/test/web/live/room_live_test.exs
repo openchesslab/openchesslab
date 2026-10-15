@@ -375,7 +375,7 @@ defmodule Web.RoomLiveTest do
         [
           %{
             name: "sample.pgn",
-            content: DemoData.game("demo-ruy-lopez").pgn,
+            content: "1. e4! {Uploaded note} e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 *",
             type: "application/x-chess-pgn"
           }
         ]
@@ -409,6 +409,8 @@ defmodule Web.RoomLiveTest do
              10
 
     assert is_binary(analysis.source_game_record_id)
+    assert hd(analysis.root.children).comment == "Uploaded note"
+    assert hd(analysis.root.children).nags == [1]
 
     assert {
              :ok,
@@ -459,6 +461,31 @@ defmodule Web.RoomLiveTest do
     assert html =~ ~s(data-mobile-panel="chat")
     assert html =~ ~s(data-mobile-panel="moves")
     refute html =~ "toggle-chat"
+  end
+
+  test "pasted FEN game retains annotations in the ordinary room editor", %{
+    conn: conn,
+    code: code
+  } do
+    {:ok, view, _} = live(conn, "/rooms/#{code}")
+    render_click(view, "open-import", %{})
+
+    render_submit(view, "import-pgn", %{
+      "pgn_text" => """
+      [SetUp "1"]
+      [FEN "4k3/8/8/8/8/8/4K3/7R b - - 12 37"]
+
+      37... Kf7! {Human note [%eval 0.2]} 38. Rh2 *
+      """
+    })
+
+    assert {:ok, analysis, _} = Analyses.get(room_analysis_id!(code))
+    assert analysis.start == Analysis.GameStart.new(37)
+    assert hd(analysis.root.children).nags == [1]
+    html = render(view)
+    assert html =~ "Human note"
+    refute html =~ "[%eval"
+    assert render_click(view, "last-move", %{}) =~ "occupied by white rook h2"
   end
 
   test "the import dialog keeps one height when switching source tabs", %{

@@ -2,6 +2,16 @@
 
 **Handoff baseline:** `main` at `51192f5acceff601fe8b1bef225146eed72d0831`, 2026-10-13. This is a history and rationale document, **not** an authority for current function signatures. Check Git/SQL/tests before implementing. Engineering rules are in [`../AGENTS.md`](../AGENTS.md); the as-built model and explicit *Implemented / Decision / Planned* boundaries are in [`architecture.md`](architecture.md).
 
+## 2026-10-15 — Annotated PGN mainline imports
+
+Room PGN imports now retain human comments and NAGs in the mutable analysis while
+canonical played games keep their existing identity. Machine comment commands are
+stripped by default. A dedicated analysis import service commits record and annotated
+analysis atomically; existing bulk canonical import contracts remain unchanged.
+Variations/keep-options are follow-up work. The handoff's SetUp/FEN backlog entry was
+incorrect: custom starts have existed since `1634dc32f`; a web regression test now
+also verifies a black-to-move start at move 37.
+
 ## 2026-10-15 — One editor through ordinary private rooms
 
 User decision: a private room behaves like any other room; a standalone private

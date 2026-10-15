@@ -34,6 +34,18 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, gereed voor commit/push — `Preserve PGN comments and annotations in room imports`**, vanaf
+  schone `c045f13`. Correctie op de todo: SetUp/FEN-import bestond al sinds `1634dc32f`;
+  de nieuwe webtest bevestigt ook zwart-aan-zet en het oorspronkelijke zetnummer.
+  Nieuwe PgnAnalysisImporter bewaart hoofdlijnopmerkingen en NAG's in de analyse,
+  stript machinecommando's uit opmerkingen en houdt canonieke partijinhoud ongewijzigd.
+  Partijrecord + geannoteerde analyse worden atomair opgeslagen. Plakken/upload delen
+  dezelfde importflow. Variaties blijven buiten scope en worden nog overgeslagen.
+  Gericht: domain **21** en room_live **49** groen. Volledig: analysis **621** (seed 632190),
+  web **225** met --warnings-as-errors (seed 552158). Assetbuild, formatter en diffcontrole groen.
+  Eerste testcompilatie faalde door helpernaam `import` (Elixir-macro); hernoemd en opgelost.
+  Geen migratie. Commit/push nog niet; deployment niet uitgevoerd/toegestaan.
+
 - **Afgerond en gepusht — `Open personal analyses in private rooms` (`d3be41c`)**, vanaf schone `main`
   `d5ec8e9`. Gebruiker bevestigt: geen losse privé-editor; een privé-room is een gewone room.
   Bibliotheek openen maakt/hergebruikt een eigen private room en opent RoomLive. Gedeelde
@@ -424,8 +436,8 @@ vereist nog een productkeuze. De bekende `:invalid_occurrences`-suitefout blijft
 Dit is een overzicht, geen vastgelegde uitvoeringsvolgorde:
 
 - **Import:** echte eigen Lichess-partijen/studies; later herkomst, retries/synchronisatie.
-  PGN-varianten, opmerkingen en NAG's meenemen; machinecommando's standaard strippen,
-  menselijke tekst behouden. Ook import vanaf SetUp/FEN ontbreekt nog.
+  PGN-varianten meenemen; keep-opties voor annotaties/metadata uitwerken. Hoofdlijnopmerkingen
+  en NAG's worden in de huidige slice bewaard; SetUp/FEN-import bestond al.
 - **Zoeken:** echte corpusresultaten aan de UI koppelen; later geïndexeerd zoeken op
   schaakkenmerken, structuren/plannen en gelijkenis op grote schaal.
 - **Levensduur:** bewaartermijn voor gevulde rooms bepalen; bibliotheekverwijzingen veilig
