@@ -819,7 +819,11 @@ defmodule Web.RoomLiveTest do
     assert html =~ "aria-checked=\"true\""
     assert html =~ "data-engine-on=\"true\""
     assert html =~ "Analyzing"
-    refute html =~ "data-eval-bar"
+
+    # The bar stays put while the engine computes: neutral and dimmed, so
+    # nothing flickers when the first evaluation lands.
+    assert html =~ "data-eval-bar"
+    assert html =~ "Evaluation bar —"
 
     # Throttled UCI info from the worker fills the stats, lines and eval bar.
     html =
@@ -1178,7 +1182,13 @@ defmodule Web.RoomLiveTest do
 
     refute has_element?(view, "#engine-eval")
     assert html =~ "Analyzing"
-    refute html =~ "data-eval-bar"
+
+    # The bar stays visible but neutral and dimmed: no stale score, no flicker.
+    # (The graph keeps the root's +0.30 — that is per-position history, not
+    # a stale panel evaluation.)
+    assert html =~ "data-eval-bar"
+    assert html =~ "Evaluation bar —"
+    refute html =~ "Evaluation bar +0.30"
 
     # Fresh results for the new position take over. (Black to move: UCI +12
     # means Black is slightly better, so the white-relative panel shows minus.)

@@ -313,15 +313,18 @@
               data-board-zone
             >
               <div class={
-                if @engine_on and @engine_preview,
+                if @engine_on,
                   do:
                     "flex min-h-0 min-w-0 flex-1 items-center justify-center gap-3 max-[860px]:w-full",
                   else: "contents"
               }>
                 <div
-                  :if={@engine_on and @engine_preview}
+                  :if={@engine_on}
                   id="evaluation-bar"
-                  class="relative h-[min(calc(100dvh-14rem),42rem)] w-9 shrink-0 overflow-visible rounded border border-border max-[860px]:h-[min(100vw,32rem)]"
+                  class={[
+                    "relative h-[min(calc(100dvh-14rem),42rem)] w-9 shrink-0 overflow-visible rounded border border-border max-[860px]:h-[min(100vw,32rem)]",
+                    is_nil(@engine_preview) && "opacity-60"
+                  ]}
                   data-eval-bar
                   phx-hook="EvalBar"
                   role="img"
@@ -353,7 +356,7 @@
                     position={@draft_position || @position}
                     locale={@locale}
                     orientation={@orientation}
-                    center={not @engine_on or is_nil(@engine_preview)}
+                    center={not @engine_on}
                     selected_square={@selected_square}
                     cursor_square={@cursor_square}
                     legal_targets={if @draft_position, do: [], else: @legal_targets}
