@@ -34,7 +34,7 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond, gereed voor commit/push — `Open personal analyses in private rooms`**, vanaf schone `main`
+- **Afgerond en gepusht — `Open personal analyses in private rooms` (`d3be41c`)**, vanaf schone `main`
   `d5ec8e9`. Gebruiker bevestigt: geen losse privé-editor; een privé-room is een gewone room.
   Bibliotheek openen maakt/hergebruikt een eigen private room en opent RoomLive. Gedeelde
   bron wordt zo nodig atomair gekopieerd, persoonlijke titel blijft behouden. Losse editor,
@@ -43,7 +43,7 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   **616** (seed 668078), web **224** (seed 714072) groen. Twee bestaande waarschuwingen
   opgelost (redundante HEEx-voorwaarde/ongebruikte testvariabelen); room_live daarna **48**
   groen met --warnings-as-errors (seed 777971). Assetbuild, compile --warnings-as-errors,
-  formatter en diffcontrole groen. Commit/push: volgt direct na eindcontrole. Deployment:
+  formatter en diffcontrole groen. Commit `d3be41c` gepusht naar `origin/main`. Deployment:
   **niet uitgevoerd; expliciete toestemming vereist**. Formattercontrole groen na lokale
   LF-normalisatie (CRLF veroorzaakte HEEx-formatverschillen); geen brede UI-herformattering.
   Deze status en het actuele overzicht hieronder gaan vóór oudere historische bullets.
