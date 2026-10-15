@@ -34,8 +34,8 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond, gecommit en gepusht; deploy wacht op gebruikerswoord (niet expliciet toegestaan
-  voor dit paar):** twee slices bovenop de engine-serie. `45e96ea` — reviewclassificatie volgt
+- **Afgerond, gecommit, gepusht en door de gebruiker gedeployed (bevestigd 2026-10-15):**
+  twee slices bovenop de engine-serie. `45e96ea` — reviewclassificatie volgt
   nu lichess' gepubliceerde Win%-model (scalachess is MIT; de curve is gefit op echte partijen):
   cp → Win% (logistisch, clamp ±1000, mate satureert), merken bij >30/>20/>10 procentpunten
   daling voor de zetter. Positie-onafhankelijk: een 300cp-swing in een gewonnen stelling markeert
