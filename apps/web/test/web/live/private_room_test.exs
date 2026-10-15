@@ -4,8 +4,6 @@ defmodule Web.PrivateRoomTest do
   alias Analysis.{Analyses, Rooms, Users, UserSessions}
   alias OpenChessLab.Repo
 
-  @origin "https://openchesslab.example"
-
   setup do
     before_ids = ids()
     {:ok, owner} = Users.create()

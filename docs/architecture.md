@@ -194,20 +194,20 @@ OAuth attempt context (`Web.ReturnTo.sanitize/1` accepts only internal single-se
 `/rooms/<code>` paths — anything else falls back to home, so a crafted value can never
 become an open redirect); the callback redirects there on success and on link conflicts,
 and callback parameters can never override the stored path. Logout sanitizes the same
-form field. Home and the private editor (an authenticated route) return to home.
+form field. Home returns to home.
 
 Linked accounts are a shell modal over the home and room LiveViews
 (`Web.ShellPanels` + `Web.Layouts` templates), opened from the header account menu;
 there are no `/library` and `/account` pages. **My library** has two surfaces with
 distinct responsibilities (2026-10-14, user decision): the **Account menu opens a
-library management modal** (`Web.ShellPanels.open_library/2`) with editor links,
+library management modal** (`Web.ShellPanels.open_library/1`) with editor links,
 renaming, removal and paging; the **import modal's My Library tab inside rooms**
 (`Web.ShellPanels.load_library/2` + `handle_library_event/3`) lists the same
 entries with only the import actions (game-only branch, analysis copy, live
 share). Tab and modal events stay host-level, so `Web.UserAuth` revalidates the
 browser credential before every handler, and every action re-checks the resolved
-user: guests and revoked credentials only receive the login variant. The
-authenticated live session contains only the private editor. Escape closes any
+user: guests and revoked credentials only receive the login variant. Library entries
+open ordinary private rooms (see below); there is no separate authenticated editor route. Escape closes any
 modal, including while a field inside it has focus.
 
 `Analysis.Accounts.unlink/2` (shell modal event `unlink-provider`, host-level and
@@ -366,7 +366,7 @@ Titles are personal library labels, independent of the analysis aggregate/revisi
 and another user's references; simultaneous title saves use the latest committed write.
 The list opens an inline rename form only for a server-selected entry on the current page;
 submitted owner/analysis IDs cannot redirect the save. HTML output escapes titles. Untitled items
-use an English/Dutch fallback, and the private editor uses the saved label as its heading/document title.
+use an English/Dutch fallback, and the library displays the saved label.
 Existing references need no tree reads or backfill; users can label them directly.
 
 The home/room header links signed-in users to the library. The page has English/Dutch text, keeps the document theme/locale, and offers removal of a saved reference without deleting the analysis or another user's reference. This first interface shows analysis identifiers and saved dates; opening a saved analysis, richer labels and private analysis editing/sharing are subsequent slices. Tests cover HTTP and connected-mount denial, event/navigation revocation, user deletion, forged owner parameters, paging and shared-analysis preservation.
@@ -398,14 +398,8 @@ The existing `user_analyses` schema stores the reference; no ownership column, m
 or sharing endpoint is introduced. The trusted `save/2` primitive still inserts references
 internally and is not exposed as a browser save operation. Library removal still removes
 the association only, so orphan cleanup/user deletion semantics need a separate policy.
-Opening a live reference in the private editor branches it once: `UserLibrary.open_private/2`
-verifies the user's entry, and if the analysis is still room-shared or referenced by another
-user, materializes an independent private copy, repoints the entry to it and returns the
-copy's id. Branching is idempotent: later opens continue the private copy, and the room's
-analysis and other users' references keep the original untouched. `Web.PersonalAnalysisLive`
-live-redirects to the fresh copy's canonical URL (preserving the selected path); room
-expiry/cleanup behavior is unchanged (references are durable today because analysis rows
-outlive rooms).
+Opening an entry uses the ordinary private-room editor described below. Room
+expiry/cleanup behavior is unchanged; analysis rows currently outlive rooms.
 
 ### Branching library entries into rooms — 2026-10-14
 
@@ -429,27 +423,25 @@ result. Guests and revoked credentials cannot branch; forged owner, entry or roo
 parameters are ignored. The paste-import demo fixtures are untouched; the earlier demo
 library-tab fixtures were replaced by the real library.
 
-### Private personal editor — 2026-10-14
+### Personal analyses in ordinary private rooms — 2026-10-15
 
-`/library/:id` opens `Web.PersonalAnalysisLive` in the required authenticated session,
-with HTTP `no-store` and credential checks on mount, events and navigation. The library
-links directly to this route. The editor has no room, chat, presence or room-membership creation.
-It supports legal board moves (including promotion), branches, variation promotion/removal,
-comments and NAGs; `?p=` selects a tree occurrence and move navigation replaces URL history.
-Position setup/editing and the broader room tools are not yet exposed in this first private editor.
+The library modal's `library-open` event calls `UserLibrary.open_room/4`, then
+redirects to `/rooms/<code>?a=<analysis-id>`. The same `Web.RoomLive` handles public,
+private and library work, including position tools, engine, review and collaboration.
+`Web.PersonalAnalysisLive`, `/library/:id`, and the separate private read/edit APIs
+have been removed. Authentication and membership use the existing private-room gate.
 
-`UserLibrary.get_private/2` and `edit_private/5` require the requesting user's library reference,
-no room membership and no other user's library reference. This deliberately denies room-shared
-references and other users' tracks; `open_private/2` guarantees that scope by branching live
-references before the editor reads or edits anything. These remain trusted domain APIs: the
-browser boundary supplies only its verified
-User and server-selected analysis/revision/path. Missing and inaccessible IDs receive the same denial.
-PostgreSQL locks the analysis with `FOR UPDATE` (also excluding new foreign-key references),
-then the user's reference with `FOR SHARE`, retaining the private access scope throughout reads/writes.
-Failed mutations roll back; existing analysis operations retain chess validation and revision semantics.
-An edit checks the displayed revision before mutation: a stale tab reloads the latest aggregate
-and asks the user to retry instead of overwriting it. Membership removal takes effect on the
-next event/navigation; idle tabs have no access-change timer. Room retention and explicit sharing remain planned.
+The transaction locks the analysis and the requesting user's library reference.
+An existing private room owned by this user containing the entry is reused, including
+rooms with invited members. Otherwise, an entry linked to a room or another user's
+library is copied and the user's reference repointed, preserving its personal title.
+An unshared entry keeps its analysis id. Private room creation, owner membership and
+analysis linkage commit atomically with the copy/reference update; a code collision
+rolls everything back. Other users' references and source rooms remain unchanged.
+The web boundary supplies the authenticated user, random room code and generated
+member label. The room worker starts only after commit, on normal RoomLive mount.
+Removing a library reference does not revoke room membership or delete the room.
+
 
 ### Remaining integration
 

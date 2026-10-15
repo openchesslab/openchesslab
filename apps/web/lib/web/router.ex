@@ -60,10 +60,6 @@ defmodule Web.Router do
 
     post("/account/delete", AccountController, :delete)
     post("/auth/:provider/link", OAuthController, :link)
-
-    live_session :authenticated, on_mount: {Web.UserAuth, :required} do
-      live("/library/:id", PersonalAnalysisLive, :show)
-    end
   end
 
   # scope "/api", Web do

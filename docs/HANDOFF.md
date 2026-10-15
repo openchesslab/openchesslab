@@ -1,6 +1,6 @@
 # OpenChessLab — overdracht voor Codex en OpenCode Go
 
-Bijgewerkt: 2026-10-14. Dit is het compacte startpunt voor een andere laptop of agent.
+Bijgewerkt: 2026-10-15. Dit is het compacte startpunt voor een andere laptop of agent.
 Git en de actuele broncode zijn leidend. Werk dit bestand bij bij iedere slice en vóór een onderbreking:
 status, resterende stappen, uitgevoerde tests, commit/push en deployment afzonderlijk.
 Geen geheimen, tokens of lokale databases opnemen.
@@ -33,6 +33,20 @@ Meld expliciet wanneer een wissel zinvol is, met één concrete reden; laat de g
 Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoerd.
 
 ## Repository en huidige status
+
+- **Afgerond, gereed voor commit/push — `Open personal analyses in private rooms`**, vanaf schone `main`
+  `d5ec8e9`. Gebruiker bevestigt: geen losse privé-editor; een privé-room is een gewone room.
+  Bibliotheek openen maakt/hergebruikt een eigen private room en opent RoomLive. Gedeelde
+  bron wordt zo nodig atomair gekopieerd, persoonlijke titel blijft behouden. Losse editor,
+  route en oude private API's verwijderd. Geen nieuwe migratie; drie bestaande roommigraties
+  lokaal toegepast (dev/test). Gericht domain **4** en web **32** groen; volledig analysis
+  **616** (seed 668078), web **224** (seed 714072) groen. Twee bestaande waarschuwingen
+  opgelost (redundante HEEx-voorwaarde/ongebruikte testvariabelen); room_live daarna **48**
+  groen met --warnings-as-errors (seed 777971). Assetbuild, compile --warnings-as-errors,
+  formatter en diffcontrole groen. Commit/push: volgt direct na eindcontrole. Deployment:
+  **niet uitgevoerd; expliciete toestemming vereist**. Formattercontrole groen na lokale
+  LF-normalisatie (CRLF veroorzaakte HEEx-formatverschillen); geen brede UI-herformattering.
+  Deze status en het actuele overzicht hieronder gaan vóór oudere historische bullets.
 
 - **Afgerond, gecommit, gepusht en gedeployed (gebruiker stond deploy toe, 2026-10-15):**
   engine-vervolgserie op `fee8abc` — `fc1e40d` (leesbare/interactieve engine-lijnen),
@@ -399,50 +413,31 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Eerstvolgende productwerk
 
-Header, privé-editor, homepage, bibliotheektitels en Google-login zijn afgerond; Google-login
-is gedeployed en geverifieerd. Accountverwijdering is gepusht in `01e232a` en wacht op deployment;
-de modal-slice hierboven bouwt daarop voort. Daarna verwijdert de gebruiker het dubbele
-Google-account in productie en koppelt Google aan het Lichess-account. Vervolg daarna:
-bibliotheek-entries delen naar rooms (docentmodel) en de privé-editor laten convergeren.
-Geen room wordt aangemaakt of gekoppeld. Controleer de actuele werkboom en tests voor voortzetting.
-Vervolg: privé-position setup/tools. Expliciet terugdelen
-en gewijzigde roomretentie komen later; introduceer geen automatische synchronisatie.
+De actuele main bevat Google/Lichess-login en koppelen/ontkoppelen, accountverwijdering,
+shellmodals, private rooms met uitnodigingen, bibliotheekdelen en Stockfish met grafiek/review.
+De actieve slice verwijdert de losse privé-editor ten gunste van gewone private rooms.
+Vervolg: kies een kleine slice uit import of echte corpuszoekresultaten; retentiebeleid
+vereist nog een productkeuze. De bekende `:invalid_occurrences`-suitefout blijft backlog.
 
 ## Compact overzicht resterend werk
 
 Dit is een overzicht, geen vastgelegde uitvoeringsvolgorde:
 
-- **Persoonlijke werkruimte:** titels/labels zijn geïmplementeerd; position setup/tools volgen in
-  de room-editor (één editor, twee contexten; de privé-editor convergeert daarin).
-- **Delen en levensduur:** expliciet kopiëren terug naar rooms; bewaartermijn en verwijderen van gevulde rooms;
-  beleid voor verweesde analyses en bibliotheekverwijdering; accountverwijdering is geïmplementeerd,
-  orphancleanup van losgemaakte persoonlijke kopieën volgt later.
-- **Lichess-data:** eigen partijen/studies importeren; later synchronisatie, herkomst, retries en minimale toestemmingen.
-- **Echte engine en partijreview:** client-side Stockfish 19 (WASM) met evaluatiebalk en
-  MultiPV-lijnen is geïmplementeerd (2026-10-15). Vervolg: partijreview (fouten/momenten),
-  evaluatiegrafiek, rijkere engine-inzichten; eventueel multi-threaded (COOP/COEP) of server-engine.
-- **Zoeken:** echte corpuszoekresultaten aan UI koppelen; later geïndexeerd zoeken op schaakkenmerken,
-  structuren/plannen en gelijkenis op grote schaal.
-- **Samenwerkingsrechten/accounts:** rollen, delen/eigenaarschap; private rooms met expliciete
-  toestemming van de eigenaar (oplossing voor room-privacy; daarna convergeert de privé-editor weg).
-  Google/Lichess koppelen is geïmplementeerd, ontkoppelen en herstelbeleid volgen later.
-- **Bibliotheek als voorraad (docentmodel):** vanuit een room een eigen bibliotheekanalyse toevoegen
-  aan die room (kopie; eventueel alleen de partij); vanuit home een nieuwe room starten vanuit een entry.
-  Daarna is de privé-editor volledig vervangen en wordt die verwijderd.
-- **Import, later:** overneem uit het oude project (~/blunderfest, ImportDialog/stripTree): importeer het volledige
-  geannoteerde roster (varianten, opmerkingen, NAG's — de huidige PgnImporter leest alleen de
-  hoofdlijn vanaf de standaardstart), strip standaard machinecommando's (`[%eval]`, `[%clk]`) uit
-  opmerkingen en behoud menselijke tekst, met keep-opties (varianten/metadata) zoals het oude
-  dialoog. De tray/checkout-UX daar is het latere doel voor echte Lichess/Chess.com-import.
-  Losse bekende lacune: importeren vanaf niet-standaard startposities (SetUp/FEN).
-- **Room-UX, opgelost in `Make following another viewer perceptible` (2026-10-14):** de
-  aanwezigheidsavatars leken niets te doen; `follow-viewer` werkt en meldt nu zichtbaar wat
-  er gebeurde, en de knop verbergt zich bij een verdwenen analyse. Opmerking blijft relevant:
-  Tailwind v4-preflight geeft álle knoppen `cursor:pointer` (native browser-default is `default`).- **UX/export:** resterende punten uit de historische UI-catalogus eerst aan actuele code toetsen;
-  onder meer analysebeheer, partijmetadata, rijkere export, grafieken en een tour met gerichte highlights.
-- **Techniek/schaal:** bekende `:invalid_occurrences`-suitefout; grote importbenchmarks, monitoring,
-  queryprestaties en pas bij concrete behoefte een importqueue/verdere regio-uitbreiding.
-- **Lager/later:** overige UI-polish en eventuele internationale SAN-notatie.
+- **Import:** echte eigen Lichess-partijen/studies; later herkomst, retries/synchronisatie.
+  PGN-varianten, opmerkingen en NAG's meenemen; machinecommando's standaard strippen,
+  menselijke tekst behouden. Ook import vanaf SetUp/FEN ontbreekt nog.
+- **Zoeken:** echte corpusresultaten aan de UI koppelen; later geïndexeerd zoeken op
+  schaakkenmerken, structuren/plannen en gelijkenis op grote schaal.
+- **Levensduur:** bewaartermijn voor gevulde rooms bepalen; bibliotheekverwijzingen veilig
+  materialiseren vóór verwijderen van roomanalyses; beleid voor verweesde analyses.
+- **Rechten/accounts:** verdere rollen en herstelbeleid. Private rooms, uitnodigingen,
+  expliciete game-/analysekopie, live delen en providerontkoppeling bestaan al.
+- **Engine:** rijkere inzichten; eventueel multithreading (COOP/COEP) of serverengine.
+  Stockfish, interactieve PV, best-move-arrow, grafiek en partijreview bestaan al.
+- **UX/export:** actuele UI beoordelen op resterend analysebeheer, metadata, export en tour.
+- **Techniek/schaal:** bekende `:invalid_occurrences`-suitefout, grote importbenchmarks,
+  monitoring/queryprestaties; importqueue/regio-uitbreiding pas bij concrete behoefte.
+- **Later:** internationale SAN-notatie.
 
 Afgesproken model:
 

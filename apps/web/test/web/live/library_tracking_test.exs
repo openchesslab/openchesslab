@@ -49,12 +49,12 @@ defmodule Web.LibraryTrackingTest do
 
     assert has_element?(view, "#library-entries li", ctx.id)
 
-    # A live reference branches into an independent private copy when opened;
-    # the room's original keeps its identity and revision.
-    assert {:error, {:live_redirect, %{to: to}}} = live(authenticated(ctx), "/library/#{ctx.id}")
+    render_click(view, "close-modal")
+    render_click(view, "open-library")
+    render_click(view, "library-open", %{"id" => ctx.id})
+    {to, _flash} = assert_redirect(view)
     {:ok, editor, _} = live(authenticated(ctx), to)
-
-    copy_id = :sys.get_state(editor.pid).socket.assigns.analysis.id
+    copy_id = :sys.get_state(editor.pid).socket.assigns.selected_analysis_id
     refute copy_id == ctx.id
     assert UserLibrary.list(ctx.user.id) == [copy_id]
     assert {:ok, _, 1} = AnalysisStore.get(ctx.id)

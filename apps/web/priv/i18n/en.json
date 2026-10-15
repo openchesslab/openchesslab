@@ -1,4 +1,6 @@
 {
+  "library.openRoom": "Open in a private room",
+  "library.openFailed": "Could not open this library entry.",
   "auth.loginWithGoogle": "Log in with Google",
   "auth.googleFailed": "Google login or linking failed. Please try again.",
   "auth.connections": "Linked accounts",

@@ -487,7 +487,7 @@ defmodule Web.RoomLiveTest do
     :ok = Rooms.add_analysis(code, other_id)
 
     {:ok, viewer_a, _html} = live(conn, "/rooms/#{code}?a=#{other_id}")
-    {:ok, viewer_b, _html} = live(conn, "/rooms/#{code}?a=#{analysis_id}")
+    {:ok, _viewer_b, _html} = live(conn, "/rooms/#{code}?a=#{analysis_id}")
 
     html = render(viewer_a)
     assert has_element?(viewer_a, "button[phx-click='follow-viewer']")

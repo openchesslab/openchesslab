@@ -2,6 +2,15 @@
 
 **Handoff baseline:** `main` at `51192f5acceff601fe8b1bef225146eed72d0831`, 2026-10-13. This is a history and rationale document, **not** an authority for current function signatures. Check Git/SQL/tests before implementing. Engineering rules are in [`../AGENTS.md`](../AGENTS.md); the as-built model and explicit *Implemented / Decision / Planned* boundaries are in [`architecture.md`](architecture.md).
 
+## 2026-10-15 — One editor through ordinary private rooms
+
+User decision: a private room behaves like any other room; a standalone private
+editor adds no value. Library opening now atomically creates/reuses an owned private
+room and redirects to RoomLive. Shared sources are copied when no owned room exists;
+other references stay on the original. Removed PersonalAnalysisLive and its private
+read/edit API. This exposes the existing room tools and engine without duplicating
+editor behavior. Room membership remains the authorization boundary.
+
 ## 1. Guiding decisions and architectural pivots
 
 | When / phase | Decision and reason | Current status |

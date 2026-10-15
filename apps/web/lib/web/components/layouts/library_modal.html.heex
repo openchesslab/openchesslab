@@ -28,6 +28,7 @@
 
     <div :if={@current_user}>
       <p class="mb-6 text-sm text-muted">{Web.I18n.t("library.description", @locale)}</p>
+
       <p
         :if={@entries == []}
         id="library-empty"
@@ -35,6 +36,7 @@
       >
         {Web.I18n.t("library.empty", @locale)}
       </p>
+
       <ul id="library-entries" class="space-y-3">
         <li
           :for={entry <- @entries}
@@ -42,11 +44,15 @@
           class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-panel p-4"
         >
           <div class="min-w-0">
-            <.link
-              href={~p"/library/#{entry.id}"}
-              class="m-0 break-words font-semibold underline"
-            >{entry.title || Web.I18n.t("library.untitled", @locale)}</.link>
+            <button
+              type="button"
+              phx-click="library-open"
+              phx-value-id={entry.id}
+              title={Web.I18n.t("library.openRoom", @locale)}
+              class="m-0 break-words text-left font-semibold underline"
+            >{entry.title || Web.I18n.t("library.untitled", @locale)}</button>
             <p class="mt-1 break-all font-mono text-xs text-faint">{entry.id}</p>
+
             <p class="mt-1 text-xs text-muted">
               {Web.I18n.t("library.saved", @locale)}
               <time datetime={NaiveDateTime.to_iso8601(entry.saved_at) <> "Z"}>{Calendar.strftime(
@@ -55,6 +61,7 @@
               )}</time>
             </p>
           </div>
+
           <div class="flex flex-wrap gap-2">
             <button
               type="button"
@@ -71,6 +78,7 @@
               {Web.I18n.t("library.remove", @locale)}
             </button>
           </div>
+
           <form
             :if={@editing && @editing.id == entry.id}
             id="library-rename-form"
@@ -92,7 +100,9 @@
             <p id="library-title-help" class="text-xs text-muted">
               {Web.I18n.t("library.titleHelp", @locale)}
             </p>
+
             <p :if={@title_error} role="alert" class="text-sm text-error">{@title_error}</p>
+
             <div class="flex flex-wrap gap-2">
               <button type="submit" class="rounded-md border border-border px-3 py-2 text-sm">{Web.I18n.t(
                 "library.saveTitle",
@@ -107,6 +117,7 @@
           </form>
         </li>
       </ul>
+
       <nav class="mt-6 flex gap-3" aria-label={Web.I18n.t("library.pages", @locale)}>
         <button
           :if={@cursor}

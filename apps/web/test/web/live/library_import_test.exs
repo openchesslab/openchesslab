@@ -293,7 +293,12 @@ defmodule Web.LibraryImportTest do
     render_click(view, "open-library")
     assert has_element?(view, "#library-modal-title")
     assert has_element?(view, "#library-entries li", ctx.game_entry_id)
-    assert has_element?(view, "a[href='/library/#{ctx.game_entry_id}']")
+
+    assert has_element?(
+             view,
+             "button[phx-click='library-open'][phx-value-id='#{ctx.game_entry_id}']"
+           )
+
     assert has_element?(view, "button[phx-click='library-start-rename']")
     assert has_element?(view, "button[phx-click='library-remove']")
 

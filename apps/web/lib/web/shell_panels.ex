@@ -77,6 +77,28 @@ defmodule Web.ShellPanels do
     end
   end
 
+  def handle_library_event(
+        "open",
+        %{"id" => id},
+        %{assigns: %{current_user: %{id: user_id}}} = socket
+      ) do
+    case open_room(user_id, id, Web.DisplayName.generate(), 5) do
+      {:ok, %{room_id: code, analysis_id: analysis_id}} ->
+        {:noreply,
+         Phoenix.LiveView.redirect(socket,
+           to: "/rooms/#{code}?" <> URI.encode_query(%{"a" => analysis_id})
+         )}
+
+      {:error, _} ->
+        {:noreply,
+         Phoenix.LiveView.put_flash(
+           socket,
+           :error,
+           Web.I18n.t("library.openFailed", socket.assigns.locale)
+         )}
+    end
+  end
+
   def handle_library_event("start-rename", %{"id" => id}, socket) do
     entry = Enum.find(socket.assigns.library_entries || [], &(&1.id == id))
     {:noreply, assign(socket, library_editing: entry, library_title_error: nil)}
@@ -130,6 +152,17 @@ defmodule Web.ShellPanels do
   end
 
   def handle_library_event(_event, _params, socket), do: {:noreply, socket}
+
+  defp open_room(_, _, _, 0), do: {:error, :room_code_collisions}
+
+  defp open_room(user_id, id, name, attempts) do
+    code = Base.encode16(:crypto.strong_rand_bytes(6))
+
+    case UserLibrary.open_room(user_id, id, code, name) do
+      {:error, :already_exists} -> open_room(user_id, id, name, attempts - 1)
+      result -> result
+    end
+  end
 
   defp load(%{assigns: %{current_user: %{id: user_id}}} = socket, cursor) do
     page = UserLibrary.page(user_id, cursor)

@@ -55,122 +55,71 @@ defmodule Analysis.UserLibrary do
 
   def rename(_, _, _), do: {:error, :invalid_title}
 
-  @doc "Read a personal analysis: this user's reference, no room or other user's reference."
-  def get_private(user_id, analysis_id) do
-    case with_private(user_id, analysis_id, fn -> AnalysisStore.get(analysis_id) end) do
-      {:error, :analysis_not_found} -> :not_found
-      result -> result
-    end
-  end
-
-  @doc "Edit a personal analysis while locking its access scope and checking the displayed revision."
-  def edit_private(user_id, analysis_id, revision, path, command) do
-    with_private(user_id, analysis_id, fn ->
-      case AnalysisStore.get(analysis_id) do
-        {:ok, _analysis, ^revision} -> private_command(analysis_id, path, command)
-        {:ok, _, _} -> {:error, :conflict}
-      end
-    end)
-  end
-
-  defp private_command(id, path, {:play, %Chess.Move{} = move}), do: Analyses.play(id, path, move)
-
-  defp private_command(id, path, {:comment, text}) when is_binary(text),
-    do: Analyses.set_comment(id, path, text)
-
-  defp private_command(id, path, {:nags, nags}) when is_list(nags),
-    do: Analyses.set_nags(id, path, nags)
-
-  defp private_command(id, path, :promote), do: Analyses.promote(id, path)
-  defp private_command(id, path, :remove), do: Analyses.remove(id, path)
-  defp private_command(_, _, _), do: {:error, :invalid_command}
-
-  @shared_sql """
-  SELECT EXISTS (SELECT 1 FROM room_analyses WHERE analysis_id = $2),
-         EXISTS (SELECT 1 FROM user_analyses WHERE analysis_id = $2 AND user_id <> $1)
-  """
-
   @doc """
-  Open a library entry for private work, branching a live reference once.
-
-  When the entry still refers to shared work — an analysis that lives in a
-  room or that another user's library references — this materializes an
-  independent private copy, repoints the entry to it and returns the copy's
-  id. Branching is idempotent: later opens of the same entry continue the
-  private copy. The room's analysis and other users' references keep the
-  original untouched. Entries that are already private open unchanged.
-  Callers authenticate the user; this is not an authorization boundary.
+  Open a saved entry in the ordinary editor through an owner-controlled private room.
+  Reuse an existing private room owned by this user for the entry. Otherwise,
+  materialize shared work, repoint the personal reference (preserving its title),
+  and create the room/membership/analysis link in one transaction. No worker is
+  started before commit. The caller authenticates the user and supplies a fresh
+  room code and generated member label, never client-asserted ownership.
   """
-  @spec open_private(String.t(), String.t()) ::
-          {:ok, String.t()} | {:error, :invalid_identity | :analysis_not_found}
-  def open_private(user_id, analysis_id) when is_binary(analysis_id) do
+  def open_room(user_id, analysis_id, room_id, display_name) when is_binary(analysis_id) do
     case Ecto.UUID.dump(user_id) do
       {:ok, db_id} ->
         Repo.transaction(fn ->
-          case Repo.query!(
-                 "SELECT id FROM user_analyses WHERE user_id = $1 AND analysis_id = $2 FOR UPDATE",
-                 [db_id, analysis_id],
-                 log: false
-               ).rows do
+          if Repo.query!("SELECT analysis_id FROM analyses WHERE analysis_id = $1 FOR UPDATE", [
+               analysis_id
+             ]).rows == [],
+             do: Repo.rollback(:analysis_not_found)
+
+          if Repo.query!(
+               "SELECT id FROM user_analyses WHERE user_id = $1 AND analysis_id = $2 FOR UPDATE",
+               [db_id, analysis_id]
+             ).rows == [],
+             do: Repo.rollback(:analysis_not_found)
+
+          existing =
+            Repo.query!(
+              """
+              SELECT r.id FROM rooms r JOIN room_analyses ra ON ra.room_id = r.id
+              WHERE r.owner_user_id = $1 AND ra.analysis_id = $2
+              ORDER BY r.created_at, r.id LIMIT 1 FOR SHARE OF r
+              """,
+              [db_id, analysis_id]
+            ).rows
+
+          case existing do
+            [[code]] ->
+              %{room_id: code, analysis_id: analysis_id}
+
             [] ->
-              Repo.rollback(:analysis_not_found)
+              [[shared]] =
+                Repo.query!(
+                  """
+                  SELECT EXISTS (SELECT 1 FROM room_analyses WHERE analysis_id = $2)
+                    OR EXISTS (SELECT 1 FROM user_analyses WHERE analysis_id = $2 AND user_id <> $1)
+                  """,
+                  [db_id, analysis_id]
+                ).rows
 
-            [[_id]] ->
-              [[room_shared, other_referenced]] =
-                Repo.query!(@shared_sql, [db_id, analysis_id], log: false).rows
+              open_id = if shared, do: branch_reference(db_id, analysis_id), else: analysis_id
 
-              if room_shared or other_referenced,
-                do: branch_reference(db_id, analysis_id),
-                else: analysis_id
+              case Analysis.RoomStore.create_private(room_id, user_id, display_name) do
+                :ok -> :ok
+                {:error, reason} -> Repo.rollback(reason)
+              end
+
+              :ok = Analysis.RoomStore.add_analysis(room_id, open_id)
+              %{room_id: room_id, analysis_id: open_id}
           end
         end)
 
-      :error ->
+      _ ->
         {:error, :invalid_identity}
     end
   end
 
-  def open_private(_, _), do: {:error, :invalid_identity}
-
-  defp with_private(user_id, analysis_id, operation) do
-    with {:ok, db_id} <- Ecto.UUID.dump(user_id), true <- is_binary(analysis_id) do
-      # FOR UPDATE also blocks new FK references while the private scope is
-      # checked. The library row lock holds access through a concurrent removal.
-      case Repo.transaction(fn ->
-             if Repo.query!(
-                  "SELECT analysis_id FROM analyses WHERE analysis_id = $1 FOR UPDATE",
-                  [analysis_id]
-                ).rows == [] do
-               Repo.rollback(:analysis_not_found)
-             end
-
-             if Repo.query!(
-                  "SELECT id FROM user_analyses WHERE user_id = $1 AND analysis_id = $2 FOR SHARE",
-                  [db_id, analysis_id]
-                ).rows == [] do
-               Repo.rollback(:analysis_not_found)
-             end
-
-             [[shared]] =
-               Repo.query!(
-                 "SELECT EXISTS (SELECT 1 FROM room_analyses WHERE analysis_id = $2) OR EXISTS (SELECT 1 FROM user_analyses WHERE analysis_id = $2 AND user_id <> $1)",
-                 [db_id, analysis_id]
-               ).rows
-
-             if shared, do: Repo.rollback(:analysis_not_found)
-
-             case operation.() do
-               {:error, reason} -> Repo.rollback(reason)
-               result -> result
-             end
-           end) do
-        {:ok, result} -> result
-        {:error, reason} -> {:error, reason}
-      end
-    else
-      _ -> {:error, :analysis_not_found}
-    end
-  end
+  def open_room(_, _, _, _), do: {:error, :invalid_identity}
 
   @room_source_sql """
   SELECT a.analysis_id

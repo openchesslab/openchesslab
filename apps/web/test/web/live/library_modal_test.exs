@@ -79,7 +79,12 @@ defmodule Web.LibraryModalTest do
   test "rename uses the selected personal entry, persists and escapes the title", ctx do
     {:ok, view, _} = live(authenticated(ctx), "/")
     render_click(view, "open-library")
-    assert has_element?(view, "#saved-#{ctx.own} a", "Untitled analysis")
+
+    assert has_element?(
+             view,
+             "#saved-#{ctx.own} button[phx-click='library-open']",
+             "Untitled analysis"
+           )
 
     render_click(view, "library-start-rename", %{"id" => ctx.own})
 
@@ -92,13 +97,24 @@ defmodule Web.LibraryModalTest do
     assert {:ok, "My <script>plan</script>"} = UserLibrary.title(ctx.user.id, ctx.own)
     assert {:ok, nil} = UserLibrary.title(ctx.other.id, ctx.own)
     assert {:ok, nil} = UserLibrary.title(ctx.other.id, ctx.theirs)
-    assert has_element?(view, "#saved-#{ctx.own} a", "My <script>plan</script>")
+
+    assert has_element?(
+             view,
+             "#saved-#{ctx.own} button[phx-click='library-open']",
+             "My <script>plan</script>"
+           )
+
     refute has_element?(view, "#library-entries script")
     refute has_element?(view, "#library-rename-form")
 
     render_click(view, "close-modal")
     render_click(view, "open-library")
-    assert has_element?(view, "#saved-#{ctx.own} a", "My <script>plan</script>")
+
+    assert has_element?(
+             view,
+             "#saved-#{ctx.own} button[phx-click='library-open']",
+             "My <script>plan</script>"
+           )
   end
 
   test "invalid titles stay editable; cancellation and clearing work in Dutch", ctx do
@@ -120,7 +136,12 @@ defmodule Web.LibraryModalTest do
 
     render_click(view, "library-start-rename", %{"id" => ctx.own})
     render_submit(view, "library-rename", %{"title" => "  "})
-    assert has_element?(view, "#saved-#{ctx.own} a", "Analyse zonder titel")
+
+    assert has_element?(
+             view,
+             "#saved-#{ctx.own} button[phx-click='library-open']",
+             "Analyse zonder titel"
+           )
   end
 
   test "the library modal opens over a room without disrupting it", ctx do

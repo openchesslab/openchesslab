@@ -1,4 +1,6 @@
 {
+  "library.openRoom": "Openen in een privékamer",
+  "library.openFailed": "Dit bibliotheekitem kon niet worden geopend.",
   "auth.loginWithGoogle": "Inloggen met Google",
   "auth.googleFailed": "Inloggen of koppelen met Google is mislukt. Probeer het opnieuw.",
   "auth.connections": "Gekoppelde accounts",
