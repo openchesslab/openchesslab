@@ -798,6 +798,87 @@ const ScrollLog = {
   },
 };
 
+// Spotlights the current tour step's target: dims everything else behind a
+// ring drawn over the target and places the explanation card beside it. Steps
+// without a visible anchor fall back to a centered card.
+const GuidedTour = {
+  mounted() {
+    this.reposition = () => this.position();
+    window.addEventListener("resize", this.reposition);
+    window.addEventListener("scroll", this.reposition, true);
+    this.position();
+  },
+  updated() {
+    this.position();
+  },
+  destroyed() {
+    window.removeEventListener("resize", this.reposition);
+    window.removeEventListener("scroll", this.reposition, true);
+  },
+  position() {
+    const backdrop = this.el.querySelector("[data-tour-backdrop]");
+    const ring = this.el.querySelector("[data-tour-ring]");
+    const card = this.el.querySelector("[data-tour-card]");
+    const target = this.el.dataset.tourTarget
+      ? document.querySelector(`[data-tour="${this.el.dataset.tourTarget}"]`)
+      : null;
+    const rect = target?.getBoundingClientRect();
+
+    if (!rect || (rect.width === 0 && rect.height === 0)) {
+      backdrop.style.clipPath = "none";
+      ring.style.display = "none";
+      card.style.top = "50%";
+      card.style.left = "50%";
+      // Tailwind v4 translates via the CSS `translate` property, so reset both.
+      card.style.transform = "translate(-50%, -50%)";
+      card.style.translate = "-50% -50%";
+      return;
+    }
+
+    target.scrollIntoView({ block: "nearest", inline: "nearest" });
+    const r = target.getBoundingClientRect();
+    const pad = 6;
+    ring.style.display = "block";
+    ring.style.top = `${r.top - pad}px`;
+    ring.style.left = `${r.left - pad}px`;
+    ring.style.width = `${r.width + pad * 2}px`;
+    ring.style.height = `${r.height + pad * 2}px`;
+    // Cut a hole in the blurred backdrop so the highlighted element stays crisp.
+    const hx = r.left - pad;
+    const hy = r.top - pad;
+    const hw = r.width + pad * 2;
+    const hh = r.height + pad * 2;
+    backdrop.style.clipPath = `polygon(evenodd, 0 0, 100% 0, 100% 100%, 0 100%, 0 0, ${hx}px ${hy}px, ${hx + hw}px ${hy}px, ${hx + hw}px ${hy + hh}px, ${hx}px ${hy + hh}px, ${hx}px ${hy}px)`;
+
+    const m = 12;
+    const cw = card.offsetWidth;
+    const ch = card.offsetHeight;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let top;
+    let left;
+
+    if (r.right + m + cw <= vw) {
+      left = r.right + m;
+      top = r.top + r.height / 2 - ch / 2;
+    } else if (r.left - m - cw >= 0) {
+      left = r.left - m - cw;
+      top = r.top + r.height / 2 - ch / 2;
+    } else if (r.bottom + m + ch <= vh) {
+      top = r.bottom + m;
+      left = r.left + r.width / 2 - cw / 2;
+    } else {
+      top = r.top - m - ch;
+      left = r.left + r.width / 2 - cw / 2;
+    }
+
+    card.style.top = `${Math.max(m, Math.min(top, vh - ch - m))}px`;
+    card.style.left = `${Math.max(m, Math.min(left, vw - cw - m))}px`;
+    card.style.transform = "none";
+    card.style.translate = "none";
+  },
+};
+
 const EvalBar = {
   mounted() {
     this.findBoard = () =>
@@ -1568,7 +1649,7 @@ const EngineAnalysis = {
 
 const csrfToken = document.querySelector("meta[name='csrf-token']")?.content;
 const liveSocket = new LiveSocket("/live", Socket, {
-  hooks: { AppUI, Board, EngineAnalysis, EvalBar, MoveList, PaletteDrag, RoomTabs, ScrollLog },
+  hooks: { AppUI, Board, EngineAnalysis, EvalBar, GuidedTour, MoveList, PaletteDrag, RoomTabs, ScrollLog },
   params: { _csrf_token: csrfToken },
 });
 

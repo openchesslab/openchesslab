@@ -12,14 +12,17 @@ defmodule Web.Layouts do
   # contains your application menu, sidebar, or similar.
   embed_templates("layouts/*")
 
+  # Each guided-tour step names the `data-tour` anchor it highlights. Steps
+  # whose anchor is absent (or zero-sized, e.g. hidden on small screens) fall
+  # back to a centered card so the tour never breaks.
   @tour_steps [
-    {"tour.boardTitle", "tour.boardBody"},
-    {"tour.analysesTitle", "tour.analysesBody"},
-    {"tour.movesTitle", "tour.movesBody"},
-    {"tour.engineTitle", "tour.engineBody"},
-    {"tour.importTitle", "tour.importBody"},
-    {"tour.searchTitle", "tour.searchBody"},
-    {"tour.helpTitle", "tour.helpBody"}
+    {"board", "tour.boardTitle", "tour.boardBody"},
+    {"analyses", "tour.analysesTitle", "tour.analysesBody"},
+    {"moves", "tour.movesTitle", "tour.movesBody"},
+    {"engine", "tour.engineTitle", "tour.engineBody"},
+    {"import", "tour.importTitle", "tour.importBody"},
+    {"search", "tour.searchTitle", "tour.searchBody"},
+    {"help", "tour.helpTitle", "tour.helpBody"}
   ]
 
   def tour_steps_count, do: length(@tour_steps)

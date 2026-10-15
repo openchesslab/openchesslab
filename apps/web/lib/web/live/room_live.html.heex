@@ -131,6 +131,7 @@
 
       <section
         data-mobile-panel="games"
+        data-tour="analyses"
         class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto max-[860px]:order-4 max-[860px]:px-3 max-[860px]:py-3"
         aria-label={Web.I18n.t("room.analyses", @locale)}
       >
@@ -148,6 +149,7 @@
               class="inline-flex min-h-8 min-w-8 items-center justify-center rounded-md border border-border bg-transparent px-2 text-foreground hover:bg-panel-hover"
               title={Web.I18n.t("room.importTitle", @locale)}
               aria-label={Web.I18n.t("room.importTitle", @locale)}
+              data-tour="import"
               phx-click="open-import"
             ><.icon name="import" class="h-4 w-4" /></button>
             <button

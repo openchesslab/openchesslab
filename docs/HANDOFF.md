@@ -34,6 +34,21 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Turn the guided tour into a
+  spotlight walkthrough`, bovenop `08aaac0`. Productklacht 2026-10-15: de "rondleiding" was een
+  popup met feature-uitleg. Nu: elke stap highlight zijn `data-tour`-anker (bord, analyses,
+  zetten, engine, import, zoeken, help) met een accentring + een blur-achtergrond met uitsparing
+  (clip-path-gat), en de uitlegkaart wordt per stap naast het element gepositioneerd door een
+  `GuidedTour`-hook (fallback: gecentreerd als het anker ontbreekt/verborgen is). Achtergrond
+  matched de andere popups (`backdrop-blur-xs backdrop-saturate-[.9]`, geen donkere laag).
+  Valkuil gedocumenteerd: Tailwind v4 gebruikt de CSS-`translate`-property — inline
+  `transform:none` alleen werkt niet, `style.translate` moet mee. Serieel: web **239**
+  (3 nieuwe tourtests), formatter, root-compile, assetbuild, diffcontrole. Browsertest: alle
+  7 stappen zonder overlap, kaart altijd in viewport; screenshots gecontroleerd.
+  NB: werkboom bevatte een niet-gerelateerde formatterwijziging in
+  `apps/analysis/lib/analysis/pgn_analysis_importer.ex` (Quokka-aliasvolgorde) — buiten deze
+  commit gelaten.
+
 - **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
   `Show a stable identity badge and name in the account menu`, bovenop `7f14d7d`. Productbeslissing 2026-10-15: gegenereerde namen waren
   per-mount — niet herkenbaar. Nu: `DisplayName.for_user/1` (deterministisch uit het interne

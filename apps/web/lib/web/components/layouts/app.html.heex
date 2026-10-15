@@ -36,6 +36,7 @@
         class="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md border border-transparent bg-transparent px-2 text-foreground hover:border-border hover:bg-panel-hover"
         aria-label={Web.I18n.t("room.importSearchTitle", @locale)}
         title={Web.I18n.t("room.importSearchTitle", @locale)}
+        data-tour="search"
         phx-click="open-search"
       >
         <.icon name="search" class="h-4 w-4" />
@@ -132,6 +133,7 @@
           class="inline-flex min-h-9 min-w-9 cursor-pointer list-none items-center justify-center rounded-md border border-border px-2 text-xs font-semibold hover:bg-panel-hover [&::-webkit-details-marker]:hidden"
           aria-label={Web.I18n.t("common.help", @locale)}
           title={Web.I18n.t("common.help", @locale)}
+          data-tour="help"
         >
           <.icon name="question" class="h-4 w-4" />
         </summary>
@@ -430,11 +432,22 @@
 
   <div
     :if={@ui_modal == "tour"}
-    class="fixed inset-0 z-[60] grid place-items-center bg-transparent p-4 backdrop-blur-xs backdrop-saturate-[.9]"
+    id="tour-overlay"
+    class="fixed inset-0 z-[60]"
+    phx-hook="GuidedTour"
+    data-tour-target={elem(Web.Layouts.tour_step(@tour_step), 0)}
   >
-    <% {title_key, body_key} = Web.Layouts.tour_step(@tour_step) %>
+    <% {_target, title_key, body_key} = Web.Layouts.tour_step(@tour_step) %>
+    <div data-tour-backdrop class="fixed inset-0 backdrop-blur-xs backdrop-saturate-[.9]"></div>
+    <div
+      data-tour-ring
+      class="pointer-events-none fixed rounded-lg border-2 border-accent"
+      style="display: none"
+    >
+    </div>
     <section
-      class="max-h-[90dvh] w-full max-w-2xl overflow-auto rounded-xl border border-border-strong bg-panel p-5 shadow-2xl"
+      data-tour-card
+      class="fixed left-1/2 top-1/2 max-h-[90dvh] w-full max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-xl border border-border-strong bg-panel p-5 shadow-2xl"
       role="dialog"
       aria-modal="true"
       aria-labelledby="tour-title"
