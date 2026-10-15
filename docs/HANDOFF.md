@@ -34,8 +34,8 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Widen the shortcuts dialog and use
-  kbd elements for keys`, bovenop `da20157`. UX-feedback 2026-10-15: de sneltoetsenpopup was te
+- **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
+  `Widen the shortcuts dialog and use kbd elements for keys` (`8975ea5`), bovenop `da20157`. UX-feedback 2026-10-15: de sneltoetsenpopup was te
   smal ("Vorige / volgende zet · Shift + ← / →" brak over twee regels). Nu `max-w-2xl` +
   niet-brekende toetsencellen (`whitespace-nowrap shrink-0`); rijen via een gedeelde
   `shortcut_row`-component. Toetsen zijn nu semantische `<kbd>`-elementen (er was geen reden om
