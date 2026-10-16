@@ -1732,6 +1732,8 @@ defmodule Web.RoomLive do
   defp set_analysis(socket, analysis, revision, path) do
     case AnalysisView.current_position(analysis, path) do
       {:ok, node, position} ->
+        socket = cancel_review_on_analysis_switch(socket, analysis.id)
+
         move_list =
           analysis
           |> AnalysisView.move_list_data(socket.assigns.locale)
@@ -3339,6 +3341,21 @@ defmodule Web.RoomLive do
 
   defp check_review_revision(revision, revision), do: :ok
   defp check_review_revision(_review_revision, _analysis_revision), do: :cancelled
+
+  # A review belongs to the analysis it started on. Switching analyses
+  # discards it — running or done — so the worker never keeps reviewing the
+  # new game from the old ply, and the old game's marks never show on it.
+  # Compare against the loaded analysis: handle_params rewrites
+  # selected_analysis_id before loading.
+  defp cancel_review_on_analysis_switch(socket, analysis_id) do
+    case socket.assigns.analysis do
+      %AnalysisModel{id: previous} when previous != analysis_id ->
+        assign(socket, engine_review: nil)
+
+      _ ->
+        socket
+    end
+  end
 
   # A book move's W/D/L segment width as a share of its recorded results.
   defp book_share(count, move) do

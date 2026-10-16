@@ -34,6 +34,17 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Discard the review when switching
+  analyses`, bovenop `db90bae`. Bugrapport 2026-10-16: een lopende review ging na het wisselen
+  van partij verder vanaf de oude ply op de nieuwe partij. Oorzaak: `engine_review` overleefde
+  de analysewissel; de revisiecheck dekt alleen bewerkingen binnen één analyse. Fix in
+  `set_analysis`: bij elke analyse-id-wijziging (geladen struct als ground truth —
+  `handle_params` overschrijft `selected_analysis_id` vóór het laden!) wordt de review
+  verworpen, lopend én klaar (de klaar-variant lekte net zo goed: marks/accuracy van partij A
+  op partij B). Opnieuw reviewen is één klik. Serieel: web **268** (2 nieuwe regressietests),
+  formatter, assetbuild, diffcontrole. Browsertest: review op partij B gestart, gewisseld naar
+  A — geen voortgang, geen annuleerknop, wel een verse reviewknop.
+
 - **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
   `Remove 120 dead i18n keys` (`6ec8f0d`), bovenop de accuracy-deploy (`2a5486a`). Hygiene 2026-10-16: de catalogi bevatten 491 sleutels waarvan er 120
   nergens (meer) gebruikt werden — overblijfselen van eerdere iteraties van de bibliotheek

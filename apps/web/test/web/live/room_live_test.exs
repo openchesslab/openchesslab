@@ -1323,6 +1323,47 @@ defmodule Web.RoomLiveTest do
     refute has_element?(view, "#move-list span.text-error", "??")
   end
 
+  test "switching analyses cancels a running review", %{conn: conn, code: code} do
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    render_click(view, "create-analysis", %{})
+    view |> element("#chess-board-square-e2") |> render_click()
+    view |> element("#chess-board-square-e4") |> render_click()
+
+    render_click(view, "engine-review-start", %{})
+    assert render(view) =~ "Reviewing"
+
+    # Creating (and selecting) another analysis discards the old review —
+    # the worker must not keep evaluating the new game from the old ply.
+    render_click(view, "create-analysis", %{})
+    html = render(view)
+    refute html =~ "Reviewing"
+    refute html =~ "engine-review-cancel"
+
+    # With moves on the new game, the panel offers a fresh review.
+    view |> element("#chess-board-square-e2") |> render_click()
+    view |> element("#chess-board-square-e4") |> render_click()
+    assert has_element?(view, "#engine-review-start")
+  end
+
+  test "a finished review does not bleed into another analysis", %{conn: conn, code: code} do
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    render_click(view, "create-analysis", %{})
+    view |> element("#chess-board-square-e2") |> render_click()
+    view |> element("#chess-board-square-e4") |> render_click()
+
+    render_click(view, "engine-review-start", %{})
+    render_click(view, "engine-review-result", %{"ply" => "0", "cp" => 30})
+    render_click(view, "engine-review-result", %{"ply" => "1", "cp" => -50})
+    render_click(view, "engine-review-result", %{"ply" => "2", "mate" => 4})
+
+    assert render(view) =~ "Review complete"
+
+    render_click(view, "create-analysis", %{})
+    html = render(view)
+    refute html =~ "Review complete"
+    refute html =~ "review-accuracy"
+  end
+
   test "editing the tree mid-review cancels the review instead of stalling it", %{
     conn: conn,
     code: code
