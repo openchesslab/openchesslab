@@ -34,8 +34,8 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Discard the review when switching
-  analyses`, bovenop `db90bae`. Bugrapport 2026-10-16: een lopende review ging na het wisselen
+- **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
+  `Discard the review when switching analyses` (`737edac`), bovenop `db90bae`. Bugrapport 2026-10-16: een lopende review ging na het wisselen
   van partij verder vanaf de oude ply op de nieuwe partij. Oorzaak: `engine_review` overleefde
   de analysewissel; de revisiecheck dekt alleen bewerkingen binnen één analyse. Fix in
   `set_analysis`: bij elke analyse-id-wijziging (geladen struct als ground truth —
