@@ -119,17 +119,10 @@ defmodule Features.Catalogue.Quality do
   end
 
   defp knight_outposts(board, color) do
-    enemy = Board.opposite(color)
-    half = Support.enemy_half_bb(color)
-
     board
     |> Board.piece_bb(color, :knights)
-    |> then(&(&1 &&& half))
     |> Bitboard.squares()
-    |> Enum.filter(fn square ->
-      Support.attacked_by_pawn?(board, square, color) and
-        not Support.attacked_by_pawn?(board, square, enemy)
-    end)
+    |> Enum.filter(&Support.outpost_square?(board, &1, color))
     |> to_alg()
   end
 

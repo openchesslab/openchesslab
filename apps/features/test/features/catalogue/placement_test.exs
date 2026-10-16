@@ -47,6 +47,15 @@ defmodule Features.Catalogue.PlacementTest do
     features = extract("4k3/8/8/2N5/1P6/8/8/4K3 w - - 0 1")
     assert features["placement.knight_outpost"]["white"] == ~w(c5)
 
+    # The fourth rank counts too: e4 is a defended hole for white here.
+    features = extract("4k3/8/8/8/4N3/3P4/8/4K3 w - - 0 1")
+    assert features["placement.knight_outpost"]["white"] == ~w(e4)
+
+    # But a black f-pawn can still advance to f6 and chase the knight off
+    # e5 — no hole, no outpost.
+    features = extract("4k3/5p2/8/4N3/8/3P4/8/4K3 w - - 0 1")
+    assert features["placement.knight_outpost"] == %{"white" => [], "black" => []}
+
     features = extract("8/R3k3/8/8/8/8/8/4K3 w - - 0 1")
     assert features["placement.rook_seventh"]["white"] == ~w(a7)
 

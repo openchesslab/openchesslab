@@ -149,6 +149,49 @@ defmodule Features.Catalogue.Support do
   end
 
   @doc """
+  Whether `square` is an outpost for `color`: protected by a friendly pawn,
+  on the color's fourth to seventh rank, and no enemy pawn can ever attack
+  it — the standard hole definition, shared by every outpost feature in the
+  catalogue (and matching `Chess.PositionProperties.outposts/1`).
+  """
+  @spec outpost_square?(Board.t(), non_neg_integer(), atom()) :: boolean()
+  def outpost_square?(board, square, color) do
+    Square.rank(square) in outpost_band(color) and
+      attacked_by_pawn?(board, square, color) and
+      not pawn_can_ever_attack?(board, square, color)
+  end
+
+  @doc """
+  Whether `square` is a potential outpost for `color`: in the fourth-to-
+  seventh-rank band and no enemy pawn can ever attack it, regardless of
+  current pawn cover.
+  """
+  @spec potential_outpost_square?(Board.t(), non_neg_integer(), atom()) :: boolean()
+  def potential_outpost_square?(board, square, color) do
+    Square.rank(square) in outpost_band(color) and
+      not pawn_can_ever_attack?(board, square, color)
+  end
+
+  # White's 4th–7th rank is rank indexes 3..6; black's (from black's side)
+  # is 1..4.
+  defp outpost_band(:white), do: 3..6
+  defp outpost_band(:black), do: 1..4
+
+  # An enemy pawn can only ever attack the square from an adjacent file and
+  # only while it has not advanced past the square's rank.
+  defp pawn_can_ever_attack?(board, square, color) do
+    file = Square.file(square)
+    rank = Square.rank(square)
+    enemy_pawns = pawns_by_file(board, Board.opposite(color))
+
+    [file - 1, file + 1]
+    |> Enum.flat_map(&Map.get(enemy_pawns, &1, []))
+    |> Enum.any?(fn pawn_rank ->
+      if color == :white, do: pawn_rank > rank, else: pawn_rank < rank
+    end)
+  end
+
+  @doc """
   Own pawns grouped by file index, ranks sorted ascending
   (rank 0 = first rank for both colors).
   """

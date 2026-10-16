@@ -34,6 +34,19 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Align catalogue outposts with the
+  standard definition`, bovenop `2df0d3f`. Opruimen van de gisteren gemelde divergentie: de
+  features-catalogus had eigen zwakkere outpostimplementaties (knight/bishop +
+  vijandelijke-helft + alleen huidige pionaanval). Nu één gedeelde
+  `Features.Catalogue.Support.outpost_square?/3` met de Wikipedia-definitie (pion-gedekt,
+  4e–7e rij, geen vijandelijke pion kan het ooit bereiken), gebruikt door
+  `goals.establish_outpost`, `placement.knight_outpost`, `quality.knight_outpost` en
+  `squares.outpost`/`occupied_outpost`; `squares.potential_outpost` gebruikt dezelfde
+  permanente-gatentest zonder dekkingsvereiste. Semantiek verandert onder dezelfde
+  feature-namen — bedoeld. Bestaande fixtures bleven groen (echte outposts); nieuwe tests
+  dekken de 4e-rij en de "pion kan later nog aanvallen"-uitsluiting. Serieel: features
+  **209**, analysis **635**; formatter, diffcontrole.
+
 - **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
   `Import multiple games from PGN, Lichess and Chess.com` (`d598623`), bovenop de
   sessienaam-deploy (`8fe2037` + record). Feature-slice 2026-10-16 (gebruiker

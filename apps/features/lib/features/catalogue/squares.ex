@@ -55,14 +55,8 @@ defmodule Features.Catalogue.Squares do
       end),
       Feature.new("squares.potential_outpost", 8, [{8, "potential outpost"}], fn board ->
         per_color(board, fn board, color ->
-          enemy = Board.opposite(color)
-          half = Support.enemy_half_bb(color)
-
           empty_squares(board)
-          |> Enum.filter(fn square ->
-            (1 <<< square &&& half) != 0 and
-              not Support.attacked_by_pawn?(board, square, enemy)
-          end)
+          |> Enum.filter(&Support.potential_outpost_square?(board, &1, color))
           |> to_alg()
         end)
       end),
@@ -162,14 +156,7 @@ defmodule Features.Catalogue.Squares do
     ]
   end
 
-  defp outpost_base?(board, square, color) do
-    half = Support.enemy_half_bb(color)
-    enemy = Board.opposite(color)
-
-    (1 <<< square &&& half) != 0 and
-      Support.attacked_by_pawn?(board, square, color) and
-      not Support.attacked_by_pawn?(board, square, enemy)
-  end
+  defp outpost_base?(board, square, color), do: Support.outpost_square?(board, square, color)
 
   defp invasion_squares(board, color) do
     half = Support.enemy_half_bb(color)

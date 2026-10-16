@@ -244,17 +244,11 @@ defmodule Features.Catalogue.Goals do
   end
 
   defp outposts(board, color) do
-    enemy = Board.opposite(color)
-    half = Support.enemy_half_bb(color)
-
     [:knights, :bishops]
     |> Enum.flat_map(fn type ->
-      (Board.piece_bb(board, color, type) &&& half)
+      Board.piece_bb(board, color, type)
       |> Bitboard.squares()
-      |> Enum.filter(fn square ->
-        Support.attacked_by_pawn?(board, square, color) and
-          not Support.attacked_by_pawn?(board, square, enemy)
-      end)
+      |> Enum.filter(&Support.outpost_square?(board, &1, color))
     end)
     |> Enum.sort()
     |> to_alg()
