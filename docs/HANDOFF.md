@@ -34,8 +34,8 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Align catalogue outposts with the
-  standard definition`, bovenop `2df0d3f`. Opruimen van de gisteren gemelde divergentie: de
+- **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
+  `Align catalogue outposts with the standard definition` (`371fef3`), bovenop `2df0d3f`. Opruimen van de gisteren gemelde divergentie: de
   features-catalogus had eigen zwakkere outpostimplementaties (knight/bishop +
   vijandelijke-helft + alleen huidige pionaanval). Nu één gedeelde
   `Features.Catalogue.Support.outpost_square?/3` met de Wikipedia-definitie (pion-gedekt,
