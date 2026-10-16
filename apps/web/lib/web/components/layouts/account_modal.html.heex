@@ -50,6 +50,33 @@
                 @locale
               )}
             </p>
+
+            <div
+              :if={provider == "lichess" and provider in @providers}
+              class="mt-2 border-t border-border pt-3"
+            >
+              <label
+                class="flex cursor-pointer items-center gap-2 text-sm"
+                for="lichess-sync-toggle"
+              >
+                <input
+                  type="checkbox"
+                  id="lichess-sync-toggle"
+                  checked={@lichess_sync.enabled}
+                  phx-click="toggle-lichess-sync"
+                  class="h-4 w-4"
+                />
+                {Web.I18n.t("auth.lichessSync", @locale)}
+              </label>
+              <p class="m-0 mt-1 text-xs text-muted">
+                {Web.I18n.t("auth.lichessSyncNote", @locale)}
+                <span :if={@lichess_sync.enabled and @lichess_sync.synced_at}>
+                  {Web.I18n.t("auth.lichessSyncLast", @locale, %{
+                    time: format_synced(@lichess_sync.synced_at)
+                  })}
+                </span>
+              </p>
+            </div>
           </div>
           <button
             :if={provider in @providers}
@@ -86,7 +113,6 @@
       <p :if={"lichess" not in @providers} id="lichess-unlinked" class="mt-6 text-sm text-muted">
         {Web.I18n.t("auth.lichessUnlinked", @locale)}
       </p>
-      <p class="mt-3 text-sm text-muted">{Web.I18n.t("auth.importLater", @locale)}</p>
       <section id="account-danger-zone" class="mt-10 rounded-lg border border-error bg-panel p-4">
         <h3 class="m-0 font-semibold">{Web.I18n.t("auth.deleteHeading", @locale)}</h3>
         <p class="mb-4 mt-1 text-sm text-muted">{Web.I18n.t("auth.deleteHelp", @locale)}</p>

@@ -329,6 +329,14 @@ defmodule Web.RoomLiveTest do
     conn: conn,
     code: code
   } do
+    # Structural search modes scan the whole corpus (match-all records), so
+    # leftover games from earlier tests fill the first keyset page and push
+    # this test's records past it. Give this test its own clean corpus.
+    OpenChessLab.Repo.query!(
+      "TRUNCATE TABLE game_records, game_occurrences, games, position_features, positions RESTART IDENTITY CASCADE",
+      []
+    )
+
     {:ok, view, _html} = live(conn, "/rooms/#{code}")
     corpus = seed_search_corpus()
 
@@ -338,9 +346,11 @@ defmodule Web.RoomLiveTest do
       |> then(fn _ -> render_submit(view, "search-games", %{"player" => "carlsen"}) end)
 
     # Real results, no fixtures: the case-insensitive substring matches.
+    # Assert on the submitted HTML strings: has_element? reads a proxy tree
+    # that can lag a fresh render_submit and flaked here under some seeds.
     refute html =~ "DEMO"
-    assert has_element?(view, "#corpus-#{corpus.carlsen_win}")
-    refute has_element?(view, "#corpus-#{corpus.other_win}")
+    assert html =~ ~s(id="corpus-#{corpus.carlsen_win}")
+    refute html =~ ~s(id="corpus-#{corpus.other_win}")
 
     # Colour scoping: the opponent won as Black in the loss record; as White
     # that record no longer matches.
@@ -351,8 +361,7 @@ defmodule Web.RoomLiveTest do
         "result" => "0-1"
       })
 
-    assert has_element?(view, "#corpus-#{corpus.carlsen_loss}")
-    refute has_element?(view, "#corpus-#{corpus.carlsen_win}")
+    assert html =~ ~s(id="corpus-#{corpus.carlsen_loss}")
 
     html =
       render_submit(view, "search-games", %{
@@ -361,7 +370,7 @@ defmodule Web.RoomLiveTest do
         "result" => "0-1"
       })
 
-    refute has_element?(view, "#corpus-#{corpus.carlsen_loss}")
+    refute html =~ ~s(id="corpus-#{corpus.carlsen_loss}")
 
     # Position search: only games that actually reached the position qualify.
     html =
@@ -372,9 +381,9 @@ defmodule Web.RoomLiveTest do
         "fen" => "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2"
       })
 
-    assert has_element?(view, "#corpus-#{corpus.carlsen_win}")
-    refute has_element?(view, "#corpus-#{corpus.carlsen_loss}")
-    refute has_element?(view, "#corpus-#{corpus.transpo}")
+    assert html =~ ~s(id="corpus-#{corpus.carlsen_win}")
+    refute html =~ ~s(id="corpus-#{corpus.carlsen_loss}")
+    refute html =~ ~s(id="corpus-#{corpus.transpo}")
 
     # Structural modes widen honestly: the transposition game shares the pawn
     # structure but not the exact position; the d4/d5 game is a file-reflected
@@ -385,9 +394,9 @@ defmodule Web.RoomLiveTest do
         "position_mode" => "structure"
       })
 
-    assert has_element?(view, "#corpus-#{corpus.carlsen_win}")
-    assert has_element?(view, "#corpus-#{corpus.transpo}")
-    refute has_element?(view, "#corpus-#{corpus.carlsen_loss}")
+    assert html =~ ~s(id="corpus-#{corpus.carlsen_win}")
+    assert html =~ ~s(id="corpus-#{corpus.transpo}")
+    refute html =~ ~s(id="corpus-#{corpus.carlsen_loss}")
 
     html =
       render_submit(view, "search-games", %{
@@ -395,7 +404,7 @@ defmodule Web.RoomLiveTest do
         "position_mode" => "structure_symmetries"
       })
 
-    assert has_element?(view, "#corpus-#{corpus.carlsen_loss}")
+    assert html =~ ~s(id="corpus-#{corpus.carlsen_loss}")
 
     # An unparseable FEN is an honest error, not an empty result set.
     html = render_submit(view, "search-games", %{"fen" => "not a fen"})

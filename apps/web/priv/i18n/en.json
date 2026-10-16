@@ -10,7 +10,6 @@
   "auth.connect": "Connect {provider}",
   "auth.unavailable": "Currently unavailable",
   "auth.lichessUnlinked": "Your Lichess account is not connected. Google login does not provide access to Lichess.",
-  "auth.importLater": "Importing Lichess games and studies will be available in a later update.",
   "auth.linkConflict": "This provider account belongs to another OpenChessLab account. It has not been linked; libraries remain separate.",
   "auth.deleteHeading": "Delete account",
   "auth.deleteHelp": "Permanently deletes your account, its linked providers, your saved library and all active sessions. Analyses shared in rooms remain available to those rooms. This cannot be undone.",
@@ -369,5 +368,8 @@
   "room.importMine": "Import my games",
   "room.importMineNote": "From your linked Lichess account:",
   "room.provider.no_grant": "No linked Lichess account.",
-  "room.provider.unauthorized": "The Lichess connection expired — link your account again."
+  "room.provider.unauthorized": "The Lichess connection expired — link your account again.",
+  "auth.lichessSync": "Sync my games to my library",
+  "auth.lichessSyncNote": "Games you play on Lichess are imported into your library automatically.",
+  "auth.lichessSyncLast": "Last synced: {time}"
 }

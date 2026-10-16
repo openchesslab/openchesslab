@@ -65,6 +65,24 @@ defmodule Web.AccountUnlinkTest do
     assert has_element?(view, "#account-modal-title")
   end
 
+  test "the sync toggle is opt-in library sync for a linked Lichess account", ctx do
+    :ok = ProviderGrants.put(ctx.user.id, "lichess", "lip_test_token")
+
+    {:ok, view, _} = live(signed_in(ctx.session.token), "/")
+    render_click(view, "open-account")
+
+    # Off by default; the toggle is right there under the linked account.
+    assert has_element?(view, "#lichess-sync-toggle:not([checked])")
+    assert has_element?(view, "#account-lichess", "Sync my games to my library")
+
+    render_click(view, "toggle-lichess-sync")
+    assert {:ok, %{enabled: true}} = ProviderGrants.sync_state(ctx.user.id, "lichess")
+    assert has_element?(view, "#lichess-sync-toggle[checked]")
+
+    render_click(view, "toggle-lichess-sync")
+    assert {:ok, %{enabled: false}} = ProviderGrants.sync_state(ctx.user.id, "lichess")
+  end
+
   test "the last remaining provider cannot be unlinked and reports why", ctx do
     assert {:ok, 1} = Accounts.unlink(ctx.user.id, "google")
 

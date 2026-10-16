@@ -126,6 +126,80 @@ defmodule Web.GameImport do
     end
   end
 
+  @doc """
+  Games newer than `since` (a `lastMoveAt` cursor in milliseconds, nil for the
+  beginning) for a Lichess account, oldest first — the sync shape: id, PGN,
+  display title and cursor value per game.
+  """
+  @spec fetch_lichess_games_since(String.t(), integer() | nil, pos_integer()) ::
+          {:ok, [%{id: String.t(), pgn: String.t(), title: String.t(), last_move_at: integer()}]}
+          | {:error, fetch_error() | :unauthorized}
+  def fetch_lichess_games_since(username, since, max) do
+    url =
+      "https://lichess.org/api/games/user/#{URI.encode(username)}?max=#{max}&sort=dateAsc&pgnInJson=true" <>
+        if(since, do: "&since=#{since}", else: "")
+
+    case request().(
+           :get,
+           {String.to_charlist(url), headers("application/x-ndjson")},
+           http_options(),
+           []
+         ) do
+      {:ok, {{_, 200, _}, _headers, body}} ->
+        {:ok, parse_game_lines(to_string(body))}
+
+      {:ok, {{_, 401, _}, _, _}} ->
+        {:error, :unauthorized}
+
+      {:ok, {{_, 404, _}, _, _}} ->
+        {:error, :not_found}
+
+      {:ok, {{_, 429, _}, _, _}} ->
+        {:error, :rate_limited}
+
+      _ ->
+        {:error, :unreachable}
+    end
+  end
+
+  defp parse_game_lines(body) do
+    body
+    |> String.split("\n", trim: true)
+    |> Enum.filter(&String.contains?(&1, ~s("pgn")))
+    |> Enum.map(&Jason.decode!/1)
+    |> Enum.map(fn game ->
+      %{
+        id: game["id"],
+        pgn: game["pgn"],
+        title: game_title(game),
+        last_move_at: game["lastMoveAt"] || game["createdAt"]
+      }
+    end)
+  end
+
+  defp game_title(game) do
+    white = player_name(game, "white")
+    black = player_name(game, "black")
+
+    result =
+      case game["winner"] do
+        "white" -> "1-0"
+        "black" -> "0-1"
+        _ -> "½-½"
+      end
+
+    year =
+      case game["lastMoveAt"] || game["createdAt"] do
+        ms when is_integer(ms) -> DateTime.from_unix!(ms, :millisecond).year
+        _ -> "?"
+      end
+
+    "#{white} – #{black} #{result} (#{year})"
+  end
+
+  defp player_name(game, color),
+    do: get_in(game, ["players", color, "user", "name"]) || "Anonymous"
+
   @doc "The most recent public games of a Lichess account as PGN."
   @spec fetch_lichess_user_games(String.t(), pos_integer()) ::
           {:ok, String.t()} | {:error, fetch_error()}

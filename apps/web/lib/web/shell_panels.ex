@@ -26,18 +26,45 @@ defmodule Web.ShellPanels do
   end
 
   def open_account(socket) do
+    user = socket.assigns.current_user
+
     providers =
-      if user = socket.assigns.current_user,
-        do: Accounts.providers_for(user.id),
-        else: []
+      if user, do: Accounts.providers_for(user.id), else: []
 
     {:noreply,
      assign(socket,
        ui_modal: "account",
        providers: providers,
        account_error: nil,
-       account_delete_armed: false
+       account_delete_armed: false,
+       lichess_sync: lichess_sync_state(user)
      )}
+  end
+
+  # The opt-in library sync toggle for a linked Lichess account.
+  def toggle_lichess_sync(%{assigns: %{current_user: nil}} = socket), do: {:noreply, socket}
+
+  def toggle_lichess_sync(socket) do
+    user = socket.assigns.current_user
+    enabled = socket.assigns.lichess_sync.enabled
+
+    case ProviderGrants.set_sync_enabled(user.id, "lichess", not enabled) do
+      :ok ->
+        if not enabled, do: Web.LichessSync.Worker.kick(user.id)
+        {:noreply, assign(socket, lichess_sync: lichess_sync_state(user))}
+
+      :not_found ->
+        {:noreply, socket}
+    end
+  end
+
+  defp lichess_sync_state(nil), do: %{enabled: false, synced_at: nil}
+
+  defp lichess_sync_state(%{id: user_id}) do
+    case ProviderGrants.sync_state(user_id, "lichess") do
+      {:ok, state} -> %{enabled: state.enabled, synced_at: state.synced_at}
+      :not_found -> %{enabled: false, synced_at: nil}
+    end
   end
 
   # Typing the confirmation word arms the deletion button. The server-side

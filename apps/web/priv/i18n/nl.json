@@ -10,7 +10,6 @@
   "auth.connect": "{provider} koppelen",
   "auth.unavailable": "Momenteel niet beschikbaar",
   "auth.lichessUnlinked": "Je Lichess-account is niet gekoppeld. Inloggen met Google geeft geen toegang tot Lichess.",
-  "auth.importLater": "Partijen en studies van Lichess importeren komt in een latere update.",
   "auth.linkConflict": "Dit provideraccount hoort bij een ander OpenChessLab-account. Het is niet gekoppeld; bibliotheken blijven gescheiden.",
   "auth.deleteHeading": "Account verwijderen",
   "auth.deleteHelp": "Verwijdert je account permanent, samen met de gekoppelde providers, je opgeslagen bibliotheek en alle actieve sessies. Analyses die je in rooms hebt gedeeld, blijven beschikbaar voor die rooms. Dit kan niet ongedaan worden gemaakt.",
@@ -369,5 +368,8 @@
   "room.importMine": "Mijn partijen importeren",
   "room.importMineNote": "Van je gekoppelde Lichess-account:",
   "room.provider.no_grant": "Geen gekoppeld Lichess-account.",
-  "room.provider.unauthorized": "De Lichess-koppeling is verlopen — koppel je account opnieuw."
+  "room.provider.unauthorized": "De Lichess-koppeling is verlopen — koppel je account opnieuw.",
+  "auth.lichessSync": "Synchroniseer mijn partijen naar mijn bibliotheek",
+  "auth.lichessSyncNote": "Partijen die je op Lichess speelt, worden automatisch in je bibliotheek geïmporteerd.",
+  "auth.lichessSyncLast": "Laatst gesynchroniseerd: {time}"
 }

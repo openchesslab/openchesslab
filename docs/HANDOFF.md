@@ -34,6 +34,25 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Add opt-in Lichess library sync`,
+  bovenop `158658b` (plus daarvoor `Format the analysis importer with Quokka` — het
+  formatter-restje dat al de hele sessie dirty was). Feature-slice 2026-10-16 (opt-in en
+  bibliotheek-bestemming waren expliciete gebruikersbeslissingen): de accountmodal kreeg een
+  toggle onder een gekoppeld Lichess-account; `provider_grants` kreeg
+  sync_enabled/sync_cursor/synced_at; `Web.LichessSync` pagineert vooruit met
+  `sort=dateAsc&pgnInJson=true` en importeert via nieuwe `Analysis.LibraryImport`
+  (canonieke record + geannoteerde analyse + bibliotheekentry "White – Black 1-0 (2026)");
+  worker in de web-supervisieboom (15 min + kick bij aanzetten; uit in tests). 401 → grant
+  weg + uit. Suite-instabiliteit onderweg opgelost: de corpus-zoektest bleek te flakelen
+  zodra eerdere tests canonieke partijen achterlieten — structurele zoekmodi gebruiken
+  match_all-recordpredicaten, dus pagina 1 vult met oudere occurrences. De test truncate nu
+  zelf de corpustabellen vóór seeden (hij is async: false), en assert op de geretourneerde
+  html-strings (has_element? las een verouderde proxy-tree). Verwijderd: de verouderde
+  "Lichess-import komt later"-notitie uit de accountmodal + sleutel. Serieel: analysis **643**,
+  web **272** (ook op seeds 42/1/12345/999999/7), chess **591**, features **209**; formatter,
+  assetbuild, diffcontrole. Browsertest: toggle zichtbaar en uit-by-default onder het
+  gekoppelde account.
+
 - **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
   `Discard the review when switching analyses` (`737edac`), bovenop `db90bae`. Bugrapport 2026-10-16: een lopende review ging na het wisselen
   van partij verder vanaf de oude ply op de nieuwe partij. Oorzaak: `engine_review` overleefde

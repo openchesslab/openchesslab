@@ -58,6 +58,31 @@ defmodule Analysis.ProviderGrantsTest do
     assert :not_found = ProviderGrants.get_token(user.id, "lichess")
   end
 
+  test "sync state: disabled by default, toggled, cursor advances", %{user: user} do
+    assert :ok = ProviderGrants.put(user.id, "lichess", "tok")
+
+    assert {:ok, %{enabled: false, cursor: nil, synced_at: nil}} =
+             ProviderGrants.sync_state(user.id, "lichess")
+
+    assert ProviderGrants.list_sync_enabled("lichess") == []
+
+    assert :ok = ProviderGrants.set_sync_enabled(user.id, "lichess", true)
+
+    assert {:ok, %{enabled: true}} = ProviderGrants.sync_state(user.id, "lichess")
+    assert [%{user_id: _, cursor: nil}] = ProviderGrants.list_sync_enabled("lichess")
+
+    assert :ok = ProviderGrants.advance_cursor(user.id, "lichess", 1_234_567)
+
+    assert {:ok, %{enabled: true, cursor: 1_234_567, synced_at: synced}} =
+             ProviderGrants.sync_state(user.id, "lichess")
+
+    refute is_nil(synced)
+
+    assert :ok = ProviderGrants.set_sync_enabled(user.id, "lichess", false)
+    assert ProviderGrants.list_sync_enabled("lichess") == []
+    assert :not_found = ProviderGrants.set_sync_enabled(Ecto.UUID.generate(), "lichess", true)
+  end
+
   test "grants disappear with the user", %{user: user} do
     assert :ok = ProviderGrants.put(user.id, "lichess", "x")
     assert :ok = Users.delete(user.id)

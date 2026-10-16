@@ -30,6 +30,7 @@ defmodule Web.HomeLive do
        library_editing: nil,
        library_title_error: nil,
        providers: [],
+       lichess_sync: %{enabled: false, synced_at: nil},
        account_error: nil,
        account_delete_armed: false
      )}
@@ -114,6 +115,9 @@ defmodule Web.HomeLive do
 
   def handle_event("unlink-provider", %{"provider" => provider}, socket),
     do: Web.ShellPanels.unlink_provider(socket, provider)
+
+  def handle_event("toggle-lichess-sync", _params, socket),
+    do: Web.ShellPanels.toggle_lichess_sync(socket)
 
   def handle_event("library-" <> event, params, socket),
     do: Web.ShellPanels.handle_library_event(event, params, socket)

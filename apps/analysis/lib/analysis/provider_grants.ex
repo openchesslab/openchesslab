@@ -59,7 +59,79 @@ defmodule Analysis.ProviderGrants do
     with {:ok, db_user} <- Ecto.UUID.dump(user_id) do
       Repo.query!(
         "DELETE FROM provider_grants WHERE user_id = $1 AND provider = $2",
-        [db_user, provider], log: false)
+        [db_user, provider],
+        log: false
+      )
+    end
+
+    :ok
+  end
+
+  # --- Library sync (opt-in) -------------------------------------------------
+
+  @doc "Enable or disable library sync for this user's provider grant."
+  @spec set_sync_enabled(String.t(), String.t(), boolean()) :: :ok | :not_found
+  def set_sync_enabled(user_id, provider, enabled) when is_boolean(enabled) do
+    case Ecto.UUID.dump(user_id) do
+      {:ok, db_user} ->
+        Repo.query!(
+          "UPDATE provider_grants SET sync_enabled = $3, updated_at = now() WHERE user_id = $1 AND provider = $2",
+          [db_user, provider, enabled],
+          log: false
+        )
+        |> case do
+          %{num_rows: 0} -> :not_found
+          _ -> :ok
+        end
+
+      _ ->
+        :not_found
+    end
+  end
+
+  @doc "Sync state for one grant: whether it is enabled, the cursor, last sync."
+  @spec sync_state(String.t(), String.t()) ::
+          {:ok, %{enabled: boolean(), cursor: integer() | nil, synced_at: term()}} | :not_found
+  def sync_state(user_id, provider) do
+    case Ecto.UUID.dump(user_id) do
+      {:ok, db_user} ->
+        case Repo.query!(
+               "SELECT sync_enabled, sync_cursor, synced_at FROM provider_grants WHERE user_id = $1 AND provider = $2",
+               [db_user, provider],
+               log: false
+             ).rows do
+          [[enabled, cursor, synced_at]] ->
+            {:ok, %{enabled: enabled, cursor: cursor, synced_at: synced_at}}
+
+          [] ->
+            :not_found
+        end
+
+      _ ->
+        :not_found
+    end
+  end
+
+  @doc "Every user with sync enabled for this provider, with their cursor."
+  @spec list_sync_enabled(String.t()) :: [%{user_id: String.t(), cursor: integer() | nil}]
+  def list_sync_enabled(provider) do
+    Repo.query!(
+      "SELECT user_id::text, sync_cursor FROM provider_grants WHERE provider = $1 AND sync_enabled",
+      [provider],
+      log: false
+    ).rows
+    |> Enum.map(fn [user_id, cursor] -> %{user_id: user_id, cursor: cursor} end)
+  end
+
+  @doc "Advance the sync watermark after a page was imported; stamps synced_at."
+  @spec advance_cursor(String.t(), String.t(), integer()) :: :ok
+  def advance_cursor(user_id, provider, cursor) when is_integer(cursor) do
+    with {:ok, db_user} <- Ecto.UUID.dump(user_id) do
+      Repo.query!(
+        "UPDATE provider_grants SET sync_cursor = $3, synced_at = now() WHERE user_id = $1 AND provider = $2",
+        [db_user, provider, cursor],
+        log: false
+      )
     end
 
     :ok

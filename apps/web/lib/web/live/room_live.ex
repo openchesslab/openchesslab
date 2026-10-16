@@ -68,6 +68,7 @@ defmodule Web.RoomLive do
       library_editing: nil,
       library_title_error: nil,
       providers: [],
+      lichess_sync: %{enabled: false, synced_at: nil},
       account_error: nil,
       account_delete_armed: false,
       tracked_ids: [],
@@ -324,6 +325,9 @@ defmodule Web.RoomLive do
 
   def handle_event("unlink-provider", %{"provider" => provider}, socket),
     do: Web.ShellPanels.unlink_provider(socket, provider)
+
+  def handle_event("toggle-lichess-sync", _params, socket),
+    do: Web.ShellPanels.toggle_lichess_sync(socket)
 
   def handle_event("open-members", _params, %{assigns: %{current_user: nil}} = socket),
     do: {:noreply, socket}

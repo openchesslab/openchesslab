@@ -7,12 +7,16 @@ defmodule Web.Application do
 
   @impl true
   def start(_type, _args) do
-    children = [
-      {Phoenix.PubSub, name: Web.PubSub},
-      Web.Presence,
-      # Start to serve requests, typically the last entry
-      Web.Endpoint
-    ]
+    sync_children =
+      if Application.get_env(:web, :lichess_sync_worker, true),
+        do: [Web.LichessSync.Worker],
+        else: []
+
+    children =
+      [
+        {Phoenix.PubSub, name: Web.PubSub},
+        Web.Presence
+      ] ++ sync_children ++ [Web.Endpoint]
 
     # See https://elixir.hexdocs.pm/Supervisor.html
     # for other strategies and supported options

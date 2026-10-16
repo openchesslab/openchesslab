@@ -48,3 +48,5 @@ config :database, OpenChessLab.Repo,
   url: database_url,
   pool_size: 10,
   log: false
+
+config :web, :lichess_sync_worker, false

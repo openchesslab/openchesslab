@@ -44,6 +44,12 @@ defmodule Web.Layouts do
     """
   end
 
+  # The account modal's sync stamp: "2026-10-16 14:05".
+  defp format_synced(%NaiveDateTime{} = synced_at),
+    do: Calendar.strftime(synced_at, "%Y-%m-%d %H:%M")
+
+  defp format_synced(_), do: ""
+
   def next_theme("system"), do: "light"
   def next_theme("light"), do: "dark"
   def next_theme("dark"), do: "system"
