@@ -34,6 +34,17 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Remove 120 dead i18n keys`, bovenop
+  de accuracy-deploy. Hygiene 2026-10-16: de catalogi bevatten 491 sleutels waarvan er 120
+  nergens (meer) gebruikt werden — overblijfselen van eerdere iteraties van de bibliotheek
+  (`personal.*`), import, zoeken, engine-status, shortcuts en laag-legenda
+  (`room.legendWhiteAttacks` c.s.). Verwijderd na een scan die letterlijke usages, plural-
+  basissleutels en dynamisch gebouwde families (`theme.`, `shapeColor.`, `room.skip.`,
+  `room.provider.`) uitsluit; beide catalogi verwijderen exact dezelfde 120 sleutels
+  (assert op drift). `I18n.t` valt bij een missende sleutel terug op de sleutel zelf —
+  die zou als rauwe tekst zichtbaar zijn; browsertest in NL toont dat nergens. Serieel:
+  web **266**, assetbuild, diffcontrole.
+
 - **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
   `Show per-side accuracy after a game review` (`2a5486a`), bovenop `a71b20d`. Feature-slice 2026-10-16: na een review toont de samenvatting nu
   nauwkeurigheid per kleur ("Nauwkeurigheid: wit 86% · zwart 14%"). Implementatie volgt
