@@ -11,9 +11,9 @@ defmodule Analysis.PgnAnalysisImporter do
   """
 
   alias Analysis.{Analyses, AnalysisStore, Node, PgnImporter}
+  alias Analysis.PositionStore
   alias Chess.Notation.SAN
   alias Chess.Position
-  alias Analysis.PositionStore
   alias OpenChessLab.Repo
 
   @symbols %{"!" => 1, "?" => 2, "!!" => 3, "??" => 4, "!?" => 5, "?!" => 6}
@@ -194,6 +194,7 @@ defmodule Analysis.PgnAnalysisImporter do
       do: comment(String.slice(comment, 0..-2//1), acc),
       else: invalid("Unclosed comment")
   end
+
   defp annotation_token(";" <> comment, acc), do: comment(comment, acc)
 
   defp annotation_token("$" <> number, acc) do
