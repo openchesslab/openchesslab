@@ -34,8 +34,8 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Add opt-in Lichess library sync`,
-  bovenop `158658b` (plus daarvoor `Format the analysis importer with Quokka` — het
+- **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
+  `Add opt-in Lichess library sync` (`f3105ab`), bovenop `158658b` (plus daarvoor `Format the analysis importer with Quokka` — het
   formatter-restje dat al de hele sessie dirty was). Feature-slice 2026-10-16 (opt-in en
   bibliotheek-bestemming waren expliciete gebruikersbeslissingen): de accountmodal kreeg een
   toggle onder een gekoppeld Lichess-account; `provider_grants` kreeg
