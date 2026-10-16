@@ -34,8 +34,10 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Prune populated rooms after 3 days
-  of inactivity`, bovenop `2b9e095`. Productbeslissing 2026-10-16 (periode én basis door de
+- **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
+  `Prune populated rooms after 3 days of inactivity` (`7b6635e`), bovenop `2b9e095`.
+  Deploy-notitie: Fly gaf twee keer een tijdelijke bolt-tokenfout; derde poging lukte,
+  geverifieerd dat er weer exact één machine draait (de tussentijdse verdubbeling is opgeruimd). Productbeslissing 2026-10-16 (periode én basis door de
   gebruiker gekozen): 3 dagen zonder activiteit (bezoek, zet, commentaar of chat resetten de
   klok via `rooms.last_active_at`). De pruner (`RoomPruner`, alleen productie, dagelijks)
   verwijdert nu ook gevulde kamers mét hun kameranalyses; bibliotheekverwijzingen worden eerst
