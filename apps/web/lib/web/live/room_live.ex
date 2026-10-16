@@ -1661,6 +1661,8 @@ defmodule Web.RoomLive do
     if connected?(socket) do
       code = socket.assigns.room_code
       topic = room_topic(code)
+      # A visit counts as room activity for retention.
+      :ok = Rooms.touch(code)
       RoomEvents.subscribe(code)
       Phoenix.PubSub.subscribe(Web.PubSub, topic)
 
@@ -1964,6 +1966,9 @@ defmodule Web.RoomLive do
   end
 
   defp update_analysis(socket, analysis, revision, path) do
+    # Any analysis change counts as room activity for retention.
+    :ok = Rooms.touch(socket.assigns.room_code)
+
     socket
     |> refresh_room()
     |> assign(:selected_analysis_id, analysis.id)

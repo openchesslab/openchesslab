@@ -28,6 +28,20 @@ defmodule Web.RoomLiveTest do
     {:ok, code: code}
   end
 
+  test "visiting a room counts as activity for retention", %{conn: conn, code: code} do
+    OpenChessLab.Repo.query!(
+      "UPDATE rooms SET last_active_at = now() - interval '2 days' WHERE id = $1",
+      [code]
+    )
+
+    {:ok, _view, _html} = live(conn, "/rooms/#{code}")
+
+    assert Repo.query!(
+             "SELECT last_active_at > now() - interval '1 hour' FROM rooms WHERE id = $1",
+             [code]
+           ).rows == [[true]]
+  end
+
   test "a signed-in user's room presence uses the session name", %{
     conn: conn,
     code: code

@@ -6,6 +6,7 @@ defmodule Analysis.Rooms do
   alias Analysis.RoomEvents
   alias Analysis.RoomServer
   alias Analysis.RoomStore
+  alias Analysis.UserLibrary
 
   @default_registry Analysis.RoomRegistry
   @default_supervisor Analysis.RoomSupervisor
@@ -253,6 +254,8 @@ defmodule Analysis.Rooms do
            opts
          ) do
       {:ok, pid} ->
+        :ok = RoomStore.touch(room_id)
+
         RoomServer.send_message(
           pid,
           attrs
@@ -290,6 +293,28 @@ defmodule Analysis.Rooms do
     Enum.each(deleted_ids, &terminate_room_worker(&1, opts))
     deleted_ids
   end
+
+  @doc """
+  Prunes rooms with no activity in the last `older_than_days` days, including
+  their room analyses. Library references to those analyses are materialized
+  into independent copies first, so a pruned room never takes saved work with
+  it. Canonical games and positions are shared corpus content and stay.
+  """
+  @spec prune_inactive_rooms(non_neg_integer(), pos_integer(), options()) :: [Room.id()]
+  def prune_inactive_rooms(older_than_days \\ 3, limit \\ 100, opts \\ []) do
+    RoomStore.inactive_room_candidates(older_than_days, limit)
+    |> Enum.map(fn {room_id, analysis_ids} ->
+      Enum.each(analysis_ids, &UserLibrary.materialize_analysis/1)
+      :ok = RoomStore.delete_analyses(analysis_ids)
+      :ok = RoomStore.delete(room_id)
+      terminate_room_worker(room_id, opts)
+      room_id
+    end)
+  end
+
+  @doc "Stamp the room as active right now (a visit, a move, a comment, chat)."
+  @spec touch(Room.id()) :: :ok
+  def touch(room_id), do: RoomStore.touch(room_id)
 
   @spec stop_room(
           Room.id(),

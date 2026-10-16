@@ -1,6 +1,8 @@
 defmodule Analysis.RoomPruner do
   @moduledoc """
-  Periodically prune old rooms that have no attached analyses.
+  Periodically prune old rooms: populated rooms after 3 days without activity
+  (visits reset the clock; library references are materialized first), and
+  empty rooms older than 30 days as before.
 
   Only started in production. Uses the existing bounded PostgreSQL cleanup
   and stops any room workers removed by that cleanup.
@@ -15,6 +17,7 @@ defmodule Analysis.RoomPruner do
   @initial_delay_ms to_timeout(minute: 1)
   @interval_ms to_timeout(day: 1)
   @older_than_days 30
+  @inactive_days 3
   @batch_limit 1_000
 
   @spec start_link(keyword()) :: GenServer.on_start()
@@ -37,6 +40,12 @@ defmodule Analysis.RoomPruner do
   @impl true
   def handle_info(:prune, state) do
     try do
+      inactive = Rooms.prune_inactive_rooms(@inactive_days, state.batch_limit)
+
+      if inactive != [] do
+        Logger.info("Pruned #{length(inactive)} inactive rooms")
+      end
+
       deleted = Rooms.prune_old_empty_rooms(state.older_than_days, state.batch_limit)
 
       if deleted != [] do

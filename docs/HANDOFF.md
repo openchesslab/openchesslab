@@ -34,6 +34,20 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Prune populated rooms after 3 days
+  of inactivity`, bovenop `2b9e095`. Productbeslissing 2026-10-16 (periode én basis door de
+  gebruiker gekozen): 3 dagen zonder activiteit (bezoek, zet, commentaar of chat resetten de
+  klok via `rooms.last_active_at`). De pruner (`RoomPruner`, alleen productie, dagelijks)
+  verwijdert nu ook gevulde kamers mét hun kameranalyses; bibliotheekverwijzingen worden eerst
+  gematerialiseerd (klonen via de codec — het binaire record bevat het analyse-id, een
+  SQL-kopie corrupteert dat — en entries wijzen naar de kopie). Canonieke partijen/posities
+  blijven (gedeelde corpus). De 30-daagse lege-kamerregel blijft bestaan. AGENTS.md en
+  architecture.md bijgewerkt. Serieel: analysis **646**, web **273**, chess **591**, features
+  **209**; formatter, assetbuild, diffcontrole. Nieuwe tests: `room_retention_test.exs`
+  (pruning, materialisatie, touch) + touch-bij-bezoek in de websuite. Te verifiëren op
+  productie door de gebruiker: na de eerste dagelijkse run zou geen actieve kamer mogen
+  verdwijnen; pruningslogboek via `flyctl logs` ("Pruned N inactive rooms").
+
 - **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
   `Add opt-in Lichess library sync` (`f3105ab`), bovenop `158658b` (plus daarvoor `Format the analysis importer with Quokka` — het
   formatter-restje dat al de hele sessie dirty was). Feature-slice 2026-10-16 (opt-in en

@@ -198,6 +198,41 @@ defmodule Analysis.UserLibrary do
 
   def tracked(_, _), do: []
 
+  @doc """
+  Materialize live references to an analysis before its room is pruned: the
+  analysis is cloned under a fresh id and every library entry is repointed to
+  the copy, so a pruned room never takes saved work with it. `:not_referenced`
+  when no library entry points at it.
+  """
+  @spec materialize_analysis(String.t()) :: {:ok, String.t()} | :not_referenced
+  def materialize_analysis(analysis_id) when is_binary(analysis_id) do
+    case Repo.query!("SELECT 1 FROM user_analyses WHERE analysis_id = $1 LIMIT 1", [analysis_id]).rows do
+      [] ->
+        :not_referenced
+
+      _ ->
+        # Clone through the codec: the binary record embeds the analysis id,
+        # so a raw SQL copy would corrupt the aggregate.
+        {:ok, analysis, _revision} = Analyses.get(analysis_id)
+
+        copy = %{
+          analysis
+          | id: "analysis-" <> Base.url_encode64(:crypto.strong_rand_bytes(16), padding: false)
+        }
+
+        Repo.transaction(fn ->
+          {:ok, _revision} = AnalysisStore.insert(copy)
+
+          Repo.query!(
+            "UPDATE user_analyses SET analysis_id = $1 WHERE analysis_id = $2",
+            [copy.id, analysis_id]
+          )
+        end)
+
+        {:ok, copy.id}
+    end
+  end
+
   @own_record_sql """
   SELECT a.record
   FROM user_analyses AS ua

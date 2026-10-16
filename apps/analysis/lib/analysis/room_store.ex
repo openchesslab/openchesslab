@@ -343,4 +343,46 @@ defmodule Analysis.RoomStore do
     Repo.query!(@delete_sql, [id])
     :ok
   end
+
+  @doc "Stamp the room as active right now (a visit, a move, a comment, chat)."
+  @spec touch(String.t()) :: :ok
+  def touch(id) when is_binary(id) do
+    Repo.query!("UPDATE rooms SET last_active_at = now() WHERE id = $1", [id], log: false)
+    :ok
+  end
+
+  @doc """
+  Rooms with no activity in the last `older_than_days` days, oldest first,
+  with their analysis ids. Bounded; the caller materializes library
+  references and deletes each room.
+  """
+  @spec inactive_room_candidates(non_neg_integer(), pos_integer()) ::
+          [{String.t(), [String.t()]}]
+  def inactive_room_candidates(older_than_days, limit)
+      when is_integer(older_than_days) and older_than_days >= 0 and is_integer(limit) and
+             limit >= 1 and limit <= 1_000 do
+    Repo.query!(
+      """
+      SELECT r.id, COALESCE(array_agg(ra.analysis_id) FILTER (WHERE ra.analysis_id IS NOT NULL), ARRAY[]::text[])
+      FROM rooms AS r
+      LEFT JOIN room_analyses AS ra ON ra.room_id = r.id
+      WHERE r.last_active_at < now() - make_interval(days => $1)
+      GROUP BY r.id
+      ORDER BY r.last_active_at
+      LIMIT $2
+      """,
+      [older_than_days, limit]
+    ).rows
+    |> Enum.map(fn [room_id, analysis_ids] -> {room_id, analysis_ids} end)
+  end
+
+  @doc "Delete the room's own analysis aggregates (canonical content is shared and stays)."
+  @spec delete_analyses([String.t()]) :: :ok
+  def delete_analyses(analysis_ids) when is_list(analysis_ids) do
+    if analysis_ids != [] do
+      Repo.query!("DELETE FROM analyses WHERE analysis_id = ANY($1::text[])", [analysis_ids])
+    end
+
+    :ok
+  end
 end
