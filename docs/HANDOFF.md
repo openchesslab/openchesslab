@@ -34,8 +34,8 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Show per-side accuracy after a game
-  review`, bovenop `a71b20d`. Feature-slice 2026-10-16: na een review toont de samenvatting nu
+- **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
+  `Show per-side accuracy after a game review` (`2a5486a`), bovenop `a71b20d`. Feature-slice 2026-10-16: na een review toont de samenvatting nu
   nauwkeurigheid per kleur ("Nauwkeurigheid: wit 86% · zwart 14%"). Implementatie volgt
   lichess' gepubliceerde model (lichess.org/page/accuracy + lila AccuracyPercent.scala, opnieuw
   geïmplementeerd in `Web.Accuracy`): per zet accuracy via de gefitte exponentiële curve op de
