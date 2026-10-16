@@ -126,6 +126,23 @@ latest month, newest N games). Chess.com game URLs cannot be resolved publicly a
 reported as skips. Partial imports report every failure as a listed skip (missing game ids,
 invalid games, provider errors) and keep the dialog open; only a total failure is an error.
 
+**Bulk corpus import (2026-10-17):** `Analysis.BulkImport` streams an external PGN dump —
+built and smoke-tested against the lichess open database (CC0) monthly `*.pgn.zst` files —
+into the canonical corpus. A `curl | zstd -dc` pipeline writes into a FIFO, so reads have
+real backpressure and memory stays bounded for 29 GB sources; the downloader's exit status
+is written to a status file so a truncated stream is reported honestly (`{:error, {:source,
+code}, summary}`) instead of looking complete. Games are filtered by their header block
+(both players ≥ the rating floor, no bullet) **before** moves are parsed; kept games go
+through `PgnBatchImporter.import_stream_parallel/4` (one transaction per game, per-game
+failures never stop the run). `:skip` resumes by discarding input games during the header
+scan; `:limit` closes the source early. Entry points: `mix run -e
+"Analysis.BulkImport.run(...)"` (development) and `/app/bin/openchesslab eval
+"Analysis.BulkImport.run(...)"` (release machines; the function starts its own
+applications). The runtime image ships `curl` and `zstd` for it. Known data caveat:
+pre-2014 lichess games can carry from-square disambiguation (`Rc8c6` instead of `R8c6`)
+that the SAN parser deliberately rejects; they surface as `:invalid_game` failures
+(≈12% of a 2013 month's kept set, 0% of modern months).
+
 **Stored provider grants (2026-10-16):** a successful Lichess login or link now retains the
 OAuth access token in `provider_grants` (one per user per provider), AES-256-GCM-encrypted
 under the dedicated `PROVIDER_GRANT_KEY` (never the identity HMAC key; tokens are never

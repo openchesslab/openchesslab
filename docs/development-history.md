@@ -264,6 +264,31 @@ Starting from clean `main` at `118a47bb930c70acba335b4eadc7ee38c92276b2`, add CS
 
 Starting from clean `main` at `766aafca17200869be0d43424722272976046bf7`, add PostgreSQL cleanup of at most 1,000 expired sessions per pass and the matching expiry/token-hash index migration. Supervise a production worker with a one-minute initial delay and hourly passes, keeping failures sanitized and scheduling recovery. Tests cover active-session preservation, locked rows, concurrent passes, bounded draining, timer replacement, migrated index and recovery after a database failure. Architecture section 6 records the cleanup contract and its retention limits. No provider grant, dependency or deployment is introduced.
 
+### Bulk corpus import: real dump measurements — 2026-10-17
+
+`Analysis.BulkImport` was smoke-tested end to end against lichess open-database dumps
+(CC0) on the development machine:
+
+| Fixture | Result |
+|---|---|
+| `2013-01` (17.7 MB, 121,332 games) | full stream, 0 kept at 2200+, 4,884 kept at 1800+ |
+| 2013 dump kept-set import | **602/4,884 failures (12.3%)**: all `Could not parse move Rc8c6` — pre-2014 lichess games can carry from-square disambiguation that the SAN parser rejects. Modern months are clean (0 failures). |
+| `2026-09` first 100,000 games, 2200+ | 1,659 kept (1.66%), 0 failures; full month projects to **~1.49M games** |
+| `2026-09` first 100,000 games, 2500+ | 187 kept (0.187%), 0 failures; full month projects to **~167k games** |
+
+Throughput on the development machine: the header-only scan runs ~11.5k games/s;
+combined scan + parallel (4) parse/persist lands ~4.9-9.0k input games/s depending on
+the keep ratio, so a full 89.6M-game month is a ~3-5 hour job on a worker machine.
+
+**Measured marginal storage cost: ≈56 KB per canonical game** (two independent runs:
+52.8 KB and 56.5 KB per game). Composition per position (~64 positions and ~74
+occurrences per game): `positions` row + indexes ≈ 329 B, `position_features`
+row + GIN ≈ 207 B, `game_occurrences` row + indexes ≈ 203 B; records ≈ 1.3 KB and
+games ≈ 0.45 KB each. Consequences: one 2500+ month ≈ 9.5 GB; one 2200+ month
+≈ 84 GB; the stated ≥10M-games ambition implies **~560 GB** (~$157/month at Fly
+Managed Postgres storage pricing) unless the per-position footprint is optimized
+first. `position_features`' GIN index alone is ~27% of the total.
+
 ### Optional browser/LiveView authentication slice — 2026-10-13
 
 Starting from clean `main` at `e8422fa2fde7aedc74de7a3e25e8b13e7839cc96`, resolve protected session credentials into a server-side `current_user` on browser requests and independent LiveView mounts. A LiveView event hook rechecks PostgreSQL before each handler, so expiry/revocation clears the identity rather than trusting cached User data. Tests cover real router mounts, guest rooms, replayed cookies, disconnected-to-connected revocation and malicious request/event identity assertions. An import conflict in the test fixture was fixed by qualifying its Component assign calls. Architecture section 6 defines the contract and separates optional identity from future private authorization. No migration, dependency or public login UI is introduced.

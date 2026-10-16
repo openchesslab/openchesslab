@@ -34,6 +34,26 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, klaar voor commit/deploy:** `Add streaming bulk corpus import for lichess dumps`.
+  `Analysis.BulkImport`: `curl | zstd -dc` → FIFO (echte backpressure, begrensd geheugen),
+  header-filter vóór het parsen (beide ratings ≥ drempel, geen bullet), daarna
+  `PgnBatchImporter.import_stream_parallel/4` (transactie per partij, fouten stoppen de run
+  niet), bronstatus via statusbestand (afgebroken download wordt eerlijk gemeld), `:skip`
+  (hervatten) en `:limit` (vroegtijdig sluiten). Draait vanaf dev (`mix run`) én vanaf een
+  releasemachine (`bin/openchesslab eval …`, start zelf de apps). Dockerfile: `curl` + `zstd`
+  in de runtime-image. Gemeten op dev met échte dumps (zie development-history): 2026-09 tot
+  100k partijen → 1,66% kept bij 2200+, 0,187% bij 2500+, 0 fouten; scan ~11,5k partijen/s;
+  **≈56 KB opslag per canonieke partij** (position_features-GIN alleen al ~27%). Consequentie:
+  één 2500+-maand ≈ 9,5 GB, één 2200+-maand ≈ 84 GB; de 10M-partijenambitie ≈ 560 GB
+  (+~$157/mnd) zonder optimalisatie. Besluit gebruiker: **pilot = één 2500+-maand van 2026-09
+  op een 30 GB-schijf** (opwaarderen via Fly-dashboard, +~$6/mnd). Vervolg: deployen, schijf
+  opwaarderen, tijdelijke worker-machine in AMS (`shared-cpu`, 8 workers) draaien, samenvatting
+  + boekverificatie in productie. Bekende datacaveat: games vóór ~2014 kunnen
+  van-vak-disambiguatie (`Rc8c6`) bevatten → `:invalid_game`-fouten (12% in 2013; 0% modern).
+  Serieel groen: analysis **654**, web **276**, chess **591**, features **209**; formatter,
+  diffcontrole. Nieuwe tests: `bulk_import_test.exs` (filter, skip, limit, run/1 tegen de
+  echte corpus).
+
 - **Afgerond en door mij gedeployed; productie gezond:** `Add the endgame table tab with lichess
   tablebase results` (`305d128`), bovenop `58cd927`. Nieuwe derde tab in het engine-paneel
   (Engine/Boek/Eindspel):
