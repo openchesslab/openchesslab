@@ -34,8 +34,9 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Import multiple games from PGN,
-  Lichess and Chess.com`, bovenop de sessienaam-deploy. Feature-slice 2026-10-16 (gebruiker
+- **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
+  `Import multiple games from PGN, Lichess and Chess.com` (`d598623`), bovenop de
+  sessienaam-deploy (`8fe2037` + record). Feature-slice 2026-10-16 (gebruiker
   afwezig; eigen beslissingen gedocumenteerd): het importdialoog is nu echt — de mock
   Lichess/Chess.com-tabs en demo-sleutels zijn weg. Blunderfest-stijl: het plakveld accepteert
   gemengd PGN (meerdere partijen) + lichess.org-partijlinks (één per regel); Chess.com-links
