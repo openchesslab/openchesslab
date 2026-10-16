@@ -34,8 +34,9 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Store encrypted Lichess grants and
-  import the linked account's games`, bovenop `371fef3`. Feature-slice 2026-10-16 (gepland
+- **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
+  `Store encrypted Lichess grants and import the linked account's games` (`16bb06d`),
+  bovenop `371fef3`. Secret `PROVIDER_GRANT_KEY` is gezet vóór de deploy (waarde alleen in Fly). Feature-slice 2026-10-16 (gepland
   werk uit AGENTS.md): de Lichess-token werd tot nu toe direct na verificatie ingetrokken —
   nu wordt hij bewaard als versleutelde grant (`provider_grants`, AES-256-GCM onder een eigen
   `PROVIDER_GRANT_KEY`; runtime vereist, dev/test hebben vaste sleutels). Behalve
