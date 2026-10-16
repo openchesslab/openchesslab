@@ -34,6 +34,18 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Show per-side accuracy after a game
+  review`, bovenop `a71b20d`. Feature-slice 2026-10-16: na een review toont de samenvatting nu
+  nauwkeurigheid per kleur ("Nauwkeurigheid: wit 86% · zwart 14%"). Implementatie volgt
+  lichess' gepubliceerde model (lichess.org/page/accuracy + lila AccuracyPercent.scala, opnieuw
+  geïmplementeerd in `Web.Accuracy`): per zet accuracy via de gefitte exponentiële curve op de
+  Win%-daling (+1 onzekerheidsbonus, geclampt), per partij het gemiddelde van de
+  volatiliteitsgewogen en harmonische gemiddelden per kleur; gewichten uit standaarddeviatie
+  van Win%-vensters (2–8, geclampt 0.5–12). Aangestuurd vanuit `classify_review` met de echte
+  startzijde. Serieel: web **266** (8 nieuwe Accuracy-tests + reviewflow-assertie); formatter,
+  assetbuild, diffcontrole. Browsertest: scholar's-mate-lijn geeft wit 86% / zwart 14% met de
+  Ke7 ?? als kritiek moment.
+
 - **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
   `Store encrypted Lichess grants and import the linked account's games` (`16bb06d`),
   bovenop `371fef3`. Secret `PROVIDER_GRANT_KEY` is gezet vóór de deploy (waarde alleen in Fly). Feature-slice 2026-10-16 (gepland

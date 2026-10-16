@@ -394,6 +394,7 @@
   "room.reviewHelp": "Analyze every mainline move locally (depth 12) and mark the big swings",
   "room.reviewProgress": "Reviewing… {done}/{total}",
   "room.reviewDone": "Review complete: {blunders} blunders, {mistakes} mistakes, {inaccuracies} inaccuracies",
+  "room.reviewAccuracy": "Accuracy",
   "room.reviewAgain": "Review again",
   "room.bookTab": "Book",
   "room.bookEmpty": "No games in the corpus reached this position yet.",

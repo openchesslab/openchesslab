@@ -1298,6 +1298,10 @@ defmodule Web.RoomLiveTest do
 
     assert html =~ "Review complete"
     assert html =~ "1 blunders"
+
+    # The summary shows per-side accuracy; Black ran into mate here.
+    [_, white_acc, black_acc] = Regex.run(~r/Accuracy: White (\d+)% · Black (\d+)%/, html)
+    assert String.to_integer(white_acc) > String.to_integer(black_acc)
     assert html =~ "e5"
     assert html =~ "??"
 

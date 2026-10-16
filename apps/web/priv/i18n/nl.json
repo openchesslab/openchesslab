@@ -394,6 +394,7 @@
   "room.reviewHelp": "Analyseer lokaal elke hoofdlijnzet (diepte 12) en markeer de grote schommelingen",
   "room.reviewProgress": "Bezig met reviewen… {done}/{total}",
   "room.reviewDone": "Review klaar: {blunders} blunders, {mistakes} fouten, {inaccuracies} onauwkeurigheden",
+  "room.reviewAccuracy": "Nauwkeurigheid",
   "room.reviewAgain": "Opnieuw reviewen",
   "room.bookTab": "Boek",
   "room.bookEmpty": "Nog geen partijen in de corpus bereikten deze stelling.",

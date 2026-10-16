@@ -24,6 +24,7 @@ defmodule Web.RoomLive do
   alias Chess.PositionDraft
   alias Web.AnalysisView
   alias Web.DemoData
+  alias Web.Accuracy
   alias Web.DisplayName
   alias Web.GameImport
   alias Web.Presence
@@ -3302,6 +3303,7 @@ defmodule Web.RoomLive do
       status: :done,
       done: review.total + 1,
       marks: marks,
+      accuracy: review_accuracy(analysis, review),
       counts: %{
         blunders: count_marks(marks, "??"),
         mistakes: count_marks(marks, "?"),
@@ -3312,6 +3314,27 @@ defmodule Web.RoomLive do
 
   defp count_marks(marks, mark) do
     marks |> Map.values() |> Enum.count(&(&1.mark == mark))
+  end
+
+  # Game accuracy per side from the reviewed eval series, following lichess's
+  # published aggregation (see Web.Accuracy).
+  defp review_accuracy(analysis, review) do
+    wins = for ply <- 0..review.total, do: win_percent(review.evals[ply] || %{})
+
+    start_side =
+      case AnalysisView.move_context(analysis, []) do
+        %{side: side} -> side
+        _ -> :white
+      end
+
+    Accuracy.game(wins, start_side)
+  end
+
+  # The review summary's accuracy line: only sides that moved get a number.
+  defp review_accuracy_text(accuracy, locale) do
+    [white: accuracy.white, black: accuracy.black]
+    |> Enum.filter(fn {_side, value} -> value != nil end)
+    |> Enum.map_join(" · ", fn {side, value} -> "#{side_name(side, locale)} #{round(value)}%" end)
   end
 
   defp check_review_revision(revision, revision), do: :ok

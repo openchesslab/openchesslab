@@ -1035,6 +1035,20 @@
                         })}
                       </p>
 
+                      <p
+                        :if={
+                          review[:accuracy] &&
+                            review_accuracy_text(review.accuracy, @locale) != ""
+                        }
+                        id="review-accuracy"
+                        class="m-0 mt-1 font-semibold text-foreground"
+                      >
+                        {Web.I18n.t("room.reviewAccuracy", @locale)}: {review_accuracy_text(
+                          review.accuracy,
+                          @locale
+                        )}
+                      </p>
+
                       <ul :if={review.marks != %{}} class="m-0 mt-1 list-none space-y-0.5 p-0">
                         <li :for={moment <- review_critical_moments(@move_entries, review)}>
                           <button
