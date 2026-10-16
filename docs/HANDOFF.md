@@ -34,8 +34,8 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Give every browser session one
-  display name`, bovenop `ccf6952`. Productbeslissing 2026-10-16: meerdere identiteiten
+- **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
+  `Give every browser session one display name` (`8fe2037`), bovenop `ccf6952`. Productbeslissing 2026-10-16: meerdere identiteiten
   (accountlabel vs. kamerlabel) verwarren; de stabiele accountidentiteit verdwijnt. Nu: een
   nieuwe `Web.SessionName`-plug genereert bij het eerste bezoek een naam in de sessie —
   die naam geldt voor gast én ingelogde gebruiker, in presence, chat en het accountmenu
