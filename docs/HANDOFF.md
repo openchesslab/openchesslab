@@ -34,6 +34,22 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Import multiple games from PGN,
+  Lichess and Chess.com`, bovenop de sessienaam-deploy. Feature-slice 2026-10-16 (gebruiker
+  afwezig; eigen beslissingen gedocumenteerd): het importdialoog is nu echt — de mock
+  Lichess/Chess.com-tabs en demo-sleutels zijn weg. Blunderfest-stijl: het plakveld accepteert
+  gemengd PGN (meerdere partijen) + lichess.org-partijlinks (één per regel); Chess.com-links
+  krijgen een eerlijke skip (geen publieke per-partij-API). Nieuw: `Web.GameImport`
+  (classificatie + fetches, User-Agent vereist — Lichess 404t anders! — httpc met
+  `Application.get_env(:web, :game_import_request)`-testnaad) en
+  `PgnBatchImporter.split_games/1` (gedeelde splitter; elk deel van de gemengde box splitst
+  apart). Lichess-tab: gebruikersnaam → recente N partijen via `/api/games/user`; Chess.com-tab:
+  via het publieke maandarchief (`api.chess.com`, nieuwste N). Partiële import toont skips in
+  de open dialoog; alleen totale mislukking is een fout. Provider grants/OAuth-import blijft
+  aparte toekomstige stap. Serieel: web **257**, analysis **635**, chess **591**; formatter,
+  diffcontrole. Browser-end-to-end tegen de echte Lichess-API: gemengde box (PGN + URL) 2
+  partijen erbij, gebruikersnaam-import 2 partijen erbij. architecture.md bijgewerkt.
+
 - **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
   `Give every browser session one display name` (`8fe2037`), bovenop `ccf6952`. Productbeslissing 2026-10-16: meerdere identiteiten
   (accountlabel vs. kamerlabel) verwarren; de stabiele accountidentiteit verdwijnt. Nu: een

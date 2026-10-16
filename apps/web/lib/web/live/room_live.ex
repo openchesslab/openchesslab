@@ -11,6 +11,7 @@ defmodule Web.RoomLive do
   alias Analysis.Node
   alias Analysis.OpeningBook
   alias Analysis.PgnAnalysisImporter
+  alias Analysis.PgnBatchImporter
   alias Analysis.PositionEvals
   alias Analysis.RoomChat
   alias Analysis.RoomEvents
@@ -23,6 +24,7 @@ defmodule Web.RoomLive do
   alias Web.AnalysisView
   alias Web.DemoData
   alias Web.DisplayName
+  alias Web.GameImport
   alias Web.Presence
 
   @shape_colors ~w(yellow blue red orange purple)
@@ -124,6 +126,7 @@ defmodule Web.RoomLive do
       setup_error: nil,
       pgn: "",
       import_error: nil,
+      import_skips: [],
       search_filters: %{
         "player" => "",
         "color" => "either",
@@ -421,6 +424,7 @@ defmodule Web.RoomLive do
        import_source: "paste",
        pgn: "",
        import_error: nil,
+       import_skips: [],
        provider: nil
      )}
   end
@@ -1325,33 +1329,33 @@ defmodule Web.RoomLive do
     {:noreply, assign(socket, :search_filters, filters)}
   end
 
-  def handle_event("mock-provider-search", %{"provider" => provider, "query" => query}, socket) do
-    results =
-      DemoData.search_games(%{
-        "player" => query,
-        "opening" => "",
-        "color" => "either",
-        "result" => "either"
-      })
+  def handle_event(
+        "import-provider-games",
+        %{"provider" => provider, "username" => username} = params,
+        socket
+      )
+      when provider in ["lichess", "chesscom"] do
+    username = String.trim(username)
+    max = clamp_game_count(params["max"])
+    locale = socket.assigns.locale
 
-    {:noreply,
-     socket
-     |> assign(provider: provider, search_results: results)
-     |> notify(Web.I18n.t("demo.providerNote", socket.assigns.locale))}
-  end
+    cond do
+      username == "" ->
+        {:noreply, assign(socket, import_error: Web.I18n.t("room.importUserRequired", locale))}
 
-  def handle_event("open-demo-game", %{"id" => id}, socket) do
-    case DemoData.game(id) do
-      %{pgn: pgn} ->
-        import_pgn(socket, pgn)
+      true ->
+        result =
+          if provider == "lichess",
+            do: GameImport.fetch_lichess_user_games(username, max),
+            else: GameImport.fetch_chesscom_user_games(username, max)
 
-      _ ->
-        {:noreply,
-         notify(
-           socket,
-           Web.I18n.t("room.demoGameNotFound", socket.assigns.locale),
-           :error
-         )}
+        case result do
+          {:ok, pgn} ->
+            import_text(socket, pgn, [])
+
+          {:error, reason} ->
+            {:noreply, assign(socket, import_error: provider_error(reason, locale))}
+        end
     end
   end
 
@@ -2061,88 +2065,131 @@ defmodule Web.RoomLive do
     end
   end
 
-  defp import_pgn(socket, pgn) when is_binary(pgn) do
-    record_id =
-      new_game_record_id()
+  # Imports whatever the box holds: PGN (possibly several games) and Lichess
+  # game URLs. Whatever parses is imported into the room; every failure is
+  # listed as a skip — only a total failure is an error.
+  defp import_pgn(socket, text) when is_binary(text) do
+    locale = socket.assigns.locale
+    %{lichess_ids: ids, chesscom_urls: chesscom_urls, pgn: pgn} = GameImport.split_input(text)
 
-    case PgnAnalysisImporter.import(new_analysis_id(), record_id, pgn) do
-      {:ok, analysis, _revision} ->
-        case Rooms.add_analysis(socket.assigns.room_code, analysis.id) do
-          :ok ->
-            analysis_id = analysis.id
+    {lichess_pgn, skips} =
+      case ids do
+        [] ->
+          {nil, []}
 
-            socket =
-              refresh_room(socket)
+        ids ->
+          case GameImport.fetch_lichess_games_by_ids(ids) do
+            {:ok, fetched, found} ->
+              {fetched,
+               for(id <- ids -- found, do: skip("lichess.org/#{id}", :not_found, locale))}
 
-            {:noreply,
-             socket
-             |> assign(
-               ui_modal: nil,
-               pgn: pgn,
-               import_error: nil,
-               current_path: []
-             )
-             |> push_patch(
-               to:
-                 analysis_url(
-                   socket.assigns.room_code,
-                   analysis_id
-                 )
-             )
-             |> notify(
-               Web.I18n.plural(
-                 "room.importedCount",
-                 1,
-                 %{message: ""}
-               )
-             )}
+            {:error, reason} ->
+              {nil, for(id <- ids, do: skip("lichess.org/#{id}", reason, locale))}
+          end
+      end
 
-          {:error, reason} ->
-            {:noreply,
-             assign(
-               socket,
-               import_error:
-                 Web.I18n.t(
-                   "room.importFailed",
-                   socket.assigns.locale,
-                   %{
-                     message: inspect(reason)
-                   }
-                 )
-             )}
+    skips = skips ++ for(url <- chesscom_urls, do: skip(url, :chesscom_url, locale))
+
+    # Each part splits on its own: a headerless pasted game next to a
+    # headered fetch is a valid mix.
+    chunks =
+      [pgn, lichess_pgn]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.flat_map(&split_part/1)
+
+    import_chunks(socket, chunks, skips)
+  end
+
+  # Imports every game chunk into the room. The dialog stays open when
+  # anything was skipped so the list is visible.
+  defp import_text(socket, text, skips) do
+    import_chunks(socket, split_part(text), skips)
+  end
+
+  defp split_part(part) do
+    case PgnBatchImporter.split_games(part) do
+      {:ok, chunks} -> chunks
+      # A part that does not split cleanly is imported as-is and fails (or
+      # not) in the importer, where it becomes an honest skip.
+      {:error, _} -> [part]
+    end
+  end
+
+  defp import_chunks(socket, chunks, skips) do
+    locale = socket.assigns.locale
+    {analyses, skips} = run_imports(chunks, skips)
+    {added, skips} = add_to_room(socket, analyses, skips, locale)
+
+    case added do
+      [] ->
+        {:noreply,
+         assign(socket,
+           import_error: Web.I18n.t("room.importNothingImported", locale),
+           import_skips: skips
+         )}
+
+      [first | _] ->
+        socket = refresh_room(socket)
+
+        socket =
+          socket
+          |> assign(import_error: nil, import_skips: skips, current_path: [])
+          |> push_patch(to: analysis_url(socket.assigns.room_code, first.id))
+          |> notify(import_notice(length(added), skips, locale))
+
+        if skips == [] do
+          {:noreply, assign(socket, ui_modal: nil)}
+        else
+          {:noreply, assign(socket, ui_modal: "import")}
         end
+    end
+  end
 
-      {:error,
-       {
-         :invalid_pgn,
-         message
-       }} ->
-        {:noreply,
-         assign(
-           socket,
-           import_error:
-             Web.I18n.t(
-               "room.parseError",
-               socket.assigns.locale,
-               %{
-                 message: message
-               }
-             )
-         )}
+  defp run_imports(chunks, skips) do
+    chunks
+    |> Enum.with_index(1)
+    |> Enum.reduce({[], skips}, fn {chunk, index}, {analyses, skips} ->
+      case PgnAnalysisImporter.import(new_analysis_id(), new_game_record_id(), chunk) do
+        {:ok, analysis, _revision} ->
+          {[analysis | analyses], skips}
 
-      {:error, reason} ->
-        {:noreply,
-         assign(
-           socket,
-           import_error:
-             Web.I18n.t(
-               "room.importFailed",
-               socket.assigns.locale,
-               %{
-                 message: inspect(reason)
-               }
-             )
-         )}
+        {:error, {:invalid_pgn, message}} ->
+          {analyses, skips ++ [%{source: "game #{index}", detail: message}]}
+
+        {:error, reason} ->
+          {analyses, skips ++ [%{source: "game #{index}", detail: inspect(reason)}]}
+      end
+    end)
+    |> then(fn {analyses, skips} -> {Enum.reverse(analyses), skips} end)
+  end
+
+  defp add_to_room(socket, analyses, skips, locale) do
+    Enum.reduce(analyses, {[], skips}, fn analysis, {added, skips} ->
+      case Rooms.add_analysis(socket.assigns.room_code, analysis.id) do
+        :ok -> {[analysis | added], skips}
+        {:error, _} -> {added, skips ++ [skip(analysis.id, :room, locale)]}
+      end
+    end)
+    |> then(fn {added, skips} -> {Enum.reverse(added), skips} end)
+  end
+
+  defp skip(source, reason, locale) do
+    %{source: source, detail: Web.I18n.t("room.skip.#{reason}", locale)}
+  end
+
+  defp provider_error(reason, locale),
+    do: Web.I18n.t("room.provider.#{reason}", locale)
+
+  defp import_notice(count, [], _locale),
+    do: Web.I18n.plural("room.importedCount", count, %{})
+
+  defp import_notice(count, skips, locale),
+    do: Web.I18n.t("room.importedWithSkips", locale, %{imported: count, skipped: length(skips)})
+
+  defp clamp_game_count(value) do
+    case Integer.parse(to_string(value)) do
+      {count, _} -> count |> max(1) |> min(50)
+      :error -> 10
     end
   end
 

@@ -125,6 +125,27 @@ defmodule Analysis.PgnBatchImporter do
     {:error, :game_headers_required}
   end
 
+  @doc """
+  Splits a multi-game PGN text into one raw string per game: a header line
+  that follows movetext starts a new game. A text without any header lines is
+  a single (headerless) game. Comment braces spanning multiple lines are not
+  tracked — a line starting with `[` always looks like a header.
+  """
+  @spec split_games(String.t()) ::
+          {:ok, [String.t()]} | {:error, :game_headers_required | :empty_batch}
+  def split_games(pgn) when is_binary(pgn) do
+    lines = String.split(pgn, ~r/\R/, trim: false)
+
+    if Enum.any?(lines, &header_line?/1) do
+      case reduce_games(lines, [], fn game, _index, games -> {:ok, [game | games]} end) do
+        {:ok, games} -> {:ok, Enum.reverse(games)}
+        {:error, _reason} = error -> error
+      end
+    else
+      {:ok, [String.trim(pgn)]}
+    end
+  end
+
   @spec import_games(
           [GameRecord.id()],
           String.t()

@@ -555,6 +555,144 @@ defmodule Web.RoomLiveTest do
     assert length(AnalysisView.move_entries(analysis, "en")) == 10
   end
 
+  describe "multi-source game import" do
+    setup do
+      original = Application.fetch_env(:web, :game_import_request)
+
+      on_exit(fn ->
+        case original do
+          {:ok, value} -> Application.put_env(:web, :game_import_request, value)
+          :error -> Application.delete_env(:web, :game_import_request)
+        end
+      end)
+
+      :ok
+    end
+
+    test "imports several pasted games at once", %{conn: conn, code: code} do
+      {:ok, view, _} = live(conn, "/rooms/#{code}")
+      render_click(view, "open-import", %{})
+
+      render_submit(view, "import-pgn", %{
+        "pgn_text" => "[Event \"A\"]\n\n1. e4 e5 1-0\n\n[Event \"B\"]\n\n1. d4 d5 *\n"
+      })
+
+      assert length(room_analysis_ids(code)) == 2
+      refute has_element?(view, "#import-skips")
+    end
+
+    test "fetches Lichess URLs mixed with pasted PGN", %{conn: conn, code: code} do
+      stub_game_import([
+        {200, "[Event \"L\"]\n[Site \"https://lichess.org/LhL9TRJY\"]\n\n1. c4 e5 *\n"}
+      ])
+
+      {:ok, view, _} = live(conn, "/rooms/#{code}")
+      render_click(view, "open-import", %{})
+
+      render_submit(view, "import-pgn", %{
+        "pgn_text" => "1. e4 e5 *\nhttps://lichess.org/LhL9TRJY\n"
+      })
+
+      assert length(room_analysis_ids(code)) == 2
+      refute has_element?(view, "#import-skips")
+    end
+
+    test "missing Lichess ids become skips and the dialog stays open", %{
+      conn: conn,
+      code: code
+    } do
+      stub_game_import([
+        {200, "[Event \"L\"]\n[Site \"https://lichess.org/LhL9TRJY\"]\n\n1. c4 e5 *\n"}
+      ])
+
+      {:ok, view, _} = live(conn, "/rooms/#{code}")
+      render_click(view, "open-import", %{})
+
+      render_submit(view, "import-pgn", %{
+        "pgn_text" => "https://lichess.org/LhL9TRJY\nhttps://lichess.org/ZZZZZZZZ\n"
+      })
+
+      assert length(room_analysis_ids(code)) == 1
+      assert has_element?(view, "#import-skips", "lichess.org/ZZZZZZZZ")
+      assert has_element?(view, "#import-title")
+    end
+
+    test "a Chess.com URL is skipped with an honest reason", %{conn: conn, code: code} do
+      {:ok, view, _} = live(conn, "/rooms/#{code}")
+      render_click(view, "open-import", %{})
+
+      render_submit(view, "import-pgn", %{
+        "pgn_text" => "https://www.chess.com/game/live/123\n"
+      })
+
+      assert room_analysis_ids(code) == []
+      assert has_element?(view, "#import-skips", "Chess.com links cannot be fetched")
+    end
+
+    test "the Lichess tab imports recent games of an account", %{conn: conn, code: code} do
+      stub_game_import([
+        {200, "[Event \"A\"]\n\n1. e4 e5 *\n\n[Event \"B\"]\n\n1. d4 d5 *\n"}
+      ])
+
+      {:ok, view, _} = live(conn, "/rooms/#{code}")
+      render_click(view, "open-import", %{})
+      render_click(view, "set-import-source", %{"source" => "lichess"})
+
+      render_submit(view, "import-provider-games", %{
+        "provider" => "lichess",
+        "username" => "someone",
+        "max" => "5"
+      })
+
+      assert length(room_analysis_ids(code)) == 2
+    end
+
+    test "an unknown Lichess account shows an honest error", %{conn: conn, code: code} do
+      stub_game_import([{404, ""}])
+
+      {:ok, view, _} = live(conn, "/rooms/#{code}")
+      render_click(view, "open-import", %{})
+      render_click(view, "set-import-source", %{"source" => "lichess"})
+
+      html =
+        render_submit(view, "import-provider-games", %{
+          "provider" => "lichess",
+          "username" => "nobody",
+          "max" => "5"
+        })
+
+      assert html =~ "Account not found."
+      assert room_analysis_ids(code) == []
+    end
+
+    test "the Chess.com tab imports the latest monthly archive", %{conn: conn, code: code} do
+      stub_game_import([
+        {200,
+         Jason.encode!(%{"archives" => ["https://api.chess.com/pub/player/x/games/2026/09"]})},
+        {200,
+         Jason.encode!(%{
+           "games" => [
+             %{"end_time" => 100, "pgn" => "[Event \"old\"]\n\n1. e4 e5 *"},
+             %{"end_time" => 200, "pgn" => "[Event \"new\"]\n\n1. d4 d5 *"}
+           ]
+         })}
+      ])
+
+      {:ok, view, _} = live(conn, "/rooms/#{code}")
+      render_click(view, "open-import", %{})
+      render_click(view, "set-import-source", %{"source" => "chesscom"})
+
+      render_submit(view, "import-provider-games", %{
+        "provider" => "chesscom",
+        "username" => "someone",
+        "max" => "1"
+      })
+
+      # max 1 takes only the most recent game of the archive.
+      assert length(room_analysis_ids(code)) == 1
+    end
+  end
+
   test "the mobile shell renders the tab strip and panels", %{conn: conn, code: code} do
     {:ok, view, _html} = live(conn, "/rooms/#{code}")
     render_click(view, "create-analysis", %{})
@@ -1874,5 +2012,24 @@ defmodule Web.RoomLiveTest do
       Analysis.Room.analysis_ids(room)
 
     analysis_id
+  end
+
+  defp room_analysis_ids(code) do
+    {:ok, room} = Rooms.get(code)
+    Analysis.Room.analysis_ids(room)
+  end
+
+  # A queued-response stub for the provider HTTP seam (see Web.GameImport).
+  defp stub_game_import(responses) do
+    agent =
+      start_supervised!(%{id: make_ref(), start: {Agent, :start_link, [fn -> responses end]}})
+
+    request = fn _method, _payload, _http, _options ->
+      Agent.get_and_update(agent, fn
+        [{status, body} | rest] -> {{:ok, {{~c"HTTP/1.1", status, ~c""}, [], body}}, rest}
+      end)
+    end
+
+    Application.put_env(:web, :game_import_request, request)
   end
 end

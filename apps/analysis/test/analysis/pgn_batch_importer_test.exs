@@ -130,6 +130,24 @@ defmodule Analysis.PgnBatchImporterTest do
              2
   end
 
+  test "split_games returns the raw text of each game in source order" do
+    one = "[Event \"A\"]\n\n1. e4 e5 1-0"
+    two = ~s([Event "B"]\n\n1. d4 d5 *\n\n[Event "C"]\n\n1. c4 *)
+
+    assert {:ok, [^one]} = PgnBatchImporter.split_games(one)
+    assert {:ok, [game_b, game_c]} = PgnBatchImporter.split_games(two)
+    assert game_b =~ "1. d4 d5"
+    assert game_c =~ ~r/\A\[Event "C"\]/
+
+    # A headerless text is a single game.
+    assert {:ok, ["1. e4 e5 1-0"]} = PgnBatchImporter.split_games("1. e4 e5 1-0\n")
+
+    # Braces on the movetext line do not confuse the split.
+    annotated = ~s([Event "A"]\n\n1. e4 {see [1] for notes} e5 1-0\n\n[Event "B"]\n\n1. d4 *)
+    assert {:ok, [first, _second]} = PgnBatchImporter.split_games(annotated)
+    assert first =~ "{see [1] for notes}"
+  end
+
   test "requires tag-pair sections at the batch boundary" do
     assert PgnBatchImporter.parse("1. e4 e5 *") ==
              {:error, :game_headers_required}
