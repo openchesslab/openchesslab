@@ -34,8 +34,9 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond, nog te committen/deployen:** `Add the endgame table tab with lichess tablebase results`.
-  Nieuwe derde tab in het engine-paneel (Engine/Boeck/Eindspel — let op: Engine/Boek/Eindspel):
+- **Afgerond en door mij gedeployed; productie gezond:** `Add the endgame table tab with lichess
+  tablebase results` (`305d128`), bovenop `58cd927`. Nieuwe derde tab in het engine-paneel
+  (Engine/Boek/Eindspel):
   exacte 3–7-stukken-uitslagen via de publieke lichess-tablebase-API (`Web.Tablebase`,
   `tablebase.lichess.ovh`, gratis, geen sleutel, dezelfde dienst die lichess zelf gebruikt),
   permanent gecachet per canonieke stelling in `position_tablebases` (`Analysis.PositionTablebases`,
