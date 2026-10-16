@@ -34,8 +34,8 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Remove 120 dead i18n keys`, bovenop
-  de accuracy-deploy. Hygiene 2026-10-16: de catalogi bevatten 491 sleutels waarvan er 120
+- **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
+  `Remove 120 dead i18n keys` (`6ec8f0d`), bovenop de accuracy-deploy (`2a5486a`). Hygiene 2026-10-16: de catalogi bevatten 491 sleutels waarvan er 120
   nergens (meer) gebruikt werden — overblijfselen van eerdere iteraties van de bibliotheek
   (`personal.*`), import, zoeken, engine-status, shortcuts en laag-legenda
   (`room.legendWhiteAttacks` c.s.). Verwijderd na een scan die letterlijke usages, plural-
