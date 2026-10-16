@@ -1709,6 +1709,109 @@ defmodule Web.RoomLiveTest do
     cleanup_search_corpus(corpus)
   end
 
+  describe "endgame table" do
+    setup do
+      # Tablebase results are durable; tests must start from an empty cache.
+      Repo.query!("TRUNCATE TABLE position_tablebases", [])
+
+      original = Application.fetch_env(:web, :tablebase_request)
+
+      on_exit(fn ->
+        case original do
+          {:ok, value} -> Application.put_env(:web, :tablebase_request, value)
+          :error -> Application.delete_env(:web, :tablebase_request)
+        end
+      end)
+
+      :ok
+    end
+
+    test "the endgame tab shows the tablebase result, caches it and plays moves", %{
+      conn: conn,
+      code: code
+    } do
+      stub_tablebase([
+        {200,
+         ~s({"category":"win","dtz":3,"dtm":7,"moves":[) <>
+           ~s({"uci":"d1d8","san":"Qd8+","category":"loss","dtz":-2},) <>
+           ~s({"uci":"d1d2","san":"Qd2","category":"draw","dtz":0}]})},
+        {200,
+         ~s({"category":"loss","dtz":-2,"dtm":-6,"moves":[) <>
+           ~s({"uci":"e8d7","san":"Kd7","category":"win","dtz":2}]})}
+      ])
+
+      {:ok, view, _html} = live(conn, "/rooms/#{code}")
+
+      # Build a king-and-queen versus king position through the setup modal:
+      # e1 = 4, d1 = 3, e8 = 60.
+      render_click(view, "open-setup", %{})
+      render_click(view, "setup-clear-board", %{})
+      render_click(view, "setup-palette-drop", %{"piece" => "white_king", "square" => "4"})
+      render_click(view, "setup-palette-drop", %{"piece" => "white_queen", "square" => "3"})
+      render_click(view, "setup-palette-drop", %{"piece" => "black_king", "square" => "60"})
+      render_click(view, "create-from-setup", %{})
+
+      # The engine tab is the default; the endgame tab loads on selection.
+      render_click(view, "select-engine-tab", %{"tab" => "endgame"})
+
+      assert has_element?(view, "#endgame-headline", "White wins")
+      assert has_element?(view, "#endgame-headline", "Mate in 7")
+      assert has_element?(view, "#endgame-moves button[phx-value-uci='d1d8']", "Qd8+")
+      # The chip inverts the API's perspective: a loss for the next side to
+      # move is a win for the player who plays the move.
+      assert has_element?(view, "#endgame-moves li", "Win")
+
+      # A revisit serves the durable cache instead of the queue.
+      render_click(view, "select-engine-tab", %{"tab" => "engine"})
+      render_click(view, "select-engine-tab", %{"tab" => "endgame"})
+      assert has_element?(view, "#endgame-headline", "Mate in 7")
+
+      # Playing a table move plays it into the analysis; the new position is
+      # fetched once and again reported from the side to move's perspective.
+      render_click(view, "endgame-play-move", %{"uci" => "d1d8"})
+      assert has_element?(view, "#move-list button[data-move-path='0']", "Qd8+")
+      assert has_element?(view, "#endgame-headline", "Black loses")
+      assert has_element?(view, "#endgame-headline", "Mated in 6")
+    end
+
+    test "positions outside the tablebase range are explained without a fetch", %{
+      conn: conn,
+      code: code
+    } do
+      agent =
+        stub_tablebase([
+          {200, ~s({"category":"draw","moves":[]})}
+        ])
+
+      {:ok, view, _html} = live(conn, "/rooms/#{code}")
+      render_click(view, "create-analysis", %{})
+
+      render_click(view, "select-engine-tab", %{"tab" => "endgame"})
+
+      assert has_element?(view, "#endgame-range")
+      refute has_element?(view, "#endgame-result")
+      # The stub was never consumed: no external request was made.
+      assert Agent.get(agent, & &1) != []
+    end
+
+    test "an unreachable table is reported honestly", %{conn: conn, code: code} do
+      stub_tablebase([{500, "boom"}])
+
+      {:ok, view, _html} = live(conn, "/rooms/#{code}")
+
+      render_click(view, "open-setup", %{})
+      render_click(view, "setup-clear-board", %{})
+      render_click(view, "setup-palette-drop", %{"piece" => "white_king", "square" => "4"})
+      render_click(view, "setup-palette-drop", %{"piece" => "white_queen", "square" => "3"})
+      render_click(view, "setup-palette-drop", %{"piece" => "black_king", "square" => "60"})
+      render_click(view, "create-from-setup", %{})
+
+      render_click(view, "select-engine-tab", %{"tab" => "endgame"})
+
+      assert has_element?(view, "#endgame-error")
+    end
+  end
+
   test "engine errors surface honestly and switch the engine off", %{conn: conn, code: code} do
     {:ok, view, _html} = live(conn, "/rooms/#{code}")
     render_click(view, "create-analysis", %{})
@@ -2170,5 +2273,19 @@ defmodule Web.RoomLiveTest do
     end
 
     Application.put_env(:web, :game_import_request, request)
+  end
+
+  defp stub_tablebase(responses) do
+    agent =
+      start_supervised!(%{id: make_ref(), start: {Agent, :start_link, [fn -> responses end]}})
+
+    request = fn :get, _payload, _http, _options ->
+      Agent.get_and_update(agent, fn
+        [{status, body} | rest] -> {{:ok, {{~c"HTTP/1.1", status, ~c""}, [], body}}, rest}
+      end)
+    end
+
+    Application.put_env(:web, :tablebase_request, request)
+    agent
   end
 end

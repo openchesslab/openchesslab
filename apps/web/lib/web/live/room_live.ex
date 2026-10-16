@@ -14,6 +14,7 @@ defmodule Web.RoomLive do
   alias Analysis.PgnBatchImporter
   alias Analysis.ProviderGrants
   alias Analysis.PositionEvals
+  alias Analysis.PositionTablebases
   alias Analysis.RoomChat
   alias Analysis.RoomEvents
   alias Analysis.Rooms
@@ -28,6 +29,7 @@ defmodule Web.RoomLive do
   alias Web.DisplayName
   alias Web.GameImport
   alias Web.Presence
+  alias Web.Tablebase
 
   @shape_colors ~w(yellow blue red orange purple)
   @url_sync_debounce_ms 300
@@ -155,6 +157,8 @@ defmodule Web.RoomLive do
       engine_tab: "engine",
       book_moves: [],
       book_opening: nil,
+      endgame: nil,
+      endgame_status: nil,
       engine_settings_open: false,
       engine_settings: %{depth: 20, multipv: 3}
     }
@@ -1149,14 +1153,21 @@ defmodule Web.RoomLive do
     do: {:noreply, assign(socket, :engine_peek, nil)}
 
   # The engine column's source tabs: Engine is the local Stockfish panel,
-  # Book is the corpus opening book with ECO classification.
+  # Book is the corpus opening book with ECO classification, Endgame is the
+  # exact tablebase result for positions with up to seven pieces.
   def handle_event("select-engine-tab", %{"tab" => tab}, socket)
-      when tab in ["engine", "book"] do
-    {:noreply, socket |> assign(:engine_tab, tab) |> maybe_load_book()}
+      when tab in ["engine", "book", "endgame"] do
+    {:noreply,
+     socket
+     |> assign(:engine_tab, tab)
+     |> maybe_load_book()
+     |> maybe_load_endgame()}
   end
 
-  # Plays a book move into the analysis, like playing it on the board.
-  def handle_event("book-play-move", %{"uci" => uci}, socket) do
+  # Plays a book or endgame move into the analysis, like playing it on the
+  # board.
+  def handle_event(event, %{"uci" => uci}, socket)
+      when event in ["book-play-move", "endgame-play-move"] do
     with {:ok, move} <- UCI.parse_move(socket.assigns.position, uci),
          {:ok, analysis, revision, path} <-
            Analyses.play(
@@ -1773,6 +1784,7 @@ defmodule Web.RoomLive do
         )
         |> refresh_engine_position()
         |> maybe_load_book()
+        |> maybe_load_endgame()
         |> refresh_presence()
 
       :not_found ->
@@ -3372,6 +3384,80 @@ defmodule Web.RoomLive do
     if total > 0, do: Float.round(count / total * 100, 1), else: 0.0
   end
 
+  # The tablebase categories, grouped by outcome. Every category from the
+  # API is named explicitly; unknown ones fall back to the unavailable text.
+  @endgame_winning ["win", "syzygy-win"]
+  @endgame_cursed ["cursed-win", "maybe-win"]
+  @endgame_blessed ["blessed-loss", "maybe-loss"]
+  @endgame_losing ["loss", "syzygy-loss"]
+
+  # The headline names the outcome for the side to move, in colour terms.
+  defp endgame_headline(result, position, locale) do
+    color =
+      if position.side_to_move == :white,
+        do: Web.I18n.t("room.endgameWhite", locale),
+        else: Web.I18n.t("room.endgameBlack", locale)
+
+    cond do
+      result["category"] in @endgame_winning ->
+        Web.I18n.t("room.endgameWins", locale, %{color: color})
+
+      result["category"] in @endgame_cursed ->
+        Web.I18n.t("room.endgameCursedWin", locale, %{color: color})
+
+      result["category"] == "draw" ->
+        Web.I18n.t("room.endgameDraw", locale)
+
+      result["category"] in @endgame_blessed ->
+        Web.I18n.t("room.endgameBlessedLoss", locale, %{color: color})
+
+      result["category"] in @endgame_losing ->
+        Web.I18n.t("room.endgameLoses", locale, %{color: color})
+
+      true ->
+        Web.I18n.t("room.endgameNotAvailable", locale)
+    end
+  end
+
+  # Mate distance when the tablebase knows it, else the DTZ — which counts to
+  # the next zeroing move, not to mate, so it is labelled separately.
+  defp endgame_distance(result, locale) do
+    cond do
+      is_integer(result["dtm"]) ->
+        if result["category"] in @endgame_winning or result["category"] in @endgame_cursed do
+          Web.I18n.t("room.endgameMateIn", locale, %{count: abs(result["dtm"])})
+        else
+          Web.I18n.t("room.endgameMatedIn", locale, %{count: abs(result["dtm"])})
+        end
+
+      is_integer(result["dtz"]) and result["dtz"] != 0 ->
+        Web.I18n.t("room.endgameDtz", locale, %{count: abs(result["dtz"])})
+
+      true ->
+        nil
+    end
+  end
+
+  # A move's category is from the perspective of the side that must move
+  # after it; the chip shows the outcome for the player who plays the move.
+  # A star marks outcomes that only hold without the 50-move rule.
+  defp endgame_chip(category, locale) do
+    cond do
+      category in @endgame_losing -> Web.I18n.t("room.endgameMoveWin", locale)
+      category in @endgame_cursed -> Web.I18n.t("room.endgameMoveLoss", locale) <> "*"
+      category == "draw" -> Web.I18n.t("room.endgameMoveDraw", locale)
+      category in @endgame_blessed -> Web.I18n.t("room.endgameMoveWin", locale) <> "*"
+      category in @endgame_winning -> Web.I18n.t("room.endgameMoveLoss", locale)
+      true -> "?"
+    end
+  end
+
+  defp endgame_has_fifty?(result) do
+    Enum.any?(result["moves"], fn move ->
+      move["category"] in @endgame_cursed or move["category"] in @endgame_blessed
+    end)
+  end
+
   @review_clamp_cp 1000
 
   # Win% from a white-relative eval, the logistic curve lichess fits to real
@@ -3459,6 +3545,53 @@ defmodule Web.RoomLive do
       load_book(socket)
     else
       socket
+    end
+  end
+
+  # The endgame tab reloads when the position changes while it is visible;
+  # results are fetched once per canonical position and cached durably.
+  defp maybe_load_endgame(socket) do
+    if socket.assigns.engine_tab == "endgame" and not is_nil(socket.assigns.position) do
+      load_endgame(socket)
+    else
+      socket
+    end
+  end
+
+  defp load_endgame(socket) do
+    position = socket.assigns.position
+
+    cond do
+      length(Chess.Board.pieces(position.board)) > 7 ->
+        assign(socket, endgame: nil, endgame_status: :out_of_range)
+
+      position.castling_rights |> MapSet.new() |> MapSet.size() > 0 ->
+        assign(socket, endgame: nil, endgame_status: :not_in_tablebase)
+
+      true ->
+        case cached_or_fetched_endgame(socket, position) do
+          {:ok, result} -> assign(socket, endgame: result, endgame_status: :ok)
+          {:error, reason} -> assign(socket, endgame: nil, endgame_status: reason)
+        end
+    end
+  end
+
+  defp cached_or_fetched_endgame(socket, position) do
+    position_id = Node.position_id(socket.assigns.current_node)
+
+    case PositionTablebases.get(position_id) do
+      {:ok, result} ->
+        {:ok, result}
+
+      :not_found ->
+        case Tablebase.fetch(to_fen(position)) do
+          {:ok, result} ->
+            :ok = PositionTablebases.put(position_id, result)
+            {:ok, result}
+
+          {:error, reason} ->
+            {:error, reason}
+        end
     end
   end
 

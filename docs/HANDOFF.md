@@ -34,6 +34,23 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, nog te committen/deployen:** `Add the endgame table tab with lichess tablebase results`.
+  Nieuwe derde tab in het engine-paneel (Engine/Boeck/Eindspel — let op: Engine/Boek/Eindspel):
+  exacte 3–7-stukken-uitslagen via de publieke lichess-tablebase-API (`Web.Tablebase`,
+  `tablebase.lichess.ovh`, gratis, geen sleutel, dezelfde dienst die lichess zelf gebruikt),
+  permanent gecachet per canonieke stelling in `position_tablebases` (`Analysis.PositionTablebases`,
+  migratie `20261016190000`) — één externe aanvraag per unieke stelling, ooit. Stellingen met
+  castlingrechten worden overgeslagen; >7 stukken toont uitleg zónder aanvraag; categorieën
+  worden vanuit het perspectief van de zetkleur naar kleurtermen vertaald (incl. 50-zettenregel-
+  uitzonderingen met *-voetnoot); zetten zijn aanklikbaar. Privacy: FEN's van opgezochte stellingen
+  gaan naar lichess (standen, geen gebruikersdata). Serieel groen: analysis **649**, web **276**,
+  chess **591**, features **209**; formatter en diffcontrole. Browsergverifieerd op dev met een KQ-K-
+  stelling: "Wit wint · Mat in 15" → na Qd5 "Zwart verliest · Wordt mat in 14", echte API-data.
+  Nieuwe tests: `position_tablebases_test.exs` (opslaan/lezen/opruimen) en drie webtests
+  (echte fetch via stub + cache, bereikboodschap zonder fetch, onbereikbaar eerlijk gemeld).
+  architecture.md, AGENTS.md (verouderde "grants/import planned"-regels bijgewerkt) en HANDOFF
+  bijgewerkt.
+
 - **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
   `Prune populated rooms after 3 days of inactivity` (`7b6635e`), bovenop `2b9e095`.
   Deploy-notitie: Fly gaf twee keer een tijdelijke bolt-tokenfout; derde poging lukte,

@@ -795,6 +795,15 @@
                 phx-value-tab="book"
                 class={tab_class(@engine_tab, "book")}
               >{Web.I18n.t("room.bookTab", @locale)}</button>
+              <button
+                type="button"
+                id="engine-tab-endgame"
+                role="tab"
+                aria-selected={to_string(@engine_tab == "endgame")}
+                phx-click="select-engine-tab"
+                phx-value-tab="endgame"
+                class={tab_class(@engine_tab, "endgame")}
+              >{Web.I18n.t("room.endgameTab", @locale)}</button>
             </div>
           </header>
 
@@ -1183,6 +1192,73 @@
                   </p>
                 </li>
               </ul>
+            </div>
+            <div :if={@engine_tab == "endgame"} class="flex min-h-0 flex-1 flex-col gap-2">
+              <p
+                :if={@endgame_status == :out_of_range}
+                id="endgame-range"
+                class="m-0 text-xs text-muted"
+              >
+                {Web.I18n.t("room.endgameRange", @locale)}
+              </p>
+
+              <p
+                :if={@endgame_status == :not_in_tablebase}
+                id="endgame-unavailable"
+                class="m-0 text-xs text-muted"
+              >
+                {Web.I18n.t("room.endgameNotAvailable", @locale)}
+              </p>
+
+              <p
+                :if={@endgame_status == :unreachable}
+                id="endgame-error"
+                class="m-0 text-xs text-muted"
+              >
+                {Web.I18n.t("room.endgameError", @locale)}
+              </p>
+
+              <div :if={@endgame} class="flex min-h-0 flex-1 flex-col gap-2">
+                <p id="endgame-headline" class="m-0 rounded bg-canvas p-2 text-xs">
+                  <strong class="text-foreground">{endgame_headline(@endgame, @position, @locale)}</strong>
+                  <span
+                    :if={endgame_distance(@endgame, @locale)}
+                    class="ml-1 font-mono text-faint"
+                  >
+                    {endgame_distance(@endgame, @locale)}
+                  </span>
+                </p>
+
+                <ul
+                  id="endgame-moves"
+                  class="m-0 min-h-0 flex-1 list-none space-y-1 overflow-y-auto p-0"
+                >
+                  <li
+                    :for={move <- @endgame["moves"]}
+                    class="flex items-center justify-between gap-2 rounded bg-canvas p-2"
+                  >
+                    <button
+                      type="button"
+                      class="rounded px-1 font-mono text-sm font-semibold text-foreground hover:bg-panel-hover"
+                      title={Web.I18n.t("room.bookPlay", @locale)}
+                      phx-click="endgame-play-move"
+                      phx-value-uci={move["uci"]}
+                    >{move["san"]}</button>
+                    <span class="text-xs tabular-nums text-muted">{endgame_chip(
+                      move["category"],
+                      @locale
+                    )}</span>
+                  </li>
+                </ul>
+
+                <p :if={endgame_has_fifty?(@endgame)} class="m-0 text-[.68rem] text-faint">
+                  {Web.I18n.t("room.endgameFiftyFootnote", @locale)}
+                </p>
+
+                <p class="m-0 text-[.68rem] text-faint">
+                  {Web.I18n.t("room.endgameSource", @locale)}
+                </p>
+              </div>
             </div>
           </div>
         </aside>
