@@ -484,5 +484,9 @@
   "room.skip.rate_limited": "door de aanbieder beperkt — probeer het later opnieuw",
   "room.skip.unreachable": "de aanbieder was niet bereikbaar",
   "room.skip.chesscom_url": "Chess.com-links kunnen niet worden opgehaald — gebruik de Chess.com-tab",
-  "room.skip.room": "kon niet aan de kamer worden toegevoegd"
+  "room.skip.room": "kon niet aan de kamer worden toegevoegd",
+  "room.importMine": "Mijn partijen importeren",
+  "room.importMineNote": "Van je gekoppelde Lichess-account:",
+  "room.provider.no_grant": "Geen gekoppeld Lichess-account.",
+  "room.provider.unauthorized": "De Lichess-koppeling is verlopen — koppel je account opnieuw."
 }

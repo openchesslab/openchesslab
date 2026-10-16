@@ -9,6 +9,7 @@ defmodule Web.RoomLiveTest do
   alias Analysis.GameStart
   alias Analysis.Node
   alias Analysis.PositionStore
+  alias Analysis.ProviderGrants
   alias Analysis.Rooms
   alias Analysis.UserSessions
   alias Analysis.Users
@@ -690,6 +691,76 @@ defmodule Web.RoomLiveTest do
 
       # max 1 takes only the most recent game of the archive.
       assert length(room_analysis_ids(code)) == 1
+    end
+  end
+
+  describe "linked-account import" do
+    setup do
+      original = Application.fetch_env(:web, :game_import_request)
+
+      on_exit(fn ->
+        case original do
+          {:ok, value} -> Application.put_env(:web, :game_import_request, value)
+          :error -> Application.delete_env(:web, :game_import_request)
+        end
+      end)
+
+      {:ok, user} = Users.create()
+      {:ok, session} = UserSessions.create(user.id)
+      on_exit(fn -> Users.delete(user.id) end)
+      %{user: user, session: session}
+    end
+
+    test "linked users import their own Lichess games via the stored grant", %{
+      conn: conn,
+      code: code,
+      user: user,
+      session: session
+    } do
+      :ok = ProviderGrants.put(user.id, "lichess", "lip_test_token")
+
+      stub_game_import([
+        {200, Jason.encode!(%{"username" => "linkeduser"})},
+        {200, "[Event \"Mine\"]\n\n1. e4 e5 *\n"}
+      ])
+
+      conn = Plug.Test.init_test_session(conn, %{user_token: session.token})
+      {:ok, view, _} = live(conn, "/rooms/#{code}")
+      render_click(view, "open-import", %{})
+      render_click(view, "set-import-source", %{"source" => "lichess"})
+
+      assert has_element?(view, "#import-my-games")
+
+      render_submit(view, "import-my-games", %{"max" => "3"})
+      assert length(room_analysis_ids(code)) == 1
+    end
+
+    test "the my-games button requires a grant; a rejected token deletes it", %{
+      conn: conn,
+      code: code,
+      user: user,
+      session: session
+    } do
+      conn = Plug.Test.init_test_session(conn, %{user_token: session.token})
+      {:ok, view, _} = live(conn, "/rooms/#{code}")
+      render_click(view, "open-import", %{})
+
+      # No grant: no button.
+      refute has_element?(view, "#import-my-games")
+
+      :ok = ProviderGrants.put(user.id, "lichess", "lip_revoked_token")
+      render_click(view, "set-import-source", %{"source" => "lichess"})
+      # Reopen so the grant is re-read.
+      render_click(view, "close-modal", %{})
+      render_click(view, "open-import", %{})
+      render_click(view, "set-import-source", %{"source" => "lichess"})
+      assert has_element?(view, "#import-my-games")
+
+      stub_game_import([{401, ""}])
+      html = render_submit(view, "import-my-games", %{"max" => "3"})
+
+      assert html =~ "expired"
+      refute ProviderGrants.has?(user.id, "lichess")
     end
   end
 

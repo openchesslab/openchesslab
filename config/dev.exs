@@ -15,6 +15,7 @@ database_url =
 # watchers to your application. For example, we can use it
 # to bundle .js and .css sources.
 config :analysis, account_subject_hmac_key: String.duplicate("dev-only-hmac-key-", 3)
+config :analysis, provider_grant_key: String.duplicate("dev-only-grant-key-", 3)
 
 config :database, OpenChessLab.Repo, url: database_url
 

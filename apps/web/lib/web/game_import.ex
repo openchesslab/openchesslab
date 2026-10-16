@@ -96,6 +96,36 @@ defmodule Web.GameImport do
     end
   end
 
+  @doc """
+  The username of the account a Lichess grant belongs to. `{:error,
+  :unauthorized}` means the grant was revoked or expired — delete it.
+  """
+  @spec fetch_lichess_account_username(String.t()) ::
+          {:ok, String.t()} | {:error, fetch_error() | :unauthorized}
+  def fetch_lichess_account_username(token) when is_binary(token) do
+    case request().(
+           :get,
+           {~c"https://lichess.org/api/account", headers("application/json", token)},
+           http_options(),
+           []
+         ) do
+      {:ok, {{_, 200, _}, _headers, body}} ->
+        case Jason.decode(to_string(body)) do
+          {:ok, %{"username" => username}} when is_binary(username) -> {:ok, username}
+          _ -> {:error, :unreachable}
+        end
+
+      {:ok, {{_, 401, _}, _, _}} ->
+        {:error, :unauthorized}
+
+      {:ok, {{_, 429, _}, _, _}} ->
+        {:error, :rate_limited}
+
+      _ ->
+        {:error, :unreachable}
+    end
+  end
+
   @doc "The most recent public games of a Lichess account as PGN."
   @spec fetch_lichess_user_games(String.t(), pos_integer()) ::
           {:ok, String.t()} | {:error, fetch_error()}
@@ -167,6 +197,9 @@ defmodule Web.GameImport do
   end
 
   defp headers(accept), do: [{~c"user-agent", @user_agent}, {~c"accept", accept}]
+
+  defp headers(accept, token),
+    do: [{~c"authorization", String.to_charlist("Bearer " <> token)} | headers(accept)]
 
   defp http_options,
     do: [timeout: @timeout_ms, ssl: :httpc.ssl_verify_host_options(true)]

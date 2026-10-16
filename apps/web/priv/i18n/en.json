@@ -484,5 +484,9 @@
   "room.skip.rate_limited": "rate-limited by the provider — try again later",
   "room.skip.unreachable": "the provider could not be reached",
   "room.skip.chesscom_url": "Chess.com links cannot be fetched — use the Chess.com tab",
-  "room.skip.room": "could not be added to the room"
+  "room.skip.room": "could not be added to the room",
+  "room.importMine": "Import my games",
+  "room.importMineNote": "From your linked Lichess account:",
+  "room.provider.no_grant": "No linked Lichess account.",
+  "room.provider.unauthorized": "The Lichess connection expired — link your account again."
 }

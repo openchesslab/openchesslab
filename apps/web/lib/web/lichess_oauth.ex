@@ -7,11 +7,10 @@ defmodule Web.LichessOAuth do
   token must come only from the initiating browser's protected cookie. Provider
   denial should instead use `OAuthAttempts.cancel/2`.
 
-  Only the provider and verified opaque `id` are returned, for subsequent HMAC
-  account resolution. The rest of the profile and the access token are discarded.
-  Once a usable token is received, revocation is attempted even if account
-  verification fails. Success requires confirmed revocation; network failures
-  may leave a provider grant alive, but it is never persisted or logged here.
+  Only the provider, the verified opaque `id` and the access token are returned.
+  The rest of the profile is discarded. The token is stored by the caller as an
+  encrypted provider grant (`Analysis.ProviderGrants`) so the user can import
+  their games; it is never logged.
 
   This does not create users, link accounts, establish sessions or expose routes.
   The optional request function is a trusted HTTP test seam, not client input.
@@ -33,7 +32,6 @@ defmodule Web.LichessOAuth do
           | :token_exchange_failed
           | :invalid_token_response
           | :account_verification_failed
-          | :revocation_failed
 
   @spec verify_callback(term(), term(), term(), config(), function()) ::
           {:ok, identity()} | {:error, error()}
@@ -73,13 +71,12 @@ defmodule Web.LichessOAuth do
                :token_exchange_failed
              ),
            {:ok, token} <- access_token(response) do
-        result = verify_account(response, token, request, http_options)
-        revoked = revoke(token, request, http_options)
-
-        case {result, revoked} do
-          {{:ok, identity}, :ok} -> {:ok, identity}
-          {{:ok, _identity}, :error} -> {:error, :revocation_failed}
-          {{:error, _} = error, _} -> error
+        case verify_account(response, token, request, http_options) do
+          # The token travels with the identity; the caller stores it as an
+          # encrypted provider grant (Analysis.ProviderGrants) so the user can
+          # import their games later. It is never logged.
+          {:ok, identity} -> {:ok, Map.put(identity, :token, token)}
+          {:error, _} = error -> error
         end
       end
     end
@@ -121,13 +118,6 @@ defmodule Web.LichessOAuth do
   end
 
   defp access_token(_), do: {:error, :invalid_token_response}
-
-  defp revoke(token, request, options) do
-    case send_request(request, :delete, {@token_url, bearer_headers(token)}, options) do
-      {:ok, {{_version, 204, _reason}, _headers, _body}} -> :ok
-      _ -> :error
-    end
-  end
 
   defp bearer_headers(token),
     do: [{~c"authorization", String.to_charlist("Bearer " <> token)} | @headers]

@@ -12,6 +12,7 @@ defmodule Web.RoomLive do
   alias Analysis.OpeningBook
   alias Analysis.PgnAnalysisImporter
   alias Analysis.PgnBatchImporter
+  alias Analysis.ProviderGrants
   alias Analysis.PositionEvals
   alias Analysis.RoomChat
   alias Analysis.RoomEvents
@@ -127,6 +128,7 @@ defmodule Web.RoomLive do
       pgn: "",
       import_error: nil,
       import_skips: [],
+      lichess_granted: false,
       search_filters: %{
         "player" => "",
         "color" => "either",
@@ -425,6 +427,7 @@ defmodule Web.RoomLive do
        pgn: "",
        import_error: nil,
        import_skips: [],
+       lichess_granted: lichess_granted?(socket.assigns.current_user),
        provider: nil
      )}
   end
@@ -1329,6 +1332,44 @@ defmodule Web.RoomLive do
     {:noreply, assign(socket, :search_filters, filters)}
   end
 
+  # The linked-account path: the stored Lichess grant identifies the user, no
+  # username to type. A rejected token deletes the grant honestly.
+  def handle_event(
+        "import-my-games",
+        params,
+        %{assigns: %{current_user: %{id: user_id}}} = socket
+      ) do
+    max = clamp_game_count(params["max"])
+    locale = socket.assigns.locale
+
+    with {:ok, token} <- ProviderGrants.get_token(user_id, "lichess"),
+         {:ok, username} <- GameImport.fetch_lichess_account_username(token),
+         {:ok, pgn} <- GameImport.fetch_lichess_user_games(username, max) do
+      import_text(socket, pgn, [])
+    else
+      :not_found ->
+        {:noreply,
+         assign(socket,
+           import_error: Web.I18n.t("room.provider.no_grant", locale),
+           lichess_granted: false
+         )}
+
+      {:error, :unauthorized} ->
+        :ok = ProviderGrants.delete(user_id, "lichess")
+
+        {:noreply,
+         assign(socket,
+           import_error: Web.I18n.t("room.provider.unauthorized", locale),
+           lichess_granted: false
+         )}
+
+      {:error, reason} ->
+        {:noreply, assign(socket, import_error: provider_error(reason, locale))}
+    end
+  end
+
+  def handle_event("import-my-games", _params, socket), do: {:noreply, socket}
+
   def handle_event(
         "import-provider-games",
         %{"provider" => provider, "username" => username} = params,
@@ -2179,6 +2220,9 @@ defmodule Web.RoomLive do
 
   defp provider_error(reason, locale),
     do: Web.I18n.t("room.provider.#{reason}", locale)
+
+  defp lichess_granted?(nil), do: false
+  defp lichess_granted?(%{id: user_id}), do: ProviderGrants.has?(user_id, "lichess")
 
   defp import_notice(count, [], _locale),
     do: Web.I18n.plural("room.importedCount", count, %{})

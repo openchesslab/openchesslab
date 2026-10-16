@@ -11,7 +11,7 @@ defmodule Web.ShellPanels do
 
   import Phoenix.Component, only: [assign: 2, assign: 3]
 
-  alias Analysis.{Accounts, UserLibrary}
+  alias Analysis.{Accounts, ProviderGrants, UserLibrary}
   alias Web.AccountController
 
   # Both library surfaces load entries through here: the Account-menu
@@ -57,8 +57,14 @@ defmodule Web.ShellPanels do
     if user do
       case Accounts.unlink(user.id, provider) do
         {:ok, _count} ->
+          :ok = ProviderGrants.delete(user.id, provider)
+
           {:noreply,
-           assign(socket, providers: Accounts.providers_for(user.id), account_error: nil)}
+           assign(socket,
+             providers: Accounts.providers_for(user.id),
+             account_error: nil,
+             lichess_granted: false
+           )}
 
         {:error, :last_identity} ->
           {:noreply,

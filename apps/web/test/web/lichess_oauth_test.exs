@@ -57,7 +57,7 @@ defmodule Web.LichessOAuthTest do
     assert_receive {:http_request, "POST", "/api/token", body}
     assert URI.decode_query(body)["code"] == "liu_test_code"
     assert_receive {:http_request, "GET", "/api/account", ""}
-    assert_receive {:http_request, "DELETE", "/api/token", ""}
+    refute_received {:http_request, "DELETE", _, _}
     refute_received {:http_request, _, _, _}
   end
 
@@ -69,13 +69,13 @@ defmodule Web.LichessOAuthTest do
     refute_received {:http_request, _, _, _}
   end
 
-  test "consumes the attempt, exchanges the code, verifies id and revokes the grant" do
+  test "consumes the attempt, exchanges the code and returns the grant token" do
     {:ok, attempt} = Attempts.create()
     before_counts = identity_counts()
-    {request, pending} = transport([response(@grant), response(@profile), revoked()])
+    {request, pending} = transport([response(@grant), response(@profile)])
     config = %{@config | redirect_uri: @config.redirect_uri <> "?test=a&b=c"}
 
-    assert {:ok, %{provider: "lichess", subject: "verified-id"}} =
+    assert {:ok, %{provider: "lichess", subject: "verified-id", token: "lip_test_secret"}} =
              verify(attempt, request, "liu_test_code", config)
 
     assert pending.() == []
@@ -105,7 +105,7 @@ defmodule Web.LichessOAuthTest do
 
     assert_receive {:request, :get, {~c"https://lichess.org/api/account", account_headers}}
     assert {~c"authorization", ~c"Bearer lip_test_secret"} in account_headers
-    assert_receive {:request, :delete, {~c"https://lichess.org/api/token", ^account_headers}}
+    refute_received {:request, :delete, _}
     assert {:error, :invalid_attempt} = verify(attempt, request)
     assert before_counts == identity_counts()
   end
@@ -174,7 +174,7 @@ defmodule Web.LichessOAuthTest do
   test "supports long provider credentials and localhost development callbacks" do
     {:ok, attempt} = Attempts.create()
     grant = %{@grant | "access_token" => String.duplicate("a", 1024), "token_type" => "bearer"}
-    {request, pending} = transport([response(grant), response(@profile), revoked()])
+    {request, pending} = transport([response(grant), response(@profile)])
 
     assert {:ok, _} =
              verify(attempt, request, String.duplicate("b", 512), %{
@@ -229,7 +229,7 @@ defmodule Web.LichessOAuthTest do
     refute_received {:request, :delete, _}
   end
 
-  test "a usable token is revoked even when the token metadata is invalid" do
+  test "invalid token metadata fails without using the token" do
     for grant <- [
           Map.delete(@grant, "expires_in"),
           %{@grant | "expires_in" => 0},
@@ -237,16 +237,16 @@ defmodule Web.LichessOAuthTest do
           %{@grant | "token_type" => "MAC"}
         ] do
       {:ok, attempt} = Attempts.create()
-      {request, pending} = transport([response(grant), revoked()])
+      {request, pending} = transport([response(grant)])
       assert {:error, :invalid_token_response} = verify(attempt, request)
       assert pending.() == []
-      assert_receive {:request, :delete, _}
     end
 
     refute_received {:request, :get, _}
+    refute_received {:request, :delete, _}
   end
 
-  test "profile failures and missing id never fall back to username; token is still revoked" do
+  test "profile failures and missing id never fall back to username; the token is dropped" do
     for profile <- [
           response(%{"username" => "unverified-fallback"}),
           response(%{"id" => " "}),
@@ -258,21 +258,12 @@ defmodule Web.LichessOAuthTest do
           response("invalid-json")
         ] do
       {:ok, attempt} = Attempts.create()
-      {request, pending} = transport([response(@grant), profile, revoked()])
+      {request, pending} = transport([response(@grant), profile])
       assert {:error, :account_verification_failed} = verify(attempt, request)
       assert pending.() == []
-      assert_receive {:request, :delete, _}
     end
-  end
 
-  test "verification success requires confirmed revocation" do
-    for failure <- [response(%{}, 302), response(%{}, 429), {:error, :timeout}] do
-      {:ok, attempt} = Attempts.create()
-      {request, pending} = transport([response(@grant), response(@profile), failure])
-      assert {:error, :revocation_failed} = verify(attempt, request)
-      assert pending.() == []
-      assert {:error, :invalid_attempt} = verify(attempt, request)
-    end
+    refute_received {:request, :delete, _}
   end
 
   test "transport exits are sanitized without logging provider secrets" do

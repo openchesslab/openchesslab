@@ -23,6 +23,24 @@ if account_key do
   config :analysis, account_subject_hmac_key: account_key
 end
 
+# Provider-grant encryption key, independent of the identity key. Never
+# generate at boot: encrypted tokens must stay readable across releases.
+grant_key =
+  case System.get_env("PROVIDER_GRANT_KEY") do
+    nil ->
+      nil
+
+    encoded ->
+      case Base.decode64(encoded) do
+        {:ok, key} when byte_size(key) >= 32 -> key
+        _ -> raise "PROVIDER_GRANT_KEY must be standard Base64 encoding at least 32 bytes"
+      end
+  end
+
+if grant_key do
+  config :analysis, provider_grant_key: grant_key
+end
+
 lichess_config = %{
   client_id: System.get_env("LICHESS_CLIENT_ID"),
   redirect_uri: System.get_env("LICHESS_REDIRECT_URI")

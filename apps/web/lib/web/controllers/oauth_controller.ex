@@ -2,7 +2,9 @@ defmodule Web.OAuthController do
   @moduledoc "Browser-bound login and explicit linking with fresh provider verification."
   use Web, :controller
 
-  alias Analysis.{Accounts, UserSessions}
+  require Logger
+
+  alias Analysis.{Accounts, ProviderGrants, UserSessions}
   alias OpenChessLab.Repo
   alias Web.OAuthAttempts
   alias Web.ReturnTo
@@ -77,6 +79,7 @@ defmodule Web.OAuthController do
                  {:ok, identity} <-
                    verify(provider, params["code"], verifier, context.nonce, config),
                  {:ok, session} <- complete(identity, context, get_session(conn, :user_token)) do
+              store_grant(identity, session)
               Web.UserAuth.disconnect_session(get_session(conn, :user_token))
               Plug.CSRFProtection.delete_csrf_token()
 
@@ -131,6 +134,26 @@ defmodule Web.OAuthController do
       end
     end)
   end
+
+  # A Lichess access token is retained as an encrypted provider grant so the
+  # user can import their games later. Grant storage must never break login;
+  # the next login retries it.
+  defp store_grant(%{provider: "lichess", token: token}, session) when is_binary(token) do
+    with {:ok, user} <- UserSessions.user_for_token(session.token),
+         :ok <- ProviderGrants.put(user.id, "lichess", token) do
+      :ok
+    else
+      _ -> :ok
+    end
+  rescue
+    # A missing encryption key is a deployment misconfiguration, not a login
+    # failure — log it loudly, but never log the token.
+    error ->
+      Logger.warning("provider grant storage failed: #{Exception.message(error)}")
+      :ok
+  end
+
+  defp store_grant(_identity, _session), do: :ok
 
   defp owner(identity, %{intent: :login}, _),
     do: Accounts.resolve_verified(identity.provider, identity.subject)

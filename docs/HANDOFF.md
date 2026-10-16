@@ -34,6 +34,21 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond; deploy door mij (deployvrijheid gegeven):** `Store encrypted Lichess grants and
+  import the linked account's games`, bovenop `371fef3`. Feature-slice 2026-10-16 (gepland
+  werk uit AGENTS.md): de Lichess-token werd tot nu toe direct na verificatie ingetrokken —
+  nu wordt hij bewaard als versleutelde grant (`provider_grants`, AES-256-GCM onder een eigen
+  `PROVIDER_GRANT_KEY`; runtime vereist, dev/test hebben vaste sleutels). Behalve
+  gebruikersnaamloos importeren ("Import my games" op de Lichess-tab via `/api/account` →
+  bestaande publieke fetch) verandert de privacycontracten: retentie i.p.v. revocatie,
+  gedocumenteerd in lichess_oauth, architecture.md en deze handoff. Grants verdwijnen bij
+  unlink, accountverwijdering (cascade) en een 401 van Lichess; opslag mag login nooit
+  breken (rescue + waarschuwing). Achtergrond-sync blijft toekomstig werk. Serieel: analysis
+  **640**, web **258** (nieuw: grant-roundtrip/tamper/cascade, callback slaat grant op, mijn-
+  partijen-flow met stubs, 401 verwijdert de grant, unlink ruimt op); formatter, diffcontrole.
+  Browsertest: blok zichtbaar met grant, echte 401 → eerlijke fout + grant weg.
+  Deployvolgorde: eerst `flyctl secrets set PROVIDER_GRANT_KEY=...`, dán deployen.
+
 - **Afgerond en door mij gedeployed (deployvrijheid gegeven); productie gezond:**
   `Align catalogue outposts with the standard definition` (`371fef3`), bovenop `2df0d3f`. Opruimen van de gisteren gemelde divergentie: de
   features-catalogus had eigen zwakkere outpostimplementaties (knight/bishop +

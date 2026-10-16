@@ -1,7 +1,7 @@
 defmodule Web.AccountUnlinkTest do
   use Web.ConnCase, async: false
 
-  alias Analysis.{Accounts, Rooms, UserSessions, Users}
+  alias Analysis.{Accounts, ProviderGrants, Rooms, UserSessions, Users}
   alias OpenChessLab.Repo
 
   @origin "https://openchesslab.example"
@@ -51,12 +51,16 @@ defmodule Web.AccountUnlinkTest do
     assert has_element?(view, "#unlink-lichess", "Unlink Lichess")
     assert has_element?(view, "#unlink-google", "Unlink Google")
 
+    # A stored grant disappears with the link.
+    :ok = ProviderGrants.put(ctx.user.id, "lichess", "lip_test_token")
+
     render_click(view, "unlink-provider", %{"provider" => "lichess", "user_id" => ctx.user.id})
 
     refute has_element?(view, "#unlink-lichess")
     assert has_element?(view, "#link-lichess", "Connect Lichess")
     assert has_element?(view, "#unlink-google", "Unlink Google")
     assert Accounts.providers_for(ctx.user.id) == ["google"]
+    refute ProviderGrants.has?(ctx.user.id, "lichess")
     assert {:ok, _} = UserSessions.user_for_token(ctx.session.token)
     assert has_element?(view, "#account-modal-title")
   end

@@ -4,6 +4,7 @@ defmodule Web.LichessCallbackTest do
   import ExUnit.CaptureLog
 
   alias Analysis.Accounts
+  alias Analysis.ProviderGrants
   alias Analysis.Users
   alias Analysis.UserSessions
   alias OpenChessLab.Repo
@@ -58,6 +59,9 @@ defmodule Web.LichessCallbackTest do
     assert {:ok, user} = UserSessions.user_for_token(token)
     assert {:ok, user.id} == Accounts.user_for_verified_identity("lichess", @subject)
     assert :not_found = Accounts.user_for_verified_identity("lichess", "unverified")
+
+    # The access token is retained as an encrypted provider grant for imports.
+    assert {:ok, "lip_private_token"} = ProviderGrants.get_token(user.id, "lichess")
 
     assert Enum.sort(Map.keys(get_session(browser))) == [
              "_csrf_token",
@@ -199,14 +203,13 @@ defmodule Web.LichessCallbackTest do
     refute_received {:provider_request, _, _}
   end
 
-  test "provider exchange, verification and revocation failures preserve an existing session" do
+  test "provider exchange and verification failures preserve an existing session" do
     {:ok, user} = Users.create()
     {:ok, previous} = UserSessions.create(user.id)
 
     for responses <- [
           [{:error, :timeout}],
-          [grant(), json(%{"username" => "unverified"}), revoked()],
-          [grant(), json(%{"id" => @subject}), {:error, :timeout}]
+          [grant(), json(%{"username" => "unverified"})]
         ] do
       stub(responses)
       conn = Plug.Test.init_test_session(build_conn(), %{user_token: previous.token})
@@ -344,8 +347,7 @@ defmodule Web.LichessCallbackTest do
           "id" => @subject,
           "username" => "PrivateName",
           "profile" => %{"realName" => "PrivateName"}
-        }),
-        revoked()
+        })
       ])
 
   defp grant,
@@ -397,6 +399,7 @@ defmodule Web.LichessCallbackTest do
              Base.url_encode64(:crypto.hash(:sha256, params["code_verifier"]), padding: false)
 
     assert_receive {:provider_request, :get, {~c"https://lichess.org/api/account", _}}
-    assert_receive {:provider_request, :delete, {~c"https://lichess.org/api/token", _}}
+    # The grant is retained (encrypted) for game imports, not revoked.
+    refute_received {:provider_request, :delete, _}
   end
 end
