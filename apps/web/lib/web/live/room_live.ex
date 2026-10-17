@@ -14,6 +14,7 @@ defmodule Web.RoomLive do
   alias Analysis.PgnBatchImporter
   alias Analysis.ProviderGrants
   alias Analysis.PositionEvals
+  alias Analysis.PositionFeatures
   alias Analysis.PositionTablebases
   alias Analysis.RoomChat
   alias Analysis.RoomEvents
@@ -23,6 +24,7 @@ defmodule Web.RoomLive do
   alias Chess.Notation.UCI
   alias Chess.Position
   alias Chess.PositionDraft
+  alias Features.Catalogue
   alias Web.AnalysisView
   alias Web.DemoData
   alias Web.Accuracy
@@ -159,6 +161,8 @@ defmodule Web.RoomLive do
       book_opening: nil,
       endgame: nil,
       endgame_status: nil,
+      features: nil,
+      features_status: nil,
       engine_settings_open: false,
       engine_settings: %{depth: 20, multipv: 3}
     }
@@ -1154,14 +1158,16 @@ defmodule Web.RoomLive do
 
   # The engine column's source tabs: Engine is the local Stockfish panel,
   # Book is the corpus opening book with ECO classification, Endgame is the
-  # exact tablebase result for positions with up to seven pieces.
+  # exact tablebase result for positions with up to seven pieces, Features
+  # is the catalogue readout for the position on the board.
   def handle_event("select-engine-tab", %{"tab" => tab}, socket)
-      when tab in ["engine", "book", "endgame"] do
+      when tab in ["engine", "book", "endgame", "features"] do
     {:noreply,
      socket
      |> assign(:engine_tab, tab)
      |> maybe_load_book()
-     |> maybe_load_endgame()}
+     |> maybe_load_endgame()
+     |> maybe_load_features()}
   end
 
   # Plays a book or endgame move into the analysis, like playing it on the
@@ -1785,6 +1791,7 @@ defmodule Web.RoomLive do
         |> refresh_engine_position()
         |> maybe_load_book()
         |> maybe_load_endgame()
+        |> maybe_load_features()
         |> refresh_presence()
 
       :not_found ->
@@ -3592,6 +3599,53 @@ defmodule Web.RoomLive do
           {:error, reason} ->
             {:error, reason}
         end
+    end
+  end
+
+  # The features tab reloads when the position changes while it is visible;
+  # the catalogue vector is extracted once per position and stored durably.
+  defp maybe_load_features(socket) do
+    if socket.assigns.engine_tab == "features" and not is_nil(socket.assigns.current_node) do
+      load_features(socket)
+    else
+      socket
+    end
+  end
+
+  defp load_features(socket) do
+    case PositionFeatures.fetch_or_extract(Node.position_id(socket.assigns.current_node)) do
+      {:ok, result} ->
+        assign(socket,
+          features: %{version: result.version, sections: feature_sections(result.features)},
+          features_status: :ok
+        )
+
+      {:error, _reason} ->
+        assign(socket, features: nil, features_status: :unreachable)
+    end
+  end
+
+  # Catalogue features in spec-section order, with the stored values.
+  defp feature_sections(values) do
+    Catalogue.all()
+    |> Enum.group_by(& &1.section, & &1.id)
+    |> Enum.sort_by(fn {section, _ids} -> section end)
+    |> Enum.map(fn {section, ids} ->
+      {section, Enum.map(ids, fn id -> {id, Map.get(values, id)} end)}
+    end)
+  end
+
+  # Readout values stay compact: scalars verbatim, collections as sizes.
+  defp feature_value(value, locale) do
+    cond do
+      is_binary(value) -> value
+      is_float(value) -> value |> Float.round(2) |> to_string()
+      is_integer(value) -> Integer.to_string(value)
+      is_boolean(value) -> to_string(value)
+      is_list(value) -> Web.I18n.t("room.featuresItems", locale, %{count: length(value)})
+      is_map(value) -> Web.I18n.t("room.featuresItems", locale, %{count: map_size(value)})
+      is_nil(value) -> "—"
+      true -> to_string(value)
     end
   end
 

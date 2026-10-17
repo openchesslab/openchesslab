@@ -782,28 +782,53 @@
                 id="engine-tab-engine"
                 role="tab"
                 aria-selected={to_string(@engine_tab == "engine")}
+                aria-label={Web.I18n.t("room.engine", @locale)}
+                title={Web.I18n.t("room.engine", @locale)}
                 phx-click="select-engine-tab"
                 phx-value-tab="engine"
                 class={tab_class(@engine_tab, "engine")}
-              >{Web.I18n.t("room.engine", @locale)}</button>
+              >
+                <.icon name="cpu" class="h-3.5 w-3.5" />
+              </button>
               <button
                 type="button"
                 id="engine-tab-book"
                 role="tab"
                 aria-selected={to_string(@engine_tab == "book")}
+                aria-label={Web.I18n.t("room.bookTab", @locale)}
+                title={Web.I18n.t("room.bookTab", @locale)}
                 phx-click="select-engine-tab"
                 phx-value-tab="book"
                 class={tab_class(@engine_tab, "book")}
-              >{Web.I18n.t("room.bookTab", @locale)}</button>
+              >
+                <.icon name="book" class="h-3.5 w-3.5" />
+              </button>
               <button
                 type="button"
                 id="engine-tab-endgame"
                 role="tab"
                 aria-selected={to_string(@engine_tab == "endgame")}
+                aria-label={Web.I18n.t("room.endgameTab", @locale)}
+                title={Web.I18n.t("room.endgameTab", @locale)}
                 phx-click="select-engine-tab"
                 phx-value-tab="endgame"
                 class={tab_class(@engine_tab, "endgame")}
-              >{Web.I18n.t("room.endgameTab", @locale)}</button>
+              >
+                <.icon name="crown" class="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                id="engine-tab-features"
+                role="tab"
+                aria-selected={to_string(@engine_tab == "features")}
+                aria-label={Web.I18n.t("room.featuresTab", @locale)}
+                title={Web.I18n.t("room.featuresTab", @locale)}
+                phx-click="select-engine-tab"
+                phx-value-tab="features"
+                class={tab_class(@engine_tab, "features")}
+              >
+                <.icon name="list" class="h-3.5 w-3.5" />
+              </button>
             </div>
           </header>
 
@@ -1259,6 +1284,42 @@
                   {Web.I18n.t("room.endgameSource", @locale)}
                 </p>
               </div>
+            </div>
+            <div :if={@engine_tab == "features"} class="flex min-h-0 flex-1 flex-col gap-2">
+              <p
+                :if={@features_status == :unreachable}
+                id="features-error"
+                class="m-0 text-xs text-muted"
+              >
+                {Web.I18n.t("room.featuresError", @locale)}
+              </p>
+
+              <div
+                :if={@features}
+                id="features-readout"
+                class="m-0 min-h-0 flex-1 overflow-y-auto pr-1"
+              >
+                <section :for={{section, rows} <- @features.sections} class="mb-3 last:mb-0">
+                  <h4 class="mb-1 text-[.68rem] font-semibold uppercase tracking-wide text-muted">
+                    {Web.I18n.t("room.featuresSection.#{section}", @locale)}
+                  </h4>
+                  <ul class="m-0 list-none space-y-0.5 p-0">
+                    <li
+                      :for={{id, value} <- rows}
+                      class="flex items-baseline justify-between gap-2 text-xs"
+                    >
+                      <span class="min-w-0 truncate font-mono text-muted" title={id}>{id}</span>
+                      <span class="shrink-0 tabular-nums text-foreground">
+                        {feature_value(value, @locale)}
+                      </span>
+                    </li>
+                  </ul>
+                </section>
+              </div>
+
+              <p :if={@features} class="m-0 text-[.68rem] text-faint">
+                {Web.I18n.t("room.featuresSource", @locale, %{version: @features.version})}
+              </p>
             </div>
           </div>
         </aside>

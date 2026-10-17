@@ -15,6 +15,7 @@ defmodule Web.RoomLiveTest do
   alias Analysis.Users
   alias Chess.Move
   alias Chess.Position
+  alias Chess.PositionCodec
   alias Chess.Square
   alias OpenChessLab.Repo
   alias Web.AnalysisView
@@ -1809,6 +1810,39 @@ defmodule Web.RoomLiveTest do
       render_click(view, "select-engine-tab", %{"tab" => "endgame"})
 
       assert has_element?(view, "#endgame-error")
+    end
+  end
+
+  describe "feature readout" do
+    test "the features tab shows the catalogue readout and stores the vector", %{
+      conn: conn,
+      code: code
+    } do
+      {:ok, view, _html} = live(conn, "/rooms/#{code}")
+      render_click(view, "create-analysis", %{})
+
+      render_click(view, "select-engine-tab", %{"tab" => "features"})
+
+      assert has_element?(view, "#features-readout")
+      refute has_element?(view, "#features-error")
+
+      # Catalogue values for the starting position, in their sections.
+      assert has_element?(view, "#features-readout h4", "State")
+      assert has_element?(view, "#features-readout li", "state.side_to_move")
+      assert has_element?(view, "#features-readout li", "state.castling_rights")
+      # Values render (the starting position is white to move).
+      assert has_element?(view, "#features-readout", "white")
+
+      # The vector is stored for the position, ready for later search.
+      [[position_id]] =
+        Repo.query!("SELECT id FROM positions WHERE record = $1", [
+          PositionCodec.encode(Position.starting_position())
+        ]).rows
+
+      assert Repo.query!(
+               "SELECT count(*) FROM position_feature_vectors WHERE position_id = $1",
+               [position_id]
+             ).rows == [[1]]
     end
   end
 

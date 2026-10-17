@@ -42,7 +42,8 @@ defmodule Web.MixProject do
       {:jason, "~> 1.2"},
       {:analysis, in_umbrella: true},
       {:chess, in_umbrella: true},
-      {:database, in_umbrella: true}
+      {:database, in_umbrella: true},
+      {:features, in_umbrella: true}
     ]
   end
 

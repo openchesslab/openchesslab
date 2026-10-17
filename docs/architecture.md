@@ -193,6 +193,8 @@ Examples in `Features.Catalogue.Similarity` include exact same position, side-to
 
 **Distinguish two layers:** `Analysis.PositionQuery` + `GameSearch` are PostgreSQL-native search facilities. Extracting/comparing rich `Features` vectors is implemented; a general indexed, planner-backed “find all Greek gifts / IQP plans / structural neighbors at 100M scale” engine using all catalogue fields is **planned**, not a verified current search capability. The long-term examples include exact/transposed positions, pawn structure shifts, piece substitutions, isolated-pawn pressure, Greek-gift themes and parameterized board squares. Query precision, semantics and physical indexes must be benchmarked before declaring such searches done.
 
+**Feature readout (2026-10-17):** the first product use of the catalogue is the room's engine-column **Features tab**: `Analysis.PositionFeatures.fetch_or_extract/1` extracts the full vector for the position on the board (once per canonical position — the vector is stored in `position_feature_vectors`, which is the groundwork for future similarity search), and the tab renders every feature grouped by spec section, in section order, scalars verbatim and collections as sizes. The engine tab strip became icon-only (aria-label + title carry the translated names) because four labelled tabs overflow the 210 px engine column — a labelled strip silently scrolled the `overflow-hidden` column and shifted its content left.
+
 ## 5. Analyses and collaboration
 
 ### Mutable analysis — implemented

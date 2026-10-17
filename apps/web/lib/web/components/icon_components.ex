@@ -39,6 +39,19 @@ defmodule Web.IconComponents do
           <path d={if @up, do: "m6 15 6-6 6 6", else: "m6 9 6 6 6-6"} />
         <% "monitor" -> %>
           <rect x="2" y="3" width="20" height="14" rx="2" /> <path d="M8 21h8M12 17v4" />
+        <% "cpu" -> %>
+          <rect x="6" y="6" width="12" height="12" rx="2" />
+          <rect x="10" y="10" width="4" height="4" />
+          <path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4" />
+        <% "book" -> %>
+          <path d="M12 6c-1.5-1.3-3.5-2-6-2H3v14h3c2.5 0 4.5.7 6 2 1.5-1.3 3.5-2 6-2h3V4h-3c-2.5 0-4.5.7-6 2z" />
+          <path d="M12 6v14" />
+        <% "crown" -> %>
+          <path d="M3 7l3.5 4L12 4l5.5 7L21 7v10H3z" />
+          <path d="M3 20h18" />
+        <% "list" -> %>
+          <path d="M8 6h13M8 12h13M8 18h13" />
+          <path d="M3 6h.01M3 12h.01M3 18h.01" />
         <% "sun" -> %>
           <circle cx="12" cy="12" r="4" />
           <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />

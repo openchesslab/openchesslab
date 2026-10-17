@@ -34,6 +34,20 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, klaar voor commit/deploy:** `Add the position feature readout with icon engine tabs`.
+  Eerste productgebruik van de features-app: de engine-kolom heeft een vierde tab **Features**
+  (`Analysis.PositionFeatures.fetch_or_extract/1`, eenmalig per canonieke stelling; de vector
+  wordt in `position_feature_vectors` opgeslagen — basis voor de latere gelijkeniszoektocht).
+  De tab toont alle cataloguskenmerken per spec-sectie in volgorde; scalairen letterlijk,
+  collecties als aantallen, scrollbaar, met "Catalogus v0.1.0 — eenmalig berekend"-voetnoot.
+  De tabbalk is **icoon-only** geworden (aria-label + title vertaald): vier tabs mét labels
+  passen niet in de 210px-enginekolom — een gelabelde strip liet de `overflow-hidden`-kolom
+  stil 23px naar links scrollen (dat knipte "Endgame" en verschoof de inhoud). Nieuwe iconen:
+  cpu, book, crown, list. Geverifieerd in dev (startpositie: 371 kenmerken/21 secties,
+  `state.side_to_move → white`, `state.castling_rights → KQkq`, `—` voor en passant; geen
+  overflow, geen verschuiving). Serieel: analysis **655**, web **277**, chess **591**,
+  features **209**; formatter, diffcontrole.
+
 - **Afgerond, klaar voor commit/deploy:** `Fix the invalid calc() classes and the mobile room layout`.
   Vijf Tailwind-klassen gebruikten `calc(...)` zonder spaties (bv. `calc(100dvh-14rem)`) — dat is
   **ongeldige CSS die de browser stil dropt**: het schaakbord viel terug op min-content (15px-vakjes,
