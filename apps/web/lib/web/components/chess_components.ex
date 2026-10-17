@@ -319,6 +319,34 @@ defmodule Web.ChessComponents do
     """
   end
 
+  # A static, non-interactive board thumbnail for search results: pieces only,
+  # no events, always white-oriented.
+  attr :position, :any, required: true
+  attr :piece_set, :string, default: "merida"
+
+  def mini_board(assigns) do
+    ~H"""
+    <div
+      data-mini-board
+      aria-hidden="true"
+      class="grid aspect-square w-16 shrink-0 grid-cols-8 grid-rows-8 overflow-hidden rounded border border-border"
+    >
+      <%= for square <- 0..63 do %>
+        <% piece = Position.piece_at(@position, square) %>
+        <div class={[
+          "min-h-0 min-w-0",
+          light_square?(square) && "bg-board-light",
+          not light_square?(square) && "bg-board-dark"
+        ]}>
+          <%= if piece do %>
+            <.piece_icon color={elem(piece, 0)} kind={elem(piece, 1)} piece_set={@piece_set} />
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+    """
+  end
+
   @highlight_sides [:top, :right, :bottom, :left]
 
   @doc """

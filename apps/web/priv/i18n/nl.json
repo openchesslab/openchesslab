@@ -165,7 +165,7 @@
   "room.searchFenPlaceholder": "8/8/8/… — de server leest en valideert hem",
   "room.searchNothingFound": "Nog niets gevonden.",
   "room.searchOpenInRoom": "Openen als analyse in deze kamer",
-  "room.searchCorpusNote": "Doorzoekt de partijen die op deze server staan — geen fixtures, geen externe lookups.",
+  "room.searchCorpusNote": "Zoekt in de {count} partijen op deze server — geen fixtures, geen externe opvragingen.",
   "room.searchInvalidFen": "Die FEN kon niet worden gelezen. Plak een volledige stelling of gebruik die van het bord.",
   "room.searchUseBoardPosition": "Gebruik de stelling op het bord",
   "room.searchMore": "Toon meer partijen",
@@ -425,5 +425,16 @@
   "room.removeAnalysisBody": "“{label}” uit deze kamer verwijderen? Analyses in andere kamers en bibliotheekverwijzingen naar deze analyse blijven werken.",
   "room.removedAnalysis": "Analyse verwijderd",
   "room.removeAnalysisFailed": "De analyse kon niet verwijderd worden.",
-  "room.featureDrawable": "Markeert velden op het bord wanneer gepind"
+  "room.featureDrawable": "Markeert velden op het bord wanneer gepind",
+  "room.searchRatingLabel": "Rating (beide spelers)",
+  "room.searchRatingMin": "Min",
+  "room.searchRatingMax": "Max",
+  "room.searchDateLabel": "Datum",
+  "room.searchDateFrom": "Van (JJJJ.MM.DD)",
+  "room.searchDateTo": "Tot",
+  "room.searchModeEdit1": "Eén pionzet verwijderd",
+  "room.searchModePush": "Eén pionduw verwijderd",
+  "room.searchModeMissing": "Eén pion minder",
+  "room.searchModeColorReversed": "Kleurverwisselde structuur",
+  "room.searchModeReflected": "Gespiegelde structuur"
 }

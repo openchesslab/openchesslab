@@ -13,6 +13,8 @@ defmodule Analysis.GameRecordQuery do
           | false
           | {:metadata_contains, GameRecord.metadata()}
           | {:metadata_value_contains, binary(), binary()}
+          | {:metadata_value_between, binary(), binary() | nil, binary() | nil}
+          | {:metadata_int_between, binary(), integer() | nil, integer() | nil}
           | {:and, [t()]}
           | {:or, [t()]}
 
@@ -33,6 +35,29 @@ defmodule Analysis.GameRecordQuery do
   @spec metadata_value_contains(binary(), binary()) :: t()
   def metadata_value_contains(key, substring) when is_binary(key) and is_binary(substring) do
     {:metadata_value_contains, key, substring}
+  end
+
+  @doc """
+  Lexicographic range on a single metadata value, for date-shaped strings
+  ("2026.09.12" sorts chronologically). Either bound may be nil (open);
+  rows without the key never match a bounded range.
+  """
+  @spec metadata_value_between(binary(), binary() | nil, binary() | nil) :: t()
+  def metadata_value_between(key, minimum, maximum)
+      when is_binary(key) and (is_binary(minimum) or is_nil(minimum)) and
+             (is_binary(maximum) or is_nil(maximum)) do
+    {:metadata_value_between, key, minimum, maximum}
+  end
+
+  @doc """
+  Numeric range on a single metadata value (stored as a string in JSONB).
+  Rows whose value is not a plain integer string never match.
+  """
+  @spec metadata_int_between(binary(), integer() | nil, integer() | nil) :: t()
+  def metadata_int_between(key, minimum, maximum)
+      when is_binary(key) and (is_integer(minimum) or is_nil(minimum)) and
+             (is_integer(maximum) or is_nil(maximum)) do
+    {:metadata_int_between, key, minimum, maximum}
   end
 
   @spec all([t()]) :: t()

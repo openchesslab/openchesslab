@@ -115,6 +115,17 @@ defmodule Analysis.GameSearch do
     {:error, :invalid_page_options}
   end
 
+  @doc """
+  Number of concrete game records in the corpus, for the search UI's honest
+  scope note. An exact count is cheap at the current corpus size; revisit
+  (estimate or counter table) before this gets called per-open at 10M+ rows.
+  """
+  @spec corpus_size() :: non_neg_integer()
+  def corpus_size do
+    %{rows: [[count]]} = Repo.query!("SELECT count(*) FROM game_records")
+    count
+  end
+
   defp do_page(false, _record_query, _limit, _cursor) do
     empty_page()
   end

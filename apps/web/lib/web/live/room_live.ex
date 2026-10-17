@@ -8,6 +8,7 @@ defmodule Web.RoomLive do
   alias Analysis.Analyses
   alias Analysis.GameRecordQuery
   alias Analysis.GameSearch
+  alias Analysis.PositionStore
   alias Analysis.Node
   alias Analysis.OpeningBook
   alias Analysis.PgnAnalysisImporter
@@ -150,12 +151,15 @@ defmodule Web.RoomLive do
         "color" => "either",
         "result" => "either",
         "opening" => "",
+        "rating_min" => "",
+        "rating_max" => "",
         "date_from" => "",
         "date_to" => "",
         "position_mode" => "exact",
         "fen" => "",
         "substitutions" => ""
       },
+      search_corpus_size: nil,
       search_results: [],
       provider: nil,
       engine_on: false,
@@ -528,9 +532,14 @@ defmodule Web.RoomLive do
          "player" => "",
          "color" => "either",
          "result" => "either",
+         "rating_min" => "",
+         "rating_max" => "",
+         "date_from" => "",
+         "date_to" => "",
          "position_mode" => "exact",
          "fen" => ""
-       }
+       },
+       search_corpus_size: GameSearch.corpus_size()
      )}
   end
 
@@ -3843,33 +3852,6 @@ defmodule Web.RoomLive do
     end
   end
 
-  # Per-side maps whose keys are all squares and whose values are all numbers
-  # are heat maps; wing counts and structure maps are not.
-  defp heat_map?(map) when map_size(map) == 0, do: false
-
-  defp heat_map?(map) when is_map(map) do
-    Enum.all?(map, fn {square, value} ->
-      is_number(value) and is_integer(Square.from_algebraic(square))
-    end)
-  end
-
-  defp heat_max(white, black) do
-    [white, black]
-    |> Enum.flat_map(&Map.values/1)
-    |> Enum.filter(&is_number/1)
-    |> Enum.max(fn -> 0 end)
-  end
-
-  defp heat_levels(map, max) do
-    if heat_map?(map) do
-      for {square, value} <- map, value > 0, into: %{} do
-        {Square.from_algebraic(square), max(1, ceil(3 * value / max))}
-      end
-    else
-      %{}
-    end
-  end
-
   defp highlights_for(value, _hint, _position) when is_binary(value) do
     squares = square_set(value)
 
@@ -3899,6 +3881,33 @@ defmodule Web.RoomLive do
   end
 
   defp highlights_for(_value, _hint, _position), do: nil
+
+  # Per-side maps whose keys are all squares and whose values are all numbers
+  # are heat maps; wing counts and structure maps are not.
+  defp heat_map?(map) when map_size(map) == 0, do: false
+
+  defp heat_map?(map) when is_map(map) do
+    Enum.all?(map, fn {square, value} ->
+      is_number(value) and is_integer(Square.from_algebraic(square))
+    end)
+  end
+
+  defp heat_max(white, black) do
+    [white, black]
+    |> Enum.flat_map(&Map.values/1)
+    |> Enum.filter(&is_number/1)
+    |> Enum.max(fn -> 0 end)
+  end
+
+  defp heat_levels(map, max) do
+    if heat_map?(map) do
+      for {square, value} <- map, value > 0, into: %{} do
+        {Square.from_algebraic(square), max(1, ceil(3 * value / max))}
+      end
+    else
+      %{}
+    end
+  end
 
   # Piece highlights resolve their squares from the position; without a
   # position there is nothing to draw.
@@ -4329,7 +4338,7 @@ defmodule Web.RoomLive do
               end
             end)
 
-          {:ok, Enum.reverse(results), page.next}
+          {:ok, Enum.reverse(results) |> with_corpus_positions(), page.next}
 
         {:error, _reason} ->
           {:error, :search_failed}
@@ -4344,9 +4353,29 @@ defmodule Web.RoomLive do
       {:ok, %{position: position}} ->
         {:ok,
          case mode do
-           "structure" -> Analysis.PositionQuery.pawn_structure(position)
-           "structure_symmetries" -> Analysis.PositionQuery.pawn_structure_symmetries(position)
-           _ -> Analysis.PositionQuery.equivalent(position)
+           "structure" ->
+             Analysis.PositionQuery.pawn_structure(position)
+
+           "structure_symmetries" ->
+             Analysis.PositionQuery.pawn_structure_symmetries(position)
+
+           "structure_edit1" ->
+             Analysis.PositionQuery.pawn_structure_edit_neighborhood(position, 1)
+
+           "structure_push" ->
+             Analysis.PositionQuery.pawn_structure_single_push_neighborhood(position)
+
+           "structure_missing" ->
+             Analysis.PositionQuery.pawn_structure_missing_pawn_neighborhood(position)
+
+           "structure_color_reversed" ->
+             Analysis.PositionQuery.color_reversed_pawn_structure(position)
+
+           "structure_reflected" ->
+             Analysis.PositionQuery.file_reflected_pawn_structure(position)
+
+           _ ->
+             Analysis.PositionQuery.equivalent(position)
          end}
 
       _ ->
@@ -4382,7 +4411,25 @@ defmodule Web.RoomLive do
         do: [GameRecordQuery.metadata_contains(%{"result" => filters["result"]})],
         else: []
 
-    case player_queries ++ result_queries do
+    # Rating bounds apply to both players; the corpus stores Elos as strings.
+    rating_queries =
+      case {parse_rating(filters["rating_min"]), parse_rating(filters["rating_max"])} do
+        {nil, nil} ->
+          []
+
+        {minimum, maximum} ->
+          for key <- ["white_elo", "black_elo"] do
+            GameRecordQuery.metadata_int_between(key, minimum, maximum)
+          end
+      end
+
+    date_queries =
+      case {blank_to_nil(filters["date_from"]), blank_to_nil(filters["date_to"])} do
+        {nil, nil} -> []
+        {from, to} -> [GameRecordQuery.metadata_value_between("date", from, to)]
+      end
+
+    case player_queries ++ result_queries ++ rating_queries ++ date_queries do
       [] -> GameRecordQuery.match_all()
       [single] -> single
       queries -> GameRecordQuery.all(queries)
@@ -4399,8 +4446,34 @@ defmodule Web.RoomLive do
       event: metadata["event"],
       date: metadata["date"],
       result: metadata["result"] || "*",
-      ply: occurrence.ply
+      ply: occurrence.ply,
+      position_id: occurrence.position_id,
+      position: nil
     }
+  end
+
+  # One extra query per page: the matched positions become the row previews.
+  defp with_corpus_positions(results) do
+    positions =
+      results
+      |> Enum.map(& &1.position_id)
+      |> PositionStore.get_many()
+
+    Enum.map(results, &Map.put(&1, :position, Map.get(positions, &1.position_id)))
+  end
+
+  defp parse_rating(value) do
+    case Integer.parse(to_string(value) |> String.trim()) do
+      {rating, ""} when rating in 0..4000 -> rating
+      _ -> nil
+    end
+  end
+
+  defp blank_to_nil(value) do
+    case to_string(value) |> String.trim() do
+      "" -> nil
+      trimmed -> trimmed
+    end
   end
 
   # The peek board renders the position in visual order following the main

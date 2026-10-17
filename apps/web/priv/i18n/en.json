@@ -165,7 +165,7 @@
   "room.searchFenPlaceholder": "8/8/8/… — the server parses and validates it",
   "room.searchNothingFound": "Nothing found yet.",
   "room.searchOpenInRoom": "Open as an analysis in this room",
-  "room.searchCorpusNote": "Searches the games stored on this server — no fixtures, no external fetches.",
+  "room.searchCorpusNote": "Searches the {count} games stored on this server — no fixtures, no external fetches.",
   "room.searchInvalidFen": "That FEN could not be parsed. Paste a full position or use the board's.",
   "room.searchUseBoardPosition": "Use the position on the board",
   "room.searchMore": "Show more games",
@@ -796,5 +796,16 @@
   "room.removeAnalysisBody": "Remove “{label}” from this room? Analyses in other rooms and library entries that reference it keep working.",
   "room.removedAnalysis": "Analysis removed",
   "room.removeAnalysisFailed": "The analysis could not be removed.",
-  "room.featureDrawable": "Highlights on the board when pinned"
+  "room.featureDrawable": "Highlights on the board when pinned",
+  "room.searchRatingLabel": "Rating (both players)",
+  "room.searchRatingMin": "Min",
+  "room.searchRatingMax": "Max",
+  "room.searchDateLabel": "Date",
+  "room.searchDateFrom": "From (YYYY.MM.DD)",
+  "room.searchDateTo": "To",
+  "room.searchModeEdit1": "One pawn move away",
+  "room.searchModePush": "One pawn push away",
+  "room.searchModeMissing": "One pawn missing",
+  "room.searchModeColorReversed": "Colour-reversed structure",
+  "room.searchModeReflected": "Mirrored structure"
 }

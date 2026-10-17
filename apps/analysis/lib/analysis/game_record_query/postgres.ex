@@ -64,6 +64,48 @@ defmodule Analysis.GameRecordQuery.Postgres do
     }
   end
 
+  def compile_predicate({:metadata_value_between, _key, nil, nil}, next_parameter)
+      when is_integer(next_parameter) and next_parameter > 0 do
+    {:ok, "TRUE", [], next_parameter}
+  end
+
+  def compile_predicate({:metadata_int_between, _key, nil, nil}, next_parameter)
+      when is_integer(next_parameter) and next_parameter > 0 do
+    {:ok, "TRUE", [], next_parameter}
+  end
+
+  def compile_predicate({:metadata_value_between, key, minimum, maximum}, next_parameter)
+      when is_integer(next_parameter) and next_parameter > 0 do
+    {clauses, params, next} =
+      between_clauses(
+        "(gr.metadata ->> $#{next_parameter})",
+        minimum,
+        maximum,
+        next_parameter + 1
+      )
+
+    compile_between(clauses, [key | params], next)
+  end
+
+  def compile_predicate({:metadata_int_between, key, minimum, maximum}, next_parameter)
+      when is_integer(next_parameter) and next_parameter > 0 do
+    # The guard keeps non-numeric values ("?", "-") out of the integer cast.
+    guard = "(gr.metadata ->> $#{next_parameter}) ~ '^[0-9]+$'"
+
+    {clauses, params, next} =
+      between_clauses(
+        "(gr.metadata ->> $#{next_parameter})::int",
+        minimum,
+        maximum,
+        next_parameter + 1
+      )
+
+    case clauses do
+      [] -> {:ok, "TRUE", [], next}
+      _ -> {:ok, Enum.join([guard | clauses], " AND "), [key | params], next}
+    end
+  end
+
   def compile_predicate({:and, queries}, next_parameter)
       when is_integer(next_parameter) and next_parameter > 0,
       do: compile_junction("AND", queries, "TRUE", next_parameter)
@@ -99,6 +141,32 @@ defmodule Analysis.GameRecordQuery.Postgres do
       {parts, params, advanced} ->
         {:ok, parts |> Enum.reverse() |> Enum.join(" #{operator} "), params, advanced}
     end
+  end
+
+  # One ">= $n" / "<= $n" clause per present bound; nil bounds stay open.
+  # `column` is the already-parameterised value expression (the key sits in
+  # the parameter slot it was built from).
+  defp between_clauses(_column, nil, nil, next_parameter), do: {[], [], next_parameter}
+
+  defp between_clauses(column, minimum, maximum, next_parameter) do
+    {clauses, params, next} =
+      if minimum do
+        {["#{column} >= $#{next_parameter}"], [minimum], next_parameter + 1}
+      else
+        {[], [], next_parameter}
+      end
+
+    if maximum do
+      {clauses ++ ["#{column} <= $#{next}"], params ++ [maximum], next + 1}
+    else
+      {clauses, params, next}
+    end
+  end
+
+  defp compile_between([], _params, next), do: {:ok, "TRUE", [], next}
+
+  defp compile_between(clauses, params, next) do
+    {:ok, Enum.join(clauses, " AND "), params, next}
   end
 
   # ILIKE treats % and _ as wildcards; search text must not.

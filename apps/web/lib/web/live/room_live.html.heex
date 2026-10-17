@@ -2154,7 +2154,7 @@
       </header>
 
       <p class="rounded-md border border-border bg-panel-hover p-2 text-xs text-muted">
-        {Web.I18n.t("room.searchCorpusNote", @locale)}
+        {Web.I18n.t("room.searchCorpusNote", @locale, %{count: @search_corpus_size || "…"})}
       </p>
 
       <form
@@ -2201,6 +2201,48 @@
           ½-½
         </option></select></label>
         <div class="flex flex-col gap-1 text-xs text-muted">
+          <span>{Web.I18n.t("room.searchRatingLabel", @locale)}</span>
+          <div class="flex gap-1">
+            <input
+              type="number"
+              name="rating_min"
+              value={@search_filters["rating_min"]}
+              min="0"
+              max="4000"
+              placeholder={Web.I18n.t("room.searchRatingMin", @locale)}
+              class="min-w-0 flex-1 rounded-md border border-border px-2 py-2 text-sm text-foreground"
+            />
+            <input
+              type="number"
+              name="rating_max"
+              value={@search_filters["rating_max"]}
+              min="0"
+              max="4000"
+              placeholder={Web.I18n.t("room.searchRatingMax", @locale)}
+              class="min-w-0 flex-1 rounded-md border border-border px-2 py-2 text-sm text-foreground"
+            />
+          </div>
+        </div>
+        <div class="flex flex-col gap-1 text-xs text-muted">
+          <span>{Web.I18n.t("room.searchDateLabel", @locale)}</span>
+          <div class="flex gap-1">
+            <input
+              name="date_from"
+              value={@search_filters["date_from"]}
+              placeholder={Web.I18n.t("room.searchDateFrom", @locale)}
+              spellcheck="false"
+              class="min-w-0 flex-1 rounded-md border border-border px-2 py-2 font-mono text-xs text-foreground"
+            />
+            <input
+              name="date_to"
+              value={@search_filters["date_to"]}
+              placeholder={Web.I18n.t("room.searchDateTo", @locale)}
+              spellcheck="false"
+              class="min-w-0 flex-1 rounded-md border border-border px-2 py-2 font-mono text-xs text-foreground"
+            />
+          </div>
+        </div>
+        <div class="flex flex-col gap-1 text-xs text-muted">
           <span>{Web.I18n.t("room.searchFenLabel", @locale)}</span>
           <div class="flex gap-1">
             <input
@@ -2236,6 +2278,31 @@
           selected={@search_filters["position_mode"] == "structure_symmetries"}
         >
           {Web.I18n.t("room.searchModeStructureSymmetries", @locale)}
+        </option><option
+          value="structure_edit1"
+          selected={@search_filters["position_mode"] == "structure_edit1"}
+        >
+          {Web.I18n.t("room.searchModeEdit1", @locale)}
+        </option><option
+          value="structure_push"
+          selected={@search_filters["position_mode"] == "structure_push"}
+        >
+          {Web.I18n.t("room.searchModePush", @locale)}
+        </option><option
+          value="structure_missing"
+          selected={@search_filters["position_mode"] == "structure_missing"}
+        >
+          {Web.I18n.t("room.searchModeMissing", @locale)}
+        </option><option
+          value="structure_color_reversed"
+          selected={@search_filters["position_mode"] == "structure_color_reversed"}
+        >
+          {Web.I18n.t("room.searchModeColorReversed", @locale)}
+        </option><option
+          value="structure_reflected"
+          selected={@search_filters["position_mode"] == "structure_reflected"}
+        >
+          {Web.I18n.t("room.searchModeReflected", @locale)}
         </option></select></label>
 
         <button
@@ -2263,7 +2330,8 @@
             id={"corpus-#{game.id}"}
             class="flex flex-wrap items-center justify-between gap-3 p-3"
           >
-            <div>
+            <.mini_board :if={game.position} position={game.position} piece_set={@piece_set} />
+            <div class="min-w-0 flex-1">
               <strong class="text-sm">{game.white} – {game.black}</strong>
               <p class="mb-0 mt-1 text-xs text-muted">
                 {[game.event, game.date, game.result]

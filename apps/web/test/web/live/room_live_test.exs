@@ -367,6 +367,11 @@ defmodule Web.RoomLiveTest do
     assert html =~ ~s(id="corpus-#{corpus.carlsen_win}")
     refute html =~ ~s(id="corpus-#{corpus.other_win}")
 
+    # The note states the honest corpus size and each hit previews the
+    # matched position.
+    assert html =~ "Searches the 4 games"
+    assert html =~ "data-mini-board"
+
     # Colour scoping: the opponent won as Black in the loss record; as White
     # that record no longer matches.
     html =
@@ -440,6 +445,125 @@ defmodule Web.RoomLiveTest do
     assert analysis.source_game_record_id == corpus.carlsen_win
 
     cleanup_search_corpus(corpus)
+  end
+
+  test "game search filters by rating and date range", %{conn: conn, code: code} do
+    OpenChessLab.Repo.query!(
+      "TRUNCATE TABLE game_records, game_occurrences, games, position_features, positions RESTART IDENTITY CASCADE",
+      []
+    )
+
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    corpus = seed_search_corpus()
+    render_click(view, "open-search", %{})
+
+    # Ratings apply to both players: only "Somebody Else" (2505/2515) sits in
+    # the 2500–2520 band (the transposition fails it on Black's 2499).
+    html =
+      render_submit(view, "search-games", %{
+        "rating_min" => "2500",
+        "rating_max" => "2520"
+      })
+
+    assert html =~ ~s(id="corpus-#{corpus.other_win}")
+    refute html =~ ~s(id="corpus-#{corpus.carlsen_win}")
+    refute html =~ ~s(id="corpus-#{corpus.transpo}")
+
+    # Dates compare lexicographically in the corpus's YYYY.MM.DD format.
+    html =
+      render_submit(view, "search-games", %{
+        "rating_min" => "",
+        "rating_max" => "",
+        "date_from" => "2026.09.04",
+        "date_to" => "2026.09.06"
+      })
+
+    assert html =~ ~s(id="corpus-#{corpus.carlsen_loss}")
+    refute html =~ ~s(id="corpus-#{corpus.carlsen_win}")
+
+    cleanup_search_corpus(corpus)
+  end
+
+  test "structural search modes find push, missing-pawn and edit neighbors", %{
+    conn: conn,
+    code: code
+  } do
+    OpenChessLab.Repo.query!(
+      "TRUNCATE TABLE game_records, game_occurrences, games, position_features, positions RESTART IDENTITY CASCADE",
+      []
+    )
+
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    start_id = PositionStore.append(Position.starting_position())
+    suffix = Base.encode16(:crypto.strong_rand_bytes(4))
+
+    # The search position is after 1.e4 e5.
+    {:ok, exact} =
+      GameRecords.create(
+        "search-exact-#{suffix}",
+        GameContent.new(start_id, [corpus_move("e2", "e4"), corpus_move("e7", "e5")]),
+        GameStart.standard(),
+        %{"white" => "Exact Player", "black" => "Opponent", "result" => "1-0"}
+      )
+
+    # One single-rank push away from it, never passing through it: 1.e3 e5.
+    {:ok, push} =
+      GameRecords.create(
+        "search-push-#{suffix}",
+        GameContent.new(start_id, [corpus_move("e2", "e3"), corpus_move("e7", "e5")]),
+        GameStart.standard(),
+        %{"white" => "Push Player", "black" => "Opponent", "result" => "1-0"}
+      )
+
+    # One pawn missing from it: after 3.Nxe5 Black's e-pawn is gone.
+    {:ok, missing} =
+      GameRecords.create(
+        "search-missing-#{suffix}",
+        GameContent.new(
+          start_id,
+          [
+            corpus_move("e2", "e4"),
+            corpus_move("e7", "e5"),
+            corpus_move("g1", "f3"),
+            corpus_move("b8", "c6"),
+            corpus_move("f3", "e5")
+          ]
+        ),
+        GameStart.standard(),
+        %{"white" => "Missing Player", "black" => "Opponent", "result" => "0-1"}
+      )
+
+    fen = "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2"
+    render_click(view, "open-search", %{})
+
+    html = render_submit(view, "search-games", %{"fen" => fen})
+    assert html =~ ~s(id="corpus-#{exact.id}")
+    refute html =~ ~s(id="corpus-#{push.id}")
+
+    # The push neighbor never shares the structure; single-push finds it.
+    html =
+      render_submit(view, "search-games", %{"fen" => fen, "position_mode" => "structure_push"})
+
+    assert html =~ ~s(id="corpus-#{push.id}")
+    assert html =~ ~s(id="corpus-#{exact.id}")
+
+    # Missing-pawn and edit-distance-1 modes find their neighborhoods.
+    html =
+      render_submit(view, "search-games", %{"fen" => fen, "position_mode" => "structure_missing"})
+
+    assert html =~ ~s(id="corpus-#{missing.id}")
+
+    html =
+      render_submit(view, "search-games", %{"fen" => fen, "position_mode" => "structure_edit1"})
+
+    assert html =~ ~s(id="corpus-#{push.id}")
+    assert html =~ ~s(id="corpus-#{missing.id}")
+
+    # The remaining modes at least run cleanly against the corpus.
+    for mode <- ["structure_color_reversed", "structure_reflected"] do
+      html = render_submit(view, "search-games", %{"fen" => fen, "position_mode" => mode})
+      refute html =~ "id=\"search-error\""
+    end
   end
 
   test "presence and chat are shared by LiveViews in the same room", %{conn: conn, code: code} do
@@ -2581,7 +2705,14 @@ defmodule Web.RoomLiveTest do
         "search-win-#{suffix}",
         GameContent.new(start_id, [corpus_move("e2", "e4"), corpus_move("e7", "e5")]),
         GameStart.standard(),
-        %{"white" => "Magnus Carlsen", "black" => "Opponent", "result" => "1-0"}
+        %{
+          "white" => "Magnus Carlsen",
+          "black" => "Opponent",
+          "result" => "1-0",
+          "white_elo" => "2830",
+          "black_elo" => "2501",
+          "date" => "2026.09.01"
+        }
       )
 
     {:ok, loss} =
@@ -2589,7 +2720,14 @@ defmodule Web.RoomLiveTest do
         "search-loss-#{suffix}",
         GameContent.new(start_id, [corpus_move("d2", "d4"), corpus_move("d7", "d5")]),
         GameStart.standard(),
-        %{"white" => "Magnus Carlsen", "black" => "Opponent", "result" => "0-1"}
+        %{
+          "white" => "Magnus Carlsen",
+          "black" => "Opponent",
+          "result" => "0-1",
+          "white_elo" => "2830",
+          "black_elo" => "2502",
+          "date" => "2026.09.05"
+        }
       )
 
     {:ok, other} =
@@ -2597,7 +2735,14 @@ defmodule Web.RoomLiveTest do
         "search-other-#{suffix}",
         GameContent.new(start_id, [corpus_move("e2", "e4"), corpus_move("c7", "c5")]),
         GameStart.standard(),
-        %{"white" => "Somebody Else", "black" => "Opponent", "result" => "1-0"}
+        %{
+          "white" => "Somebody Else",
+          "black" => "Opponent",
+          "result" => "1-0",
+          "white_elo" => "2505",
+          "black_elo" => "2515",
+          "date" => "2026.09.01"
+        }
       )
 
     # Same pawn structure as after 1.e4 e5, but a different exact position
@@ -2610,7 +2755,14 @@ defmodule Web.RoomLiveTest do
           [corpus_move("g1", "f3"), corpus_move("e7", "e5"), corpus_move("e2", "e4")]
         ),
         GameStart.standard(),
-        %{"white" => "Transpo Player", "black" => "Opponent", "result" => "1/2-1/2"}
+        %{
+          "white" => "Transpo Player",
+          "black" => "Opponent",
+          "result" => "1/2-1/2",
+          "white_elo" => "2510",
+          "black_elo" => "2499",
+          "date" => "2026.09.03"
+        }
       )
 
     %{
