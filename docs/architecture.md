@@ -116,7 +116,8 @@ for both pasted PGN and file upload, then adds the complete analysis through Roo
 Custom SetUp/FEN starts, including black-to-move/fullmove context, were already supported
 by PgnImporter and are covered through the room import flow as well.
 
-**Multi-game and provider import (2026-10-16; selection trays and keep-options 2026-10-17):**
+**Multi-game and provider import (2026-10-16; selection trays and keep-options 2026-10-17; dialog
+layout 2026-10-18):**
 the import dialog accepts any mixture of
 PGN text (several games at once) and Lichess game URLs, one per line, plus per-account
 imports from the Lichess and Chess.com tabs. `Analysis.PgnBatchImporter.split_games/1` splits
@@ -137,6 +138,10 @@ PGN, so the selection imports without a refetch. A linked Lichess account prefil
 tray's username from the stored grant. Chess.com game URLs cannot be resolved publicly and are
 reported as skips. Partial imports report every failure as a listed skip (missing game ids,
 invalid games, provider errors) and keep the dialog open; only a total failure is an error.
+The dialog itself never scrolls: header and source tabs stay put, only the tray list scrolls,
+and a pinned **checkout bar** at the bottom carries the bulk-selection shortcuts (shown once a
+tray exceeds five rows), the `{selected} of {total} selected` summary and the count-aware import
+button — long month archives no longer push the action out of reach.
 
 **Bulk corpus import (2026-10-17):** `Analysis.BulkImport` streams an external PGN dump —
 built and smoke-tested against the lichess open database (CC0) monthly `*.pgn.zst` files —
@@ -220,14 +225,20 @@ external service sees one request per unique position ever, and a move can be pl
 the list. Privacy note: the FENs of looked-up positions leave the server to lichess; results are
 facts about positions, not user data. No local tablebase is shipped (7-piece data is terabytes).
 
-**Room shell (2026-10-17):** the left sidebar was removed. A two-row **room bar** under the app
-header carries the room code, presence (with follow buttons), latency, members, and the chat
-button with unread badge (row one) plus the horizontal **analysis chip bar** with track/untrack,
-new-analysis, import and setup actions (row two). Chat lives in a right-side drawer (bottom sheet
-on mobile) with a closing backdrop; the mobile drawer-tab scheme (`RoomTabs` hook,
-`data-mobile-panel`, the media-query block) was deleted, so mobile is a single scrolling column.
-The board's height cap accounts for the bar (`min(100%, calc(100dvh - 20rem))`, shared with the
-evaluation bar).
+**Room shell (2026-10-17; analysis tabs reworked 2026-10-18):** the left sidebar was removed. A
+two-row **room bar** under the app header carries the room code, presence (with follow buttons),
+latency, members, and the chat button with unread badge (row one) plus the horizontal **analysis
+chip bar** with track/untrack, new-analysis, import and setup actions (row two). Chips name a
+game-record analysis after its players (`White – Black` from the record metadata) with the full
+context (players, event, date, result, start, revision) as tooltip; the same metadata renders
+above the board (`#analysis-game-info`). Beyond ten analyses the bar collapses: nine chips stay
+(the selected one always among them) and the rest moves into a **More menu** whose rows select
+or request removal; middle-click on any chip (hook `AnalysisTabs`) opens the same removal
+confirmation, and the hook keeps the active chip scrolled into view. Chat lives in a right-side
+drawer (bottom sheet on mobile) with a closing backdrop; the mobile drawer-tab scheme (`RoomTabs`
+hook, `data-mobile-panel`, the media-query block) was deleted, so mobile is a single scrolling
+column. The board's height cap accounts for the bar (`min(100%, calc(100dvh - 20rem))`, shared
+with the evaluation bar).
 
 **Board overlays from the catalogue (2026-10-17, refined same day):** the LAYERS block was
 replaced by pinning in the feature readout. Clicking a row shows its description and — when the

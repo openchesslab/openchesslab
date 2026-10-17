@@ -1,6 +1,6 @@
 # OpenChessLab — overdracht voor Codex en OpenCode Go
 
-Bijgewerkt: 2026-10-17. Dit is het compacte startpunt voor een andere laptop of agent.
+Bijgewerkt: 2026-10-18. Dit is het compacte startpunt voor een andere laptop of agent.
 Git en de actuele broncode zijn leidend. Werk dit bestand bij bij iedere slice en vóór een onderbreking:
 status, resterende stappen, uitgevoerde tests, commit/push en deployment afzonderlijk.
 Geen geheimen, tokens of lokale databases opnemen.
@@ -29,6 +29,30 @@ Meld expliciet wanneer een wissel zinvol is, met één concrete reden; laat de g
 Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoerd.
 
 ## Repository en huidige status
+
+- **Afgerond (2026-10-18), nog níet gedeployed:** de analyses-tabbar- en importdialoog-herwerking,
+  in vier commits:
+  `599e0b8` (tabs noemen een game-analyse naar de spelers ("Wit – Zwart" uit de
+  game-record-metadata via `GameRecords.get/1` in `AnalysisView.room_analyses/2`); tooltip met
+  event/datum/resultaat/start/revisie; dezelfde metadata als regel boven het bord,
+  `#analysis-game-info`), `2689e66` (middle-click sluiten via nieuwe `AnalysisTabs`-hook:
+  `auxclick` → `request-remove-analysis` met dezelfde bevestigingsdialoog, `mousedown`
+  voorkomt autoscroll; actieve chip scrollt in beeld bij `updated`), `01687fb` (overflow: bij
+  >10 analyses 9 chips + **More-menu** met selectie en ×; de geselecteerde tab blijft altijd
+  als chip zichtbaar — `AnalysisView.tab_split/2`), `aab0a21` (importdialoog scrollt niet meer
+  zelf: header/tabs vast, alleen de tray-lijst scrollt intern; **checkout-bar** vast onderaan
+  met Alles/Niets (pas bij >5 rijen), samenvatting "{selected} of {total} selected" en de
+  count-aware importknop — lange maand-archieven duwen de actie niet meer uit beeld).
+  **Browsercheck op dev-room F8SUU4 (echte chess.com-API):** PGN met metadata → chip "Nakamura,
+  Hikaru – Martinez, Josep" + metadataregel boven bord; 13 analyses → 8 chips + actieve chip +
+  More (4), selectie uit het menu wisselt naar een chip; middle-click op chip opent de
+  verwijderbevestiging; chess.com-tray (hikaru 2026-10) 308 rijen scrollt intern terwijl de
+  checkout-bar onderaan blijft (visueel geverifieerd met screenshot). Serieel: web **296**
+  (2 nieuwe tests), analysis **666** (3/4 runs; één run toonde een enkele failure waarvan de
+  output alleen als tail bewaard bleef — drie daaropvolgende volledige runs groen, geen
+  wijzigingen in de analysis-app deze sessie); formatter + `git diff --check` schoon.
+  architecture.md bijgewerkt (room shell + importdialoog-paragraaf). Deploy pas na expliciete
+  toestemming.
 
 - **Afgerond en gedeployed (toestemming gegeven 2026-10-17); productie gezond:** de
   import-herwerking is klaar, in vijf commits op de domein-slice `f944950`:
