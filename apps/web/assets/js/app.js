@@ -756,6 +756,44 @@ const Board = {
   },
 };
 
+const AnalysisTabs = {
+  mounted() {
+    // Middle-click (mouse wheel) closes a tab: swallow the browser's
+    // autoscroll and route it through the same confirmation as the × button.
+    this.onMouseDown = (event) => {
+      if (event.button === 1 && event.target.closest("[data-analysis-id]")) {
+        event.preventDefault();
+      }
+    };
+    this.onAuxClick = (event) => {
+      if (event.button !== 1) return;
+      const tab = event.target.closest("[data-analysis-id]");
+      if (!tab || !this.el.contains(tab)) return;
+      event.preventDefault();
+      this.pushEvent("request-remove-analysis", { id: tab.dataset.analysisId });
+    };
+    this.el.addEventListener("mousedown", this.onMouseDown);
+    this.el.addEventListener("auxclick", this.onAuxClick);
+    this.scrollActiveIntoView();
+  },
+
+  updated() {
+    this.scrollActiveIntoView();
+  },
+
+  destroyed() {
+    this.el.removeEventListener("mousedown", this.onMouseDown);
+    this.el.removeEventListener("auxclick", this.onAuxClick);
+  },
+
+  scrollActiveIntoView() {
+    const active = this.el.querySelector('[aria-current="true"]');
+    if (active) {
+      active.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }
+  },
+};
+
 const ScrollLog = {
   mounted() {
     this.scrollToBottom = () => {
@@ -1596,7 +1634,7 @@ const EngineAnalysis = {
 
 const csrfToken = document.querySelector("meta[name='csrf-token']")?.content;
 const liveSocket = new LiveSocket("/live", Socket, {
-  hooks: { AppUI, Board, EngineAnalysis, EvalBar, GuidedTour, MoveList, PaletteDrag, ScrollLog },
+  hooks: { AppUI, AnalysisTabs, Board, EngineAnalysis, EvalBar, GuidedTour, MoveList, PaletteDrag, ScrollLog },
   params: { _csrf_token: csrfToken },
 });
 

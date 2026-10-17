@@ -145,20 +145,25 @@
         </span>
 
         <div
+          id="analysis-tabs"
           class="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto pb-0.5"
           role="tablist"
           aria-label={Web.I18n.t("room.analyses", @locale)}
           data-tour="analyses"
+          phx-hook="AnalysisTabs"
         >
           <%= for analysis <- @analyses do %>
             <% active = analysis.id == @selected_analysis_id %> <% viewers =
               analysis_viewers(analysis.id, @participants, @participant_id) %> <% tracked =
               analysis.id in @tracked_ids %>
-            <div class={[
-              "flex shrink-0 items-center overflow-hidden rounded-full border",
-              active && "border-highlight/40 bg-highlight/15",
-              not active && "border-border bg-transparent hover:bg-panel-hover"
-            ]}>
+            <div
+              class={[
+                "flex shrink-0 items-center overflow-hidden rounded-full border",
+                active && "border-highlight/40 bg-highlight/15",
+                not active && "border-border bg-transparent hover:bg-panel-hover"
+              ]}
+              data-analysis-id={analysis.id}
+            >
               <button
                 type="button"
                 id={"analysis-chip-" <> analysis.id}

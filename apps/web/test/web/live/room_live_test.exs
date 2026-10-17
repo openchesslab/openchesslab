@@ -1144,6 +1144,12 @@ defmodule Web.RoomLiveTest do
     assert html =~ ~s(data-tour="analyses")
     assert html =~ "analysis-chip-"
     assert html =~ ~s(id="chat-open")
+
+    # Middle-click close and active-tab scrolling live in the AnalysisTabs
+    # hook; chips identify their analysis through a data attribute.
+    assert html =~ ~s(id="analysis-tabs")
+    assert html =~ ~s(phx-hook="AnalysisTabs")
+    assert html =~ "data-analysis-id="
     refute html =~ ~s(id="chat-drawer")
 
     # Opening the chat button reveals the drawer with the log and the form.
