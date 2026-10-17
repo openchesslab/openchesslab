@@ -163,6 +163,7 @@ defmodule Web.RoomLive do
       endgame_status: nil,
       features: nil,
       features_status: nil,
+      features_detail: nil,
       engine_settings_open: false,
       engine_settings: %{depth: 20, multipv: 3}
     }
@@ -1168,6 +1169,12 @@ defmodule Web.RoomLive do
      |> maybe_load_book()
      |> maybe_load_endgame()
      |> maybe_load_features()}
+  end
+
+  # The readout's detail strip: clicking a row explains the feature.
+  def handle_event("feature-detail", %{"id" => id}, socket) when is_binary(id) do
+    detail = if socket.assigns.features_detail == id, do: nil, else: id
+    {:noreply, assign(socket, :features_detail, detail)}
   end
 
   # Plays a book or endgame move into the analysis, like playing it on the
@@ -3616,7 +3623,11 @@ defmodule Web.RoomLive do
     case PositionFeatures.fetch_or_extract(Node.position_id(socket.assigns.current_node)) do
       {:ok, result} ->
         assign(socket,
-          features: %{version: result.version, sections: feature_sections(result.features)},
+          features: %{
+            version: result.version,
+            sections: feature_sections(result.features),
+            values: result.features
+          },
           features_status: :ok
         )
 
@@ -3672,11 +3683,23 @@ defmodule Web.RoomLive do
     end
   end
 
-  defp feature_hint(value) when is_list(value) or is_map(value) do
-    value |> inspect() |> String.slice(0, 240)
+  # The detail strip answers "what does this mean": the curated description
+  # from the catalog, the raw id, and the raw value the row summarizes.
+  defp feature_description(id, locale) do
+    key = "features." <> id
+
+    case Web.I18n.t(key, locale) do
+      ^key -> Web.I18n.t("room.featuresNoDescription", locale)
+      text -> text
+    end
   end
 
-  defp feature_hint(_value), do: nil
+  defp feature_detail_raw(id, values) do
+    values
+    |> Map.get(id)
+    |> inspect(pretty: true, limit: :infinity)
+    |> String.slice(0, 2_000)
+  end
 
   defp load_book(socket) do
     opening =

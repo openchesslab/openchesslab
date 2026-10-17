@@ -22,7 +22,11 @@ defmodule Analysis.RoomRetentionTest do
     backdate("RR-OLD-" <> suffix, 4)
     backdate("RR-ACTIVE-" <> suffix, 1)
 
-    assert ["RR-OLD-" <> suffix] = Rooms.prune_inactive_rooms(3, 100)
+    # Membership, not exact equality: the prune is global and a previously
+    # crashed run can leave an unrelated inactive room behind.
+    pruned = Rooms.prune_inactive_rooms(3, 100)
+    assert ("RR-OLD-" <> suffix) in pruned
+    refute ("RR-ACTIVE-" <> suffix) in pruned
 
     assert :not_found = RoomStore.get("RR-OLD-" <> suffix)
     assert {:ok, _} = RoomStore.get("RR-ACTIVE-" <> suffix)
@@ -47,7 +51,7 @@ defmodule Analysis.RoomRetentionTest do
     {:ok, original, _} = Analyses.get(analysis.id)
     backdate("RR-LIB-" <> suffix, 4)
 
-    assert ["RR-LIB-" <> suffix] = Rooms.prune_inactive_rooms(3, 100)
+    assert ("RR-LIB-" <> suffix) in Rooms.prune_inactive_rooms(3, 100)
 
     # The library entry now points at an independent copy with equal content.
     page = UserLibrary.page(user.id)

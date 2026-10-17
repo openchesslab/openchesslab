@@ -416,5 +416,6 @@
   "auth.lichessSyncNote": "Partijen die je op Lichess speelt, worden automatisch in je bibliotheek geïmporteerd.",
   "auth.lichessSyncLast": "Laatst gesynchroniseerd: {time}",
   "common.yes": "Ja",
-  "common.no": "Nee"
+  "common.no": "Nee",
+  "room.featuresNoDescription": "Nog geen omschrijving."
 }

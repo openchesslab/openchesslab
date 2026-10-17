@@ -1814,6 +1814,17 @@ defmodule Web.RoomLiveTest do
   end
 
   describe "feature readout" do
+    test "every catalogue feature has a curated description" do
+      catalog = Jason.decode!(File.read!("priv/i18n/en.json"))
+
+      missing =
+        Features.Catalogue.all()
+        |> Enum.map(& &1.id)
+        |> Enum.reject(&Map.has_key?(catalog, "features." <> &1))
+
+      assert missing == []
+    end
+
     test "the features tab shows the catalogue readout and stores the vector", %{
       conn: conn,
       code: code
@@ -1831,18 +1842,33 @@ defmodule Web.RoomLiveTest do
 
       assert has_element?(
                view,
-               "#features-readout li span[title='state.side_to_move']",
+               "#features-readout button[title='state.side_to_move']",
                "Side to move"
              )
 
       assert has_element?(
                view,
-               "#features-readout li span[title='state.castling_rights']",
+               "#features-readout button[title='state.castling_rights']",
                "Castling rights"
              )
 
       # Values render (the starting position is white to move).
       assert has_element?(view, "#features-readout", "white")
+
+      # Clicking a row opens the detail strip: the curated description plus
+      # the raw id and value; clicking again closes it.
+      render_click(view, "feature-detail", %{"id" => "tension.pawn_tension"})
+
+      assert has_element?(
+               view,
+               "#features-detail",
+               "Squares attacked by pawns of both colours"
+             )
+
+      assert has_element?(view, "#features-detail", "tension.pawn_tension")
+
+      render_click(view, "feature-detail", %{"id" => "tension.pawn_tension"})
+      refute has_element?(view, "#features-detail")
 
       # The vector is stored for the position, ready for later search.
       [[position_id]] =
