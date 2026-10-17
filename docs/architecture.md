@@ -116,18 +116,25 @@ for both pasted PGN and file upload, then adds the complete analysis through Roo
 Custom SetUp/FEN starts, including black-to-move/fullmove context, were already supported
 by PgnImporter and are covered through the room import flow as well.
 
-**Multi-game and provider import (2026-10-16):** the import dialog accepts any mixture of
+**Multi-game and provider import (2026-10-16; selection trays and keep-options 2026-10-17):**
+the import dialog accepts any mixture of
 PGN text (several games at once) and Lichess game URLs, one per line, plus per-account
 imports from the Lichess and Chess.com tabs. `Analysis.PgnBatchImporter.split_games/1` splits
 multi-game PGN into per-game chunks (a header line following movetext starts a new game;
 each part of a mixed box splits separately so headerless pasted games survive next to
 headered fetched ones); every chunk goes through the annotated single-game importer, so
-comments and variations are retained per game. `Web.GameImport` classifies the box line by
+comments and variations are retained per game. Four keep-option checkboxes in the dialog
+footer (comments, variations, metadata, engine annotations — eval and clock, off by
+default) map to the `PgnAnalysisImporter.import/4` options and apply to every PGN path.
+`Web.GameImport` classifies the box line by
 line and fetches providers with a descriptive User-Agent (both Lichess and the Chess.com
 public API throttle or 404 generic clients): Lichess game URLs resolve in one batch
-`POST /api/games/export/_ids`, Lichess accounts via `GET /api/games/user/{name}?max=N`, and
-Chess.com accounts via the public monthly archive (`/pub/player/{name}/games/archives` →
-latest month, newest N games). Chess.com game URLs cannot be resolved publicly and are
+`POST /api/games/export/_ids`. The provider tabs are **selection trays**: Lichess loads the
+25 most recent games as metadata rows (`GET /api/games/user/{name}?max=25` as NDJSON, no
+moves) and imports the checked ids through the same batch export; Chess.com loads one
+chosen month's archive (`/pub/player/{name}/games/{year}/{month}`) whose rows carry their
+PGN, so the selection imports without a refetch. A linked Lichess account prefills the
+tray's username from the stored grant. Chess.com game URLs cannot be resolved publicly and are
 reported as skips. Partial imports report every failure as a listed skip (missing game ids,
 invalid games, provider errors) and keep the dialog open; only a total failure is an error.
 

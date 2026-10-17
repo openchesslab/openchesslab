@@ -2037,81 +2037,102 @@
             </nav>
           </div>
         <% else %>
-          <div
-            :if={@import_source == "lichess" and @lichess_granted}
-            class="mb-3 flex flex-wrap items-end justify-between gap-3 rounded-lg border border-border bg-panel-hover p-3"
-          >
-            <p class="m-0 text-sm text-muted">{Web.I18n.t("room.importMineNote", @locale)}</p>
-            <form
-              id="import-my-games-form"
-              phx-submit="import-my-games"
-              class="flex items-end gap-2"
-            >
-              <label class="flex flex-col gap-1 text-xs text-muted" for="my-games-max">
-                {Web.I18n.t("room.importGamesCount", @locale)}
-                <input
-                  id="my-games-max"
-                  name="max"
-                  type="number"
-                  min="1"
-                  max="50"
-                  value="10"
-                  class="w-20 rounded-lg border border-border px-2 py-1.5"
-                />
-              </label>
-              <button
-                type="submit"
-                id="import-my-games"
-                class="rounded-md border border-accent-strong bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-strong"
-                phx-disable-with={Web.I18n.t("room.importing", @locale)}
-              >{Web.I18n.t("room.importMine", @locale)}</button>
-            </form>
-          </div>
-
-          <form
-            id="provider-import-form"
-            phx-submit="import-provider-games"
-            class="flex flex-col gap-3"
-          >
-            <p class="text-sm text-muted">
+          <div class="flex flex-col gap-3">
+            <p class="m-0 text-sm text-muted">
               {if @import_source == "lichess",
                 do: Web.I18n.t("room.importLichessNote", @locale),
                 else: Web.I18n.t("room.importChessComNote", @locale)}
             </p>
 
-            <div class="flex flex-wrap items-end gap-3">
+            <form
+              id="provider-load-form"
+              phx-submit="load-provider-games"
+              class="flex flex-wrap items-end gap-3"
+            >
               <label class="flex flex-col gap-1 text-sm" for="provider-username">
                 {Web.I18n.t("room.importUserLabel", @locale)}
                 <input
                   id="provider-username"
                   name="username"
                   required
+                  value={@provider_username}
                   placeholder={Web.I18n.t("room.importUserPlaceholder", @locale)}
                   class="rounded-lg border border-border px-3 py-2"
                 />
               </label>
 
-              <label class="flex flex-col gap-1 text-sm" for="provider-max">
-                {Web.I18n.t("room.importGamesCount", @locale)}
+              <label
+                :if={@import_source == "chesscom"}
+                class="flex flex-col gap-1 text-sm"
+                for="provider-month"
+              >
+                {Web.I18n.t("room.importMonthLabel", @locale)}
                 <input
-                  id="provider-max"
-                  name="max"
-                  type="number"
-                  min="1"
-                  max="50"
-                  value="10"
-                  class="w-24 rounded-lg border border-border px-3 py-2"
+                  id="provider-month"
+                  name="month"
+                  type="month"
+                  value={@chesscom_month}
+                  class="rounded-lg border border-border px-3 py-2"
                 />
               </label>
-            </div>
 
-            <input type="hidden" name="provider" value={@import_source} />
-            <button
-              type="submit"
-              class="self-start rounded-md border border-accent-strong bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-strong"
-              phx-disable-with={Web.I18n.t("room.importing", @locale)}
-            >{Web.I18n.t("room.importGamesAction", @locale)}</button>
-          </form>
+              <input type="hidden" name="provider" value={@import_source} />
+              <button
+                type="submit"
+                id="provider-load"
+                class="rounded-md border border-border px-4 py-2 text-sm font-semibold hover:bg-panel-hover"
+                phx-disable-with={Web.I18n.t("room.importing", @locale)}
+              >{Web.I18n.t("room.importLoad", @locale)}</button>
+            </form>
+
+            <div :if={@import_games != []} class="flex flex-col gap-2">
+              <div class="flex items-center gap-2">
+                <button
+                  type="button"
+                  id="import-games-all"
+                  class="rounded-md border border-border px-2 py-1 text-xs hover:bg-panel-hover"
+                  phx-click="select-all-import-games"
+                >{Web.I18n.t("room.selectAll", @locale)}</button>
+                <button
+                  type="button"
+                  id="import-games-none"
+                  class="rounded-md border border-border px-2 py-1 text-xs hover:bg-panel-hover"
+                  phx-click="select-no-import-games"
+                >{Web.I18n.t("room.selectNone", @locale)}</button>
+              </div>
+
+              <ul
+                id="import-games-tray"
+                class="m-0 max-h-64 divide-y divide-border overflow-y-auto rounded-lg border border-border p-0"
+              >
+                <li :for={row <- @import_games} class="px-2 py-1.5">
+                  <label class="flex cursor-pointer items-baseline gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={MapSet.member?(@import_selected, row.id)}
+                      phx-click="toggle-import-game"
+                      phx-value-id={row.id}
+                      class="accent-accent-strong"
+                    />
+                    <span class="min-w-0 flex-1 truncate">{row.white} – {row.black}</span>
+                    <span class="shrink-0 text-xs text-faint">{row.result}</span>
+                    <span class="shrink-0 text-xs tabular-nums text-faint">
+                      {row.speed} · {row.year}
+                    </span>
+                  </label>
+                </li>
+              </ul>
+
+              <button
+                type="button"
+                id="import-selected"
+                class="self-start rounded-md border border-accent-strong bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-strong disabled:opacity-50"
+                disabled={MapSet.size(@import_selected) == 0}
+                phx-click="import-selected-games"
+                phx-disable-with={Web.I18n.t("room.importing", @locale)}
+              >{Web.I18n.plural("room.importSelectedCount", MapSet.size(@import_selected), %{})}</button>
+            </div>
+          </div>
         <% end %>
       <% end %>
 

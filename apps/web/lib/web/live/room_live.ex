@@ -37,6 +37,8 @@ defmodule Web.RoomLive do
 
   @shape_colors ~w(yellow blue red orange purple)
   @url_sync_debounce_ms 300
+  # How many recent Lichess games the import tray lists.
+  @provider_recent_games 25
   # The vendored engine build identity; cached evaluations are per engine.
   @engine_id "stockfish-19-lite-single"
   @engine_review_depth 12
@@ -147,7 +149,11 @@ defmodule Web.RoomLive do
       import_skips: [],
       # What a PGN import keeps; engine annotations are opt-in.
       import_keep: %{comments: true, variations: true, metadata: true, annotations: false},
-      lichess_granted: false,
+      # The provider tray: metadata rows to select from, and the selection.
+      import_games: [],
+      import_selected: MapSet.new(),
+      provider_username: "",
+      chesscom_month: Calendar.strftime(Date.utc_today(), "%Y-%m"),
       search_filters: %{
         "player" => "",
         "color" => "either",
@@ -453,14 +459,24 @@ defmodule Web.RoomLive do
        pgn: "",
        import_error: nil,
        import_skips: [],
-       lichess_granted: lichess_granted?(socket.assigns.current_user),
+       import_games: [],
+       import_selected: MapSet.new(),
        provider: nil
      )}
   end
 
   def handle_event("set-import-source", %{"source" => source}, socket)
       when source in ["paste", "library", "lichess", "chesscom"] do
-    socket = assign(socket, import_source: source, provider: source)
+    socket =
+      assign(socket,
+        import_source: source,
+        provider: source,
+        import_games: [],
+        import_selected: MapSet.new(),
+        import_error: nil
+      )
+
+    socket = if source == "lichess", do: prefill_lichess_username(socket), else: socket
     if source == "library", do: Web.ShellPanels.load_library(socket), else: {:noreply, socket}
   end
 
@@ -1460,73 +1476,157 @@ defmodule Web.RoomLive do
     {:noreply, assign(socket, :search_filters, filters)}
   end
 
-  # The linked-account path: the stored Lichess grant identifies the user, no
-  # username to type. A rejected token deletes the grant honestly.
-  def handle_event(
-        "import-my-games",
-        params,
-        %{assigns: %{current_user: %{id: user_id}}} = socket
-      ) do
-    max = clamp_game_count(params["max"])
-    locale = socket.assigns.locale
+  # The linked account's username fills the tray's field — "my games" is the
+  # same selection tray as everyone else's. A rejected token deletes the
+  # grant honestly.
+  defp prefill_lichess_username(socket) do
+    case socket.assigns.current_user do
+      %{id: user_id} ->
+        with {:ok, token} <- ProviderGrants.get_token(user_id, "lichess"),
+             {:ok, username} <- GameImport.fetch_lichess_account_username(token) do
+          assign(socket, provider_username: username)
+        else
+          {:error, :unauthorized} ->
+            :ok = ProviderGrants.delete(user_id, "lichess")
 
-    with {:ok, token} <- ProviderGrants.get_token(user_id, "lichess"),
-         {:ok, username} <- GameImport.fetch_lichess_account_username(token),
-         {:ok, pgn} <- GameImport.fetch_lichess_user_games(username, max) do
-      import_text(socket, pgn, [])
-    else
-      :not_found ->
-        {:noreply,
-         assign(socket,
-           import_error: Web.I18n.t("room.provider.no_grant", locale),
-           lichess_granted: false
-         )}
+            assign(socket,
+              import_error: Web.I18n.t("room.provider.unauthorized", socket.assigns.locale)
+            )
 
-      {:error, :unauthorized} ->
-        :ok = ProviderGrants.delete(user_id, "lichess")
+          _ ->
+            socket
+        end
 
-        {:noreply,
-         assign(socket,
-           import_error: Web.I18n.t("room.provider.unauthorized", locale),
-           lichess_granted: false
-         )}
-
-      {:error, reason} ->
-        {:noreply, assign(socket, import_error: provider_error(reason, locale))}
+      _ ->
+        socket
     end
   end
 
-  def handle_event("import-my-games", _params, socket), do: {:noreply, socket}
-
+  # Loads the provider's metadata rows into the tray. The games themselves
+  # arrive later: Lichess rows are fetched by id on import, Chess.com rows
+  # already carry their month's PGNs.
   def handle_event(
-        "import-provider-games",
+        "load-provider-games",
         %{"provider" => provider, "username" => username} = params,
         socket
       )
       when provider in ["lichess", "chesscom"] do
     username = String.trim(username)
-    max = clamp_game_count(params["max"])
+    locale = socket.assigns.locale
+
+    result =
+      cond do
+        username == "" ->
+          {:error, :user_required}
+
+        provider == "lichess" ->
+          case GameImport.fetch_lichess_recent_games(username, @provider_recent_games) do
+            {:ok, []} -> {:error, :no_games}
+            other -> other
+          end
+
+        true ->
+          case parse_month(params["month"]) do
+            {:ok, year, month} -> GameImport.fetch_chesscom_month_games(username, year, month)
+            :error -> {:error, :bad_month}
+          end
+      end
+
+    case result do
+      {:ok, rows} ->
+        {:noreply,
+         assign(socket,
+           import_games: rows,
+           import_selected: MapSet.new(Enum.map(rows, & &1.id)),
+           provider_username: username,
+           chesscom_month: params["month"] || socket.assigns.chesscom_month,
+           import_error: nil
+         )}
+
+      {:error, :user_required} ->
+        {:noreply,
+         assign(socket,
+           import_error: Web.I18n.t("room.importUserRequired", locale),
+           import_games: [],
+           import_selected: MapSet.new()
+         )}
+
+      {:error, :bad_month} ->
+        {:noreply,
+         assign(socket,
+           import_error: Web.I18n.t("room.importBadMonth", locale),
+           import_games: [],
+           import_selected: MapSet.new()
+         )}
+
+      {:error, reason} ->
+        {:noreply,
+         assign(socket,
+           import_error: provider_error(reason, locale),
+           import_games: [],
+           import_selected: MapSet.new()
+         )}
+    end
+  end
+
+  def handle_event("toggle-import-game", %{"id" => id}, socket) do
+    selected = socket.assigns.import_selected
+
+    selected =
+      if MapSet.member?(selected, id),
+        do: MapSet.delete(selected, id),
+        else: MapSet.put(selected, id)
+
+    {:noreply, assign(socket, import_selected: selected)}
+  end
+
+  def handle_event("select-all-import-games", _params, socket) do
+    selected = MapSet.new(Enum.map(socket.assigns.import_games, & &1.id))
+    {:noreply, assign(socket, import_selected: selected)}
+  end
+
+  def handle_event("select-no-import-games", _params, socket),
+    do: {:noreply, assign(socket, import_selected: MapSet.new())}
+
+  def handle_event("import-selected-games", _params, socket) do
+    selected = socket.assigns.import_selected
+    rows = Enum.filter(socket.assigns.import_games, &MapSet.member?(selected, &1.id))
     locale = socket.assigns.locale
 
     cond do
-      username == "" ->
-        {:noreply, assign(socket, import_error: Web.I18n.t("room.importUserRequired", locale))}
+      rows == [] ->
+        {:noreply, socket}
 
-      true ->
-        result =
-          if provider == "lichess",
-            do: GameImport.fetch_lichess_user_games(username, max),
-            else: GameImport.fetch_chesscom_user_games(username, max)
+      socket.assigns.import_source == "lichess" ->
+        ids = Enum.map(rows, & &1.id)
 
-        case result do
-          {:ok, pgn} ->
-            import_text(socket, pgn, [])
+        case GameImport.fetch_lichess_games_by_ids(ids) do
+          {:ok, pgn, found} ->
+            skips = for id <- ids -- found, do: skip("lichess.org/#{id}", :not_found, locale)
+            import_text(socket, pgn, skips)
 
           {:error, reason} ->
             {:noreply, assign(socket, import_error: provider_error(reason, locale))}
         end
+
+      true ->
+        # Chess.com rows already carry their PGN — no refetch.
+        pgn = rows |> Enum.map(& &1.pgn) |> Enum.join("\n\n")
+        import_text(socket, pgn, [])
     end
   end
+
+  defp parse_month(<<year::binary-4, "-", month::binary-2>>) do
+    with {year, ""} <- Integer.parse(year),
+         {month, ""} <- Integer.parse(month),
+         true <- year > 0 and month in 1..12 do
+      {:ok, year, month}
+    else
+      _ -> :error
+    end
+  end
+
+  defp parse_month(_), do: :error
 
   def handle_event("toggle-import-keep", %{"key" => key}, socket)
       when key in ~w(comments variations metadata annotations) do
@@ -2388,21 +2488,11 @@ defmodule Web.RoomLive do
   defp provider_error(reason, locale),
     do: Web.I18n.t("room.provider.#{reason}", locale)
 
-  defp lichess_granted?(nil), do: false
-  defp lichess_granted?(%{id: user_id}), do: ProviderGrants.has?(user_id, "lichess")
-
   defp import_notice(count, [], _locale),
     do: Web.I18n.plural("room.importedCount", count, %{})
 
   defp import_notice(count, skips, locale),
     do: Web.I18n.t("room.importedWithSkips", locale, %{imported: count, skipped: length(skips)})
-
-  defp clamp_game_count(value) do
-    case Integer.parse(to_string(value)) do
-      {count, _} -> count |> max(1) |> min(50)
-      :error -> 10
-    end
-  end
 
   defp setup_square(socket, square) do
     cond do

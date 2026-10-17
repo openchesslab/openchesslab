@@ -262,52 +262,6 @@ defmodule Web.GameImport do
   defp player_name(game, color),
     do: get_in(game, ["players", color, "user", "name"]) || "Anonymous"
 
-  @doc "The most recent public games of a Lichess account as PGN."
-  @spec fetch_lichess_user_games(String.t(), pos_integer()) ::
-          {:ok, String.t()} | {:error, fetch_error()}
-  def fetch_lichess_user_games(username, max) do
-    url =
-      "https://lichess.org/api/games/user/#{URI.encode(username)}?max=#{max}&clocks=false&evals=false"
-
-    case request().(
-           :get,
-           {String.to_charlist(url), headers("application/x-chess-pgn")},
-           http_options(),
-           []
-         ) do
-      {:ok, {{_, 200, _}, _headers, body}} -> {:ok, to_string(body)}
-      {:ok, {{_, 404, _}, _, _}} -> {:error, :not_found}
-      {:ok, {{_, 429, _}, _, _}} -> {:error, :rate_limited}
-      _ -> {:error, :unreachable}
-    end
-  end
-
-  @doc """
-  The most recent public games of a Chess.com account as PGN, taken from the
-  latest monthly archive (the public API exposes no single-game lookup).
-  """
-  @spec fetch_chesscom_user_games(String.t(), pos_integer()) ::
-          {:ok, String.t()} | {:error, fetch_error()}
-  def fetch_chesscom_user_games(username, max) do
-    base = "https://api.chess.com/pub/player/#{URI.encode(String.downcase(username))}/games"
-
-    with {:ok, archives} <- get_json("#{base}/archives"),
-         {:ok, latest} <- latest_archive(archives),
-         {:ok, %{"games" => games}} <- get_json(latest) do
-      games
-      |> Enum.sort_by(& &1["end_time"])
-      |> Enum.take(-max)
-      |> Enum.map(& &1["pgn"])
-      |> case do
-        [] -> {:error, :no_games}
-        pgns -> {:ok, Enum.join(pgns, "\n\n")}
-      end
-    end
-  end
-
-  defp latest_archive(%{"archives" => [_ | _] = archives}), do: {:ok, List.last(archives)}
-  defp latest_archive(_), do: {:error, :no_games}
-
   @doc """
   One month of public Chess.com games as rows, newest first. Each row
   carries its full PGN and uses the game URL as id — the monthly archive

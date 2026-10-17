@@ -782,22 +782,103 @@ defmodule Web.RoomLiveTest do
       assert has_element?(view, "#import-skips", "Chess.com links cannot be fetched")
     end
 
-    test "the Lichess tab imports recent games of an account", %{conn: conn, code: code} do
+    test "the Lichess tray lists recent games and imports the selection", %{
+      conn: conn,
+      code: code
+    } do
+      metadata =
+        Enum.map_join(
+          [
+            %{
+              "id" => "LhL9TRJY",
+              "speed" => "blitz",
+              "winner" => "white",
+              "lastMoveAt" => 1_700_000_000_000,
+              "players" => %{
+                "white" => %{"user" => %{"name" => "Anna"}},
+                "black" => %{"user" => %{"name" => "Boris"}}
+              }
+            },
+            %{
+              "id" => "PndlSDZg",
+              "speed" => "rapid",
+              "winner" => "black",
+              "lastMoveAt" => 1_699_000_000_000,
+              "players" => %{
+                "white" => %{"user" => %{"name" => "Cleo"}},
+                "black" => %{"user" => %{"name" => "Anna"}}
+              }
+            }
+          ],
+          "\n",
+          &Jason.encode!/1
+        )
+
       stub_game_import([
-        {200, "[Event \"A\"]\n\n1. e4 e5 *\n\n[Event \"B\"]\n\n1. d4 d5 *\n"}
+        {200, metadata <> "\n"},
+        {200, "[Event \"A\"]\n[Site \"https://lichess.org/LhL9TRJY\"]\n\n1. e4 e5 *\n"}
       ])
 
       {:ok, view, _} = live(conn, "/rooms/#{code}")
       render_click(view, "open-import", %{})
       render_click(view, "set-import-source", %{"source" => "lichess"})
 
-      render_submit(view, "import-provider-games", %{
+      render_submit(view, "load-provider-games", %{
         "provider" => "lichess",
-        "username" => "someone",
-        "max" => "5"
+        "username" => "anna"
       })
 
-      assert length(room_analysis_ids(code)) == 2
+      assert has_element?(view, "#import-games-tray", "Anna – Boris")
+      assert has_element?(view, "#import-games-tray", "Cleo – Anna")
+      assert has_element?(view, "#import-selected", "Import 2 games")
+
+      # Deselecting one updates the count-aware button.
+      render_click(view, "toggle-import-game", %{"id" => "PndlSDZg"})
+      assert has_element?(view, "#import-selected", "Import 1 game")
+      render_click(view, "select-all-import-games", %{})
+      assert has_element?(view, "#import-selected", "Import 2 games")
+
+      # The deselected game is fetched too, but comes back missing: an
+      # honest skip, and the dialog stays open to show it.
+      render_click(view, "toggle-import-game", %{"id" => "PndlSDZg"})
+      render_click(view, "import-selected-games", %{})
+
+      assert length(room_analysis_ids(code)) == 1
+    end
+
+    test "a selected Lichess game that does not come back is an honest skip", %{
+      conn: conn,
+      code: code
+    } do
+      metadata =
+        Jason.encode!(%{
+          "id" => "ZZZZZZZZ",
+          "speed" => "blitz",
+          "lastMoveAt" => 1_700_000_000_000,
+          "players" => %{
+            "white" => %{"user" => %{"name" => "Anna"}},
+            "black" => %{"user" => %{"name" => "Boris"}}
+          }
+        })
+
+      stub_game_import([
+        {200, metadata <> "\n"},
+        {200, ""}
+      ])
+
+      {:ok, view, _} = live(conn, "/rooms/#{code}")
+      render_click(view, "open-import", %{})
+      render_click(view, "set-import-source", %{"source" => "lichess"})
+
+      render_submit(view, "load-provider-games", %{
+        "provider" => "lichess",
+        "username" => "anna"
+      })
+
+      render_click(view, "import-selected-games", %{})
+
+      assert room_analysis_ids(code) == []
+      assert has_element?(view, "#import-skips", "lichess.org/ZZZZZZZZ")
     end
 
     test "an unknown Lichess account shows an honest error", %{conn: conn, code: code} do
@@ -808,41 +889,74 @@ defmodule Web.RoomLiveTest do
       render_click(view, "set-import-source", %{"source" => "lichess"})
 
       html =
-        render_submit(view, "import-provider-games", %{
+        render_submit(view, "load-provider-games", %{
           "provider" => "lichess",
-          "username" => "nobody",
-          "max" => "5"
+          "username" => "nobody"
         })
 
       assert html =~ "Account not found."
+      refute has_element?(view, "#import-games-tray")
       assert room_analysis_ids(code) == []
     end
 
-    test "the Chess.com tab imports the latest monthly archive", %{conn: conn, code: code} do
-      stub_game_import([
-        {200,
-         Jason.encode!(%{"archives" => ["https://api.chess.com/pub/player/x/games/2026/09"]})},
-        {200,
-         Jason.encode!(%{
-           "games" => [
-             %{"end_time" => 100, "pgn" => "[Event \"old\"]\n\n1. e4 e5 *"},
-             %{"end_time" => 200, "pgn" => "[Event \"new\"]\n\n1. d4 d5 *"}
-           ]
-         })}
-      ])
+    test "the Chess.com tray imports the selection without refetching", %{
+      conn: conn,
+      code: code
+    } do
+      month = %{
+        "games" => [
+          %{
+            "url" => "https://www.chess.com/game/live/111",
+            "pgn" => "[Event \"A\"]\n\n1. e4 e5 *",
+            "time_class" => "blitz",
+            "end_time" => 1_700_000_000,
+            "white" => %{"username" => "anna", "result" => "win"},
+            "black" => %{"username" => "boris", "result" => "resigned"}
+          },
+          %{
+            "url" => "https://www.chess.com/game/live/222",
+            "pgn" => "[Event \"B\"]\n\n1. d4 d5 *",
+            "time_class" => "rapid",
+            "end_time" => 1_699_000_000,
+            "white" => %{"username" => "cleo", "result" => "agreed"},
+            "black" => %{"username" => "anna", "result" => "agreed"}
+          }
+        ]
+      }
+
+      # One response only: a refetch on import would crash the stub.
+      stub_game_import([{200, Jason.encode!(month)}])
 
       {:ok, view, _} = live(conn, "/rooms/#{code}")
       render_click(view, "open-import", %{})
       render_click(view, "set-import-source", %{"source" => "chesscom"})
 
-      render_submit(view, "import-provider-games", %{
+      render_submit(view, "load-provider-games", %{
         "provider" => "chesscom",
-        "username" => "someone",
-        "max" => "1"
+        "username" => "anna",
+        "month" => "2023-11"
       })
 
-      # max 1 takes only the most recent game of the archive.
-      assert length(room_analysis_ids(code)) == 1
+      assert has_element?(view, "#import-games-tray", "anna – boris")
+      render_click(view, "import-selected-games", %{})
+
+      assert length(room_analysis_ids(code)) == 2
+    end
+
+    test "a broken Chess.com month is an honest error", %{conn: conn, code: code} do
+      {:ok, view, _} = live(conn, "/rooms/#{code}")
+      render_click(view, "open-import", %{})
+      render_click(view, "set-import-source", %{"source" => "chesscom"})
+
+      html =
+        render_submit(view, "load-provider-games", %{
+          "provider" => "chesscom",
+          "username" => "someone",
+          "month" => "bogus"
+        })
+
+      assert html =~ "Pick a valid month."
+      refute has_element?(view, "#import-games-tray")
     end
   end
 
@@ -930,7 +1044,7 @@ defmodule Web.RoomLiveTest do
       %{user: user, session: session}
     end
 
-    test "linked users import their own Lichess games via the stored grant", %{
+    test "a linked account prefills the Lichess username from the grant", %{
       conn: conn,
       code: code,
       user: user,
@@ -939,8 +1053,7 @@ defmodule Web.RoomLiveTest do
       :ok = ProviderGrants.put(user.id, "lichess", "lip_test_token")
 
       stub_game_import([
-        {200, Jason.encode!(%{"username" => "linkeduser"})},
-        {200, "[Event \"Mine\"]\n\n1. e4 e5 *\n"}
+        {200, Jason.encode!(%{"username" => "linkeduser"})}
       ])
 
       conn = Plug.Test.init_test_session(conn, %{user_token: session.token})
@@ -948,35 +1061,22 @@ defmodule Web.RoomLiveTest do
       render_click(view, "open-import", %{})
       render_click(view, "set-import-source", %{"source" => "lichess"})
 
-      assert has_element?(view, "#import-my-games")
-
-      render_submit(view, "import-my-games", %{"max" => "3"})
-      assert length(room_analysis_ids(code)) == 1
+      assert has_element?(view, "#provider-username[value='linkeduser']")
     end
 
-    test "the my-games button requires a grant; a rejected token deletes it", %{
+    test "a rejected grant token deletes the grant honestly", %{
       conn: conn,
       code: code,
       user: user,
       session: session
     } do
+      :ok = ProviderGrants.put(user.id, "lichess", "lip_revoked_token")
+      stub_game_import([{401, ""}])
+
       conn = Plug.Test.init_test_session(conn, %{user_token: session.token})
       {:ok, view, _} = live(conn, "/rooms/#{code}")
       render_click(view, "open-import", %{})
-
-      # No grant: no button.
-      refute has_element?(view, "#import-my-games")
-
-      :ok = ProviderGrants.put(user.id, "lichess", "lip_revoked_token")
-      render_click(view, "set-import-source", %{"source" => "lichess"})
-      # Reopen so the grant is re-read.
-      render_click(view, "close-modal", %{})
-      render_click(view, "open-import", %{})
-      render_click(view, "set-import-source", %{"source" => "lichess"})
-      assert has_element?(view, "#import-my-games")
-
-      stub_game_import([{401, ""}])
-      html = render_submit(view, "import-my-games", %{"max" => "3"})
+      html = render_click(view, "set-import-source", %{"source" => "lichess"})
 
       assert html =~ "expired"
       refute ProviderGrants.has?(user.id, "lichess")

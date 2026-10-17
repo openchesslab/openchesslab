@@ -44,26 +44,6 @@ defmodule Web.GameImportTest do
     end
   end
 
-  describe "fetch_lichess_user_games/2" do
-    test "returns the PGN body on success" do
-      stub([{200, "[Event \"x\"]\n\n1. e4 e5 1-0\n"}])
-
-      assert {:ok, pgn} = GameImport.fetch_lichess_user_games("someone", 5)
-      assert pgn =~ "1. e4 e5"
-    end
-
-    test "maps provider failures to honest reasons" do
-      stub([{404, ""}])
-      assert {:error, :not_found} = GameImport.fetch_lichess_user_games("nobody", 5)
-
-      stub([{429, ""}])
-      assert {:error, :rate_limited} = GameImport.fetch_lichess_user_games("nobody", 5)
-
-      stub([:timeout])
-      assert {:error, :unreachable} = GameImport.fetch_lichess_user_games("nobody", 5)
-    end
-  end
-
   describe "fetch_lichess_games_by_ids/1" do
     test "returns the PGN and the ids that came back" do
       body = """
@@ -195,33 +175,6 @@ defmodule Web.GameImportTest do
 
       stub([:timeout])
       assert {:error, :unreachable} = GameImport.fetch_chesscom_month_games("nobody", 2026, 9)
-    end
-  end
-
-  describe "fetch_chesscom_user_games/2" do
-    test "takes the newest games from the latest monthly archive" do
-      archives = %{"archives" => ["https://api.chess.com/pub/player/x/games/2026/09"]}
-
-      month = %{
-        "games" => [
-          %{"end_time" => 200, "pgn" => "[Event \"new\"]\n\n1. d4 d5 *"},
-          %{"end_time" => 100, "pgn" => "[Event \"old\"]\n\n1. e4 e5 *"}
-        ]
-      }
-
-      stub([{200, Jason.encode!(archives)}, {200, Jason.encode!(month)}])
-
-      assert {:ok, pgn} = GameImport.fetch_chesscom_user_games("x", 1)
-      assert pgn =~ "new"
-      refute pgn =~ "old"
-    end
-
-    test "unknown user and empty archive are honest errors" do
-      stub([{404, ""}])
-      assert {:error, :not_found} = GameImport.fetch_chesscom_user_games("nobody", 5)
-
-      stub([{200, Jason.encode!(%{"archives" => []})}])
-      assert {:error, :no_games} = GameImport.fetch_chesscom_user_games("quiet", 5)
     end
   end
 
