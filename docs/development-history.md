@@ -109,6 +109,16 @@ The numbers here were **reported during earlier development/benchmark sessions**
 - **10M rows**, 1M postings (10%): table about **514 MiB**, GIN about **10.3 MiB**, total about **739 MiB**. Some aggregates used parallel plans; measurements were a few to tens of ms, query dependent.
 - Earlier homemade posting fetch measured roughly **1–2 µs per posting fetch** in a small disk-index prototype, but not a valid basis for replacing PostgreSQL at scale. Decision: PostgreSQL first; query shape, selectivity, physical IO and planner matter more than isolated posting-fetch microbenchmarks.
 
+### Position-similarity digest benchmark (2026-10-17)
+
+For the planned "find similar positions" search, `Analysis.PositionSimilarity.digest/1` packs per-position facts into SQL-friendly scalars with **board reads only** (no movegen/catalogue extraction): side to move, castling (4 bits), material multiset (10 nibbles), both king squares (12 bits), and open/semi-open file masks. Pawn structure stays in the existing `positions.white_pawns`/`black_pawns` columns. Benchmark `apps/analysis/benchmarks/similarity_digest_postgres.exs` copied the development corpus (**398,170 real positions**) into a disposable bench database:
+
+- Digest+decode+insert ran at **~42k positions/s** — cheap enough for import-time computation and worker backfills.
+- Distribution: 17,052 distinct material keys, 108,235 distinct structures; the startpos material key alone covers **31,433 positions (8%)** → material-only narrowing is useless early; the top pawn structure covers 2,298.
+- **Structure + material narrowing returned 1–9 candidates per sample; ranked top-24 with an SQL agreement score (side, castling, king squares, file-mask popcounts) executed in ≤ 0.09 ms** at 400k rows. The flood case is opening positions (shared structure *and* material); it stays bounded by the top-N shape and is the least interesting query anyway.
+
+Full `EXPLAIN (ANALYZE, BUFFERS)` lines are reproducible with `SIMILARITY_BENCH_FULL_PLAN=1`. Production storage, backfill and the search-mode UI remain planned work until these numbers are re-verified at ≥10M positions.
+
 ### PostgreSQL-native game search
 
 Fixture **10,000 positions, 10,000 games, 10,000 occurrences, 10,000 concrete records**, 1/10 selectivity, page size 100. Measured application SQL vs a joined baseline and full application flow:

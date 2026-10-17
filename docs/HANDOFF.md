@@ -34,6 +34,21 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond (benchmark-slice; bewust nog níet gedeployed als productiefeature):** `Add the
+  position similarity digest and its search benchmark` (`b5caa3f`). Eerste S2-stap: de digest +
+  meetkring, nog géén tabel/backfill/UI. `Analysis.PositionSimilarity.digest/1` pakt per stelling:
+  side-to-move, castling (4 bits), materiaalmultiset (10 nibbles, exact), beide koningsvelden
+  (12 bits), open/semi-open lijnmaskers — alles pure bord-reads (geen movegen/extractie).
+  Pionnenstructuur blijft op `positions.white_pawns/black_pawns`. Benchmark op de dev-corpus
+  (398.170 echte posities → bench-DB): digest+decode+insert **~42k posities/s**; structuur +
+  materiaal narrowing geeft **1–9 kandidaten** per steekproef en de gerankte top-24 draait in
+  **≤ 0,09 ms**; materiaal-alleen is onbruikbaar vroeg in de partij (top-key = 31k posities, 8%).
+  De enige echte flood = openingstellingen (gedeelde structuur én materiaal) — minst interessant
+  geval; top-N blijft begrensd. Les van vandaag: de harness ving **drie** typefouten in mijn
+  FEN-fixtures (PPPP1PPP i.p.v. PPPPPPPP, rank-mixup, castling-validatie) — fixtures blijven
+  tweeksnijdig. Serieel: analysis **663**; formatter, diffcontrole. Volgende stap: productie-tabel
+  + import-time/backfill + zoekmode-UI (top-24, geen paging), met herberekening op ≥10M posities.
+
 - **Afgerond en gedeployed; productie gezond:** `Fix duplicate en-passant-target moves, phantom
   castles and stale rook-capture castling rights` (`7afa835`) + `Add a differential engine
   harness between Chess and Features.Chess` (`881dd6c`) + `Skip malformed dump games in grouped
