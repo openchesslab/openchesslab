@@ -316,7 +316,6 @@
   "room.endgameSource": "Eindspeltabel via lichess.org",
   "room.featuresTab": "Kenmerken",
   "room.featuresError": "Het kenmerkenoverzicht is nu niet beschikbaar.",
-  "room.featuresItems": "{count} onderdelen",
   "room.featuresSource": "Catalogus v{version} — eenmalig per stelling berekend en opgeslagen",
   "room.featuresSection.1": "Toestand",
   "room.featuresSection.2": "Materiaal",
@@ -415,5 +414,7 @@
   "room.provider.unauthorized": "De Lichess-koppeling is verlopen — koppel je account opnieuw.",
   "auth.lichessSync": "Synchroniseer mijn partijen naar mijn bibliotheek",
   "auth.lichessSyncNote": "Partijen die je op Lichess speelt, worden automatisch in je bibliotheek geïmporteerd.",
-  "auth.lichessSyncLast": "Laatst gesynchroniseerd: {time}"
+  "auth.lichessSyncLast": "Laatst gesynchroniseerd: {time}",
+  "common.yes": "Ja",
+  "common.no": "Nee"
 }

@@ -1826,10 +1826,21 @@ defmodule Web.RoomLiveTest do
       assert has_element?(view, "#features-readout")
       refute has_element?(view, "#features-error")
 
-      # Catalogue values for the starting position, in their sections.
+      # Catalogue values for the starting position, labelled in words.
       assert has_element?(view, "#features-readout h4", "State")
-      assert has_element?(view, "#features-readout li", "state.side_to_move")
-      assert has_element?(view, "#features-readout li", "state.castling_rights")
+
+      assert has_element?(
+               view,
+               "#features-readout li span[title='state.side_to_move']",
+               "Side to move"
+             )
+
+      assert has_element?(
+               view,
+               "#features-readout li span[title='state.castling_rights']",
+               "Castling rights"
+             )
+
       # Values render (the starting position is white to move).
       assert has_element?(view, "#features-readout", "white")
 

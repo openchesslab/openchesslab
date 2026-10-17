@@ -316,7 +316,6 @@
   "room.endgameSource": "Tablebase via lichess.org",
   "room.featuresTab": "Features",
   "room.featuresError": "The feature readout is not available right now.",
-  "room.featuresItems": "{count} items",
   "room.featuresSource": "Catalogue v{version} — computed once per position and stored",
   "room.featuresSection.1": "State",
   "room.featuresSection.2": "Material",
@@ -415,5 +414,7 @@
   "room.provider.unauthorized": "The Lichess connection expired — link your account again.",
   "auth.lichessSync": "Sync my games to my library",
   "auth.lichessSyncNote": "Games you play on Lichess are imported into your library automatically.",
-  "auth.lichessSyncLast": "Last synced: {time}"
+  "auth.lichessSyncLast": "Last synced: {time}",
+  "common.yes": "Yes",
+  "common.no": "No"
 }

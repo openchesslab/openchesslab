@@ -3625,29 +3625,58 @@ defmodule Web.RoomLive do
     end
   end
 
-  # Catalogue features in spec-section order, with the stored values.
+  # Catalogue features in spec-section order, with humanized labels and the
+  # stored values.
   defp feature_sections(values) do
     Catalogue.all()
     |> Enum.group_by(& &1.section, & &1.id)
     |> Enum.sort_by(fn {section, _ids} -> section end)
     |> Enum.map(fn {section, ids} ->
-      {section, Enum.map(ids, fn id -> {id, Map.get(values, id)} end)}
+      {section, Enum.map(ids, fn id -> {id, feature_label(id), Map.get(values, id)} end)}
     end)
   end
 
-  # Readout values stay compact: scalars verbatim, collections as sizes.
+  # Labels come from the ids: the section heading carries the prefix, and the
+  # rest becomes sentence-case words ("queenside_tension" → "Queenside tension").
+  defp feature_label(id) do
+    id
+    |> String.split(".", parts: 2)
+    |> List.last()
+    |> humanize()
+  end
+
+  defp humanize(slug) when is_binary(slug) do
+    words = slug |> String.replace(".", " ") |> String.replace("_", " ")
+
+    case words do
+      <<first::utf8, rest::binary>> -> String.upcase(<<first::utf8>>) <> rest
+      _ -> words
+    end
+  end
+
+  defp humanize(_slug), do: ""
+
+  # Values read as language where it matters: booleans become yes/no, and a
+  # collection shows its count (the label carries the noun). The raw value
+  # stays available as a tooltip hint.
   defp feature_value(value, locale) do
     cond do
       is_binary(value) -> value
       is_float(value) -> value |> Float.round(2) |> to_string()
       is_integer(value) -> Integer.to_string(value)
-      is_boolean(value) -> to_string(value)
-      is_list(value) -> Web.I18n.t("room.featuresItems", locale, %{count: length(value)})
-      is_map(value) -> Web.I18n.t("room.featuresItems", locale, %{count: map_size(value)})
+      is_boolean(value) -> Web.I18n.t(if(value, do: "common.yes", else: "common.no"), locale)
+      is_list(value) -> Integer.to_string(length(value))
+      is_map(value) -> Integer.to_string(map_size(value))
       is_nil(value) -> "—"
       true -> to_string(value)
     end
   end
+
+  defp feature_hint(value) when is_list(value) or is_map(value) do
+    value |> inspect() |> String.slice(0, 240)
+  end
+
+  defp feature_hint(_value), do: nil
 
   defp load_book(socket) do
     opening =
