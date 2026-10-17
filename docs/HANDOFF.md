@@ -34,6 +34,19 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond en gedeployed; productie gezond:** `Wrap feature row values and give rows useful
+  tooltips and labels` (`c9db165`). Naar aanleiding van de leesbaarheidsfeedback: (1) **waarde
+  wikkelt** naar een eigen regel (rechts uitgelijnd) wanneer label+waarde niet naast elkaar passen
+  — het label blijft altijd zichtbaar (het krimpt alleen nog als het zélf breder is dan het paneel
+  van ~158px); (2) **label-overrides** voor ids met Nederlandse woorden of typefouten
+  (`threats.aantal_checks` → "Checks available", `threats.aantal_forcing_moves` → "Forcing moves
+  available", `pawns.weak_undeprotectable` → "Weak undefendable pawns"; keys `featureLabels.<id>`,
+  EN+NL, fallback blijft de gehumaniseerde id); (3) **tooltip = de omschrijving** uit de
+  detailstrook ("Which colour is to move"), niet meer de ruwe id — de id blijft beschikbaar via
+  `data-feature` en in de detailstrook. Geverifieerd op 1440×900 (o.a. "Trapped piece": label
+  zichtbaar, waarde op regel 2; "Checks available" i.p.v. "Aantal checks"). Serieel: analysis
+  **655**, web **280**; formatter, diffcontrole.
+
 - **Afgerond en gedeployed; productie gezond:** `Fix per-side feature values, jsonb double-encoding
   and board stability` (`84e6758`). Drie correcties uit de feature-lijst-discussie:
   (1) **per-side waarden** worden nu per kant gelezen i.p.v. `map_size` ("2" bij lege lijsten!):
