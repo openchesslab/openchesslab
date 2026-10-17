@@ -708,6 +708,45 @@ defmodule Web.RoomLiveTest do
     assert length(AnalysisView.move_entries(analysis, "en")) == 10
   end
 
+  test "an imported game names its tab after the players and shows the metadata", %{
+    conn: conn,
+    code: code
+  } do
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    render_click(view, "open-import", %{})
+
+    render_submit(view, "import-pgn", %{
+      "pgn_text" =>
+        "[Event \"Tata Steel\"]\n" <>
+          "[White \"Nakamura, Hikaru\"]\n" <>
+          "[Black \"Martinez, Josep\"]\n" <>
+          "[Date \"2026.01.15\"]\n" <>
+          "[Result \"1-0\"]\n\n" <>
+          "1. e4 e5 2. Nf3 Nc6 1-0\n"
+    })
+
+    [analysis_id] = room_analysis_ids(code)
+    html = render(view)
+
+    # The chip carries the players, its tooltip the full context.
+    assert html =~ ~s(id="analysis-chip-#{analysis_id}")
+
+    assert has_element?(
+             view,
+             "#analysis-chip-#{analysis_id}",
+             "Nakamura, Hikaru – Martinez, Josep"
+           )
+
+    assert html =~ "Nakamura, Hikaru – Martinez, Josep · Tata Steel · 2026.01.15 · 1-0"
+
+    # The same metadata shows above the board.
+    assert has_element?(
+             view,
+             "#analysis-game-info",
+             "Nakamura, Hikaru – Martinez, Josep · Tata Steel · 2026.01.15 · 1-0"
+           )
+  end
+
   describe "multi-source game import" do
     setup do
       original = Application.fetch_env(:web, :game_import_request)

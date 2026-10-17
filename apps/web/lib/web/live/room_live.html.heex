@@ -332,6 +332,15 @@
           aria-label={Web.I18n.t("room.boardHeading", @locale)}
         >
           <div class="flex min-h-0 flex-col gap-2 overflow-y-auto max-[860px]:flex-none max-[860px]:gap-1 max-[860px]:overflow-visible">
+            <% active_entry = Enum.find(@analyses, &(&1.id == @selected_analysis_id)) %>
+            <p
+              :if={active_entry && active_entry.game_detail}
+              id="analysis-game-info"
+              class="m-0 shrink-0 truncate text-center text-xs text-muted"
+              title={active_entry.detail}
+            >
+              {active_entry.game_detail}
+            </p>
             <div
               class="relative flex min-h-0 flex-1 items-center justify-center gap-3 max-[860px]:min-h-0 max-[860px]:flex-wrap"
               data-tour="board"

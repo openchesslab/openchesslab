@@ -8,6 +8,7 @@ defmodule Web.AnalysisView do
 
   alias Analysis.Analysis, as: AnalysisModel
   alias Analysis.Analyses
+  alias Analysis.GameRecords
   alias Analysis.Node
   alias Analysis.PositionStore
   alias Chess.Position
@@ -26,19 +27,28 @@ defmodule Web.AnalysisView do
           source_game_record_id =
             AnalysisModel.source_game_record_id(analysis)
 
+          game = game_metadata(source_game_record_id)
+
+          # Tabs name a game by its players; everything else keeps the
+          # generic label. The tooltip carries the full context.
           label =
-            if source_game_record_id do
-              Web.I18n.t(
-                "room.fromGame",
-                locale,
-                %{id: source_game_record_id}
-              )
-            else
-              Web.I18n.t(
-                "room.analysisLabel",
-                locale,
-                %{index: index + 1}
-              )
+            cond do
+              game && game.white && game.black ->
+                game.white <> " – " <> game.black
+
+              source_game_record_id ->
+                Web.I18n.t(
+                  "room.fromGame",
+                  locale,
+                  %{id: source_game_record_id}
+                )
+
+              true ->
+                Web.I18n.t(
+                  "room.analysisLabel",
+                  locale,
+                  %{index: index + 1}
+                )
             end
 
           start_label =
@@ -55,19 +65,26 @@ defmodule Web.AnalysisView do
               )
             end
 
+          detail =
+            [
+              game && game.detail,
+              start_label,
+              Web.I18n.t(
+                "room.revision",
+                locale,
+                %{revision: revision}
+              )
+            ]
+            |> Enum.reject(&is_nil/1)
+            |> Enum.join(" · ")
+
           [
             %{
               id: id,
               revision: revision,
               label: label,
-              detail:
-                start_label <>
-                  " · " <>
-                  Web.I18n.t(
-                    "room.revision",
-                    locale,
-                    %{revision: revision}
-                  ),
+              detail: detail,
+              game_detail: game && game.detail,
               source_game_record_id: source_game_record_id,
               start: analysis.start
             }
@@ -85,6 +102,43 @@ defmodule Web.AnalysisView do
   def fetch_analysis(analysis_id) do
     Analyses.get(analysis_id)
   end
+
+  # The tab bar and the board header take their context from the source game
+  # record's metadata (players, event, date, result). Analyses without a game
+  # record — or whose record is gone — simply have no game context.
+  defp game_metadata(nil), do: nil
+
+  defp game_metadata(record_id) do
+    case GameRecords.get(record_id) do
+      {:ok, %{metadata: metadata}} ->
+        detail =
+          [
+            players(metadata["white"], metadata["black"]),
+            metadata["event"],
+            metadata["date"],
+            metadata["result"]
+          ]
+          |> Enum.reject(&(&1 in [nil, ""]))
+          |> Enum.join(" · ")
+
+        %{
+          white: metadata["white"],
+          black: metadata["black"],
+          event: metadata["event"],
+          date: metadata["date"],
+          result: metadata["result"],
+          detail: if(detail == "", do: nil, else: detail)
+        }
+
+      _ ->
+        nil
+    end
+  end
+
+  defp players(white, black) when is_binary(white) and is_binary(black),
+    do: white <> " – " <> black
+
+  defp players(_white, _black), do: nil
 
   @spec current_position(AnalysisModel.t(), [non_neg_integer()]) ::
           {:ok, Node.t(), Position.t()} | :not_found
