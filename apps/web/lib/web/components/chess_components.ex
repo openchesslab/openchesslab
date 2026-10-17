@@ -18,8 +18,7 @@ defmodule Web.ChessComponents do
   attr :check_squares, :list, default: []
   attr :last_from, :integer, default: nil
   attr :last_to, :integer, default: nil
-  attr :layers, :map, default: %{}
-  attr :insights, :map, default: %{}
+  attr :highlights, :map, default: %{}
 
   def chess_board(assigns) do
     squares =
@@ -57,25 +56,11 @@ defmodule Web.ChessComponents do
           <% algebraic = Square.to_algebraic(square) %> <% selected = square == @selected_square %> <% target =
             square in @legal_targets %> <% checked = square in @check_squares %> <% last_move =
             square == @last_from or square == @last_to %> <% {visual_file, visual_rank} =
-            visual_coords(square, @orientation) %> <% open_file =
-            @layers[:files] && @insights && @insights[:open_files] &&
-              file_atom(file) in @insights.open_files %> <% white_attack =
-            @layers[:attacks] && @insights && @insights[:attacked_squares] &&
-              square in @insights.attacked_squares.white %> <% black_attack =
-            @layers[:attacks] && @insights && @insights[:attacked_squares] &&
-              square in @insights.attacked_squares.black %> <% white_defended =
-            @layers[:defended] && @insights && @insights[:defended_squares] &&
-              square in @insights.defended_squares.white %> <% black_defended =
-            @layers[:defended] && @insights && @insights[:defended_squares] &&
-              square in @insights.defended_squares.black %> <% white_king_zone =
-            @layers[:king_zone] && @insights && @insights[:king_zone] &&
-              square in @insights.king_zone.white.squares %> <% black_king_zone =
-            @layers[:king_zone] && @insights && @insights[:king_zone] &&
-              square in @insights.king_zone.black.squares %> <% white_outpost =
-            @layers[:outposts] && @insights && @insights[:outposts] &&
-              square in @insights.outposts.white %> <% black_outpost =
-            @layers[:outposts] && @insights && @insights[:outposts] &&
-              square in @insights.outposts.black %>
+            visual_coords(square, @orientation) %> <% hl_white =
+            @highlights[:white] && MapSet.member?(@highlights.white, square) %> <% hl_black =
+            @highlights[:black] && MapSet.member?(@highlights.black, square) %> <% hl_neutral =
+            @highlights[:neutral] && MapSet.member?(@highlights.neutral, square) %> <% hl_file =
+            @highlights[:files] && MapSet.member?(@highlights.files, file) %>
           <button
             id={"#{@board_id}-square-#{algebraic}"}
             type="button"
@@ -100,43 +85,27 @@ defmodule Web.ChessComponents do
             ]}
           >
             <span
-              :if={open_file}
-              class="pointer-events-none absolute inset-x-[18%] top-0 z-[2] h-full border-x-[3px] border-cyan-700/90 bg-cyan-400/25"
+              :if={hl_file}
+              data-highlight="file"
+              class="pointer-events-none absolute inset-x-[18%] top-0 z-[2] h-full border-x-[3px] border-amber-600/80 bg-amber-400/20"
               aria-hidden="true"
             ></span>
             <span
-              :if={white_attack}
-              class="pointer-events-none absolute inset-0 z-[2] bg-blue-500/20"
+              :if={hl_white}
+              data-highlight="white"
+              class="pointer-events-none absolute inset-0 z-[2] bg-blue-500/25"
               aria-hidden="true"
             ></span>
             <span
-              :if={black_attack}
-              class="pointer-events-none absolute inset-0 z-[2] bg-red-500/20"
+              :if={hl_black}
+              data-highlight="black"
+              class="pointer-events-none absolute inset-0 z-[2] bg-red-500/25"
               aria-hidden="true"
             ></span>
             <span
-              :if={white_defended}
-              class="pointer-events-none absolute right-[6%] top-[6%] z-[2] h-[16%] w-[16%] rounded-full bg-blue-600/80"
-              aria-hidden="true"
-            ></span>
-            <span
-              :if={black_defended}
-              class="pointer-events-none absolute right-[6%] top-[6%] z-[2] h-[16%] w-[16%] rounded-full bg-red-600/80"
-              aria-hidden="true"
-            ></span>
-            <span
-              :if={white_king_zone}
-              class="pointer-events-none absolute inset-0 z-[2] ring-2 ring-inset ring-blue-400/70"
-              aria-hidden="true"
-            ></span>
-            <span
-              :if={black_king_zone}
-              class="pointer-events-none absolute inset-0 z-[2] ring-2 ring-inset ring-red-400/70"
-              aria-hidden="true"
-            ></span>
-            <span
-              :if={white_outpost || black_outpost}
-              class="pointer-events-none absolute inset-1 z-[2] rounded-full border-2 border-purple-700/70"
+              :if={hl_neutral}
+              data-highlight="neutral"
+              class="pointer-events-none absolute inset-0 z-[2] bg-amber-400/25"
               aria-hidden="true"
             ></span>
             <span
@@ -251,7 +220,7 @@ defmodule Web.ChessComponents do
 
   defp file_label(file, "black"), do: <<?h - file>>
   defp file_label(file, _orientation), do: <<?a + file>>
-  defp file_atom(file), do: Enum.at([:a, :b, :c, :d, :e, :f, :g, :h], file)
+
   defp coordinate_rank(rank, "black"), do: rank + 1
   defp coordinate_rank(rank, _orientation), do: 8 - rank
 

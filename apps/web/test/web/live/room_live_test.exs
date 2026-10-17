@@ -1961,6 +1961,16 @@ defmodule Web.RoomLiveTest do
       render_click(view, "feature-detail", %{"id" => "tension.pawn_tension"})
       refute has_element?(view, "#features-detail")
 
+      # A row with squares pins them on the board in the same click; the
+      # overlay row shows the pinned feature; clicking again unpins.
+      render_click(view, "feature-detail", %{"id" => "state.king_squares"})
+
+      assert has_element?(view, "#chess-board span[data-highlight='white']")
+      assert has_element?(view, "#overlay-row", "King squares")
+
+      render_click(view, "feature-detail", %{"id" => "state.king_squares"})
+      refute has_element?(view, "#chess-board span[data-highlight='white']")
+
       # The vector is stored for the position, ready for later search.
       [[position_id]] =
         Repo.query!("SELECT id FROM positions WHERE record = $1", [
@@ -2099,7 +2109,7 @@ defmodule Web.RoomLiveTest do
     assert html =~ "/images/pieces/cburnett/white_pawn.svg"
   end
 
-  test "open-file layer has a visible marker on the board", %{conn: conn, code: code} do
+  test "pinning open files draws file bands on the board", %{conn: conn, code: code} do
     position =
       Position.starting_position()
       |> Position.remove_piece(8)
@@ -2109,29 +2119,34 @@ defmodule Web.RoomLiveTest do
     :ok = Rooms.add_analysis(code, analysis.id)
     {:ok, view, _html} = live(conn, "/rooms/#{code}?a=open-file")
 
-    html = render_click(view, "toggle-layer", %{"layer" => "files"})
+    render_click(view, "toggle-feature-pin", %{"id" => "lines.open_files"})
 
-    assert html =~ "border-cyan-700/90"
+    assert has_element?(view, "#chess-board span[data-highlight='file']")
+
+    # Unpinning clears the bands again.
+    html = render_click(view, "toggle-feature-pin", %{"id" => "lines.open_files"})
+    refute html =~ "data-highlight=\"file\""
   end
 
-  test "attacks and defended layers render distinct markers", %{conn: conn, code: code} do
+  test "pinning attacks and defended squares marks both sides", %{conn: conn, code: code} do
     {:ok, analysis, _revision} = Analyses.create("layers")
     :ok = Rooms.add_analysis(code, analysis.id)
     {:ok, view, _html} = live(conn, "/rooms/#{code}?a=layers")
 
-    # Coverage fill for empty/enemy squares only...
-    html = render_click(view, "toggle-layer", %{"layer" => "attacks"})
-    assert html =~ "bg-blue-500/20"
+    render_click(view, "toggle-feature-pin", %{"id" => "attacks.map"})
+    assert has_element?(view, "#chess-board span[data-highlight='white']")
+    assert has_element?(view, "#chess-board span[data-highlight='black']")
 
-    # ...and a separate layer marks defended own pieces with a corner dot.
-    html = render_click(view, "toggle-layer", %{"layer" => "defended"})
-    assert html =~ "bg-blue-600/80"
+    render_click(view, "toggle-feature-pin", %{"id" => "attacks.defended_squares"})
 
-    html = render_click(view, "select-strip-tab", %{"tab" => "layers"})
-    assert html =~ "Defended pieces"
+    # The overlay row names the quick toggles; clearing empties them all.
+    assert has_element?(view, "#overlay-row", "Defended pieces")
+
+    html = render_click(view, "clear-feature-pins", %{})
+    refute html =~ "data-highlight="
   end
 
-  test "outpost layer marks pawn-protected holes", %{conn: conn, code: code} do
+  test "pinning outposts marks the catalogue's outpost squares", %{conn: conn, code: code} do
     position =
       Position.new()
       |> Position.put_piece(Square.from_algebraic("e1"), {:white, :king})
@@ -2142,17 +2157,21 @@ defmodule Web.RoomLiveTest do
     :ok = Rooms.add_analysis(code, analysis.id)
     {:ok, view, _html} = live(conn, "/rooms/#{code}?a=outpost")
 
-    html = render_click(view, "toggle-layer", %{"layer" => "outposts"})
-    assert html =~ "border-purple-700/70"
+    render_click(view, "toggle-feature-pin", %{"id" => "squares.outpost"})
+
+    # The d4 pawn guards c5 and e5: both are white outposts in the catalogue.
+    assert has_element?(view, "#chess-board-square-c5 span[data-highlight='white']")
+    assert has_element?(view, "#chess-board-square-e5 span[data-highlight='white']")
   end
 
-  test "the starting position has no outposts", %{conn: conn, code: code} do
+  test "the starting position has no outposts to pin", %{conn: conn, code: code} do
     {:ok, analysis, _revision} = Analyses.create("outpost-start")
     :ok = Rooms.add_analysis(code, analysis.id)
     {:ok, view, _html} = live(conn, "/rooms/#{code}?a=outpost-start")
 
-    html = render_click(view, "toggle-layer", %{"layer" => "outposts"})
-    refute html =~ "border-purple-700/70"
+    render_click(view, "toggle-feature-pin", %{"id" => "squares.outpost"})
+
+    refute has_element?(view, "#chess-board span[data-highlight='white']")
   end
 
   test "switching locale relocalizes the move tree", %{conn: conn} do

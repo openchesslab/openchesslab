@@ -24,6 +24,7 @@ defmodule Web.RoomLive do
   alias Chess.Notation.UCI
   alias Chess.Position
   alias Chess.PositionDraft
+  alias Chess.Square
   alias Features.Catalogue
   alias Web.AnalysisView
   alias Web.DemoData
@@ -104,7 +105,13 @@ defmodule Web.RoomLive do
       cursor_square: 0,
       legal_targets: [],
       orientation: "white",
-      layers: %{files: false, attacks: false, defended: false, king_zone: false, outposts: false},
+      pinned_features: MapSet.new(),
+      feature_highlights: %{
+        white: MapSet.new(),
+        black: MapSet.new(),
+        neutral: MapSet.new(),
+        files: MapSet.new()
+      },
       selected_tab: "material",
       strip_open: true,
       annotation_color: "blue",
@@ -694,14 +701,21 @@ defmodule Web.RoomLive do
     {:noreply, assign(socket, :orientation, orientation)}
   end
 
-  def handle_event("toggle-layer", %{"layer" => layer}, socket)
-      when layer in ["files", "attacks", "defended", "king_zone", "outposts"] do
-    layers = Map.update!(socket.assigns.layers, String.to_existing_atom(layer), &(!&1))
-    {:noreply, assign(socket, :layers, layers)}
+  # Overlay chips and readout rows pin catalogue features on the board; the
+  # same click pins and unpins.
+  def handle_event("toggle-feature-pin", %{"id" => id}, socket) when is_binary(id) do
+    {:noreply, toggle_pin(socket, id)}
+  end
+
+  def handle_event("clear-feature-pins", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:pinned_features, MapSet.new())
+     |> assign(:feature_highlights, empty_highlights())}
   end
 
   def handle_event("select-strip-tab", %{"tab" => tab}, socket)
-      when tab in ["material", "space", "layers"] do
+      when tab in ["material", "space"] do
     socket = assign(socket, :selected_tab, tab)
     {:noreply, push_strip_preference(socket)}
   end
@@ -1196,10 +1210,20 @@ defmodule Web.RoomLive do
     end
   end
 
-  # The readout's detail strip: clicking a row explains the feature.
+  # The readout's detail strip: clicking a row explains the feature and —
+  # when the feature has squares — pins them on the board. Clicking again
+  # closes the strip and unpins.
   def handle_event("feature-detail", %{"id" => id}, socket) when is_binary(id) do
     detail = if socket.assigns.features_detail == id, do: nil, else: id
-    {:noreply, assign(socket, :features_detail, detail)}
+    socket = assign(socket, :features_detail, detail)
+
+    visualizable? =
+      case socket.assigns.features && Map.get(socket.assigns.features.values, id) do
+        nil -> false
+        value -> highlights_for(value) != nil
+      end
+
+    {:noreply, if(visualizable?, do: toggle_pin(socket, id), else: socket)}
   end
 
   # Plays a book or endgame move into the analysis, like playing it on the
@@ -2671,7 +2695,7 @@ defmodule Web.RoomLive do
   defp valid_annotation_color(color, _fallback) when color in @shape_colors, do: color
   defp valid_annotation_color(_color, fallback), do: fallback
 
-  defp valid_strip_tab(tab, _fallback) when tab in ["material", "space", "layers"], do: tab
+  defp valid_strip_tab(tab, _fallback) when tab in ["material", "space"], do: tab
   defp valid_strip_tab(_tab, fallback), do: fallback
 
   defp push_strip_preference(socket) do
@@ -2932,12 +2956,6 @@ defmodule Web.RoomLive do
   defp castling_label("white_queenside", locale), do: Web.I18n.t("room.whiteQueenside", locale)
   defp castling_label("black_kingside", locale), do: Web.I18n.t("room.blackKingside", locale)
   defp castling_label("black_queenside", locale), do: Web.I18n.t("room.blackQueenside", locale)
-
-  defp layer_label_key("files"), do: "room.layerFiles"
-  defp layer_label_key("attacks"), do: "room.layerAttacks"
-  defp layer_label_key("defended"), do: "room.layerDefended"
-  defp layer_label_key("king_zone"), do: "room.layerKingZone"
-  defp layer_label_key("outposts"), do: "room.layerOutposts"
 
   defp tab_class(selected, tab) do
     base =
@@ -3652,10 +3670,13 @@ defmodule Web.RoomLive do
     end
   end
 
-  # The features tab reloads when the position changes while it is visible;
-  # the catalogue vector is extracted once per position and stored durably.
+  # The vector is needed while the features tab is visible or any feature is
+  # pinned; it is extracted once per position and stored durably.
   defp maybe_load_features(socket) do
-    if socket.assigns.engine_tab == "features" and not is_nil(socket.assigns.current_node) do
+    needed? =
+      socket.assigns.engine_tab == "features" or MapSet.size(socket.assigns.pinned_features) > 0
+
+    if needed? and not is_nil(socket.assigns.current_node) do
       load_features(socket)
     else
       socket
@@ -3665,7 +3686,8 @@ defmodule Web.RoomLive do
   defp load_features(socket) do
     case PositionFeatures.fetch_or_extract(Node.position_id(socket.assigns.current_node)) do
       {:ok, result} ->
-        assign(socket,
+        socket
+        |> assign(
           features: %{
             version: result.version,
             sections: feature_sections(result.features, socket.assigns.locale),
@@ -3673,10 +3695,138 @@ defmodule Web.RoomLive do
           },
           features_status: :ok
         )
+        |> assign_highlights()
 
       {:error, _reason} ->
         assign(socket, features: nil, features_status: :unreachable)
     end
+  end
+
+  # Pinning needs the raw vector even with the features tab closed.
+  defp toggle_pin(socket, id) do
+    socket =
+      if socket.assigns.features, do: socket, else: load_features(socket)
+
+    pinned =
+      if MapSet.member?(socket.assigns.pinned_features, id),
+        do: MapSet.delete(socket.assigns.pinned_features, id),
+        else: MapSet.put(socket.assigns.pinned_features, id)
+
+    socket |> assign(:pinned_features, pinned) |> assign_highlights()
+  end
+
+  defp assign_highlights(socket) do
+    values = (socket.assigns.features && socket.assigns.features.values) || %{}
+
+    assign(
+      socket,
+      :feature_highlights,
+      compute_highlights(values, socket.assigns.pinned_features)
+    )
+  end
+
+  defp empty_highlights do
+    %{white: MapSet.new(), black: MapSet.new(), neutral: MapSet.new(), files: MapSet.new()}
+  end
+
+  # The five common overlays as one-click chips, drawn from catalogue features.
+  defp overlay_presets do
+    [
+      {"lines.open_files", "room.layerFiles"},
+      {"attacks.map", "room.layerAttacks"},
+      {"attacks.defended_squares", "room.layerDefended"},
+      {"king.zone", "room.layerKingZone"},
+      {"squares.outpost", "room.layerOutposts"}
+    ]
+  end
+
+  # Pinned features beyond the presets appear as removable chips.
+  defp overlay_extra_pins(pinned) do
+    preset_ids = MapSet.new(overlay_presets(), &elem(&1, 0))
+
+    pinned
+    |> MapSet.difference(preset_ids)
+    |> MapSet.to_list()
+    |> Enum.sort()
+  end
+
+  defp compute_highlights(values, pinned) do
+    Enum.reduce(pinned, empty_highlights(), fn id, acc ->
+      case highlights_for(Map.get(values, id)) do
+        nil -> acc
+        highlights -> merge_highlights(acc, highlights)
+      end
+    end)
+  end
+
+  defp merge_highlights(a, b) do
+    %{
+      white: MapSet.union(a.white, b.white),
+      black: MapSet.union(a.black, b.black),
+      neutral: MapSet.union(a.neutral, b.neutral),
+      files: MapSet.union(a.files, b.files)
+    }
+  end
+
+  # What a feature can draw: per-side square lists, plain square lists and
+  # file letters ("a"). Other shapes have nothing to pin; empty results too.
+  defp highlights_for(%{"white" => white, "black" => black})
+       when (is_list(white) or is_binary(white)) and (is_list(black) or is_binary(black)) do
+    highlights = %{
+      white: square_set(white),
+      black: square_set(black),
+      neutral: MapSet.new(),
+      files: MapSet.new()
+    }
+
+    if MapSet.size(highlights.white) + MapSet.size(highlights.black) > 0,
+      do: highlights,
+      else: nil
+  end
+
+  defp highlights_for(value) when is_binary(value) do
+    squares = square_set(value)
+
+    if MapSet.size(squares) > 0 do
+      %{white: MapSet.new(), black: MapSet.new(), neutral: squares, files: MapSet.new()}
+    else
+      nil
+    end
+  end
+
+  defp highlights_for(list) when is_list(list) and list != [] do
+    if file_letters?(list) do
+      files = MapSet.new(list, fn letter -> :binary.first(letter) - ?a end)
+
+      if MapSet.size(files) > 0,
+        do: %{white: MapSet.new(), black: MapSet.new(), neutral: MapSet.new(), files: files},
+        else: nil
+    else
+      squares = square_set(list)
+
+      if MapSet.size(squares) > 0,
+        do: %{white: MapSet.new(), black: MapSet.new(), neutral: squares, files: MapSet.new()},
+        else: nil
+    end
+  end
+
+  defp highlights_for(_value), do: nil
+
+  defp square_set(value) when is_binary(value), do: square_set([value])
+
+  defp square_set(list) when is_list(list) do
+    Enum.reduce(list, MapSet.new(), fn value, acc ->
+      case Square.from_algebraic(value) do
+        square when is_integer(square) -> MapSet.put(acc, square)
+        _ -> acc
+      end
+    end)
+  end
+
+  defp file_letters?(list) do
+    Enum.all?(list, fn value ->
+      is_binary(value) and byte_size(value) == 1 and value in ~w(a b c d e f g h)
+    end)
   end
 
   # Catalogue features in spec-section order, with humanized labels and the

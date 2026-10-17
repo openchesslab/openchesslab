@@ -378,8 +378,7 @@
                     shapes={@board_shapes}
                     annotation_color={@annotation_color}
                     piece_set={@piece_set}
-                    layers={@layers}
-                    insights={if @draft_position, do: %{}, else: @insights || %{}}
+                    highlights={if @draft_position, do: %{}, else: @feature_highlights || %{}}
                     last_from={if @draft_position, do: nil, else: @last_from}
                     last_to={if @draft_position, do: nil, else: @last_to}
                     check_squares={
@@ -671,14 +670,6 @@
               >{Web.I18n.t("room.space", @locale)}</button>
               <button
                 type="button"
-                class={tab_class(@selected_tab, "layers")}
-                role="tab"
-                aria-selected={@selected_tab == "layers"}
-                phx-click="select-strip-tab"
-                phx-value-tab="layers"
-              >{Web.I18n.t("room.layersTab", @locale)}</button>
-              <button
-                type="button"
                 class="ml-auto inline-flex min-w-9 items-center justify-center px-2 text-muted hover:bg-panel-hover hover:text-foreground max-[860px]:py-[.3rem]"
                 aria-expanded={@strip_open}
                 aria-label={
@@ -736,20 +727,6 @@
                       </div>
                     </div>
                   </div>
-                <% else %>
-                  <div class="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted">
-                    <label
-                      :for={layer <- ["files", "attacks", "defended", "king_zone", "outposts"]}
-                      class="inline-flex items-center gap-1.5"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={@layers[String.to_existing_atom(layer)]}
-                        phx-click="toggle-layer"
-                        phx-value-layer={layer}
-                      /> {Web.I18n.t(layer_label_key(layer), @locale)}
-                    </label>
-                  </div>
                 <% end %>
               <% end %>
             </div>
@@ -762,6 +739,57 @@
               {Web.I18n.t("room.noInsights", @locale)}
             </p>
           </section>
+
+          <div
+            id="overlay-row"
+            class="flex flex-wrap items-center gap-1.5 pt-2 text-xs"
+            aria-label={Web.I18n.t("room.overlays", @locale)}
+          >
+            <span class="text-[.68rem] font-semibold uppercase tracking-wider text-muted">
+              {Web.I18n.t("room.overlays", @locale)}
+            </span>
+
+            <%= for {id, key} <- overlay_presets() do %>
+              <% pinned = MapSet.member?(@pinned_features, id) %>
+              <button
+                type="button"
+                data-overlay={id}
+                class={[
+                  "rounded-full border px-2 py-0.5 text-[.68rem]",
+                  pinned && "border-highlight/50 bg-highlight/15 text-foreground",
+                  not pinned &&
+                    "border-border text-muted hover:bg-panel-hover hover:text-foreground"
+                ]}
+                aria-pressed={to_string(pinned)}
+                title={feature_description(id, @locale)}
+                phx-click="toggle-feature-pin"
+                phx-value-id={id}
+              >{Web.I18n.t(key, @locale)}</button>
+            <% end %>
+
+            <%= for id <- overlay_extra_pins(@pinned_features) do %>
+              <span class="inline-flex items-center gap-1 rounded-full border border-highlight/50 bg-highlight/15 px-2 py-0.5 text-[.68rem] text-foreground">
+                {feature_label(id, @locale)}
+                <button
+                  type="button"
+                  data-overlay={id}
+                  class="text-muted hover:text-error"
+                  aria-label={Web.I18n.t("room.overlayRemove", @locale) <> ": " <> feature_label(id, @locale)}
+                  title={Web.I18n.t("room.overlayRemove", @locale)}
+                  phx-click="toggle-feature-pin"
+                  phx-value-id={id}
+                >×</button>
+              </span>
+            <% end %>
+
+            <button
+              :if={MapSet.size(@pinned_features) > 0}
+              type="button"
+              id="overlay-clear"
+              class="rounded-full px-2 py-0.5 text-[.68rem] text-muted underline hover:text-foreground"
+              phx-click="clear-feature-pins"
+            >{Web.I18n.t("room.overlaysClear", @locale)}</button>
+          </div>
         </section>
 
         <aside
