@@ -216,8 +216,8 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   klassenaam vastpinde is bijgewerkt. Serieel: analysis **655**, web **276**, chess **591**,
   features **209**; formatter, diffcontrole.
 
-- **Bezig (interruptiegevoelig): hervatting van de bulk-import loopt** (machine `bulk-resume`,
-  shared-cpu-4x, AMS; `ed38319` gedeployed). Wat er misging bij de eerste run: (1) de
+- **Bezig (interruptiegevoelig): hervatting van de bulk-import loopt** (machine `bulk-resume-2`,
+  performance-2x, AMS). Wat er misging bij de eerste run: (1) de
   parallelle import deed maar **~2 partijen/s** — elke partij een eigen transactie met ~40
   position-inserts door pgbouncer op de kleine MPG-instantie (1 GB RAM; corpus groeide voorbij
   de cache) → commit- en cache-thrash; (2) de eval crashte (exit 1, vermoedelijk
@@ -225,13 +225,20 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   de opdracht vanaf 0 → elke partij faalde op een bestaand record-id (telling bevroren op
   66.237; worker vernietigd). **Fixes in `ed38319`**: grouped mode standaard (batches van 10,
   één transactie per groep), `record_id_offset` (hervatten zonder botsen/dupliceren),
-  exception-vangnet (eerlijke samenvatting i.p.v. crash), curl-stall-detectie, `--restart no`.
+  exception-vangnet (eerlijke samenvatting i.p.v.v. crash), curl-stall-detectie, `--restart no`.
   **Boekquery-fix (zelfde commit)**: covering indexes; productie-EXPLAIN van de boekquery op de
-  startstelling: **8.309 ms → 516 ms**. Hervatting: `skip: 35.600.000`, `record_id_offset:
-  66.237`, zelfde prefix; eerst ~90 min skip-scan, daarna ~100k resterende partijen. Voortgang
-  via `flyctl logs` (`bulk import progress` met handed=). Bij een crash: nieuwe run met
-  skip = vorige read, offset = 66.237 + reeds geïmporteerd. Mijn eigen fouten hier: ETA op
-  scanrate i.p.v. importrate, en de restart-policy niet uitgezet.
+  startstelling: **8.309 ms → 516 ms**. **Hervattingsfout 2026-10-17 (opgelost):** de eerste
+  hervatting gebruikte `record_id_offset: 66.237` (= aantal records) en **aboortte op de eerste
+  partij na de skip-grens** (`{:import_failed, 1, :already_exists}`) — mislukte partijen
+  consumeren wél een suffix, dus de juiste offset is de **hoogste bestaande suffix**, niet de
+  telling. Prod-query: count 66.237, min suffix 1, **max suffix 66.253**, 16 gaten verspreid
+  (13181, 19600, 32307, …) = run-1-importfouten, géén overlap voorbij de skip-grens — scenario
+  "stale resume had al geschreven" uitgesloten. Gecorrigeerde run: `skip: 35.600.000`,
+  `record_id_offset: 66.253`, zelfde prefix; eerst ~75 min skip-scan (~8,2k games/s), daarna
+  ~100k resterende partijen. Oude `bulk-resume`-machine vernietigd. Voortgang via `flyctl logs`
+  (`bulk import progress` met handed=). Bij een crash: nieuwe run met skip = vorige read, offset
+  = max suffix (niet de telling). Mijn eigen fouten hier: ETA op scanrate i.p.v. importrate, de
+  restart-policy niet uitgezet, en de offset op de telling i.p.v. de max-suffix gebaseerd.
 
 - **Afgerond, klaar voor commit/deploy:** `Add streaming bulk corpus import for lichess dumps`.
   `Analysis.BulkImport`: `curl | zstd -dc` → FIFO (echte backpressure, begrensd geheugen),
