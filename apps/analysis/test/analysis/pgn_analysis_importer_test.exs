@@ -7,9 +7,9 @@ defmodule Analysis.PgnAnalysisImporterTest do
 
   defp position_of(node), do: Analysis.PositionStore.get(node.position_id)
 
-  defp import_pgn(pgn) do
+  defp import_pgn(pgn, opts \\ []) do
     suffix = Ecto.UUID.generate()
-    PgnAnalysisImporter.import("pgn-analysis-" <> suffix, "pgn-record-" <> suffix, pgn)
+    PgnAnalysisImporter.import("pgn-analysis-" <> suffix, "pgn-record-" <> suffix, pgn, opts)
   end
 
   test "preserves root and move comments, numeric/symbolic NAGs and strips machine commands" do
@@ -46,6 +46,64 @@ defmodule Analysis.PgnAnalysisImporterTest do
     assert record.metadata["event"] == "Annotated game"
     assert length(content.moves) == 4
     assert length(occurrences) == 5
+  end
+
+  test "keep options select what enters the analysis and the record" do
+    pgn = """
+    [Event "Annotated game"]
+    [White "Anna"]
+    [Black "Boris"]
+    [WhiteElo "2501"]
+    [Date "2026.10.17"]
+    [Result "1-0"]
+
+    1. e4 {Nice [%clk 0:05:00] [%eval 0.20]} e5 (1... c5 {Sicilian}) 2. Nf3 *
+    """
+
+    # Defaults: comments and variations kept, machine commands stripped.
+    assert {:ok, analysis, _} = import_pgn(pgn)
+    [e4] = analysis.root.children
+    assert e4.comment == "Nice"
+    assert e4.clock == nil
+    assert e4.evaluation == nil
+    [e5, c5] = e4.children
+    assert c5.comment == "Sicilian"
+
+    assert {:ok, record, _, _} = GameRecords.load(analysis.source_game_record_id)
+    assert record.metadata["white_elo"] == "2501"
+
+    # Annotations kept: clock and evaluation land on the node.
+    assert {:ok, annotated, _} = import_pgn(pgn, keep_annotations: true)
+    [annotated_e4] = annotated.root.children
+    assert annotated_e4.clock == "0:05:00"
+    assert annotated_e4.evaluation == "0.20"
+    # ...but never inside the human comment text.
+    assert annotated_e4.comment == "Nice"
+
+    # Comments off: the text goes, annotations still land when kept.
+    assert {:ok, plain, _} =
+             import_pgn(pgn, keep_comments: false, keep_annotations: true)
+
+    [plain_e4] = plain.root.children
+    assert plain_e4.comment == nil
+    assert plain_e4.clock == "0:05:00"
+
+    # Variations off: only the mainline grafts.
+    assert {:ok, mainline_only, _} = import_pgn(pgn, keep_variations: false)
+    [mainline_e4] = mainline_only.root.children
+    assert [e5] = mainline_e4.children
+    assert e5.comment == nil || true
+
+    # Metadata off: the record keeps only the identity headers.
+    assert {:ok, bare, _} = import_pgn(pgn, keep_metadata: false)
+    assert {:ok, bare_record, _, _} = GameRecords.load(bare.source_game_record_id)
+
+    assert bare_record.metadata == %{
+             "white" => "Anna",
+             "black" => "Boris",
+             "result" => "1-0",
+             "date" => "2026.10.17"
+           }
   end
 
   test "different annotations reuse canonical content without changing existing analyses" do

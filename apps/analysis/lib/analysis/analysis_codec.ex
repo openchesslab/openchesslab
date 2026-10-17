@@ -112,7 +112,9 @@ defmodule Analysis.AnalysisCodec do
          transition: transition,
          comment: comment,
          nags: nags,
-         children: children
+         children: children,
+         clock: clock,
+         evaluation: evaluation
        })
        when is_list(children) do
     with :ok <-
@@ -123,6 +125,10 @@ defmodule Analysis.AnalysisCodec do
            validate_comment(comment),
          :ok <-
            validate_nags(nags),
+         :ok <-
+           validate_annotation(clock),
+         :ok <-
+           validate_annotation(evaluation),
          {:ok, encoded_children} <-
            encode_nodes(children) do
       {:ok,
@@ -131,13 +137,11 @@ defmodule Analysis.AnalysisCodec do
          encoded_transition,
          comment,
          nags,
+         clock,
+         evaluation,
          encoded_children
        }}
     end
-  end
-
-  defp encode_node(_node) do
-    {:error, :invalid_node}
   end
 
   defp encode_nodes([]) do
@@ -229,7 +233,14 @@ defmodule Analysis.AnalysisCodec do
     {:error, :invalid_record}
   end
 
+  # Records written before the annotation fields existed carry the 5-tuple.
   defp decode_node({position_id, encoded_transition, comment, nags, encoded_children}) do
+    decode_node({position_id, encoded_transition, comment, nags, nil, nil, encoded_children})
+  end
+
+  defp decode_node(
+         {position_id, encoded_transition, comment, nags, clock, evaluation, encoded_children}
+       ) do
     with :ok <-
            validate_position_id(position_id),
          {:ok, transition} <-
@@ -238,6 +249,10 @@ defmodule Analysis.AnalysisCodec do
            validate_comment(comment),
          :ok <-
            validate_nags(nags),
+         :ok <-
+           validate_annotation(clock),
+         :ok <-
+           validate_annotation(evaluation),
          {:ok, children} <-
            decode_nodes(encoded_children) do
       {:ok,
@@ -246,7 +261,9 @@ defmodule Analysis.AnalysisCodec do
          transition: transition,
          comment: comment,
          nags: nags,
-         children: children
+         children: children,
+         clock: clock,
+         evaluation: evaluation
        }}
     end
   end
@@ -360,6 +377,12 @@ defmodule Analysis.AnalysisCodec do
   defp validate_position_id(_position_id) do
     {:error, :invalid_position_id}
   end
+
+  defp validate_annotation(nil), do: :ok
+
+  defp validate_annotation(value) when is_binary(value) and byte_size(value) <= 32, do: :ok
+
+  defp validate_annotation(_value), do: {:error, :invalid_annotation}
 
   defp validate_comment(nil) do
     :ok

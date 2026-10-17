@@ -21,17 +21,23 @@ defmodule Analysis.Node do
           transition: Transition.t() | nil,
           comment: String.t() | nil,
           nags: [nag()],
-          children: [t()]
+          children: [t()],
+          clock: String.t() | nil,
+          evaluation: String.t() | nil
         }
 
   @max_nags 8
 
+  # `clock` / `evaluation` are imported annotations (the PGN `[%clk]` /
+  # `[%eval]` machine commands) — nil unless the import kept annotations.
   @enforce_keys [:position_id]
   defstruct position_id: nil,
             transition: nil,
             comment: nil,
             nags: [],
-            children: []
+            children: [],
+            clock: nil,
+            evaluation: nil
 
   @spec new(position_id()) :: t()
   def new(position_id) do

@@ -81,6 +81,30 @@ defmodule Analysis.AnalysisCodecTest do
              {:ok, analysis}
   end
 
+  test "decodes records written before node annotations existed" do
+    # The pre-annotation node shape carried no clock/evaluation slots.
+    payload = {"analysis-legacy", 1, nil, %{}, {42, 0, "Main line", [], []}}
+
+    record = <<"OCLANL01", :erlang.term_to_binary(payload, [:deterministic])::binary>>
+
+    assert {:ok, analysis} = AnalysisCodec.decode(record)
+    root = AnalysisModel.root(analysis)
+    assert root.comment == "Main line"
+    assert root.clock == nil
+    assert root.evaluation == nil
+  end
+
+  test "node annotations survive the durable record" do
+    payload = {"analysis-annotated", 1, nil, %{}, {42, 0, nil, [], "1:23", "0.5", []}}
+
+    record = <<"OCLANL01", :erlang.term_to_binary(payload, [:deterministic])::binary>>
+
+    assert {:ok, analysis} = AnalysisCodec.decode(record)
+    root = AnalysisModel.root(analysis)
+    assert root.clock == "1:23"
+    assert root.evaluation == "0.5"
+  end
+
   test "round trips all supported promotion values" do
     promotions = [
       nil,

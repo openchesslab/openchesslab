@@ -30,16 +30,44 @@ defmodule Analysis.PgnAnalysisImporter do
            variations: [[tree_move()]]
          }
 
-  @spec import(String.t(), String.t(), String.t()) ::
+  @doc """
+  Import options (defaults keep the historical behavior):
+
+    * `keep_comments` (true) — human comments land on the nodes
+    * `keep_variations` (true) — side variations are grafted as branches
+    * `keep_metadata` (true) — the game record keeps every header; false
+      stores only the identity headers (White/Black/Result/Date)
+    * `keep_annotations` (false) — keep the `[%clk]` / `[%eval]` machine
+      commands on the nodes as `clock` / `evaluation`
+  """
+  @spec import(String.t(), String.t(), String.t(), keyword()) ::
           {:ok, Analysis.Analysis.t(), pos_integer()} | {:error, term()}
-  def import(analysis_id, record_id, pgn) do
+  def import(analysis_id, record_id, pgn, opts \\ []) do
+    keep_comments? = Keyword.get(opts, :keep_comments, true)
+    keep_variations? = Keyword.get(opts, :keep_variations, true)
+    keep_annotations? = Keyword.get(opts, :keep_annotations, false)
+    keep_metadata? = Keyword.get(opts, :keep_metadata, true)
+
     with {:ok, parsed} <- PgnImporter.parse(pgn),
-         {:ok, mainline} <- parse_tree(pgn),
+         {:ok, mainline} <-
+           parse_tree(pgn,
+             keep_comments: keep_comments?,
+             keep_annotations: keep_annotations?
+           ),
          :ok <- check_mainline_agreement(mainline, parsed.moves) do
+      parsed =
+        if keep_metadata?,
+          do: parsed,
+          else: %{
+            parsed
+            | headers: Map.take(parsed.headers, ["White", "Black", "Result", "Date"])
+          }
+
       Repo.transaction(fn ->
         with {:ok, record} <- PgnImporter.import_parsed(record_id, parsed),
              {:ok, analysis, revision} <- Analyses.create_from_game_record(analysis_id, record.id),
-             {:ok, root} <- graft(analysis.root, parsed.initial_position, mainline),
+             {:ok, root} <-
+               graft(analysis.root, parsed.initial_position, mainline, keep_variations?),
              analysis = %{analysis | root: root},
              {:ok, revision} <- AnalysisStore.update(analysis, revision) do
           {analysis, revision}
@@ -55,26 +83,26 @@ defmodule Analysis.PgnAnalysisImporter do
   end
 
   # Comments before the first mainline move belong to the root.
-  defp graft(root, initial_position, [first | rest]) do
+  defp graft(root, initial_position, [first | rest], keep_variations?) do
     comment = comment_text(first.leading)
     mainline = [%{first | leading: []} | rest]
 
-    with {:ok, grafted} <- graft_line(root, initial_position, mainline) do
+    with {:ok, grafted} <- graft_line(root, initial_position, mainline, keep_variations?) do
       {:ok, %{grafted | comment: comment || grafted.comment}}
     end
   end
 
   # Walks the mainline, annotating the existing game-record children and
   # grafting each move's variations as siblings of the mainline child.
-  defp graft_line(node, _position, []), do: {:ok, node}
+  defp graft_line(node, _position, [], _keep_variations?), do: {:ok, node}
 
-  defp graft_line(node, position, [move | rest]) do
+  defp graft_line(node, position, [move | rest], keep_variations?) do
     with {:ok, m} <- san(position, move.san),
          {:ok, next_position} <- Position.apply_move(position, m),
          [main | siblings] <- node.children,
          true <- main.transition == {:move, m},
-         {:ok, main} <- graft_line(main, next_position, rest),
-         {:ok, variation_nodes} <- build_variations(move.variations, position),
+         {:ok, main} <- graft_line(main, next_position, rest, keep_variations?),
+         {:ok, variation_nodes} <- build_variations(move.variations, position, keep_variations?),
          {:ok, main} <- apply_annotations(main, move) do
       {:ok, %{node | children: [main | siblings ++ variation_nodes]}}
     else
@@ -84,23 +112,26 @@ defmodule Analysis.PgnAnalysisImporter do
     end
   end
 
-  # Variation heads are alternatives at the given (parent) position.
-  defp build_variations(variations, position) do
+  # Variation heads are alternatives at the given (parent) position; an
+  # import that drops variations never builds them.
+  defp build_variations(_variations, _position, false), do: {:ok, []}
+
+  defp build_variations(variations, position, true) do
     Enum.reduce_while(variations, {:ok, []}, fn line, {:ok, acc} ->
-      case build_children(line, position) do
+      case build_children(line, position, true) do
         {:ok, nodes} -> {:cont, {:ok, acc ++ nodes}}
         {:error, _} = error -> {:halt, error}
       end
     end)
   end
 
-  defp build_children([], _position), do: {:ok, []}
+  defp build_children([], _position, _keep_variations?), do: {:ok, []}
 
-  defp build_children([move | rest], position) do
+  defp build_children([move | rest], position, keep_variations?) do
     with {:ok, m} <- san(position, move.san),
          {:ok, next_position} <- Position.apply_move(position, m),
-         {:ok, continuation} <- build_children(rest, next_position),
-         {:ok, alternatives} <- build_variations(move.variations, position),
+         {:ok, continuation} <- build_children(rest, next_position, keep_variations?),
+         {:ok, alternatives} <- build_variations(move.variations, position, keep_variations?),
          {:ok, node} <-
            Node.new(PositionStore.append(next_position), {:move, m})
            |> apply_annotations(move) do
@@ -113,7 +144,14 @@ defmodule Analysis.PgnAnalysisImporter do
 
   defp apply_annotations(node, move) do
     if Node.valid_nags?(move.nags) do
-      {:ok, %{node | comment: comment_text(move.leading ++ move.comments), nags: move.nags}}
+      {:ok,
+       %{
+         node
+         | comment: comment_text(move.leading ++ move.comments),
+           nags: move.nags,
+           clock: move.clock,
+           evaluation: move.evaluation
+       }}
     else
       invalid("Invalid or excessive move annotations")
     end
@@ -137,11 +175,18 @@ defmodule Analysis.PgnAnalysisImporter do
 
   # The PGN movetext as a move tree. A variation following a move is an
   # alternative to that move; a variation without a preceding move is invalid.
-  defp parse_tree(pgn) do
+  defp parse_tree(pgn, opts) do
     text = String.replace(pgn, ~r/^\s*\[[^\]]+\]\s*$/m, " ")
     tokens = @tokens |> Regex.scan(text) |> Enum.map(&hd/1)
 
-    case parse_sequence(tokens, %{moves: [], pending: []}) do
+    acc = %{
+      moves: [],
+      pending: [],
+      keep_comments: Keyword.fetch!(opts, :keep_comments),
+      keep_annotations: Keyword.fetch!(opts, :keep_annotations)
+    }
+
+    case parse_sequence(tokens, acc) do
       {:ok, line, []} -> {:ok, line}
       {:ok, _line, _rest} -> invalid("Unexpected variation ending")
       {:error, _} = error -> error
@@ -163,7 +208,13 @@ defmodule Analysis.PgnAnalysisImporter do
             invalid("Variation without a preceding move")
 
           _ ->
-            with {:ok, variation, rest2} <- parse_sequence(rest, %{moves: [], pending: []}),
+            with {:ok, variation, rest2} <-
+                   parse_sequence(rest, %{
+                     moves: [],
+                     pending: [],
+                     keep_comments: acc.keep_comments,
+                     keep_annotations: acc.keep_annotations
+                   }),
                  [")" | rest3] <- rest2 do
               parse_sequence(rest3, attach_variation(acc, variation))
             else
@@ -227,14 +278,24 @@ defmodule Analysis.PgnAnalysisImporter do
   defp push_move(acc, text) do
     san = String.replace(text, ~r/[!?]+$/, "")
 
-    move = %{san: san, leading: Enum.reverse(acc.pending), comments: [], nags: [], variations: []}
+    move = %{
+      san: san,
+      leading: Enum.reverse(acc.pending),
+      comments: [],
+      nags: [],
+      variations: [],
+      clock: nil,
+      evaluation: nil
+    }
+
     %{acc | moves: [move | acc.moves], pending: []}
   end
 
   defp comment(text, acc) do
+    acc = put_annotations(acc, text)
     text = text |> strip_machine_commands() |> String.trim()
 
-    if text == "" do
+    if text == "" or not acc.keep_comments do
       {:ok, acc}
     else
       case acc.moves do
@@ -244,6 +305,33 @@ defmodule Analysis.PgnAnalysisImporter do
         [last | before_last] ->
           {:ok, %{acc | moves: [%{last | comments: last.comments ++ [text]} | before_last]}}
       end
+    end
+  end
+
+  # `[%clk]`/`[%eval]` machine commands become node annotations only when
+  # the import keeps them; either way they leave the human comment text.
+  defp put_annotations(acc, text) do
+    if acc.keep_annotations do
+      clock = command_value(text, "clk")
+      evaluation = command_value(text, "eval")
+
+      case acc.moves do
+        [last | before_last] ->
+          last = %{last | clock: clock || last.clock, evaluation: evaluation || last.evaluation}
+          %{acc | moves: [last | before_last]}
+
+        [] ->
+          acc
+      end
+    else
+      acc
+    end
+  end
+
+  defp command_value(text, name) do
+    case Regex.run(~r/\[%#{name}\s+([^\]]+)\]/, text) do
+      [_, value] -> value
+      _ -> nil
     end
   end
 
