@@ -34,6 +34,35 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond en gedeployed; productie gezond:** `Fix duplicate en-passant-target moves, phantom
+  castles and stale rook-capture castling rights` (`7afa835`) + `Add a differential engine
+  harness between Chess and Features.Chess` (`881dd6c`) + `Skip malformed dump games in grouped
+  bulk import` (`c38a008`). De F2-slice (differentiële validatie) werd eerst gedaan omdat hij de
+  rest ontregelt — en hij vond meteen drie **echte productiebugs in de gameplay-engine**:
+  (1) `legal_moves` dubbelde een zet naar het en-passant-doelveld wanneer een schuifstuk (loper)
+      dat veld ook rustig kon betreden (ep-kandidaten filterden niet op pion) — +1 op Kiwipete d3;
+  (2) spookcastling: `special_candidate_moves` stelde rochades voor óók als e1/e8 geen koning
+      hield; `apply_move` behandelde ze dan als legale torenzetten (duplicaat van de torenzet);
+  (3) een toren die van zijn thuisveld **sloeg** verloor zijn rochaderecht niet (capture-pad
+      miste de moving-side update) — een bestaande test droeg de foute verwachting en is
+      gecorrigeerd. Ankers: zes perft-posities met gepubliceerde/oracle-geverifieerde tellingen
+      (`Chess.PerftTest`; python-chess als referentie-orakel in een tijdelijke venv, niets
+      geïnstalleerd buiten /tmp). De differentiële harness
+      (`apps/features/test/features/engine_differential_test.exs`) vergelijkt perft + geparseerde
+      state + 30 seeded random games (zetverzamelingen én veld-voor-veld staat); de
+      en-passant-conventie is gedocumenteerd en genormaliseerd (Chess nilt een nutteloos
+      ep-doelveld, Features bewaart het ruwe veld — zetten identiek). Let op: de harness ving
+      eerst twéé typefouten in mijn eigen FEN-fixtures. Serieel: chess **595**, features **214**,
+      analysis **660**, web **288**.
+  **Open forensiek (import):** resume-2 abortte op een malvorme dump-game ("No moves found", read
+  40.262.969) — daarvoor is nu `skip_malformed` — MAAR de 9.178 records ervan ontbraken terwijl
+  games/occurrences wél persisteerden (9.121 orphan-games, ids 65.802..74.922). Dat is onmogelijk
+  binnen één committende transactie; dev-repro én een prod-smoke-test (356 records) persisteren
+  wél. Oplossen als het terugkomt: resume-3 logt vroeg genoeg om het te zien. **Resume-3 draait**
+  (skip 35,6M — bewezen grens — offset 66.253; healt de orphans via find-or-create). Watcher met
+  vroege groeicheck (~105 min): dan moet de corpus-teller boven 66.237 staan; zo niet → killen en
+  uitzoeken, niet door laten draaien.
+
 - **Afgerond en gedeployed; productie gezond:** `Enrich corpus search with previews, rating/date
   filters and structure modes` (`c4ffe56`). Eerste zoek-slice na de discussie ("search is een
   beetje embarrassing"): de kamer-modal blíjft de zoekplek (de aparte-pagina-variant is
