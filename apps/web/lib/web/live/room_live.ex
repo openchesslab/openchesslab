@@ -1727,33 +1727,42 @@ defmodule Web.RoomLive do
     if analysis_id == socket.assigns.selected_analysis_id do
       case AnalysisView.fetch_analysis(analysis_id) do
         {:ok, analysis, revision} ->
-          path =
-            if socket.assigns.analysis && revision > socket.assigns.analysis_revision do
-              AnalysisView.newly_added_paths(socket.assigns.analysis, analysis)
-              |> case do
-                [] ->
-                  AnalysisModel.reconcile_path(
-                    socket.assigns.analysis,
-                    analysis,
-                    socket.assigns.current_path
-                  )
+          # Our own writes echo back through the subscription — but the
+          # revision we already hold IS the new one. Reloading would only
+          # duplicate the work (a second async reference fetch per move,
+          # superseding the first while its side effects already ran).
+          if not is_nil(socket.assigns.analysis) and
+               revision == socket.assigns.analysis_revision do
+            {:noreply, socket}
+          else
+            path =
+              if socket.assigns.analysis && revision > socket.assigns.analysis_revision do
+                AnalysisView.newly_added_paths(socket.assigns.analysis, analysis)
+                |> case do
+                  [] ->
+                    AnalysisModel.reconcile_path(
+                      socket.assigns.analysis,
+                      analysis,
+                      socket.assigns.current_path
+                    )
 
-                paths ->
-                  Enum.max_by(paths, &{length(&1), &1})
+                  paths ->
+                    Enum.max_by(paths, &{length(&1), &1})
+                end
+              else
+                socket.assigns.current_path
               end
-            else
-              socket.assigns.current_path
-            end
 
-          socket =
-            if path == socket.assigns.current_path,
-              do: socket,
-              else: assign(socket, :annotations, [])
+            socket =
+              if path == socket.assigns.current_path,
+                do: socket,
+                else: assign(socket, :annotations, [])
 
-          {:noreply,
-           socket
-           |> set_analysis(analysis, revision, path)
-           |> sync_position_url()}
+            {:noreply,
+             socket
+             |> set_analysis(analysis, revision, path)
+             |> sync_position_url()}
+          end
 
         :not_found ->
           {:noreply, maybe_load_analysis(socket, analysis_id, socket.assigns.current_path)}
