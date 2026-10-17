@@ -35,10 +35,13 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 ## Repository en huidige status
 
 - **Afgerond en gedeployed; productie gezond:** `Mark pinned features in the readout and drop the
-  overlay chip row` (`c2dba9d`). Op verzoek van de gebruiker: de "OP HET BORD"-chiprij is weg
+  overlay chip row` (`c2dba9d`) + `Give pinned feature rows the full accent treatment` (`771d990`).
+  Op verzoek van de gebruiker: de "OP HET BORD"-chiprij is weg
   (die was eigenlijk overbodig — de vijf oude lagen zíjn features — en veroorzaakte verticale
-  scrollbalken). Gepinde features zijn nu zichtbaar in de lijst zelf: **vet + accentkleur** op het
-  label (`data-pinned`-attribuut voor tests), klik = uitleg + pin, nogmaals = unpin; lege
+  scrollbalken). Gepinde features zijn nu onmiskenbaar zichtbaar in de lijst zelf:
+  **accent-achtergrond + accentbalk links + vet accent op zowel label als waarde** (zelfde taal
+  als de actieve analyse-chip; `data-pinned`-attribuut voor tests), klik = uitleg + pin,
+  nogmaals = unpin; lege
   features blijven uitleg-only. Bordtinten ongewijzigd (blauw/rood/amber + file-banden).
   Geverifieerd in dev: geen overlay-rij meer, `attacks.defended_squares` + `king.zone` gepind
   (vet + accent), 14 witte tinten, `squares.outpost` op deze stelling leeg → geen pin. Serieel:
