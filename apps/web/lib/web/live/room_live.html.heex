@@ -36,7 +36,7 @@
     :if={@room}
     id="room-shell"
     phx-hook="RoomTabs"
-    class="grid h-[calc(100dvh-3.4rem)] min-h-[38rem] grid-cols-[270px_minmax(0,1fr)] overflow-hidden border-t border-border max-[860px]:flex max-[860px]:min-h-0 max-[860px]:flex-col"
+    class="grid h-[calc(100dvh_-_3.4rem)] min-h-[38rem] grid-cols-[270px_minmax(0,1fr)] overflow-hidden border-t border-border max-[860px]:flex max-[860px]:h-auto max-[860px]:min-h-0 max-[860px]:flex-col max-[860px]:overflow-visible"
   >
     <aside class="flex min-h-0 flex-col gap-3 overflow-hidden border-r border-border p-3 max-[860px]:contents">
       <div class="shrink-0 border-b border-border pb-3 max-[860px]:order-1 max-[860px]:flex max-[860px]:flex-nowrap max-[860px]:items-center max-[860px]:gap-2 max-[860px]:overflow-hidden max-[860px]:px-3 max-[860px]:py-1.5">
@@ -305,10 +305,10 @@
     <section class="grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)_210px_360px] overflow-hidden max-[1100px]:grid-cols-[minmax(0,1fr)_180px_320px] max-[860px]:contents">
       <%= if @analysis do %>
         <section
-          class="grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_auto] gap-2 overflow-hidden p-3 max-[860px]:order-2 max-[860px]:flex max-[860px]:min-h-0 max-[860px]:flex-1 max-[860px]:flex-col max-[860px]:gap-1 max-[860px]:p-1.5"
+          class="grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_auto] gap-2 overflow-hidden p-3 max-[860px]:order-2 max-[860px]:flex max-[860px]:flex-none max-[860px]:flex-col max-[860px]:gap-1 max-[860px]:p-1.5"
           aria-label={Web.I18n.t("room.boardHeading", @locale)}
         >
-          <div class="flex min-h-0 flex-col gap-2 overflow-y-auto max-[860px]:min-h-0 max-[860px]:flex-1 max-[860px]:gap-1 max-[860px]:overflow-hidden">
+          <div class="flex min-h-0 flex-col gap-2 overflow-y-auto max-[860px]:flex-none max-[860px]:gap-1 max-[860px]:overflow-visible">
             <div
               class="relative flex min-h-0 flex-1 items-center justify-center gap-3 max-[860px]:min-h-0 max-[860px]:flex-wrap"
               data-tour="board"
@@ -324,7 +324,7 @@
                   :if={@engine_on}
                   id="evaluation-bar"
                   class={[
-                    "relative h-[min(calc(100dvh-14rem),42rem)] w-9 shrink-0 overflow-visible rounded border border-border max-[860px]:h-[min(100vw,32rem)]",
+                    "relative h-[min(calc(100dvh_-_14rem),42rem)] w-9 shrink-0 overflow-visible rounded border border-border max-[860px]:h-[min(100vw,32rem)]",
                     is_nil(@engine_preview) && "opacity-60"
                   ]}
                   data-eval-bar
@@ -850,7 +850,7 @@
 
               <div
                 :if={@engine_settings_open}
-                class="absolute right-3 top-[5.5rem] z-40 flex max-h-[80dvh] w-[17rem] max-w-[calc(100%-1rem)] flex-col gap-2 overflow-auto rounded-lg border border-border bg-panel p-3 shadow-xl"
+                class="absolute right-3 top-[5.5rem] z-40 flex max-h-[80dvh] w-[17rem] max-w-[calc(100%_-_1rem)] flex-col gap-2 overflow-auto rounded-lg border border-border bg-panel p-3 shadow-xl"
                 role="group"
                 aria-label={Web.I18n.t("room.engineSettings", @locale)}
                 phx-click-away="close-engine-settings"
@@ -1690,7 +1690,7 @@
     class="fixed inset-0 z-[60] grid place-items-center bg-transparent p-4 backdrop-blur-xs backdrop-saturate-[.9]"
   >
     <section
-      class="h-[min(35rem,calc(100dvh-2rem))] max-h-[90dvh] w-full max-w-4xl overflow-y-auto rounded-xl border border-border-strong bg-panel p-5 shadow-2xl"
+      class="h-[min(35rem,calc(100dvh_-_2rem))] max-h-[90dvh] w-full max-w-4xl overflow-y-auto rounded-xl border border-border-strong bg-panel p-5 shadow-2xl"
       role="dialog"
       aria-modal="true"
       aria-labelledby="import-title"

@@ -834,10 +834,10 @@ defmodule Web.RoomLiveTest do
     {:ok, view, _html} = live(conn, "/rooms/#{code}")
     html = render_click(view, "open-import", %{})
 
-    assert html =~ "h-[min(35rem,calc(100dvh-2rem))]"
+    assert html =~ "h-[min(35rem,calc(100dvh_-_2rem))]"
 
     html = render_click(view, "set-import-source", %{"source" => "library"})
-    assert html =~ "h-[min(35rem,calc(100dvh-2rem))]"
+    assert html =~ "h-[min(35rem,calc(100dvh_-_2rem))]"
     assert html =~ Web.I18n.t("auth.loginRequired", "en")
   end
 

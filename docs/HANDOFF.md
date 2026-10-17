@@ -34,6 +34,21 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, klaar voor commit/deploy:** `Fix the invalid calc() classes and the mobile room layout`.
+  Vijf Tailwind-klassen gebruikten `calc(...)` zonder spaties (bv. `calc(100dvh-14rem)`) — dat is
+  **ongeldige CSS die de browser stil dropt**: het schaakbord viel terug op min-content (15px-vakjes,
+  120px bord op mobiel; "bord klein of onzichtbaar") en ook de eval-bar-, shell- en modalhoogtes
+  klopten niet. Alle vijf gefixt met de Tailwind-space-syntax `_-_` (o.a.
+  `w-[min(100%,calc(100dvh_-_14rem))]`). Mobiel is de room nu een scrollende documentflow:
+  bord bovenaan op volle breedte (gemeten **363px** op 390×844; engine aan: bord 315 + eval-bar),
+  daaronder layers-strip, engine-tabs, tabbalk en de drawer (moves/games/chat) — geen gefixeerde
+  100dvh-kolom meer die het bord tot 120px perste. Geverifieerd op 390×844 en desktop 1440×900
+  (bord 576px, ongewijzigd). Nieuwe valkuil voor de docs: **Tailwind arbitrary values hebben
+  underscores voor spaties; `calc()` zonder spaties is ongeldig en faalt stil** (net als de
+  bestaande `-translate-*`-valkuil hieronder). Een bestaande regressietest die de oude kapotte
+  klassenaam vastpinde is bijgewerkt. Serieel: analysis **655**, web **276**, chess **591**,
+  features **209**; formatter, diffcontrole.
+
 - **Bezig (interruptiegevoelig): hervatting van de bulk-import loopt** (machine `bulk-resume`,
   shared-cpu-4x, AMS; `ed38319` gedeployed). Wat er misging bij de eerste run: (1) de
   parallelle import deed maar **~2 partijen/s** — elke partij een eigen transactie met ~40

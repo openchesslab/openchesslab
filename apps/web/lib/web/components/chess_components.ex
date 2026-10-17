@@ -44,7 +44,7 @@ defmodule Web.ChessComponents do
       role="group"
       aria-label={Web.I18n.t("room.boardHeading")}
       class={[
-        "relative min-w-0 w-[min(100%,calc(100dvh-14rem))] max-w-[42rem] select-none touch-none max-[860px]:w-full",
+        "relative min-w-0 w-[min(100%,calc(100dvh_-_14rem))] max-w-[42rem] select-none touch-none max-[860px]:w-full",
         @center && "mx-auto"
       ]}
       phx-hook="Board"
