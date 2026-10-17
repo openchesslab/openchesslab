@@ -10,13 +10,19 @@ defmodule Analysis.BulkImport do
 
   Game headers are filtered — both players at the rating floor, no bullet —
   **before** moves are parsed, so rejected games never reach the parser.
-  Kept games go through the bounded-parallel canonical importer
-  (`Analysis.PgnBatchImporter.import_stream_parallel/4`): each game owns its
-  transaction, failures are reported per source game and never stop the run.
+  Kept games are persisted with the **grouped** importer by default
+  (`PgnBatchImporter.import_stream/3`, batches of ten): one transaction and
+  one shared position batch per group, which keeps the load on a small
+  managed PostgreSQL instance sane. `mode: :parallel` selects the
+  per-game-transaction parallel importer instead.
 
-  `:skip` resumes a previous run by discarding the first N input games
-  (header scan only). `:limit` stops reading after N input games and closes
-  the source, so a limited run does not download the whole file.
+  The run is resumable and restart-safe: `:skip` discards input games
+  during the header scan, and `:record_id_offset` continues the record-id
+  sequence where a previous run stopped, so a resumed run neither collides
+  with nor duplicates already-imported games. Exceptions inside the
+  importer are captured and reported as an error summary instead of
+  crashing the evaluation (a crashing worker previously restarted into a
+  duplicate-failing rerun).
 
   The function starts its own applications, so it works both from
   `mix run -e "Analysis.BulkImport.run(...)"` (development) and from
@@ -37,9 +43,11 @@ defmodule Analysis.BulkImport do
           kept: non_neg_integer(),
           skipped: non_neg_integer(),
           malformed_lines: non_neg_integer(),
-          imported: non_neg_integer(),
+          handed: non_neg_integer(),
+          imported: non_neg_integer() | nil,
           failure_count: non_neg_integer(),
           import_failures: list(),
+          error: term() | nil,
           elapsed_ms: non_neg_integer(),
           rate_per_second: float() | nil,
           source: term()
@@ -55,10 +63,14 @@ defmodule Analysis.BulkImport do
     * `:min_rating` — both players must be at least this Elo (default 2200)
     * `:skip` — input games to discard before importing (default 0)
     * `:limit` — stop after reading this many input games (default: no limit)
-    * `:concurrency` — parallel import workers (default 4)
-    * `:window` — bounded parallel window (default `concurrency * 2`)
-    * `:progress_every` — log progress every N input games (default 100_000)
     * `:record_id_prefix` — record id prefix (default: derived from the source name)
+    * `:record_id_offset` — added to the kept-game index in record ids; use the
+      previous run's kept count to resume without collisions (default 0)
+    * `:mode` — `:grouped` (default; batches of ten, one transaction per group)
+      or `:parallel` (per-game transactions, bounded window)
+    * `:batch_size` — grouped mode batch size, 2..10 (default 10)
+    * `:concurrency` / `:window` — parallel mode workers and window (defaults 4 / `concurrency * 2`)
+    * `:progress_every` — log progress every N input games (default 100_000)
   """
   @spec run(keyword()) :: {:ok, summary()} | {:error, term(), summary()}
   def run(opts) do
@@ -67,13 +79,16 @@ defmodule Analysis.BulkImport do
     started = System.monotonic_time(:millisecond)
     source = prepare_source!(opts)
     prefix = Keyword.get(opts, :record_id_prefix) || default_prefix(source)
-    concurrency = Keyword.get(opts, :concurrency, 4)
-    window = Keyword.get(opts, :window, concurrency * 2)
+    offset = Keyword.get(opts, :record_id_offset, 0)
     limit = Keyword.get(opts, :limit)
 
-    {:ok, stats} = Agent.start_link(fn -> %{read: 0, kept: 0, skipped: 0, malformed: 0} end)
+    {:ok, stats} =
+      Agent.start_link(fn -> %{read: 0, kept: 0, skipped: 0, malformed: 0, handed: 0} end)
 
-    recorded_id = fn index -> "#{prefix}-#{index}" end
+    recorded_id = fn index ->
+      Agent.update(stats, fn counts -> %{counts | handed: counts.handed + 1} end)
+      "#{prefix}-#{offset + index}"
+    end
 
     lines =
       filter_lines(source.lines,
@@ -85,7 +100,7 @@ defmodule Analysis.BulkImport do
         started: started
       )
 
-    result = PgnBatchImporter.import_stream_parallel(lines, recorded_id, concurrency, window)
+    result = import_lines(lines, opts, recorded_id)
     counts = Agent.get(stats, & &1)
     Agent.stop(stats)
     elapsed_ms = System.monotonic_time(:millisecond) - started
@@ -103,9 +118,32 @@ defmodule Analysis.BulkImport do
         {:error, {:source, code}, summary}
 
       {{:error, reason}, _} ->
-        Logger.error("bulk import failed: #{inspect(reason)}")
+        Logger.error("bulk import aborted: #{inspect(reason)}")
         {:error, reason, summary}
     end
+  end
+
+  # The importer call itself is wrapped so a raised database/checkout error
+  # ends the run with an honest summary instead of crashing the evaluation.
+  defp import_lines(lines, opts, recorded_id) do
+    case Keyword.get(opts, :mode, :grouped) do
+      :grouped ->
+        batch_size = Keyword.get(opts, :batch_size, 10)
+
+        case PgnBatchImporter.import_stream(lines, recorded_id, batch_size) do
+          {:ok, imported} -> {:ok, %{imported_count: imported, failures: []}}
+          {:error, reason} -> {:error, reason}
+        end
+
+      :parallel ->
+        concurrency = Keyword.get(opts, :concurrency, 4)
+        window = Keyword.get(opts, :window, concurrency * 2)
+        PgnBatchImporter.import_stream_parallel(lines, recorded_id, concurrency, window)
+    end
+  rescue
+    error -> {:error, {:exception, Exception.message(error)}}
+  catch
+    kind, value -> {:error, {:caught, kind, inspect(value)}}
   end
 
   @doc """
@@ -238,16 +276,17 @@ defmodule Analysis.BulkImport do
 
   defp sync_stats(%{stats: stats} = acc) do
     counts = Map.take(acc, [:read, :kept, :skipped, :malformed])
-    Agent.update(stats, fn _ -> counts end)
+    Agent.update(stats, fn current -> Map.merge(current, counts) end)
   end
 
   defp log_progress(%{progress_every: every, read: read} = acc)
        when is_integer(every) and every > 0 and rem(read, every) == 0 do
     elapsed_s = max(System.monotonic_time(:millisecond) - acc.started, 1) / 1000
+    handed = if acc.stats, do: Agent.get(acc.stats, & &1.handed), else: 0
 
     Logger.info(
       "bulk import progress: read=#{read} kept=#{acc.kept} skipped=#{acc.skipped} " <>
-        "rate=#{round(read / elapsed_s)} games/s"
+        "handed=#{handed} rate=#{round(read / elapsed_s)} games/s"
     )
   end
 
@@ -321,9 +360,11 @@ defmodule Analysis.BulkImport do
     File.mkdir_p!(dir)
     {_, 0} = System.cmd("mkfifo", [fifo])
 
+    # --speed-limit/--speed-time abort a stalled transfer instead of hanging
+    # the reader forever on a dead connection.
     script = """
     set -o pipefail
-    curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors "$1" | zstd -dc > "$2"
+    curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors --speed-limit 10000 --speed-time 30 "$1" | zstd -dc > "$2"
     echo $? > "$3"
     """
 
@@ -396,10 +437,10 @@ defmodule Analysis.BulkImport do
   # --- summary -----------------------------------------------------------------
 
   defp build_summary(counts, result, elapsed_ms, source_status) do
-    {imported, failures} =
+    {imported, failures, error} =
       case result do
-        {:ok, %{imported_count: imported, failures: failures}} -> {imported, failures}
-        {:error, _} -> {0, []}
+        {:ok, %{imported_count: imported, failures: failures}} -> {imported, failures, nil}
+        {:error, reason} -> {nil, [], reason}
       end
 
     rate =
@@ -412,9 +453,11 @@ defmodule Analysis.BulkImport do
       kept: counts.kept,
       skipped: counts.skipped,
       malformed_lines: counts.malformed,
+      handed: Map.get(counts, :handed, 0),
       imported: imported,
       failure_count: length(failures),
       import_failures: Enum.take(failures, 20),
+      error: error,
       elapsed_ms: elapsed_ms,
       rate_per_second: rate,
       source: source_status

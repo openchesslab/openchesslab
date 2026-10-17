@@ -144,7 +144,9 @@ defmodule Analysis.BulkImportTest do
     assert summary.read == 4
     assert summary.kept == 2
     assert summary.imported == 2
+    assert summary.handed == 2
     assert summary.failure_count == 0
+    assert summary.error == nil
     assert summary.source == :ok
 
     count =
@@ -165,6 +167,49 @@ defmodule Analysis.BulkImportTest do
     assert "Delta" in whites
     assert "Iota" in whites
     refute "Gamma" in whites
+  end
+
+  test "a resumed run continues the record-id sequence and never collides" do
+    dir = System.tmp_dir!()
+    path = Path.join(dir, "bulk-resume-#{System.unique_integer([:positive])}.pgn")
+    File.write!(path, fixture())
+    prefix = "bulk-resume-#{System.unique_integer([:positive])}"
+    on_exit(fn -> File.rm(path) end)
+
+    # First run: grouped mode, ids 1..2.
+    assert {:ok, first} = BulkImport.run(path: path, min_rating: 2200, record_id_prefix: prefix)
+    assert first.imported == 2
+
+    # Resumed run: same input, ids continue at 3 (offset = first run's kept
+    # count) and parallel mode still works.
+    assert {:ok, second} =
+             BulkImport.run(
+               path: path,
+               min_rating: 2200,
+               record_id_prefix: prefix,
+               record_id_offset: 2,
+               mode: :parallel,
+               concurrency: 2
+             )
+
+    assert second.imported == 2
+    assert second.failure_count == 0
+
+    on_exit(fn ->
+      Repo.query!("DELETE FROM game_records WHERE record_id LIKE $1", [prefix <> "%"])
+    end)
+
+    ids =
+      Repo.query!(
+        "SELECT record_id FROM game_records WHERE record_id LIKE $1 ORDER BY record_id",
+        [
+          prefix <> "%"
+        ]
+      ).rows
+      |> List.flatten()
+      |> Enum.sort()
+
+    assert ids == Enum.map(1..4, fn index -> "#{prefix}-#{index}" end)
   end
 
   defp filter(lines, stats, opts \\ []) do
