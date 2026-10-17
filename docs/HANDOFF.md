@@ -1,13 +1,9 @@
 # OpenChessLab — overdracht voor Codex en OpenCode Go
 
-Bijgewerkt: 2026-10-15. Dit is het compacte startpunt voor een andere laptop of agent.
+Bijgewerkt: 2026-10-17. Dit is het compacte startpunt voor een andere laptop of agent.
 Git en de actuele broncode zijn leidend. Werk dit bestand bij bij iedere slice en vóór een onderbreking:
 status, resterende stappen, uitgevoerde tests, commit/push en deployment afzonderlijk.
 Geen geheimen, tokens of lokale databases opnemen.
-
-## Startprompt
-
-> Ga verder met OpenChessLab. Lees eerst docs/HANDOFF.md en AGENTS.md, daarna de relevante delen van docs/architecture.md en docs/development-history.md. Inspecteer git status, branch, HEAD en recente commits. Rond eventueel openstaand werk hieronder eerst af. Werk in kleine slices met tests. Commit en push zijn toegestaan na geslaagde controles (de agent mag sinds 2026-10-14 zelf committen en pushen, met vermelding in dit bestand); deployment vereist altijd expliciete toestemming. Houd docs/HANDOFF.md bijgewerkt. Communiceer bondig in het Nederlands en bespaar context door gericht te lezen. Gebruik geen subagents tenzij gevraagd.
 
 ## Modelkeuze
 
@@ -34,44 +30,40 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Bezig, domeinlaag klaar en gedeployed-veilig; web-laag volgt in de nieuwe sessie:**
-  `Add keep-options and node clock/evaluation annotations to PGN analysis import` (`f944950`).
-  **Referentie-UI:** `/home/jeroen/blunderfest/assets/src/features/import/ImportDialog.tsx`
-  (React-versie die de gebruiker als model gaf: source-rail, checkbox-trays per bron,
-  keep-opties-popover, count-aware checkout-knop). Onze tekst: "de lichess-import van eigen
-  games kiest alleen een AANTAL; er is geen selectie. En kiesbaar wat er meekomt (metadata,
-  variations, computer analysis, clock times, comments)."
-  **Klaar (backward-compatible, defaults = oud gedrag):** `Node.clock`/`Node.evaluation`
-  (nil-defaults), codec tolerant 5↔7-tuple, `PgnAnalysisImporter.import/4` met
-  `keep_comments`/`keep_variations`/`keep_metadata` (default true) en `keep_annotations`
-  (default false; `[%clk]`/`[%eval]` → node-velden, nooit in de commenttekst). Tests groen
-  (optiematrix + oude/nieuwe codec-vormen); analysis **666**.
-  **Nog te doen (in volgorde):**
-  1. `Web.GameImport.fetch_lichess_recent_games(username, max)` — NDJSON-metadata-lijst
-     (geen `pgnInJson`) → `%{id, white, black, result, speed, year}`; en
-     `fetch_chesscom_month_games(username, year, month)` → lijst incl. `pgn` + `url` als id.
-     Foutmapping zoals de bestaande fetchers; HTTP-stub via `stub_game_import` in tests.
-  2. `room_live`: provider-paneels worden **selectie-trays** — rijen met checkbox
-     (Wit – Zwart, resultaat, speed · jaar), alles/niets, en "Import N selected":
-     lichess haalt volledige PGN's via bestaande `fetch_lichess_games_by_ids/1`; chess.com
-     importeert uit de al opgehaalde maand-PGN's in assigns (geen refetch). Gekoppelde account:
-     username vooringevuld via `fetch_lichess_account_username` (patroon op regel ~1471).
-     Vervangt het oude max-count-formulier; de `import-my-games`-flow gaat op in dezelfde tray.
-  3. Keep-opties als vier checkboxes in de modal-footer, zichtbaar voor élke bron
-     (Comments/Variations/Metadata/Engine annotations: eval+clock) → doorgeven aan
-     `run_imports` → `PgnAnalysisImporter.import(..., opts)`; `@import_keep` default
-     %{comments: true, variations: true, metadata: true, annotations: false}.
-  4. Zetlijst toont `clock` (klein, muted, tabular-nums) en `evaluation` (klein mono) per zet
-     wanneer aanwezig — entries komen uit `AnalysisView.move_list_data`; voeg de velden daar toe.
-  5. i18n EN+NL voor alle nieuwe strings; web-tests met de bestaande HTTP-stub; browsercheck op
-     dev-room UIUX01; deploy; HANDOFF + architecture bijwerken. Suites serieel.
-  **Valkuilen deze sessie (ter info):** FEN-fixture-typos ving de harness drie keer
-  (`PPPP1PPP` vs `PPPPPPPP` etc.); heredoc-edits eerst verifiëren; `PositionCodec.decode` geeft
-  `{:ok, position}`; Python-vervangingen: exacte bytes uit het bestand kopiëren (formatter
-  breekt lange regels).
-  **Import-achtergrondwacht:** de watcher op `bulk-resume-3` werd bij de serverherstart
-  afgebroken en opnieuw gezet; bij leesbaarheid van deze regels: controleer
-  `flyctl machine list -a openchesslab` + de groeicheck (corpus-teller > 66.237) en rapporteer.
+- **Afgerond, gepusht, NIET gedeployed (deploy vereist expliciete toestemming):** de
+  import-herwerking is klaar, in vijf commits op de domein-slice `f944950`:
+  `8f77b4b` (metadata-fetchers: `GameImport.fetch_lichess_recent_games/2` → NDJSON-rijen
+  `%{id, white, black, result, speed, year}`; `fetch_chesscom_month_games/3` → rijen incl.
+  `pgn`, `url` als id, nieuwste eerst), `d0e8086` (vier keep-checkboxes in de modal-footer
+  voor élke PGN-bron → `run_imports` → `PgnAnalysisImporter.import(..., opts)`; default
+  comments/variations/metadata aan, engine-annotaties uit), `3386908` (**bugfix, zie
+  hieronder**), `0364061` (provider-tabs zijn nu **selectie-trays**: laden → rijen met
+  checkbox "Wit – Zwart, resultaat, speed · jaar", alles/niets, count-aware knop
+  "Import N game(s)"; lichess haalt de selectie via `fetch_lichess_games_by_ids/1`,
+  chess.com importeert uit de al geladen maand-PGN's zonder refetch; gekoppeld account
+  vult de username voor via de grant; oude max-count-formulieren en de fetchers
+  `fetch_lichess_user_games`/`fetch_chesscom_user_games` + dode i18n-keys weg),
+  `ffd23cd` (zetlijst toont `evaluation` klein mono en `clock` klein muted tabular-nums
+  naast de zet; `Node.clock/1`/`Node.evaluation/1` accessoren; entries uit
+  `AnalysisView.move_list_data`).
+  **Bugfix `3386908` (self-echo):** `Analyses.play` publiceert `:analysis_changed` naar
+  álle subscribers, ook de LV die zelf de zet deed — die las opnieuw en startte een
+  tweede `start_reference`-async die de eerste (reset: true) verdrong terwijl diens
+  neveneffecten (externe tablebase-call + cache-put) al liepen. In tests crashte de
+  tweede fetch op de lege stub-queue (~30% flake in de endgame-test); in productie kostte
+  elke zet in eindspel een dubbele externe call. Nu: `handle_info(:analysis_changed)`
+  slaat de reload over als de opgehaalde revisie gelijk is aan de gehouden revisie
+  (eigen echo); vreemde wijzigingen (revisie > eigen) laden wél. 8/8 runs groen.
+  **Browsercheck op UIUX01 (echte API's):** lichess-tray 25 rijen (DrNykterstein), alles
+  voorselecteerd, "Import 25 games" → niets → "Import 0 games" disabled → 2 aangevinkt →
+  "Import 2 games" → 2 chips erbij; chess.com-tray (hikaru, maand 2026-10) 308 rijen, 1
+  geïmporteerd zonder refetch; geannoteerde PGN met annotations aan → zetlijst
+  "1. e4 0.20 0:05:00 e5 0:04:55". Serieel: analysis **666**, web **293**; formatter,
+  diffcontrole. architecture.md bijgewerkt (tray-paragraaf).
+  **Import-achtergrondwacht (afgerond):** `bulk-resume-3` herstartte 19:14 na de
+  serverherstart, skip-scan 35,6M op ~6.180 games/s, grens gepasseerd 20:52 — kept groeit
+  (21:25: 14.499). Groeicheck (corpus-teller > 66.237) geslaagd. Machine draait op de
+  actuele image-tag (01M55KPBR…, zelfde als web).
 
 - **Afgerond (benchmark-slice; bewust nog níet gedeployed als productiefeature):** `Add the
   position similarity digest and its search benchmark` (`b5caa3f`). Eerste S2-stap: de digest +
