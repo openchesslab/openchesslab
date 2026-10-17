@@ -1903,13 +1903,13 @@ defmodule Web.RoomLiveTest do
 
       assert has_element?(
                view,
-               "#features-readout button[title='state.side_to_move']",
+               "#features-readout button[data-feature='state.side_to_move']",
                "Side to move"
              )
 
       assert has_element?(
                view,
-               "#features-readout button[title='state.castling_rights']",
+               "#features-readout button[data-feature='state.castling_rights']",
                "Castling rights"
              )
 
@@ -1920,18 +1920,31 @@ defmodule Web.RoomLiveTest do
       # at the start, and false/false booleans read as an em dash.
       assert has_element?(
                view,
-               "#features-readout button[title='material.count.queen']",
+               "#features-readout button[data-feature='material.count.queen']",
                "W 1 · B 1"
              )
 
       assert has_element?(
                view,
-               "#features-readout button[title='pawns.rook_behind_passed']",
+               "#features-readout button[data-feature='pawns.rook_behind_passed']",
                "—"
              )
 
       # Rows with nothing in this position are dimmed.
       assert has_element?(view, "#features-readout button.opacity-60")
+
+      # Dutch-worded ids get an English label; the tooltip carries the same
+      # explanation as the detail strip.
+      assert has_element?(
+               view,
+               "#features-readout button[data-feature='threats.aantal_checks']",
+               "Checks available"
+             )
+
+      assert has_element?(
+               view,
+               "#features-readout button[data-feature='state.side_to_move'][title='Which colour is to move']"
+             )
 
       # Clicking a row opens the detail strip: the curated description plus
       # the raw id and value; clicking again closes it.

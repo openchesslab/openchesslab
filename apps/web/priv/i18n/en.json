@@ -793,5 +793,8 @@
   "room.removedComment": "Comment removed",
   "room.featureWhiteInitial": "W",
   "room.featureBlackInitial": "B",
-  "room.featureBoth": "Both"
+  "room.featureBoth": "Both",
+  "featureLabels.threats.aantal_checks": "Checks available",
+  "featureLabels.threats.aantal_forcing_moves": "Forcing moves available",
+  "featureLabels.pawns.weak_undeprotectable": "Weak undefendable pawns"
 }

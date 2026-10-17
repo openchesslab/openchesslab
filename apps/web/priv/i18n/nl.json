@@ -422,5 +422,8 @@
   "room.removedComment": "Commentaar verwijderd",
   "room.featureWhiteInitial": "W",
   "room.featureBlackInitial": "Z",
-  "room.featureBoth": "Beide"
+  "room.featureBoth": "Beide",
+  "featureLabels.threats.aantal_checks": "Aantal checks",
+  "featureLabels.threats.aantal_forcing_moves": "Aantal forcing moves",
+  "featureLabels.pawns.weak_undeprotectable": "Zwakke onverdedigbare pionnen"
 }

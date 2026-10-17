@@ -3668,7 +3668,7 @@ defmodule Web.RoomLive do
         assign(socket,
           features: %{
             version: result.version,
-            sections: feature_sections(result.features),
+            sections: feature_sections(result.features, socket.assigns.locale),
             values: result.features
           },
           features_status: :ok
@@ -3681,22 +3681,24 @@ defmodule Web.RoomLive do
 
   # Catalogue features in spec-section order, with humanized labels and the
   # stored values.
-  defp feature_sections(values) do
+  defp feature_sections(values, locale) do
     Catalogue.all()
     |> Enum.group_by(& &1.section, & &1.id)
     |> Enum.sort_by(fn {section, _ids} -> section end)
     |> Enum.map(fn {section, ids} ->
-      {section, Enum.map(ids, fn id -> {id, feature_label(id), Map.get(values, id)} end)}
+      {section, Enum.map(ids, fn id -> {id, feature_label(id, locale), Map.get(values, id)} end)}
     end)
   end
 
-  # Labels come from the ids: the section heading carries the prefix, and the
-  # rest becomes sentence-case words ("queenside_tension" → "Queenside tension").
-  defp feature_label(id) do
-    id
-    |> String.split(".", parts: 2)
-    |> List.last()
-    |> humanize()
+  # The label is the id humanized; ids that carry Dutch words or typos have
+  # curated label overrides in the catalog.
+  defp feature_label(id, locale) do
+    key = "featureLabels." <> id
+
+    case Web.I18n.t(key, locale) do
+      ^key -> id |> String.split(".", parts: 2) |> List.last() |> humanize()
+      text -> text
+    end
   end
 
   defp humanize(slug) when is_binary(slug) do
