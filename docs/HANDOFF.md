@@ -34,6 +34,24 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond en gedeployed; productie gezond:** `Remove an analysis from the room via the active
+  chip` (`a66e8bc`). De **actieve analyse-chip** heeft nu een klein **×** (alleen de actieve; geen
+  chipvervuiling, werkt ook op touch); die opent een bevestigingsdialoog ("Remove “…” from this
+  room? Analyses in other rooms and library entries that reference it keep working.") met
+  Cancel/Remove. Semantiek (gebruikerskeuze): **alleen ontkoppelen** — de analyse blijft bestaan
+  zolang een andere kamer of een bibliotheekverwijzing ernaar wijst; is niets meer een verwijzing,
+  dan verdwijnt ook het aggregaat (`RoomStore.cleanup_orphaned_analysis/1`, één conditionele
+  DELETE op `room_analyses` + `user_analyses`; `room_analyses.analysis_id` heeft géén FK, dus een
+  verliezende race laat hooguit een chip achter die de kamer al als "niet beschikbaar" toont).
+  `Rooms.remove_analysis/3` (geen andere aanroepers) kreeg deze semantiek. Na verwijderen van de
+  actieve analyse springt de kamer naar de eerste resterende; zonder analyses naar de lege staat.
+  Domain-tests dekken de drie gevallen (andere kamer / bibliotheekverwijzing / wees) en de web-test
+  de hele flow. Geverifieerd in dev op UIUX01: 16→17 chips (wegwerp-analyse), × alleen actief,
+  dialoogtekst, bevestigen → 16 chips, URL viel terug op `?a=ui-game-40`, wegwerp-aggregaat uit de
+  DB, 3 `ui-*` fixtures intact. Serieel: analysis **657**, web **281**; formatter, diffcontrole.
+  Eén web-run gaf eenmalig 80/81 (test niet achterhaald, uitvoer verloren); daarna 9+ runs groen —
+  opnieuw waarnemen en wél vastleggen als het terugkomt.
+
 - **Afgerond en gedeployed; productie gezond:** `Mark pinned features in the readout and drop the
   overlay chip row` (`c2dba9d`) + `Give pinned feature rows the full accent treatment` (`771d990`).
   Op verzoek van de gebruiker: de "OP HET BORD"-chiprij is weg
