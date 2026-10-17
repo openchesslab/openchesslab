@@ -28,9 +28,15 @@ defmodule Features.Catalogue.Quality do
           per_color(board, &pawn_color_conflicts/2)
         end
       ),
-      Feature.new("quality.bishop_pair", 17, [{17, "bishop pair"}], fn board ->
-        per_color(board, &bishop_pair?/2)
-      end),
+      Feature.new(
+        "quality.bishop_pair",
+        17,
+        [{17, "bishop pair"}],
+        fn board ->
+          per_color(board, &bishop_pair?/2)
+        end,
+        board: :bishop
+      ),
       Feature.new(
         "quality.opposite_colored_bishops",
         17,

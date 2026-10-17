@@ -2222,6 +2222,98 @@ defmodule Web.RoomLiveTest do
     assert has_element?(view, "#chess-board-square-e5 span[data-highlight='white']")
   end
 
+  test "pinning the rook count highlights the rooks from the position", %{
+    conn: conn,
+    code: code
+  } do
+    {:ok, analysis, _revision} = Analyses.create("rooks")
+    :ok = Rooms.add_analysis(code, analysis.id)
+    {:ok, view, _html} = live(conn, "/rooms/#{code}?a=rooks")
+
+    render_click(view, "select-engine-tab", %{"tab" => "features"})
+    render_click(view, "feature-detail", %{"id" => "material.count.rook"})
+
+    # The start position has two rooks per side, drawn in the side's colour.
+    assert has_element?(view, "#chess-board-square-a1 span[data-highlight='white']")
+    assert has_element?(view, "#chess-board-square-h1 span[data-highlight='white']")
+    assert has_element?(view, "#chess-board-square-a8 span[data-highlight='black']")
+    assert has_element?(view, "#chess-board-square-h8 span[data-highlight='black']")
+    refute has_element?(view, "#chess-board-square-b1 span[data-highlight='white']")
+
+    assert has_element?(
+             view,
+             "#features-readout button[data-feature='material.count.rook'][data-pinned='true']"
+           )
+
+    html = render_click(view, "feature-detail", %{"id" => "material.count.rook"})
+    refute html =~ "data-highlight="
+  end
+
+  test "pinning the bishop pair highlights only the side that has it", %{conn: conn, code: code} do
+    position =
+      Position.new()
+      |> Position.put_piece(Square.from_algebraic("e1"), {:white, :king})
+      |> Position.put_piece(Square.from_algebraic("e8"), {:black, :king})
+      |> Position.put_piece(Square.from_algebraic("c1"), {:white, :bishop})
+      |> Position.put_piece(Square.from_algebraic("f1"), {:white, :bishop})
+      |> Position.put_piece(Square.from_algebraic("c8"), {:black, :bishop})
+
+    {:ok, analysis, _revision} = Analyses.create("bishop-pair", position: position)
+    :ok = Rooms.add_analysis(code, analysis.id)
+    {:ok, view, _html} = live(conn, "/rooms/#{code}?a=bishop-pair")
+
+    render_click(view, "select-engine-tab", %{"tab" => "features"})
+    render_click(view, "feature-detail", %{"id" => "material.bishop_pair"})
+
+    assert has_element?(view, "#chess-board-square-c1 span[data-highlight='white']")
+    assert has_element?(view, "#chess-board-square-f1 span[data-highlight='white']")
+    refute has_element?(view, "#chess-board-square-c8 span[data-highlight='black']")
+  end
+
+  test "pinning pawn chains highlights every square of the chain", %{conn: conn, code: code} do
+    position =
+      Position.new()
+      |> Position.put_piece(Square.from_algebraic("e1"), {:white, :king})
+      |> Position.put_piece(Square.from_algebraic("e8"), {:black, :king})
+      |> Position.put_piece(Square.from_algebraic("d4"), {:white, :pawn})
+      |> Position.put_piece(Square.from_algebraic("e3"), {:white, :pawn})
+
+    {:ok, analysis, _revision} = Analyses.create("chains", position: position)
+    :ok = Rooms.add_analysis(code, analysis.id)
+    {:ok, view, _html} = live(conn, "/rooms/#{code}?a=chains")
+
+    render_click(view, "select-engine-tab", %{"tab" => "features"})
+    render_click(view, "feature-detail", %{"id" => "pawns.chains"})
+
+    # The catalogue stores chains as a list of chains; the engine flattens them.
+    assert has_element?(view, "#chess-board-square-d4 span[data-highlight='white']")
+    assert has_element?(view, "#chess-board-square-e3 span[data-highlight='white']")
+  end
+
+  test "the readout cues the rows that can draw on the board", %{conn: conn, code: code} do
+    {:ok, analysis, _revision} = Analyses.create("drawable")
+    :ok = Rooms.add_analysis(code, analysis.id)
+    {:ok, view, _html} = live(conn, "/rooms/#{code}?a=drawable")
+
+    render_click(view, "select-engine-tab", %{"tab" => "features"})
+
+    # Counts (via the board hint) and square lists can draw; bare numbers cannot.
+    assert has_element?(
+             view,
+             "#features-readout button[data-feature='material.count.rook'][data-drawable='true']"
+           )
+
+    assert has_element?(
+             view,
+             "#features-readout button[data-feature='attacks.attacked_squares'][data-drawable='true']"
+           )
+
+    assert has_element?(
+             view,
+             "#features-readout button[data-feature='material.total_value'][data-drawable='false']"
+           )
+  end
+
   test "the starting position has no outposts to pin", %{conn: conn, code: code} do
     {:ok, analysis, _revision} = Analyses.create("outpost-start")
     :ok = Rooms.add_analysis(code, analysis.id)

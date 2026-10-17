@@ -30,16 +30,28 @@ defmodule Features.Catalogue.Material do
             end
           end
         ),
-        Feature.new("material.bishop_pair", 2, [{2, "loperpaar"}], fn board ->
-          %{
-            "white" => Support.piece_count(board, :white, :bishops) >= 2,
-            "black" => Support.piece_count(board, :black, :bishops) >= 2
-          }
-        end),
-        Feature.new("material.bishop_pair.both", 2, [{2, "beide partijen loperpaar"}], fn board ->
-          Support.piece_count(board, :white, :bishops) >= 2 and
-            Support.piece_count(board, :black, :bishops) >= 2
-        end),
+        Feature.new(
+          "material.bishop_pair",
+          2,
+          [{2, "loperpaar"}],
+          fn board ->
+            %{
+              "white" => Support.piece_count(board, :white, :bishops) >= 2,
+              "black" => Support.piece_count(board, :black, :bishops) >= 2
+            }
+          end,
+          board: :bishop
+        ),
+        Feature.new(
+          "material.bishop_pair.both",
+          2,
+          [{2, "beide partijen loperpaar"}],
+          fn board ->
+            Support.piece_count(board, :white, :bishops) >= 2 and
+              Support.piece_count(board, :black, :bishops) >= 2
+          end,
+          board: :bishop
+        ),
         Feature.new(
           "material.imbalance.knight_vs_bishop",
           2,
@@ -93,7 +105,8 @@ defmodule Features.Catalogue.Material do
               "white" => up_exchange?(board, :white),
               "black" => up_exchange?(board, :black)
             }
-          end
+          end,
+          board: [:rook, :knight, :bishop]
         ),
         Feature.new("material.imbalanced", 2, [{2, "ongelijke materiaalbalans"}], fn board ->
           Support.material_value(board, :white) != Support.material_value(board, :black) or
@@ -111,15 +124,22 @@ defmodule Features.Catalogue.Material do
 
             MapSet.size(white) > 0 and MapSet.size(black) > 0 and
               MapSet.disjoint?(white, black)
-          end
+          end,
+          board: :bishop
         ),
-        Feature.new("material.bishops.same_color", 2, [{2, "same-colored bishops"}], fn board ->
-          white = Support.bishop_colors(board, :white)
-          black = Support.bishop_colors(board, :black)
+        Feature.new(
+          "material.bishops.same_color",
+          2,
+          [{2, "same-colored bishops"}],
+          fn board ->
+            white = Support.bishop_colors(board, :white)
+            black = Support.bishop_colors(board, :black)
 
-          MapSet.size(white) > 0 and MapSet.size(black) > 0 and
-            not MapSet.disjoint?(white, black)
-        end),
+            MapSet.size(white) > 0 and MapSet.size(black) > 0 and
+              not MapSet.disjoint?(white, black)
+          end,
+          board: :bishop
+        ),
         Feature.new(
           "material.queenless",
           2,
@@ -142,21 +162,27 @@ defmodule Features.Catalogue.Material do
   end
 
   defp count_features do
-    for {id, type} <- [
-          {"material.count.queen", :queens},
-          {"material.count.rook", :rooks},
-          {"material.count.bishop", :bishops},
-          {"material.count.knight", :knights},
-          {"material.count.pawn", :pawns}
+    for {id, type, singular} <- [
+          {"material.count.queen", :queens, :queen},
+          {"material.count.rook", :rooks, :rook},
+          {"material.count.bishop", :bishops, :bishop},
+          {"material.count.knight", :knights, :knight},
+          {"material.count.pawn", :pawns, :pawn}
         ] do
       bullet = plural_bullet(Support.type_name(type))
 
-      Feature.new(id, 2, [{2, bullet}], fn board ->
-        %{
-          "white" => piece_count(board, :white, type),
-          "black" => piece_count(board, :black, type)
-        }
-      end)
+      Feature.new(
+        id,
+        2,
+        [{2, bullet}],
+        fn board ->
+          %{
+            "white" => piece_count(board, :white, type),
+            "black" => piece_count(board, :black, type)
+          }
+        end,
+        board: singular
+      )
     end
   end
 

@@ -1259,7 +1259,7 @@ defmodule Web.RoomLive do
     visualizable? =
       case socket.assigns.features && Map.get(socket.assigns.features.values, id) do
         nil -> false
-        value -> highlights_for(value) != nil
+        value -> feature_drawable?(value, Catalogue.fetch!(id).board, socket.assigns.position)
       end
 
     {:noreply, if(visualizable?, do: toggle_pin(socket, id), else: socket)}
@@ -3756,21 +3756,28 @@ defmodule Web.RoomLive do
 
   defp assign_highlights(socket) do
     values = (socket.assigns.features && socket.assigns.features.values) || %{}
+    hints = feature_board_hints()
 
     assign(
       socket,
       :feature_highlights,
-      compute_highlights(values, socket.assigns.pinned_features)
+      compute_highlights(values, socket.assigns.pinned_features, hints, socket.assigns.position)
     )
+  end
+
+  # The catalogue's board hints: feature id => piece type(s) to draw from the
+  # position when the value itself holds no squares (counts, pairs, ...).
+  defp feature_board_hints do
+    Map.new(Catalogue.all(), fn feature -> {feature.id, feature.board} end)
   end
 
   defp empty_highlights do
     %{white: MapSet.new(), black: MapSet.new(), neutral: MapSet.new(), files: MapSet.new()}
   end
 
-  defp compute_highlights(values, pinned) do
+  defp compute_highlights(values, pinned, hints, position) do
     Enum.reduce(pinned, empty_highlights(), fn id, acc ->
-      case highlights_for(Map.get(values, id)) do
+      case highlights_for(Map.get(values, id), Map.get(hints, id), position) do
         nil -> acc
         highlights -> merge_highlights(acc, highlights)
       end
@@ -3786,9 +3793,15 @@ defmodule Web.RoomLive do
     }
   end
 
+  # A board hint draws the catalogue's named piece type(s) from the position
+  # for every side the value affirms (counts > 0, flags that are true).
+  defp highlights_for(value, hint, position) when not is_nil(hint) do
+    piece_highlights(value, List.wrap(hint), position)
+  end
+
   # What a feature can draw: per-side square lists, plain square lists and
   # file letters ("a"). Other shapes have nothing to pin; empty results too.
-  defp highlights_for(%{"white" => white, "black" => black})
+  defp highlights_for(%{"white" => white, "black" => black}, _hint, _position)
        when (is_list(white) or is_binary(white)) and (is_list(black) or is_binary(black)) do
     highlights = %{
       white: square_set(white),
@@ -3802,7 +3815,7 @@ defmodule Web.RoomLive do
       else: nil
   end
 
-  defp highlights_for(value) when is_binary(value) do
+  defp highlights_for(value, _hint, _position) when is_binary(value) do
     squares = square_set(value)
 
     if MapSet.size(squares) > 0 do
@@ -3812,7 +3825,9 @@ defmodule Web.RoomLive do
     end
   end
 
-  defp highlights_for(list) when is_list(list) and list != [] do
+  defp highlights_for(list, _hint, _position) when is_list(list) and list != [] do
+    list = List.flatten(list)
+
     if file_letters?(list) do
       files = MapSet.new(list, fn letter -> :binary.first(letter) - ?a end)
 
@@ -3828,12 +3843,51 @@ defmodule Web.RoomLive do
     end
   end
 
-  defp highlights_for(_value), do: nil
+  defp highlights_for(_value, _hint, _position), do: nil
+
+  # Piece highlights resolve their squares from the position; without a
+  # position there is nothing to draw.
+  defp piece_highlights(_value, _types, position) when is_nil(position), do: nil
+
+  defp piece_highlights(%{"white" => white, "black" => black}, types, position) do
+    highlights = %{
+      white: if(truthy?(white), do: piece_squares(position, :white, types), else: MapSet.new()),
+      black: if(truthy?(black), do: piece_squares(position, :black, types), else: MapSet.new()),
+      neutral: MapSet.new(),
+      files: MapSet.new()
+    }
+
+    if MapSet.size(highlights.white) + MapSet.size(highlights.black) > 0,
+      do: highlights,
+      else: nil
+  end
+
+  # Scalar flags ("both sides have the pair") highlight both sides.
+  defp piece_highlights(true, types, position) do
+    piece_highlights(%{"white" => true, "black" => true}, types, position)
+  end
+
+  defp piece_highlights(_value, _types, _position), do: nil
+
+  # Numbers are counts (positive = the side has some); booleans are flags.
+  defp truthy?(value) when is_number(value), do: value > 0
+  defp truthy?(value), do: value == true
+
+  defp piece_squares(position, color, types) do
+    position
+    |> Position.pieces()
+    |> Enum.filter(fn {_square, {piece_color, type}} ->
+      piece_color == color and type in types
+    end)
+    |> MapSet.new(fn {square, _piece} -> square end)
+  end
 
   defp square_set(value) when is_binary(value), do: square_set([value])
 
   defp square_set(list) when is_list(list) do
-    Enum.reduce(list, MapSet.new(), fn value, acc ->
+    list
+    |> List.flatten()
+    |> Enum.reduce(MapSet.new(), fn value, acc ->
       case Square.from_algebraic(value) do
         square when is_integer(square) -> MapSet.put(acc, square)
         _ -> acc
@@ -3847,15 +3901,24 @@ defmodule Web.RoomLive do
     end)
   end
 
-  # Catalogue features in spec-section order, with humanized labels and the
-  # stored values.
+  # Catalogue features in spec-section order, with humanized labels, the
+  # stored values and the board hint (nil for square-level features).
   defp feature_sections(values, locale) do
     Catalogue.all()
-    |> Enum.group_by(& &1.section, & &1.id)
-    |> Enum.sort_by(fn {section, _ids} -> section end)
-    |> Enum.map(fn {section, ids} ->
-      {section, Enum.map(ids, fn id -> {id, feature_label(id, locale), Map.get(values, id)} end)}
+    |> Enum.group_by(& &1.section)
+    |> Enum.sort_by(fn {section, _features} -> section end)
+    |> Enum.map(fn {section, features} ->
+      {section,
+       Enum.map(features, fn feature ->
+         {feature.id, feature_label(feature.id, locale), Map.get(values, feature.id),
+          feature.board}
+       end)}
     end)
+  end
+
+  # Rows that can draw on the board get a small cue; the engine decides.
+  defp feature_drawable?(value, hint, position) do
+    not is_nil(highlights_for(value, hint, position))
   end
 
   # The label is the id humanized; ids that carry Dutch words or typos have

@@ -424,5 +424,6 @@
   "room.removeAnalysisConfirm": "Verwijderen",
   "room.removeAnalysisBody": "“{label}” uit deze kamer verwijderen? Analyses in andere kamers en bibliotheekverwijzingen naar deze analyse blijven werken.",
   "room.removedAnalysis": "Analyse verwijderd",
-  "room.removeAnalysisFailed": "De analyse kon niet verwijderd worden."
+  "room.removeAnalysisFailed": "De analyse kon niet verwijderd worden.",
+  "room.featureDrawable": "Markeert velden op het bord wanneer gepind"
 }

@@ -169,3 +169,38 @@ defmodule Features.CatalogueTest do
     Enum.map_join(list, "\n", fn {section, bullet} -> "  #{section}. #{bullet}" end)
   end
 end
+
+defmodule Features.Catalogue.BoardHintsTest do
+  use ExUnit.Case, async: true
+
+  alias Features.Catalogue
+
+  @piece_types ~w(rook bishop knight queen pawn)a
+
+  test "aggregate piece features carry a board hint for the UI" do
+    assert Catalogue.fetch!("material.count.rook").board == :rook
+    assert Catalogue.fetch!("material.count.bishop").board == :bishop
+    assert Catalogue.fetch!("material.count.knight").board == :knight
+    assert Catalogue.fetch!("material.count.queen").board == :queen
+    assert Catalogue.fetch!("material.count.pawn").board == :pawn
+    assert Catalogue.fetch!("material.bishop_pair").board == :bishop
+    assert Catalogue.fetch!("material.bishop_pair.both").board == :bishop
+    assert Catalogue.fetch!("material.bishops.opposite_color").board == :bishop
+    assert Catalogue.fetch!("material.bishops.same_color").board == :bishop
+    assert Catalogue.fetch!("quality.bishop_pair").board == :bishop
+    assert Catalogue.fetch!("material.exchange_advantage").board == [:rook, :knight, :bishop]
+  end
+
+  test "board hints name known piece types and stay off square-level features" do
+    for feature <- Catalogue.all(), hint = feature.board do
+      assert List.wrap(hint) -- @piece_types == [],
+             "#{feature.id} has an unknown board hint: #{inspect(hint)}"
+    end
+
+    # Square-level features draw from their own value; a hint would be wrong.
+    assert Catalogue.fetch!("pawns.doubled").board == nil
+    assert Catalogue.fetch!("squares.outpost").board == nil
+    assert Catalogue.fetch!("attacks.map").board == nil
+    assert Catalogue.fetch!("mobility.per_piece").board == nil
+  end
+end

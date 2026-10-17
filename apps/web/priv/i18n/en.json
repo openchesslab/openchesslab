@@ -795,5 +795,6 @@
   "room.removeAnalysisConfirm": "Remove",
   "room.removeAnalysisBody": "Remove “{label}” from this room? Analyses in other rooms and library entries that reference it keep working.",
   "room.removedAnalysis": "Analysis removed",
-  "room.removeAnalysisFailed": "The analysis could not be removed."
+  "room.removeAnalysisFailed": "The analysis could not be removed.",
+  "room.featureDrawable": "Highlights on the board when pinned"
 }

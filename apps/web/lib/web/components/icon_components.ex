@@ -52,6 +52,9 @@ defmodule Web.IconComponents do
         <% "list" -> %>
           <path d="M8 6h13M8 12h13M8 18h13" />
           <path d="M3 6h.01M3 12h.01M3 18h.01" />
+        <% "board" -> %>
+          <rect x="3" y="3" width="18" height="18" rx="1.5" />
+          <path d="M9 3v18M15 3v18M3 9h18M3 15h18" />
         <% "sun" -> %>
           <circle cx="12" cy="12" r="4" />
           <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
