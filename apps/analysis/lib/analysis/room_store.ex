@@ -385,4 +385,28 @@ defmodule Analysis.RoomStore do
 
     :ok
   end
+
+  # Removing an analysis from its last room is only then a deletion: as long
+  # as any room or library entry still references it, the aggregate stays.
+  # The conditional delete is a single statement, so a concurrent add that
+  # commits first is seen; an add that commits afterwards can leave a
+  # room_analyses row behind (there is no FK on it), which the room UI
+  # already renders as an unavailable analysis.
+  @cleanup_orphaned_sql """
+  DELETE FROM analyses
+  WHERE analysis_id = $1
+    AND NOT EXISTS (
+      SELECT 1 FROM room_analyses WHERE room_analyses.analysis_id = analyses.analysis_id
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM user_analyses WHERE user_analyses.analysis_id = analyses.analysis_id
+    )
+  """
+
+  @doc "Deletes the analysis aggregate when nothing references it any more."
+  @spec cleanup_orphaned_analysis(String.t()) :: :ok
+  def cleanup_orphaned_analysis(analysis_id) when is_binary(analysis_id) do
+    Repo.query!(@cleanup_orphaned_sql, [analysis_id])
+    :ok
+  end
 end

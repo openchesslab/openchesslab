@@ -1,8 +1,11 @@
 defmodule Analysis.RoomsTest do
   use ExUnit.Case, async: false
 
+  alias Analysis.Analyses
   alias Analysis.Rooms
   alias Analysis.RoomStore
+  alias Analysis.UserLibrary
+  alias Analysis.Users
 
   @registry Analysis.RoomsTest.Registry
   @supervisor Analysis.RoomsTest.Supervisor
@@ -187,6 +190,58 @@ defmodule Analysis.RoomsTest do
 
     assert room.analysis_ids ==
              ["analysis-2"]
+  end
+
+  test "removing an analysis keeps it while another room references it", %{
+    room_id: room_id,
+    rooms_options: rooms_options
+  } do
+    id = "removal-" <> Ecto.UUID.generate()
+    second_room = room_id <> "-second"
+    {:ok, _analysis, 1} = Analyses.create(id)
+
+    on_exit(fn ->
+      RoomStore.delete(second_room)
+      OpenChessLab.Repo.query!("DELETE FROM analyses WHERE analysis_id = $1", [id])
+    end)
+
+    start_room_and_wait(room_id, rooms_options)
+    start_room_and_wait(second_room, rooms_options)
+    :ok = Rooms.add_analysis(room_id, id, rooms_options)
+    :ok = Rooms.add_analysis(second_room, id, rooms_options)
+
+    assert :ok = Rooms.remove_analysis(room_id, id, rooms_options)
+    # The other room still references it, so the aggregate survives.
+    assert {:ok, _, _} = Analyses.get(id)
+    assert {:ok, room} = Rooms.get(room_id, rooms_options)
+    assert room.analysis_ids == []
+
+    assert :ok = Rooms.remove_analysis(second_room, id, rooms_options)
+    # Nothing references it any more: removing took the aggregate with it.
+    assert :not_found = Analyses.get(id)
+  end
+
+  test "removing an analysis keeps it while a library entry references it", %{
+    room_id: room_id,
+    rooms_options: rooms_options
+  } do
+    id = "removal-" <> Ecto.UUID.generate()
+    {:ok, _analysis, 1} = Analyses.create(id)
+    {:ok, user} = Users.create()
+
+    on_exit(fn ->
+      OpenChessLab.Repo.query!("DELETE FROM analyses WHERE analysis_id = $1", [id])
+      Users.delete(user.id)
+    end)
+
+    start_room_and_wait(room_id, rooms_options)
+    :ok = Rooms.add_analysis(room_id, id, rooms_options)
+    assert {:ok, :tracked} = UserLibrary.track_from_room(user.id, room_id, id)
+
+    assert :ok = Rooms.remove_analysis(room_id, id, rooms_options)
+    # The live library reference keeps the analysis itself alive.
+    assert {:ok, _, _} = Analyses.get(id)
+    assert UserLibrary.list(user.id) == [id]
   end
 
   test "operations on an unknown room return not_found", %{

@@ -106,6 +106,7 @@ defmodule Web.RoomLive do
       legal_targets: [],
       orientation: "white",
       pinned_features: MapSet.new(),
+      removal_pending: nil,
       feature_highlights: %{
         white: MapSet.new(),
         black: MapSet.new(),
@@ -699,6 +700,57 @@ defmodule Web.RoomLive do
   def handle_event("toggle-orientation", _params, socket) do
     orientation = if socket.assigns.orientation == "white", do: "black", else: "white"
     {:noreply, assign(socket, :orientation, orientation)}
+  end
+
+  # Removing an analysis from the room asks first; the aggregate survives
+  # while other rooms or library entries reference it (Rooms semantics).
+  def handle_event("request-remove-analysis", %{"id" => id}, socket) when is_binary(id) do
+    case Enum.find(socket.assigns.analyses, &(&1.id == id)) do
+      nil ->
+        {:noreply, socket}
+
+      analysis ->
+        {:noreply, assign(socket, ui_modal: "remove-analysis", removal_pending: analysis)}
+    end
+  end
+
+  def handle_event("remove-analysis", _params, socket) do
+    case socket.assigns.removal_pending do
+      nil ->
+        {:noreply, assign(socket, :ui_modal, nil)}
+
+      analysis ->
+        case Rooms.remove_analysis(socket.assigns.room_code, analysis.id) do
+          :ok ->
+            socket =
+              socket
+              |> assign(ui_modal: nil, removal_pending: nil)
+              |> refresh_room()
+              |> notify(Web.I18n.t("room.removedAnalysis", socket.assigns.locale))
+
+            if socket.assigns.selected_analysis_id == analysis.id do
+              case socket.assigns.analyses do
+                [first | _] ->
+                  {:noreply,
+                   push_patch(socket, to: analysis_url(socket.assigns.room_code, first.id))}
+
+                [] ->
+                  {:noreply, push_patch(socket, to: "/rooms/#{socket.assigns.room_code}")}
+              end
+            else
+              {:noreply, socket}
+            end
+
+          {:error, _reason} ->
+            {:noreply,
+             socket
+             |> assign(ui_modal: nil, removal_pending: nil)
+             |> notify(
+               Web.I18n.t("room.removeAnalysisFailed", socket.assigns.locale),
+               :error
+             )}
+        end
+    end
   end
 
   def handle_event("select-strip-tab", %{"tab" => tab}, socket)

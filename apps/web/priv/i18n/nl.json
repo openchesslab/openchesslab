@@ -419,5 +419,10 @@
   "room.featureBoth": "Beide",
   "featureLabels.threats.aantal_checks": "Aantal checks",
   "featureLabels.threats.aantal_forcing_moves": "Aantal forcing moves",
-  "featureLabels.pawns.weak_undeprotectable": "Zwakke onverdedigbare pionnen"
+  "featureLabels.pawns.weak_undeprotectable": "Zwakke onverdedigbare pionnen",
+  "room.removeAnalysis": "Uit de kamer verwijderen",
+  "room.removeAnalysisConfirm": "Verwijderen",
+  "room.removeAnalysisBody": "“{label}” uit deze kamer verwijderen? Analyses in andere kamers en bibliotheekverwijzingen naar deze analyse blijven werken.",
+  "room.removedAnalysis": "Analyse verwijderd",
+  "room.removeAnalysisFailed": "De analyse kon niet verwijderd worden."
 }

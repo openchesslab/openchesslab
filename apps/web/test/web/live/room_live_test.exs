@@ -822,6 +822,42 @@ defmodule Web.RoomLiveTest do
     refute html =~ ~s(id="chat-drawer")
   end
 
+  test "removing the active analysis asks first and deletes it when unreferenced", %{
+    conn: conn,
+    code: code
+  } do
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    render_click(view, "create-analysis", %{})
+    render_click(view, "create-analysis", %{})
+    [first_id, second_id] = room_analysis_ids(code)
+
+    render_click(view, "select-analysis", %{"id" => first_id})
+    html = render(view)
+
+    # Only the active chip carries the remove control.
+    assert html =~ ~s(id="remove-#{first_id}")
+    refute html =~ ~s(id="remove-#{second_id}")
+
+    # The × opens a confirmation dialog without touching the room.
+    html = render_click(view, "request-remove-analysis", %{"id" => first_id})
+    assert html =~ ~s(id="remove-analysis-confirm")
+    assert room_analysis_ids(code) == [first_id, second_id]
+
+    html = render_click(view, "remove-analysis", %{})
+    refute html =~ ~s(id="analysis-chip-#{first_id}")
+    assert room_analysis_ids(code) == [second_id]
+    # Nothing references it any more, so the aggregate went with it.
+    assert :not_found = AnalysisStore.get(first_id)
+    # The remaining analysis becomes active and offers its own remove control.
+    assert html =~ ~s(id="remove-#{second_id}")
+
+    render_click(view, "request-remove-analysis", %{"id" => second_id})
+    html = render_click(view, "remove-analysis", %{})
+    assert room_analysis_ids(code) == []
+    assert :not_found = AnalysisStore.get(second_id)
+    assert html =~ "No analyses in this room yet"
+  end
+
   test "chat messages raise the unread badge while the drawer is closed", %{
     conn: conn,
     code: code

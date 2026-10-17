@@ -790,5 +790,10 @@
   "room.featureBoth": "Both",
   "featureLabels.threats.aantal_checks": "Checks available",
   "featureLabels.threats.aantal_forcing_moves": "Forcing moves available",
-  "featureLabels.pawns.weak_undeprotectable": "Weak undefendable pawns"
+  "featureLabels.pawns.weak_undeprotectable": "Weak undefendable pawns",
+  "room.removeAnalysis": "Remove from room",
+  "room.removeAnalysisConfirm": "Remove",
+  "room.removeAnalysisBody": "Remove “{label}” from this room? Analyses in other rooms and library entries that reference it keep working.",
+  "room.removedAnalysis": "Analysis removed",
+  "room.removeAnalysisFailed": "The analysis could not be removed."
 }
