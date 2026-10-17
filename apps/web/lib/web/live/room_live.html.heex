@@ -2115,6 +2115,37 @@
         <% end %>
       <% end %>
 
+      <div
+        :if={@import_source != "library"}
+        id="import-keep"
+        class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-3"
+      >
+        <span class="text-xs font-semibold uppercase tracking-wider text-muted">
+          {Web.I18n.t("room.importKeep", @locale)}
+        </span>
+        <label
+          :for={
+            {key, label} <- [
+              {:comments, "room.keepComments"},
+              {:variations, "room.keepVariations"},
+              {:metadata, "room.keepMetadata"},
+              {:annotations, "room.keepAnnotations"}
+            ]
+          }
+          class="flex cursor-pointer items-center gap-1.5 text-sm text-foreground"
+        >
+          <input
+            type="checkbox"
+            id={"import-keep-#{key}"}
+            checked={@import_keep[key]}
+            phx-click="toggle-import-keep"
+            phx-value-key={key}
+            class="accent-accent-strong"
+          />
+          {Web.I18n.t(label, @locale)}
+        </label>
+      </div>
+
       <ul
         :if={@import_skips != []}
         id="import-skips"

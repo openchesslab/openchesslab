@@ -846,6 +846,73 @@ defmodule Web.RoomLiveTest do
     end
   end
 
+  describe "import keep options" do
+    test "the dialog offers the four keep options with honest defaults", %{
+      conn: conn,
+      code: code
+    } do
+      {:ok, view, _html} = live(conn, "/rooms/#{code}")
+      render_click(view, "open-import", %{})
+
+      assert has_element?(view, "#import-keep-comments[checked]")
+      assert has_element?(view, "#import-keep-variations[checked]")
+      assert has_element?(view, "#import-keep-metadata[checked]")
+      refute has_element?(view, "#import-keep-annotations[checked]")
+    end
+
+    test "unchecked variations and comments are dropped from the import", %{
+      conn: conn,
+      code: code
+    } do
+      {:ok, view, _html} = live(conn, "/rooms/#{code}")
+      render_click(view, "open-import", %{})
+
+      render_click(view, "toggle-import-keep", %{"key" => "variations"})
+      render_click(view, "toggle-import-keep", %{"key" => "comments"})
+
+      render_submit(view, "import-pgn", %{
+        "pgn_text" => "[Event \"A\"]\n\n1. e4 e5 {the note} (1... c5) 2. Nf3 Nc6 *"
+      })
+
+      analysis_id = room_analysis_id!(code)
+      assert {:ok, analysis, _revision} = Analyses.get(analysis_id)
+
+      [e4] = analysis.root.children
+      [e5] = e4.children
+      assert e5.comment == nil
+      assert [nf3] = e5.children
+      assert [_nc6] = nf3.children
+    end
+
+    test "engine annotations land on the nodes only when asked", %{conn: conn, code: code} do
+      {:ok, view, _html} = live(conn, "/rooms/#{code}")
+      render_click(view, "open-import", %{})
+
+      annotated = "[Event \"A\"]\n\n1. e4 {[%clk 0:05:00] [%eval 0.20]} e5 *"
+
+      render_submit(view, "import-pgn", %{"pgn_text" => annotated})
+
+      analysis_id = room_analysis_id!(code)
+      assert {:ok, analysis, _revision} = Analyses.get(analysis_id)
+      [e4] = analysis.root.children
+      assert e4.clock == nil
+      assert e4.evaluation == nil
+
+      render_click(view, "open-import", %{})
+      render_click(view, "toggle-import-keep", %{"key" => "annotations"})
+      render_submit(view, "import-pgn", %{"pgn_text" => annotated})
+
+      [first_id, second_id] = room_analysis_ids(code)
+      assert {:ok, _first, _} = Analyses.get(first_id)
+      assert {:ok, second, _} = Analyses.get(second_id)
+      [e4] = second.root.children
+      assert e4.clock == "0:05:00"
+      assert e4.evaluation == "0.20"
+      # Annotations never leak into the human comment text.
+      assert e4.comment == nil
+    end
+  end
+
   describe "linked-account import" do
     setup do
       original = Application.fetch_env(:web, :game_import_request)

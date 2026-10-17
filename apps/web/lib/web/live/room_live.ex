@@ -145,6 +145,8 @@ defmodule Web.RoomLive do
       pgn: "",
       import_error: nil,
       import_skips: [],
+      # What a PGN import keeps; engine annotations are opt-in.
+      import_keep: %{comments: true, variations: true, metadata: true, annotations: false},
       lichess_granted: false,
       search_filters: %{
         "player" => "",
@@ -1526,6 +1528,14 @@ defmodule Web.RoomLive do
     end
   end
 
+  def handle_event("toggle-import-keep", %{"key" => key}, socket)
+      when key in ~w(comments variations metadata annotations) do
+    keep = Map.update!(socket.assigns.import_keep, String.to_existing_atom(key), &not/1)
+    {:noreply, assign(socket, import_keep: keep)}
+  end
+
+  def handle_event("toggle-import-keep", _params, socket), do: {:noreply, socket}
+
   def handle_event("use-sample-pgn", _params, socket) do
     sample = DemoData.game("demo-ruy-lopez").pgn
     {:noreply, assign(socket, pgn: sample, import_error: nil)}
@@ -2292,7 +2302,7 @@ defmodule Web.RoomLive do
 
   defp import_chunks(socket, chunks, skips) do
     locale = socket.assigns.locale
-    {analyses, skips} = run_imports(chunks, skips)
+    {analyses, skips} = run_imports(chunks, skips, keep_opts(socket.assigns.import_keep))
     {added, skips} = add_to_room(socket, analyses, skips, locale)
 
     case added do
@@ -2320,11 +2330,25 @@ defmodule Web.RoomLive do
     end
   end
 
-  defp run_imports(chunks, skips) do
+  defp keep_opts(%{
+         comments: comments,
+         variations: variations,
+         metadata: metadata,
+         annotations: annotations
+       }) do
+    [
+      keep_comments: comments,
+      keep_variations: variations,
+      keep_metadata: metadata,
+      keep_annotations: annotations
+    ]
+  end
+
+  defp run_imports(chunks, skips, opts) do
     chunks
     |> Enum.with_index(1)
     |> Enum.reduce({[], skips}, fn {chunk, index}, {analyses, skips} ->
-      case PgnAnalysisImporter.import(new_analysis_id(), new_game_record_id(), chunk) do
+      case PgnAnalysisImporter.import(new_analysis_id(), new_game_record_id(), chunk, opts) do
         {:ok, analysis, _revision} ->
           {[analysis | analyses], skips}
 
