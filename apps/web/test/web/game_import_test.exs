@@ -80,6 +80,124 @@ defmodule Web.GameImportTest do
     end
   end
 
+  describe "fetch_lichess_recent_games/2" do
+    test "parses the NDJSON metadata lines into selection rows" do
+      lines =
+        Enum.map_join(
+          [
+            %{
+              "id" => "AbCdEfGh",
+              "speed" => "blitz",
+              "winner" => "white",
+              "lastMoveAt" => 1_700_000_000_000,
+              "players" => %{
+                "white" => %{"user" => %{"name" => "Anna"}},
+                "black" => %{"user" => %{"name" => "Boris"}}
+              }
+            },
+            %{
+              "id" => "XyZ12345",
+              "speed" => "rapid",
+              "createdAt" => 1_690_000_000_000,
+              "players" => %{"white" => %{}, "black" => %{"user" => %{"name" => "Cleo"}}}
+            }
+          ],
+          "\n",
+          &Jason.encode!/1
+        )
+
+      stub([{200, lines <> "\n"}])
+
+      assert {:ok, [first, second]} = GameImport.fetch_lichess_recent_games("anna", 10)
+
+      assert %{
+               id: "AbCdEfGh",
+               white: "Anna",
+               black: "Boris",
+               result: "1-0",
+               speed: "blitz",
+               year: 2023
+             } = first
+
+      refute Map.has_key?(first, :pgn)
+
+      assert %{
+               id: "XyZ12345",
+               white: "Anonymous",
+               black: "Cleo",
+               result: "½-½",
+               speed: "rapid",
+               year: 2023
+             } = second
+    end
+
+    test "maps provider failures to honest reasons" do
+      stub([{404, ""}])
+      assert {:error, :not_found} = GameImport.fetch_lichess_recent_games("nobody", 5)
+
+      stub([{429, ""}])
+      assert {:error, :rate_limited} = GameImport.fetch_lichess_recent_games("nobody", 5)
+
+      stub([:timeout])
+      assert {:error, :unreachable} = GameImport.fetch_lichess_recent_games("nobody", 5)
+    end
+  end
+
+  describe "fetch_chesscom_month_games/3" do
+    test "returns the month's games newest first, PGN included, url as id" do
+      month = %{
+        "games" => [
+          %{
+            "url" => "https://www.chess.com/game/live/111",
+            "pgn" => "[Event \"old\"]\n\n1. e4 e5 *",
+            "time_class" => "bullet",
+            "end_time" => 1_690_000_000,
+            "white" => %{"username" => "anna", "result" => "agreed"},
+            "black" => %{"username" => "boris", "result" => "agreed"}
+          },
+          %{
+            "url" => "https://www.chess.com/game/live/222",
+            "pgn" => "[Event \"new\"]\n\n1. d4 d5 1-0",
+            "time_class" => "blitz",
+            "end_time" => 1_700_000_000,
+            "white" => %{"username" => "cleo", "result" => "win"},
+            "black" => %{"username" => "anna", "result" => "resigned"}
+          }
+        ]
+      }
+
+      stub([{200, Jason.encode!(month)}])
+
+      assert {:ok, [newest, oldest]} = GameImport.fetch_chesscom_month_games("Anna", 2023, 11)
+
+      assert %{
+               id: "https://www.chess.com/game/live/222",
+               white: "cleo",
+               black: "anna",
+               result: "1-0",
+               speed: "blitz",
+               year: 2023,
+               pgn: new_pgn
+             } = newest
+
+      assert new_pgn =~ "1. d4 d5"
+
+      assert %{id: "https://www.chess.com/game/live/111", result: "½-½", speed: "bullet"} =
+               oldest
+    end
+
+    test "an empty month and an unknown user are honest errors" do
+      stub([{200, Jason.encode!(%{"games" => []})}])
+      assert {:error, :no_games} = GameImport.fetch_chesscom_month_games("quiet", 2026, 9)
+
+      stub([{404, ""}])
+      assert {:error, :not_found} = GameImport.fetch_chesscom_month_games("nobody", 2026, 9)
+
+      stub([:timeout])
+      assert {:error, :unreachable} = GameImport.fetch_chesscom_month_games("nobody", 2026, 9)
+    end
+  end
+
   describe "fetch_chesscom_user_games/2" do
     test "takes the newest games from the latest monthly archive" do
       archives = %{"archives" => ["https://api.chess.com/pub/player/x/games/2026/09"]}

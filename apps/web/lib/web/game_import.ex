@@ -23,6 +23,21 @@ defmodule Web.GameImport do
 
   @type fetch_error :: :not_found | :no_games | :rate_limited | :unreachable
 
+  @typedoc """
+  A selection row for the import tray: who played, how it ended, the speed
+  and the year. Chess.com rows also carry the full `pgn` (the monthly
+  archive is the only public listing, so it arrives whole).
+  """
+  @type game_row :: %{
+          optional(:pgn) => String.t(),
+          id: String.t(),
+          white: String.t(),
+          black: String.t(),
+          result: String.t(),
+          speed: String.t(),
+          year: integer() | String.t()
+        }
+
   @doc """
   Classifies the import box line by line: a trimmed line that is a Lichess
   game URL contributes its game id, a Chess.com URL is reported separately
@@ -177,24 +192,71 @@ defmodule Web.GameImport do
     end)
   end
 
+  @doc """
+  The most recent public games of a Lichess account as metadata rows,
+  newest first — the selection list for the import tray. The rows carry
+  no moves; `fetch_lichess_games_by_ids/1` fetches the chosen PGNs.
+  """
+  @spec fetch_lichess_recent_games(String.t(), pos_integer()) ::
+          {:ok, [game_row()]} | {:error, fetch_error()}
+  def fetch_lichess_recent_games(username, max) do
+    url = "https://lichess.org/api/games/user/#{URI.encode(username)}?max=#{max}"
+
+    case request().(
+           :get,
+           {String.to_charlist(url), headers("application/x-ndjson")},
+           http_options(),
+           []
+         ) do
+      {:ok, {{_, 200, _}, _headers, body}} ->
+        rows =
+          body
+          |> to_string()
+          |> String.split("\n", trim: true)
+          |> Enum.map(fn line -> recent_row(Jason.decode!(line)) end)
+
+        {:ok, rows}
+
+      {:ok, {{_, 404, _}, _, _}} ->
+        {:error, :not_found}
+
+      {:ok, {{_, 429, _}, _, _}} ->
+        {:error, :rate_limited}
+
+      _ ->
+        {:error, :unreachable}
+    end
+  end
+
+  defp recent_row(game) do
+    %{
+      id: game["id"],
+      white: player_name(game, "white"),
+      black: player_name(game, "black"),
+      result: game_result(game),
+      speed: game["speed"] || "?",
+      year: game_year(game)
+    }
+  end
+
   defp game_title(game) do
-    white = player_name(game, "white")
-    black = player_name(game, "black")
+    row = recent_row(game)
+    "#{row.white} – #{row.black} #{row.result} (#{row.year})"
+  end
 
-    result =
-      case game["winner"] do
-        "white" -> "1-0"
-        "black" -> "0-1"
-        _ -> "½-½"
-      end
+  defp game_result(game) do
+    case game["winner"] do
+      "white" -> "1-0"
+      "black" -> "0-1"
+      _ -> "½-½"
+    end
+  end
 
-    year =
-      case game["lastMoveAt"] || game["createdAt"] do
-        ms when is_integer(ms) -> DateTime.from_unix!(ms, :millisecond).year
-        _ -> "?"
-      end
-
-    "#{white} – #{black} #{result} (#{year})"
+  defp game_year(game) do
+    case game["lastMoveAt"] || game["createdAt"] do
+      ms when is_integer(ms) -> DateTime.from_unix!(ms, :millisecond).year
+      _ -> "?"
+    end
   end
 
   defp player_name(game, color),
@@ -245,6 +307,65 @@ defmodule Web.GameImport do
 
   defp latest_archive(%{"archives" => [_ | _] = archives}), do: {:ok, List.last(archives)}
   defp latest_archive(_), do: {:error, :no_games}
+
+  @doc """
+  One month of public Chess.com games as rows, newest first. Each row
+  carries its full PGN and uses the game URL as id — the monthly archive
+  is the only public listing, so the import tray selects from these rows
+  without refetching.
+  """
+  @spec fetch_chesscom_month_games(String.t(), pos_integer(), pos_integer()) ::
+          {:ok, [game_row()]} | {:error, fetch_error()}
+  def fetch_chesscom_month_games(username, year, month)
+      when year > 0 and month in 1..12 do
+    padded = String.pad_leading(Integer.to_string(month), 2, "0")
+
+    url =
+      "https://api.chess.com/pub/player/#{URI.encode(String.downcase(username))}/games/#{year}/#{padded}"
+
+    case get_json(url) do
+      {:ok, %{"games" => [_ | _] = games}} ->
+        rows =
+          games
+          |> Enum.sort_by(&(&1["end_time"] || 0), :desc)
+          |> Enum.map(&chesscom_row/1)
+
+        {:ok, rows}
+
+      {:ok, _} ->
+        {:error, :no_games}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp chesscom_row(game) do
+    %{
+      id: game["url"],
+      white: get_in(game, ["white", "username"]) || "?",
+      black: get_in(game, ["black", "username"]) || "?",
+      result: chesscom_result(game),
+      speed: game["time_class"] || "?",
+      year: chesscom_year(game),
+      pgn: game["pgn"] || ""
+    }
+  end
+
+  defp chesscom_result(game) do
+    cond do
+      get_in(game, ["white", "result"]) == "win" -> "1-0"
+      get_in(game, ["black", "result"]) == "win" -> "0-1"
+      true -> "½-½"
+    end
+  end
+
+  defp chesscom_year(game) do
+    case game["end_time"] do
+      seconds when is_integer(seconds) -> DateTime.from_unix!(seconds).year
+      _ -> "?"
+    end
+  end
 
   defp get_json(url) do
     case request().(
