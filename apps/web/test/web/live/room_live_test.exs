@@ -1686,13 +1686,10 @@ defmodule Web.RoomLiveTest do
     {:ok, view, _html} = live(conn, "/rooms/#{code}")
     render_click(view, "create-analysis", %{})
 
-    # The engine tab is the default; the book tab loads on selection.
-    assert has_element?(view, "#engine-tab-engine[aria-selected='true']")
+    # The reference panel loads asynchronously with the corpus moves for the
+    # starting position: 1.e4 in two games, 1.d4 and 1.Nf3 in one each.
+    render_async(view, 1_000)
 
-    html = render_click(view, "select-engine-tab", %{"tab" => "book"})
-
-    # The starting position is unnamed, but the corpus moves are there:
-    # 1.e4 in two games, 1.d4 and 1.Nf3 in one each.
     refute has_element?(view, "#book-opening")
 
     assert has_element?(view, "#book-moves button[phx-value-uci='e2e4']", "e4")
@@ -1700,10 +1697,11 @@ defmodule Web.RoomLiveTest do
     assert has_element?(view, "#book-moves button[phx-value-uci='g1f3']", "Nf3")
 
     # Playing a book move plays it into the analysis.
-    html = render_click(view, "book-play-move", %{"uci" => "e2e4"})
+    render_click(view, "book-play-move", %{"uci" => "e2e4"})
     assert has_element?(view, "#move-list button[data-move-path='0']", "e4")
 
-    # After 1.e4 the book names the King's Pawn Game and the tab follows the move.
+    # After 1.e4 the panel names the King's Pawn Game and follows the move.
+    render_async(view, 1_000)
     assert has_element?(view, "#book-opening", "King's Pawn Game")
     assert has_element?(view, "#book-opening", "B00")
 
@@ -1752,8 +1750,8 @@ defmodule Web.RoomLiveTest do
       render_click(view, "setup-palette-drop", %{"piece" => "black_king", "square" => "60"})
       render_click(view, "create-from-setup", %{})
 
-      # The engine tab is the default; the endgame tab loads on selection.
-      render_click(view, "select-engine-tab", %{"tab" => "endgame"})
+      # In tablebase range the reference panel switches to the exact result.
+      render_async(view, 1_000)
 
       assert has_element?(view, "#endgame-headline", "White wins")
       assert has_element?(view, "#endgame-headline", "Mate in 7")
@@ -1762,20 +1760,16 @@ defmodule Web.RoomLiveTest do
       # move is a win for the player who plays the move.
       assert has_element?(view, "#endgame-moves li", "Win")
 
-      # A revisit serves the durable cache instead of the queue.
-      render_click(view, "select-engine-tab", %{"tab" => "engine"})
-      render_click(view, "select-engine-tab", %{"tab" => "endgame"})
-      assert has_element?(view, "#endgame-headline", "Mate in 7")
-
       # Playing a table move plays it into the analysis; the new position is
       # fetched once and again reported from the side to move's perspective.
       render_click(view, "endgame-play-move", %{"uci" => "d1d8"})
       assert has_element?(view, "#move-list button[data-move-path='0']", "Qd8+")
+      render_async(view, 1_000)
       assert has_element?(view, "#endgame-headline", "Black loses")
       assert has_element?(view, "#endgame-headline", "Mated in 6")
     end
 
-    test "positions outside the tablebase range are explained without a fetch", %{
+    test "positions outside the tablebase range skip the fetch", %{
       conn: conn,
       code: code
     } do
@@ -1786,10 +1780,9 @@ defmodule Web.RoomLiveTest do
 
       {:ok, view, _html} = live(conn, "/rooms/#{code}")
       render_click(view, "create-analysis", %{})
+      render_async(view, 1_000)
 
-      render_click(view, "select-engine-tab", %{"tab" => "endgame"})
-
-      assert has_element?(view, "#endgame-range")
+      # Thirty-two pieces: the panel stays on the corpus side.
       refute has_element?(view, "#endgame-result")
       # The stub was never consumed: no external request was made.
       assert Agent.get(agent, & &1) != []
@@ -1806,10 +1799,40 @@ defmodule Web.RoomLiveTest do
       render_click(view, "setup-palette-drop", %{"piece" => "white_queen", "square" => "3"})
       render_click(view, "setup-palette-drop", %{"piece" => "black_king", "square" => "60"})
       render_click(view, "create-from-setup", %{})
-
-      render_click(view, "select-engine-tab", %{"tab" => "endgame"})
+      render_async(view, 1_000)
 
       assert has_element?(view, "#endgame-error")
+    end
+  end
+
+  describe "comment dialog" do
+    test "comments are saved and removed through the dialog", %{conn: conn, code: code} do
+      {:ok, view, _html} = live(conn, "/rooms/#{code}")
+      render_click(view, "create-analysis", %{})
+      render_click(view, "board-move", %{"from" => 12, "to" => 28})
+
+      # No comment yet: the dialog opens with an empty field and no delete.
+      render_click(view, "open-comment-editor", %{})
+      assert has_element?(view, "#analysis-comment")
+      refute has_element?(view, "#comment-clear")
+
+      render_submit(view, "save-comment", %{"comment" => "A quiet start"})
+
+      # The dialog closes and the comment is stored on the played move.
+      refute has_element?(view, "#analysis-comment")
+
+      analysis_id = room_analysis_id!(code)
+      assert {:ok, analysis, _revision} = Analyses.get(analysis_id)
+      assert hd(analysis.root.children).comment == "A quiet start"
+
+      # Reopening offers deletion; deleting clears the comment.
+      render_click(view, "open-comment-editor", %{})
+      assert has_element?(view, "#comment-clear")
+      render_click(view, "clear-comment", %{})
+      refute has_element?(view, "#analysis-comment")
+
+      assert {:ok, analysis, _revision} = Analyses.get(analysis_id)
+      assert hd(analysis.root.children).comment in [nil, ""]
     end
   end
 

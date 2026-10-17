@@ -34,6 +34,24 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, klaar voor commit/deploy:** `Fold the book and endgame table into a reference panel`.
+  Het commentaarveld onder de zettenlijst is vervangen door één **contextueel referentiepaneel**
+  (zelfde plek, `#reference-panel`): openingnaam + ECO en de gespeelde corpuszetten met statistiek
+  (W/D/L-balken, aanklikbaar) zolang de stelling in de corpus zit; zodra er ≤7 stukken staan schakelt
+  het paneel automatisch naar de **exacte eindspeltabel** (castlingrechten uitgezonderd). Het paneel
+  laadt **asynchroon** (`assign_async`, reset per stelling) — de corpusaggregatie op drukke
+  openingsstellingen mag nooit een zet blokkeren; verouderde resultaten worden per key weggegooid
+  (`reference_view/1` + AsyncResult). De engine-kolom is daarmee terug naar **twee tabs**
+  (Engine + Features); de eerdere 'verberg Boek buiten de theorie'-regel is vervallen — het paneel
+  toont de statistiek altijd en de openingnaam zolang de lijn is geclassificeerd. Commentaar
+  bewerken gaat nu via een **dialoog** achter een knop in de kop van het zettenpaneel (met
+  markeringsstip als het huidige knooppunt commentaar heeft; verwijderknop in de dialoog).
+  Verwijderde i18n-keys: `room.bookTab`, `room.endgameTab`, `room.endgameRange` (dode keys weg).
+  Geverifieerd in dev: startpositie → boekzetten (e4 3362, d4 1673 …) met openingsnamen; na 1.e4 →
+  "King's Pawn Game · B00" + Siciliaan-statistiek; KQK-stelling → "White wins · Mate in 15" met
+  zetten en chips; commentaardialoog openen/opslaan/verwijderen. Serieel: analysis **655**,
+  web **279**, chess **591**, features **209**; formatter, diffcontrole.
+
 - **Afgerond en gedeployed; productie gezond:** `Add the position feature readout with icon engine tabs`
   (`cd36d54`) + `Humanize the feature readout labels and values` (`b1d277b`).
   Eerste productgebruik van de features-app: de engine-kolom heeft een vierde tab **Features**

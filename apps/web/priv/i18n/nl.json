@@ -292,11 +292,8 @@
   "room.reviewDone": "Review klaar: {blunders} blunders, {mistakes} fouten, {inaccuracies} onauwkeurigheden",
   "room.reviewAccuracy": "Nauwkeurigheid",
   "room.reviewAgain": "Opnieuw reviewen",
-  "room.bookTab": "Boek",
   "room.bookEmpty": "Nog geen partijen in de corpus bereikten deze stelling.",
   "room.bookPlay": "Speel deze zet",
-  "room.endgameTab": "Eindspel",
-  "room.endgameRange": "De eindspeltabel dekt stellingen tot zeven stukken.",
   "room.endgameNotAvailable": "Deze stelling staat niet in de eindspeltabel.",
   "room.endgameError": "De eindspeltabel is nu niet bereikbaar.",
   "room.endgameWhite": "Wit",
@@ -417,5 +414,10 @@
   "auth.lichessSyncLast": "Laatst gesynchroniseerd: {time}",
   "common.yes": "Ja",
   "common.no": "Nee",
-  "room.featuresNoDescription": "Nog geen omschrijving."
+  "room.featuresNoDescription": "Nog geen omschrijving.",
+  "room.reference": "Referentie",
+  "room.referenceLoading": "Laden…",
+  "room.referenceError": "Het referentiepaneel kon niet geladen worden.",
+  "room.clearComment": "Commentaar verwijderen",
+  "room.removedComment": "Commentaar verwijderd"
 }

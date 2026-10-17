@@ -157,10 +157,6 @@ defmodule Web.RoomLive do
       engine_cached: nil,
       engine_review: nil,
       engine_tab: "engine",
-      book_moves: [],
-      book_opening: nil,
-      endgame: nil,
-      endgame_status: nil,
       features: nil,
       features_status: nil,
       features_detail: nil,
@@ -818,6 +814,7 @@ defmodule Web.RoomLive do
       {:noreply,
        socket
        |> update_analysis(analysis, revision, socket.assigns.current_path)
+       |> assign(:ui_modal, nil)
        |> notify(Web.I18n.t("room.savedComment", socket.assigns.locale))}
     else
       _ ->
@@ -1158,17 +1155,35 @@ defmodule Web.RoomLive do
     do: {:noreply, assign(socket, :engine_peek, nil)}
 
   # The engine column's source tabs: Engine is the local Stockfish panel,
-  # Book is the corpus opening book with ECO classification, Endgame is the
-  # exact tablebase result for positions with up to seven pieces, Features
-  # is the catalogue readout for the position on the board.
+  # Features is the catalogue readout. The corpus book and the endgame table
+  # live in the reference panel below the move list.
   def handle_event("select-engine-tab", %{"tab" => tab}, socket)
-      when tab in ["engine", "book", "endgame", "features"] do
+      when tab in ["engine", "features"] do
     {:noreply,
      socket
      |> assign(:engine_tab, tab)
-     |> maybe_load_book()
-     |> maybe_load_endgame()
      |> maybe_load_features()}
+  end
+
+  # The comment editor lives in a dialog; the moves panel header only keeps
+  # the button (with a marker when the current node carries a comment).
+  def handle_event("open-comment-editor", _params, socket),
+    do: {:noreply, assign(socket, :ui_modal, "comment")}
+
+  def handle_event("clear-comment", _params, socket) do
+    with id when is_binary(id) <- socket.assigns.selected_analysis_id,
+         {:ok, analysis, revision} <-
+           Analyses.set_comment(id, socket.assigns.current_path, "") do
+      {:noreply,
+       socket
+       |> update_analysis(analysis, revision, socket.assigns.current_path)
+       |> assign(:ui_modal, nil)
+       |> notify(Web.I18n.t("room.removedComment", socket.assigns.locale))}
+    else
+      _ ->
+        {:noreply,
+         notify(socket, Web.I18n.t("room.commentFailed", socket.assigns.locale), :error)}
+    end
   end
 
   # The readout's detail strip: clicking a row explains the feature.
@@ -1796,8 +1811,7 @@ defmodule Web.RoomLive do
           pending_promotion: nil
         )
         |> refresh_engine_position()
-        |> maybe_load_book()
-        |> maybe_load_endgame()
+        |> start_reference()
         |> maybe_load_features()
         |> refresh_presence()
 
@@ -3551,60 +3565,69 @@ defmodule Web.RoomLive do
     end
   end
 
-  # Reads the durable cache for the position on the board; only a cached
-  # result at least as deep as requested counts as coverage.
-  # The book tab reloads when the position changes while it is visible.
-  defp maybe_load_book(socket) do
-    if socket.assigns.engine_tab == "book" and not is_nil(socket.assigns.position) do
-      load_book(socket)
-    else
-      socket
-    end
-  end
-
-  # The endgame tab reloads when the position changes while it is visible;
-  # results are fetched once per canonical position and cached durably.
-  defp maybe_load_endgame(socket) do
-    if socket.assigns.engine_tab == "endgame" and not is_nil(socket.assigns.position) do
-      load_endgame(socket)
-    else
-      socket
-    end
-  end
-
-  defp load_endgame(socket) do
+  # The reference panel combines the opening classification, the corpus move
+  # statistics and — in tablebase range — the exact endgame result. It loads
+  # asynchronously: corpus aggregation on busy opening positions takes real
+  # time and must never block a position change. assign_async replaces
+  # superseded runs by key, so fast navigation cannot show stale data.
+  defp start_reference(socket) do
+    analysis = socket.assigns.analysis
+    path = socket.assigns.current_path
     position = socket.assigns.position
+    current_node = socket.assigns.current_node
 
+    if is_nil(analysis) or is_nil(position) or is_nil(current_node) do
+      socket
+    else
+      position_id = Node.position_id(current_node)
+
+      assign_async(
+        socket,
+        :reference,
+        fn -> {:ok, %{reference: reference_data(analysis, path, position, position_id)}} end,
+        reset: true
+      )
+    end
+  end
+
+  defp reference_data(analysis, path, position, position_id) do
+    opening =
+      case OpeningBook.classify_line(analysis, path) do
+        {:ok, classification} -> classification
+        :not_found -> nil
+      end
+
+    %{
+      opening: opening,
+      moves: OpeningBook.moves(position, position_id, limit: 12),
+      endgame: endgame_reference(position, position_id)
+    }
+  end
+
+  # Tablebase range: seven pieces or fewer and no castling rights. Results are
+  # cached durably; positions outside the range never reach the service.
+  defp endgame_reference(position, position_id) do
     cond do
       length(Chess.Board.pieces(position.board)) > 7 ->
-        assign(socket, endgame: nil, endgame_status: :out_of_range)
+        nil
 
       position.castling_rights |> MapSet.new() |> MapSet.size() > 0 ->
-        assign(socket, endgame: nil, endgame_status: :not_in_tablebase)
+        %{status: :not_in_tablebase}
 
       true ->
-        case cached_or_fetched_endgame(socket, position) do
-          {:ok, result} -> assign(socket, endgame: result, endgame_status: :ok)
-          {:error, reason} -> assign(socket, endgame: nil, endgame_status: reason)
-        end
-    end
-  end
-
-  defp cached_or_fetched_endgame(socket, position) do
-    position_id = Node.position_id(socket.assigns.current_node)
-
-    case PositionTablebases.get(position_id) do
-      {:ok, result} ->
-        {:ok, result}
-
-      :not_found ->
-        case Tablebase.fetch(to_fen(position)) do
+        case PositionTablebases.get(position_id) do
           {:ok, result} ->
-            :ok = PositionTablebases.put(position_id, result)
-            {:ok, result}
+            %{status: :ok, result: result}
 
-          {:error, reason} ->
-            {:error, reason}
+          :not_found ->
+            case Tablebase.fetch(to_fen(position)) do
+              {:ok, result} ->
+                :ok = PositionTablebases.put(position_id, result)
+                %{status: :ok, result: result}
+
+              {:error, reason} ->
+                %{status: reason}
+            end
         end
     end
   end
@@ -3683,6 +3706,21 @@ defmodule Web.RoomLive do
     end
   end
 
+  # The comment marker on the moves-panel header button.
+  defp comment_present?(nil), do: false
+  defp comment_present?(%Node{comment: comment}), do: is_binary(comment) and comment != ""
+
+  # Template view of the async reference assign.
+  defp reference_view(%Phoenix.LiveView.AsyncResult{loading: loading}) when loading, do: :loading
+
+  defp reference_view(%Phoenix.LiveView.AsyncResult{failed: failed}) when not is_nil(failed),
+    do: :failed
+
+  defp reference_view(%Phoenix.LiveView.AsyncResult{result: result}) when not is_nil(result),
+    do: {:ok, result}
+
+  defp reference_view(_), do: :none
+
   # The detail strip answers "what does this mean": the curated description
   # from the catalog, the raw id, and the raw value the row summarizes.
   defp feature_description(id, locale) do
@@ -3699,23 +3737,6 @@ defmodule Web.RoomLive do
     |> Map.get(id)
     |> inspect(pretty: true, limit: :infinity)
     |> String.slice(0, 2_000)
-  end
-
-  defp load_book(socket) do
-    opening =
-      case OpeningBook.classify_line(socket.assigns.analysis, socket.assigns.current_path) do
-        {:ok, classification} -> classification
-        :not_found -> nil
-      end
-
-    moves =
-      OpeningBook.moves(
-        socket.assigns.position,
-        Node.position_id(socket.assigns.current_node),
-        limit: 12
-      )
-
-    assign(socket, book_opening: opening, book_moves: moves)
   end
 
   # A cached evaluation covers the request only when it is at least as deep

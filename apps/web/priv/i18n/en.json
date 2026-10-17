@@ -292,11 +292,8 @@
   "room.reviewDone": "Review complete: {blunders} blunders, {mistakes} mistakes, {inaccuracies} inaccuracies",
   "room.reviewAccuracy": "Accuracy",
   "room.reviewAgain": "Review again",
-  "room.bookTab": "Book",
   "room.bookEmpty": "No games in the corpus reached this position yet.",
   "room.bookPlay": "Play this move",
-  "room.endgameTab": "Endgame",
-  "room.endgameRange": "The endgame table covers positions with up to seven pieces.",
   "room.endgameNotAvailable": "This position is not in the endgame table.",
   "room.endgameError": "The endgame table is not reachable right now.",
   "room.endgameWhite": "White",
@@ -788,5 +785,10 @@
   "features.similarity.one_pawn_shifted": "True when a single pawn was shifted",
   "features.similarity.bishop_knight_substitution": "True when a bishop and knight trade places",
   "features.similarity.two_rooks_queen_substitution": "True when two rooks replace a queen",
-  "room.featuresNoDescription": "No description yet."
+  "room.featuresNoDescription": "No description yet.",
+  "room.reference": "Reference",
+  "room.referenceLoading": "Loading…",
+  "room.referenceError": "The reference panel could not be loaded.",
+  "room.clearComment": "Delete comment",
+  "room.removedComment": "Comment removed"
 }
