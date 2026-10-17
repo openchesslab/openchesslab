@@ -217,6 +217,17 @@ on mobile) with a closing backdrop; the mobile drawer-tab scheme (`RoomTabs` hoo
 The board's height cap accounts for the bar (`min(100%, calc(100dvh - 20rem))`, shared with the
 evaluation bar).
 
+**Board overlays from the catalogue (2026-10-17):** the LAYERS block was replaced. An **"On the
+board" row** under the position strip holds the five former quick toggles (Open files, Attacked
+squares, Defended pieces, King zone, Outposts) as chips — each pins the matching catalogue
+feature — plus every feature pinned from the readout as a removable chip, and a Clear action.
+`room_live` derives `feature_highlights` (`white`/`black`/`neutral` square MapSets and `files`)
+from the raw vector: per-side square lists or single squares, plain square lists, and file
+letters; the board draws blue (white), red (black), amber (neutral) tints and amber file bands
+(`data-highlight` attributes for tests). Clicking a readout row shows its description and pins it
+in the same gesture; empty features stay detail-only. `Chess.PositionProperties` is no longer used
+for board overlays (still feeds the MATERIAL/SPACE strip tabs — pruning it is follow-up).
+
 **Reference panel (2026-10-17):** the book and the endgame table share one contextual panel below
 the move list (where the old inline comment box sat): opening name + ECO and corpus moves with
 statistics while the position is in the corpus, the exact tablebase once seven or fewer pieces

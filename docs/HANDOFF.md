@@ -34,6 +34,20 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond en gedeployed; productie gezond:** `Pin catalogue features on the board and replace
+  the layers block` (`59505d6`). Het LAYERS-blok is weg; onderaan de bordkolom staat nu een
+  **"OP HET BORD"-rij** met de vijf oude snelknoppen (Open files, Attacked squares, Defended
+  pieces, King zone, Outposts — elk pint het bijbehorende cataloguskenmerk), elke gepinde
+  feature uit de leeslijst als verwijderbare chip, en een Clear-knop. Een klik op een rij in de
+  Features-tab opent de uitleg én pint de velden op het bord (blauw = wit, rood = zwart, amber =
+  neutraal, amber banden = open files; `data-highlight`-attributen voor tests); lege features
+  blijven uitleg-only. `room_live` leidt de highlights af uit de ruwe vector (per-side lijsten
+  én losse velden zoals `state.king_squares` = `{"white" => "e1"}`, platte lijsten, file-letters);
+  het vector wordt ook geladen wanneer er pins staan terwijl de tab dicht is. `PositionProperties`
+  voedt alleen nog de MATERIAL/SPACE-tabs (opruimen = vervolg). Geverifieerd in dev: 31/29
+  getinte velden bij "Attacked squares", chips actief, Clear werkt, detailstrook + pin in één
+  klik. Serieel: analysis **655**, web **280**; formatter, diffcontrole.
+
 - **Afgerond en gedeployed; productie gezond:** `Wrap feature row values and give rows useful
   tooltips and labels` (`c9db165`). Naar aanleiding van de leesbaarheidsfeedback: (1) **waarde
   wikkelt** naar een eigen regel (rechts uitgelijnd) wanneer label+waarde niet naast elkaar passen
