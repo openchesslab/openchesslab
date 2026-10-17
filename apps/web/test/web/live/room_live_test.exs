@@ -871,10 +871,12 @@ defmodule Web.RoomLiveTest do
       assert has_element?(view, "#import-games-tray", "Cleo – Anna")
       assert has_element?(view, "#import-selected", "Import 2 games")
 
-      # Deselecting one updates the count-aware button.
+      # Deselecting one updates the count-aware button. Short trays do
+      # not need the bulk-selection shortcuts.
       render_click(view, "toggle-import-game", %{"id" => "PndlSDZg"})
       assert has_element?(view, "#import-selected", "Import 1 game")
-      render_click(view, "select-all-import-games", %{})
+      refute has_element?(view, "#import-games-all")
+      render_click(view, "toggle-import-game", %{"id" => "PndlSDZg"})
       assert has_element?(view, "#import-selected", "Import 2 games")
 
       # The deselected game is fetched too, but comes back missing: an
@@ -980,6 +982,52 @@ defmodule Web.RoomLiveTest do
       render_click(view, "import-selected-games", %{})
 
       assert length(room_analysis_ids(code)) == 2
+    end
+
+    test "a long tray keeps the selection actions in the pinned checkout bar", %{
+      conn: conn,
+      code: code
+    } do
+      metadata =
+        1..8
+        |> Enum.map(fn index ->
+          %{
+            "id" => "game#{index}",
+            "speed" => "blitz",
+            "lastMoveAt" => 1_700_000_000_000,
+            "players" => %{
+              "white" => %{"user" => %{"name" => "Anna"}},
+              "black" => %{"user" => %{"name" => "Boris#{index}"}}
+            }
+          }
+        end)
+        |> Enum.map_join("\n", &Jason.encode!/1)
+
+      stub_game_import([{200, metadata <> "\n"}])
+
+      {:ok, view, _} = live(conn, "/rooms/#{code}")
+      render_click(view, "open-import", %{})
+      render_click(view, "set-import-source", %{"source" => "lichess"})
+
+      render_submit(view, "load-provider-games", %{
+        "provider" => "lichess",
+        "username" => "anna"
+      })
+
+      # Long trays offer bulk selection in the pinned checkout bar.
+      assert has_element?(view, "#import-checkout")
+      assert has_element?(view, "#import-games-all")
+      assert has_element?(view, "#import-games-none")
+      assert has_element?(view, "#import-selected", "Import 8 games")
+      assert render(view) =~ "8 of 8 selected"
+
+      render_click(view, "select-no-import-games", %{})
+      assert has_element?(view, "#import-selected[disabled]")
+      assert render(view) =~ "0 of 8 selected"
+
+      render_click(view, "select-all-import-games", %{})
+      assert has_element?(view, "#import-selected", "Import 8 games")
+      assert render(view) =~ "8 of 8 selected"
     end
 
     test "a broken Chess.com month is an honest error", %{conn: conn, code: code} do

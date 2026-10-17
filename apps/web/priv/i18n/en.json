@@ -153,6 +153,7 @@
   "room.selectNone": "None",
   "room.importSelectedCount_one": "Import {count} game",
   "room.importSelectedCount_other": "Import {count} games",
+  "room.importTraySummary": "{selected} of {total} selected",
   "room.importing": "Importing…",
   "room.importedCount_one": "Imported {count} game into this room.",
   "room.importedCount_other": "Imported {count} games into this room.",

@@ -153,6 +153,7 @@
   "room.selectNone": "Geen",
   "room.importSelectedCount_one": "Importeer {count} partij",
   "room.importSelectedCount_other": "Importeer {count} partijen",
+  "room.importTraySummary": "{selected} van {total} geselecteerd",
   "room.importing": "Importeren…",
   "room.importedCount_one": "{count} partij in deze kamer geïmporteerd.",
   "room.importedCount_other": "{count} partijen in deze kamer geïmporteerd.",
