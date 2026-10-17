@@ -190,32 +190,66 @@ defmodule Analysis.PgnBatchImporter do
   as a measurable reference. Sizes 2..10 use the atomic replay batch API.
   A failed group is replayed individually to commit exactly the successful
   prefix and report the first failure at its global game index.
+
+  With `skip_malformed: true` (bulk corpus runs), games that fail to parse
+  are counted and skipped instead of aborting the run; grouped mode then
+  returns `{:ok, %{imported: n, malformed: m}}`. The default stays strict.
   """
   @spec import_stream(
           Enumerable.t(),
           (pos_integer() -> GameRecord.id()),
-          pos_integer()
+          pos_integer(),
+          keyword()
         ) ::
           {:ok, non_neg_integer()}
+          | {:ok, %{imported: non_neg_integer(), malformed: non_neg_integer()}}
           | {:error, stream_import_error()}
-  def import_stream(lines, record_id_for_index, 1) when is_function(record_id_for_index, 1) do
-    reduce_games(lines, 0, fn game, index, imported_count ->
-      import_stream_game(game, index, imported_count, record_id_for_index)
-    end)
+  def import_stream(lines, record_id_for_index, batch_size, opts \\ []) do
+    detailed? = Keyword.get(opts, :skip_malformed, false)
+
+    case do_import_stream(lines, record_id_for_index, batch_size, opts) do
+      {:ok, %{imported: imported, malformed: malformed}} ->
+        if detailed?,
+          do: {:ok, %{imported: imported, malformed: malformed}},
+          else: {:ok, imported}
+
+      {:error, _reason} = error ->
+        error
+    end
   end
 
-  def import_stream(lines, record_id_for_index, batch_size)
-      when is_function(record_id_for_index, 1) and is_integer(batch_size) and batch_size > 1 and
-             batch_size <= @stream_batch_size do
-    initial = %{pending: [], imported_count: 0}
+  # Malformed games are data dirt and only the grouped corpus path can skip
+  # them; the size-one reference path stays strict.
+  defp do_import_stream(lines, record_id_for_index, 1, opts)
+       when is_function(record_id_for_index, 1) do
+    if Keyword.get(opts, :skip_malformed, false) do
+      raise ArgumentError, "skip_malformed requires grouped mode (batch size > 1)"
+    end
+
+    case reduce_games(lines, 0, fn game, index, imported_count ->
+           import_stream_game(game, index, imported_count, record_id_for_index)
+         end) do
+      {:ok, imported_count} -> {:ok, %{imported: imported_count, malformed: 0}}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  defp do_import_stream(lines, record_id_for_index, batch_size, opts)
+       when is_function(record_id_for_index, 1) and is_integer(batch_size) and batch_size > 1 and
+              batch_size <= @stream_batch_size do
+    skip_malformed? = Keyword.get(opts, :skip_malformed, false)
+    initial = %{pending: [], imported_count: 0, malformed_count: 0}
 
     case reduce_games(lines, initial, fn game, index, state ->
-           queue_stream_game(game, index, state, record_id_for_index, batch_size)
+           queue_stream_game(game, index, state, record_id_for_index, batch_size, skip_malformed?)
          end) do
       {:ok, state} ->
         case flush_stream_games(state) do
-          {:ok, final_state} -> {:ok, final_state.imported_count}
-          {:error, _reason} = error -> error
+          {:ok, final_state} ->
+            {:ok, %{imported: final_state.imported_count, malformed: final_state.malformed_count}}
+
+          {:error, _reason} = error ->
+            error
         end
 
       {:error, _reason} = error ->
@@ -223,12 +257,12 @@ defmodule Analysis.PgnBatchImporter do
     end
   end
 
-  def import_stream(_lines, record_id_for_index, _batch_size)
-      when not is_function(record_id_for_index, 1) do
+  defp do_import_stream(_lines, record_id_for_index, _batch_size, _opts)
+       when not is_function(record_id_for_index, 1) do
     {:error, :invalid_record_id_provider}
   end
 
-  def import_stream(_lines, _record_id_for_index, batch_size) do
+  defp do_import_stream(_lines, _record_id_for_index, batch_size, _opts) do
     {:error, {:invalid_batch_size, batch_size}}
   end
 
@@ -664,7 +698,7 @@ defmodule Analysis.PgnBatchImporter do
   # Parsing and record-ID validation happen in source order. A later error
   # first flushes the preceding successful candidates: a persistence error in
   # that prefix must win over a parse/ID error at a later index.
-  defp queue_stream_game(game, index, state, record_id_for_index, batch_size) do
+  defp queue_stream_game(game, index, state, record_id_for_index, batch_size, skip_malformed?) do
     case PgnImporter.parse(game) do
       {:ok, parsed} ->
         record_id = record_id_for_index.(index)
@@ -685,7 +719,15 @@ defmodule Analysis.PgnBatchImporter do
         end
 
       {:error, {:invalid_pgn, _message} = reason} ->
-        flush_before_stream_error(state, {:invalid_game, index, reason})
+        if skip_malformed? do
+          # Malformed games are data dirt in a corpus dump (empty move lists,
+          # truncated games): count and skip them, never abort the run. The
+          # game's record-id suffix stays unused, so resume bookkeeping
+          # (offset = highest used suffix) is unaffected.
+          {:ok, %{state | malformed_count: state.malformed_count + 1}}
+        else
+          flush_before_stream_error(state, {:invalid_game, index, reason})
+        end
     end
   end
 

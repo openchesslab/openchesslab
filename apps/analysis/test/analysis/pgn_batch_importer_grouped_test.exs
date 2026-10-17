@@ -226,6 +226,42 @@ defmodule Analysis.PgnBatchImporterGroupedTest do
     assert {:ok, _} = GameRecords.get(id(prefix, 11))
   end
 
+  test "skip_malformed counts and skips unparseable games in corpus runs" do
+    games =
+      for index <- 1..7 do
+        {index,
+         case index do
+           2 -> "*"
+           5 -> "1. BadSAN *"
+           _ -> "1. e4 *"
+         end}
+      end
+
+    # Strict default: the run aborts on the first malformed game.
+    strict_prefix = prefix()
+
+    assert {:error, {:invalid_game, 2, {:invalid_pgn, _}}} =
+             PgnBatchImporter.import_stream(lines(games), &id(strict_prefix, &1))
+
+    assert {:ok, _} = GameRecords.get(id(strict_prefix, 1))
+    assert GameRecords.get(id(strict_prefix, 3)) == :not_found
+
+    # Corpus mode: dirt is counted and skipped, the rest imports.
+    skip_prefix = prefix()
+
+    assert {:ok, %{imported: 5, malformed: 2}} =
+             PgnBatchImporter.import_stream(
+               lines(games),
+               &id(skip_prefix, &1),
+               10,
+               skip_malformed: true
+             )
+
+    for index <- [1, 3, 4, 6, 7], do: assert({:ok, _} = GameRecords.get(id(skip_prefix, index)))
+    assert GameRecords.get(id(skip_prefix, 2)) == :not_found
+    assert GameRecords.get(id(skip_prefix, 5)) == :not_found
+  end
+
   defp simple_games(count), do: for(index <- 1..count, do: {index, "1. e4 *"})
 
   defp pgn(games) do

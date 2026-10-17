@@ -43,6 +43,7 @@ defmodule Analysis.BulkImport do
           kept: non_neg_integer(),
           skipped: non_neg_integer(),
           malformed_lines: non_neg_integer(),
+          malformed_games: non_neg_integer(),
           handed: non_neg_integer(),
           imported: non_neg_integer() | nil,
           failure_count: non_neg_integer(),
@@ -66,7 +67,8 @@ defmodule Analysis.BulkImport do
     * `:record_id_prefix` — record id prefix (default: derived from the source name)
     * `:record_id_offset` — added to the kept-game index in record ids; use the
       previous run's kept count to resume without collisions (default 0)
-    * `:mode` — `:grouped` (default; batches of ten, one transaction per group)
+    * `:mode` — `:grouped` (default; batches of ten, one transaction per group,
+      malformed games counted and skipped via the summary's `:malformed_games`)
       or `:parallel` (per-game transactions, bounded window)
     * `:batch_size` — grouped mode batch size, 2..10 (default 10)
     * `:concurrency` / `:window` — parallel mode workers and window (defaults 4 / `concurrency * 2`)
@@ -130,9 +132,15 @@ defmodule Analysis.BulkImport do
       :grouped ->
         batch_size = Keyword.get(opts, :batch_size, 10)
 
-        case PgnBatchImporter.import_stream(lines, recorded_id, batch_size) do
-          {:ok, imported} -> {:ok, %{imported_count: imported, failures: []}}
-          {:error, reason} -> {:error, reason}
+        # Corpus dumps contain data dirt (games without moves, truncated
+        # records): malformed games are counted and skipped, never fatal.
+        # Record-id collisions and store errors still abort the run.
+        case PgnBatchImporter.import_stream(lines, recorded_id, batch_size, skip_malformed: true) do
+          {:ok, %{imported: imported, malformed: malformed}} ->
+            {:ok, %{imported_count: imported, failures: [], malformed_games: malformed}}
+
+          {:error, reason} ->
+            {:error, reason}
         end
 
       :parallel ->
@@ -437,10 +445,13 @@ defmodule Analysis.BulkImport do
   # --- summary -----------------------------------------------------------------
 
   defp build_summary(counts, result, elapsed_ms, source_status) do
-    {imported, failures, error} =
+    {imported, failures, malformed_games, error} =
       case result do
-        {:ok, %{imported_count: imported, failures: failures}} -> {imported, failures, nil}
-        {:error, reason} -> {nil, [], reason}
+        {:ok, %{imported_count: imported, failures: failures} = outcome} ->
+          {imported, failures, Map.get(outcome, :malformed_games, 0), nil}
+
+        {:error, reason} ->
+          {nil, [], 0, reason}
       end
 
     rate =
@@ -453,6 +464,7 @@ defmodule Analysis.BulkImport do
       kept: counts.kept,
       skipped: counts.skipped,
       malformed_lines: counts.malformed,
+      malformed_games: malformed_games,
       handed: Map.get(counts, :handed, 0),
       imported: imported,
       failure_count: length(failures),
