@@ -1024,6 +1024,10 @@ defmodule Web.RoomLiveTest do
       assert e4.evaluation == "0.20"
       # Annotations never leak into the human comment text.
       assert e4.comment == nil
+
+      # …and they show in the move list next to the move.
+      assert has_element?(view, "#move-list", "0:05:00")
+      assert has_element?(view, "#move-list", "0.20")
     end
   end
 

@@ -124,6 +124,16 @@ defmodule Analysis.Node do
   def comment(%__MODULE__{comment: comment}) do
     comment
   end
+
+  @spec clock(t()) :: String.t() | nil
+  def clock(%__MODULE__{clock: clock}) do
+    clock
+  end
+
+  @spec evaluation(t()) :: String.t() | nil
+  def evaluation(%__MODULE__{evaluation: evaluation}) do
+    evaluation
+  end
 end
 
 # JSON encoding for the SPA. Children are encoded recursively

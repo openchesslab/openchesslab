@@ -148,6 +148,14 @@ defmodule Web.MoveListComponents do
           class={"ml-0.5 font-bold " <> review_mark_class(@entry[:review].mark)}
           title={review_mark_title(@entry[:review], @locale)}
         >{@entry[:review].mark}</span>
+        <span
+          :if={@entry.evaluation}
+          class="ml-1 font-mono text-[.65rem] text-faint"
+        >{@entry.evaluation}</span>
+        <span
+          :if={@entry.clock}
+          class="ml-1 text-[.65rem] tabular-nums text-faint"
+        >{@entry.clock}</span>
       <% end %>
     </button>
     """

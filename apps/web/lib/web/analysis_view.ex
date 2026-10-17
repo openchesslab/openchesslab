@@ -252,6 +252,8 @@ defmodule Web.AnalysisView do
         depth: Enum.count(path, &(&1 > 0)),
         edit?: transition == :edit,
         comment: Node.comment(node),
+        clock: Node.clock(node),
+        evaluation: Node.evaluation(node),
         nags: Enum.take(Node.nags(node), 1),
         side: context.side,
         children: []
