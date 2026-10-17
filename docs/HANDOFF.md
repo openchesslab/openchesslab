@@ -44,7 +44,18 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   `goals.pressure_along_file` → "Pressure along file"), **booleans als Yes/No (Ja/Nee)**,
   collecties als aantal (het label draagt het zelfstandig naamwoord; `tension.pawn_tension` → 0),
   ruwe id én ruwe waarde als tooltip, scrollbaar, met "Catalogus v0.1.0 — eenmalig berekend"-
-  voetnoot. De tabbalk is **icoon-only** geworden (aria-label + title vertaald): vier tabs mét
+  voetnoot. **Omschrijvingen (zelfde dag):** elk van de 371 kenmerken heeft een curated
+  één-regel-omschrijving in de EN-catalogus (`features.<id>`; NL valt terug op EN tot er
+  vertaald is) en een **detailstrook**: een rij aanklikken toont omschrijving + ruwe id +
+  ruwe waarde (`phx-click="feature-detail"`, toggle). De scrollbalk-overlap is gefixt
+  (`pr-3`), dus hoveren/toetsen werkt; een drift-test (`every catalogue feature has a
+  curated description`) faalt zodra een nieuw kenmerk zonder omschrijving wordt toegevoegd.
+  De leesbaarheid is deels gegenereerd (`humanize`), deels geschreven (371 omschrijvingen,
+  bv. "Pawn tension — Squares attacked by pawns of both colours (contested pawn targets)").
+  **Testhygiëne:** één niet-reproduceerbare flake gezien (analysis 652/655, daarna 5×
+  655); de retentietest assertte op een exacte prunelijst en is nu membership-robust
+  (achtergebleven kamers van een gecrashte run kunnen de lijst vervuilen).
+  De tabbalk is **icoon-only** geworden (aria-label + title vertaald): vier tabs mét
   labels passen niet in de 210px-enginekolom — een gelabelde strip liet de `overflow-hidden`-kolom
   stil 23px naar links scrollen (dat knipte "Endgame" en verschoof de inhoud). Nieuwe iconen:
   cpu, book, crown, list. Geverifieerd in dev (371 kenmerken/21 secties; "Side to move → white",
