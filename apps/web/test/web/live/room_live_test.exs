@@ -1162,6 +1162,42 @@ defmodule Web.RoomLiveTest do
     refute html =~ ~s(id="chat-drawer")
   end
 
+  test "overflowing analysis tabs collapse into a more menu", %{conn: conn, code: code} do
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    for _ <- 1..12, do: render_click(view, "create-analysis", %{})
+
+    ids = room_analysis_ids(code)
+    assert length(ids) == 12
+
+    html = render(view)
+
+    # Nine chips and a More menu holding the remaining three. The freshly
+    # created (and selected) twelfth analysis stays visible as a chip.
+    assert length(:binary.matches(html, ~s(id="analysis-chip-))) == 9
+    assert html =~ ~s(id="analysis-chip-#{List.last(ids)}")
+    assert has_element?(view, "#analysis-more", "More (3)")
+
+    for id <- Enum.slice(ids, 8, 3) do
+      assert has_element?(view, "#analysis-more [data-analysis-id='#{id}']")
+    end
+
+    overflow_id = Enum.at(ids, 9)
+    refute html =~ ~s(id="analysis-chip-#{overflow_id}")
+
+    # The menu offers the same removal flow as the active chip's ×.
+    assert has_element?(
+             view,
+             "#analysis-more [phx-click='request-remove-analysis'][phx-value-id='#{overflow_id}']"
+           )
+
+    # Selecting an overflow entry trades it into the visible chips.
+    render_click(view, "select-analysis", %{"id" => overflow_id})
+    html = render(view)
+    assert html =~ ~s(id="analysis-chip-#{overflow_id}")
+    assert length(:binary.matches(html, ~s(id="analysis-chip-))) == 9
+    assert has_element?(view, "#analysis-more", "More (3)")
+  end
+
   test "removing the active analysis asks first and deletes it when unreferenced", %{
     conn: conn,
     code: code

@@ -152,7 +152,9 @@
           data-tour="analyses"
           phx-hook="AnalysisTabs"
         >
-          <%= for analysis <- @analyses do %>
+          <% {visible_tabs, overflow_tabs} =
+            AnalysisView.tab_split(@analyses, @selected_analysis_id) %>
+          <%= for analysis <- visible_tabs do %>
             <% active = analysis.id == @selected_analysis_id %> <% viewers =
               analysis_viewers(analysis.id, @participants, @participant_id) %> <% tracked =
               analysis.id in @tracked_ids %>
@@ -210,6 +212,42 @@
               >×</button>
             </div>
           <% end %>
+
+          <details :if={overflow_tabs != []} id="analysis-more" class="relative shrink-0">
+            <summary
+              class="cursor-pointer list-none rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:bg-panel-hover hover:text-foreground"
+              title={Web.I18n.t("room.moreAnalyses", @locale, %{count: length(overflow_tabs)})}
+            >
+              {Web.I18n.t("room.moreAnalyses", @locale, %{count: length(overflow_tabs)})}
+            </summary>
+
+            <div class="absolute left-0 top-full z-20 mt-1 flex max-h-80 w-64 flex-col gap-0.5 overflow-y-auto rounded-lg border border-border bg-panel p-1 shadow-xl">
+              <div
+                :for={analysis <- overflow_tabs}
+                class="flex items-center gap-1"
+                data-analysis-id={analysis.id}
+              >
+                <button
+                  type="button"
+                  class="flex min-w-0 flex-1 items-center rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-panel-hover"
+                  title={analysis.detail}
+                  aria-current={if analysis.id == @selected_analysis_id, do: "true", else: nil}
+                  phx-click="select-analysis"
+                  phx-value-id={analysis.id}
+                >
+                  <span class="truncate">{analysis.label}</span>
+                </button>
+                <button
+                  type="button"
+                  class="shrink-0 rounded px-1.5 py-1 text-muted hover:text-error"
+                  aria-label={Web.I18n.t("room.removeAnalysis", @locale)}
+                  title={Web.I18n.t("room.removeAnalysis", @locale)}
+                  phx-click="request-remove-analysis"
+                  phx-value-id={analysis.id}
+                >×</button>
+              </div>
+            </div>
+          </details>
 
           <button
             type="button"

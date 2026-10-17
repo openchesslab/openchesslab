@@ -124,6 +124,7 @@
   "room.regionTooltip": "Je bent verbonden met {you}; de kamer draait in {room}.",
   "room.loadFailed": "Kamer laden mislukt: {message}",
   "room.analyses": "Analyses",
+  "room.moreAnalyses": "Meer ({count})",
   "room.newAnalysis": "Nieuwe analyse",
   "room.noAnalyses": "Nog geen analyses in deze kamer.",
   "room.startFirst": "Start een analyse",

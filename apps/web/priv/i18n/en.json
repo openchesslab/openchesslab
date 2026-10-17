@@ -124,6 +124,7 @@
   "room.regionTooltip": "You are connected to {you}; the room runs in {room}.",
   "room.loadFailed": "Failed to load room: {message}",
   "room.analyses": "Analyses",
+  "room.moreAnalyses": "More ({count})",
   "room.newAnalysis": "New analysis",
   "room.noAnalyses": "No analyses in this room yet.",
   "room.startFirst": "Start an analysis",

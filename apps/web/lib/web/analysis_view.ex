@@ -103,6 +103,32 @@ defmodule Web.AnalysisView do
     Analyses.get(analysis_id)
   end
 
+  # Up to ten tabs render as chips. Beyond that nine chips show and the rest
+  # moves into a "More" menu; a selected tab always stays visible as a chip.
+  @max_tab_chips 9
+  @tabs_without_menu 10
+
+  @spec tab_split([map()], String.t() | nil) :: {[map()], [map()]}
+  def tab_split(analyses, selected_id)
+
+  def tab_split(analyses, _selected_id) when length(analyses) <= @tabs_without_menu,
+    do: {analyses, []}
+
+  def tab_split(analyses, selected_id) do
+    case Enum.find_index(analyses, &(&1.id == selected_id)) do
+      nil ->
+        {Enum.take(analyses, @max_tab_chips), Enum.drop(analyses, @max_tab_chips)}
+
+      index when index < @max_tab_chips ->
+        {Enum.take(analyses, @max_tab_chips), Enum.drop(analyses, @max_tab_chips)}
+
+      index ->
+        selected = Enum.at(analyses, index)
+        visible = Enum.take(analyses, @max_tab_chips - 1) ++ [selected]
+        {visible, analyses -- visible}
+    end
+  end
+
   # The tab bar and the board header take their context from the source game
   # record's metadata (players, event, date, result). Analyses without a game
   # record — or whose record is gone — simply have no game context.
