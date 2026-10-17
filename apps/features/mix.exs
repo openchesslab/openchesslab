@@ -23,7 +23,10 @@ defmodule Features.MixProject do
 
   defp deps do
     [
-      {:benchee, "~> 1.5", only: :dev}
+      {:benchee, "~> 1.5", only: :dev},
+      # Test-only: the differential harness validates this app's chess core
+      # against the gameplay engine (F3 consolidation decision comes later).
+      {:chess, in_umbrella: true, only: :test}
     ]
   end
 end
