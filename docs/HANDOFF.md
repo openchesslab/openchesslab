@@ -34,6 +34,23 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Bezig (interruptiegevoelig): hervatting van de bulk-import loopt** (machine `bulk-resume`,
+  shared-cpu-4x, AMS; `ed38319` gedeployed). Wat er misging bij de eerste run: (1) de
+  parallelle import deed maar **~2 partijen/s** — elke partij een eigen transactie met ~40
+  position-inserts door pgbouncer op de kleine MPG-instantie (1 GB RAM; corpus groeide voorbij
+  de cache) → commit- en cache-thrash; (2) de eval crashte (exit 1, vermoedelijk
+  DBConnection-checkout-timeout) om 02:40 en 08:11 UTC en de machine-restartpolicy herstartte
+  de opdracht vanaf 0 → elke partij faalde op een bestaand record-id (telling bevroren op
+  66.237; worker vernietigd). **Fixes in `ed38319`**: grouped mode standaard (batches van 10,
+  één transactie per groep), `record_id_offset` (hervatten zonder botsen/dupliceren),
+  exception-vangnet (eerlijke samenvatting i.p.v. crash), curl-stall-detectie, `--restart no`.
+  **Boekquery-fix (zelfde commit)**: covering indexes; productie-EXPLAIN van de boekquery op de
+  startstelling: **8.309 ms → 516 ms**. Hervatting: `skip: 35.600.000`, `record_id_offset:
+  66.237`, zelfde prefix; eerst ~90 min skip-scan, daarna ~100k resterende partijen. Voortgang
+  via `flyctl logs` (`bulk import progress` met handed=). Bij een crash: nieuwe run met
+  skip = vorige read, offset = 66.237 + reeds geïmporteerd. Mijn eigen fouten hier: ETA op
+  scanrate i.p.v. importrate, en de restart-policy niet uitgezet.
+
 - **Afgerond, klaar voor commit/deploy:** `Add streaming bulk corpus import for lichess dumps`.
   `Analysis.BulkImport`: `curl | zstd -dc` → FIFO (echte backpressure, begrensd geheugen),
   header-filter vóór het parsen (beide ratings ≥ drempel, geen bullet), daarna

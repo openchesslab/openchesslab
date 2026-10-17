@@ -129,19 +129,27 @@ invalid games, provider errors) and keep the dialog open; only a total failure i
 **Bulk corpus import (2026-10-17):** `Analysis.BulkImport` streams an external PGN dump —
 built and smoke-tested against the lichess open database (CC0) monthly `*.pgn.zst` files —
 into the canonical corpus. A `curl | zstd -dc` pipeline writes into a FIFO, so reads have
-real backpressure and memory stays bounded for 29 GB sources; the downloader's exit status
-is written to a status file so a truncated stream is reported honestly (`{:error, {:source,
-code}, summary}`) instead of looking complete. Games are filtered by their header block
-(both players ≥ the rating floor, no bullet) **before** moves are parsed; kept games go
-through `PgnBatchImporter.import_stream_parallel/4` (one transaction per game, per-game
-failures never stop the run). `:skip` resumes by discarding input games during the header
-scan; `:limit` closes the source early. Entry points: `mix run -e
-"Analysis.BulkImport.run(...)"` (development) and `/app/bin/openchesslab eval
-"Analysis.BulkImport.run(...)"` (release machines; the function starts its own
-applications). The runtime image ships `curl` and `zstd` for it. Known data caveat:
-pre-2014 lichess games can carry from-square disambiguation (`Rc8c6` instead of `R8c6`)
-that the SAN parser deliberately rejects; they surface as `:invalid_game` failures
-(≈12% of a 2013 month's kept set, 0% of modern months).
+real backpressure and memory stays bounded for 29 GB sources (curl aborts stalled transfers
+via `--speed-limit/--speed-time`); the downloader's exit status is written to a status file
+so a truncated stream is reported honestly instead of looking complete. Games are filtered by
+their header block (both players ≥ the rating floor, no bullet) **before** moves are parsed.
+Kept games are persisted through the **grouped** importer by default
+(`PgnBatchImporter.import_stream/3`, batches of ten: one transaction and one shared position
+batch per group — the per-game parallel mode measurably collapsed to ~2 games/s through
+pgbouncer on a small instance), with `mode: :parallel` still selectable. `:skip` resumes by
+discarding input games during the header scan; `:record_id_offset` continues the record-id
+sequence so a resumed run neither collides with nor duplicates already-imported games;
+importer exceptions are captured into an honest error summary instead of crashing the
+evaluation (worker machines run with restart disabled for the same reason). Entry points:
+`mix run -e "Analysis.BulkImport.run(...)"` (development) and `/app/bin/openchesslab eval
+"Analysis.BulkImport.run(...)"` (release machines; the function starts its own applications).
+The runtime image ships `curl` and `zstd` for it. Known data caveat: pre-2014 lichess games
+can carry from-square disambiguation (`Rc8c6` instead of `R8c6`) that the SAN parser
+deliberately rejects; they surface as `:invalid_game` failures (≈12% of a 2013 month's kept
+set, 0% of modern months). The book query has covering indexes:
+`game_occurrences(position_id, move) INCLUDE (game_id)` and
+`game_records(game_id, (metadata ->> 'result'), id)`; the production EXPLAIN of the starting
+position's book went from 8.3 s to 0.5 s with them.
 
 **Stored provider grants (2026-10-16):** a successful Lichess login or link now retains the
 OAuth access token in `provider_grants` (one per user per provider), AES-256-GCM-encrypted
