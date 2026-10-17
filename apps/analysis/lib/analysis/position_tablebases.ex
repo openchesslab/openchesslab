@@ -39,7 +39,7 @@ defmodule Analysis.PositionTablebases do
   @doc "Store a fetched result; re-fetches replace the row in place."
   @spec put(pos_integer(), map()) :: :ok
   def put(position_id, result) when is_integer(position_id) and is_map(result) do
-    Repo.query!(@put_sql, [position_id, Jason.encode!(result)])
+    Repo.query!(@put_sql, [position_id, result])
     :ok
   end
 end

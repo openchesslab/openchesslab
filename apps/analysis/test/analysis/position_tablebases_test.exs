@@ -26,6 +26,12 @@ defmodule Analysis.PositionTablebasesTest do
     assert :ok = PositionTablebases.put(position_id, result)
     assert {:ok, stored} = PositionTablebases.get(position_id)
     assert stored == result
+
+    # Stored as a jsonb object, not a double-encoded string.
+    assert Repo.query!(
+             "SELECT jsonb_typeof(result) FROM position_tablebases WHERE position_id = $1",
+             [position_id]
+           ).rows == [["object"]]
   end
 
   test "a fetched result replaces the row in place" do

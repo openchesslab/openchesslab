@@ -3710,21 +3710,83 @@ defmodule Web.RoomLive do
 
   defp humanize(_slug), do: ""
 
-  # Values read as language where it matters: booleans become yes/no, and a
-  # collection shows its count (the label carries the noun). The raw value
-  # stays available as a tooltip hint.
+  # Per-side maps are the catalogue's most common shape; render them per
+  # side instead of counting keys. Booleans become the true sides.
+  defp feature_value(%{"white" => white, "black" => black}, locale)
+       when is_boolean(white) and is_boolean(black) do
+    case {white, black} do
+      {false, false} -> "—"
+      {true, true} -> Web.I18n.t("room.featureBoth", locale)
+      {true, false} -> Web.I18n.t("room.endgameWhite", locale)
+      {false, true} -> Web.I18n.t("room.endgameBlack", locale)
+    end
+  end
+
+  defp feature_value(%{"white" => white, "black" => black}, locale) do
+    "#{Web.I18n.t("room.featureWhiteInitial", locale)} #{feature_side_value(white, locale)} · " <>
+      "#{Web.I18n.t("room.featureBlackInitial", locale)} #{feature_side_value(black, locale)}"
+  end
+
   defp feature_value(value, locale) do
     cond do
       is_binary(value) -> value
       is_float(value) -> value |> Float.round(2) |> to_string()
       is_integer(value) -> Integer.to_string(value)
       is_boolean(value) -> Web.I18n.t(if(value, do: "common.yes", else: "common.no"), locale)
-      is_list(value) -> Integer.to_string(length(value))
+      is_list(value) -> feature_list_value(value)
       is_map(value) -> Integer.to_string(map_size(value))
       is_nil(value) -> "—"
       true -> to_string(value)
     end
   end
+
+  # Short lists of short strings read better than a count (open files "a, d").
+  defp feature_list_value(list) do
+    if length(list) in 1..4 and Enum.all?(list, &(is_binary(&1) and String.length(&1) <= 3)) do
+      Enum.join(list, ", ")
+    else
+      Integer.to_string(length(list))
+    end
+  end
+
+  defp feature_side_value(value, locale) when is_boolean(value),
+    do: Web.I18n.t(if(value, do: "common.yes", else: "common.no"), locale)
+
+  defp feature_side_value(value, _locale) when is_binary(value), do: value
+  defp feature_side_value(value, _locale) when is_integer(value), do: Integer.to_string(value)
+
+  defp feature_side_value(value, _locale) when is_float(value),
+    do: Float.round(value, 2) |> to_string()
+
+  defp feature_side_value(value, _locale) when is_list(value), do: feature_list_value(value)
+
+  # A side can hold a map (piece occupancy: type to squares); show the total
+  # of the listed squares so "16 pieces" reads naturally.
+  defp feature_side_value(value, _locale) when is_map(value) do
+    values = Map.values(value)
+
+    if values != [] and Enum.all?(values, &is_list/1) do
+      values |> Enum.map(&length/1) |> Enum.sum() |> Integer.to_string()
+    else
+      Integer.to_string(map_size(value))
+    end
+  end
+
+  defp feature_side_value(nil, _locale), do: "—"
+  defp feature_side_value(value, _locale), do: to_string(value)
+
+  # Rows with nothing in this position (no squares, false, empty lists) dim;
+  # they still open their description but draw nothing on the board.
+  defp feature_empty?(nil), do: true
+  defp feature_empty?(false), do: true
+  defp feature_empty?(""), do: true
+  defp feature_empty?([]), do: true
+
+  defp feature_empty?(%{"white" => white, "black" => black}),
+    do: feature_empty?(white) and feature_empty?(black)
+
+  defp feature_empty?(map) when is_map(map), do: map_size(map) == 0
+  defp feature_empty?(_value), do: false
 
   # The comment marker on the moves-panel header button.
   defp comment_present?(nil), do: false

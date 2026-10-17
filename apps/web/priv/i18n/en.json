@@ -790,5 +790,8 @@
   "room.referenceLoading": "Loading…",
   "room.referenceError": "The reference panel could not be loaded.",
   "room.clearComment": "Delete comment",
-  "room.removedComment": "Comment removed"
+  "room.removedComment": "Comment removed",
+  "room.featureWhiteInitial": "W",
+  "room.featureBlackInitial": "B",
+  "room.featureBoth": "Both"
 }

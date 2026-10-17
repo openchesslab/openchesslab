@@ -132,7 +132,7 @@ defmodule Analysis.PositionEvals do
         Map.get(eval, :pv),
         Map.get(eval, :nodes),
         Map.get(eval, :multipv) || 1,
-        Jason.encode!(lines)
+        lines
       ],
       log: false
     )

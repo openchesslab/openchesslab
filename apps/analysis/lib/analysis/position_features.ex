@@ -249,7 +249,7 @@ defmodule Analysis.PositionFeatures do
              position_id,
              result.version,
              result.fen,
-             Jason.encode!(result.features)
+             result.features
            ]
          ) do
       {:ok, _result} ->
@@ -260,9 +260,14 @@ defmodule Analysis.PositionFeatures do
     end
   end
 
+  # Rows written before the jsonb encoding fix are JSON strings; decode them,
+  # pass maps through unchanged.
   defp build_result(version, fen, features) do
-    %FeaturesResult{version: version, fen: fen, features: Jason.decode!(features)}
+    %FeaturesResult{version: version, fen: fen, features: decode_features(features)}
   end
+
+  defp decode_features(features) when is_binary(features), do: Jason.decode!(features)
+  defp decode_features(features) when is_map(features), do: features
 
   defp do_backfill(position_ids) do
     Enum.reduce(

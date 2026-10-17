@@ -1916,6 +1916,23 @@ defmodule Web.RoomLiveTest do
       # Values render (the starting position is white to move).
       assert has_element?(view, "#features-readout", "white")
 
+      # Per-side values render per side, not as a key count: queens are 1-1
+      # at the start, and false/false booleans read as an em dash.
+      assert has_element?(
+               view,
+               "#features-readout button[title='material.count.queen']",
+               "W 1 · B 1"
+             )
+
+      assert has_element?(
+               view,
+               "#features-readout button[title='pawns.rook_behind_passed']",
+               "—"
+             )
+
+      # Rows with nothing in this position are dimmed.
+      assert has_element?(view, "#features-readout button.opacity-60")
+
       # Clicking a row opens the detail strip: the curated description plus
       # the raw id and value; clicking again closes it.
       render_click(view, "feature-detail", %{"id" => "tension.pawn_tension"})

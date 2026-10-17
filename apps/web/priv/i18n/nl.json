@@ -419,5 +419,8 @@
   "room.referenceLoading": "Laden…",
   "room.referenceError": "Het referentiepaneel kon niet geladen worden.",
   "room.clearComment": "Commentaar verwijderen",
-  "room.removedComment": "Commentaar verwijderd"
+  "room.removedComment": "Commentaar verwijderd",
+  "room.featureWhiteInitial": "W",
+  "room.featureBlackInitial": "Z",
+  "room.featureBoth": "Beide"
 }

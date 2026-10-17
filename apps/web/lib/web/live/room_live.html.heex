@@ -315,7 +315,7 @@
       <p :if={@chat_error} role="alert" class="m-0 text-xs text-error">{@chat_error}</p>
     </aside>
 
-    <section class="grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)_210px_360px] overflow-hidden max-[1100px]:grid-cols-[minmax(0,1fr)_180px_320px] max-[860px]:contents">
+    <section class="grid min-h-0 min-w-0 flex-1 grid-cols-[minmax(0,1fr)_210px_360px] overflow-hidden max-[1100px]:grid-cols-[minmax(0,1fr)_180px_320px] max-[860px]:contents">
       <%= if @analysis do %>
         <section
           class="grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_auto] gap-2 overflow-hidden p-3 max-[860px]:order-2 max-[860px]:flex max-[860px]:flex-none max-[860px]:flex-col max-[860px]:gap-1 max-[860px]:p-1.5"
@@ -1181,7 +1181,8 @@
                         type="button"
                         class={[
                           "flex w-full items-baseline justify-between gap-2 rounded px-1 text-left text-xs hover:bg-panel-hover",
-                          @features_detail == id && "bg-panel-hover"
+                          @features_detail == id && "bg-panel-hover",
+                          feature_empty?(value) && "opacity-60"
                         ]}
                         aria-pressed={to_string(@features_detail == id)}
                         phx-click="feature-detail"

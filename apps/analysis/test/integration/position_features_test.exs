@@ -73,6 +73,12 @@ defmodule Analysis.PositionFeaturesTest do
 
     assert {:ok, result} = PositionFeatures.fetch_or_extract(position_id)
 
+    # The vector is stored as a jsonb object, not a double-encoded string.
+    assert Repo.query!(
+             "SELECT jsonb_typeof(features) FROM position_feature_vectors WHERE position_id = $1",
+             [position_id]
+           ).rows == [["object"]]
+
     assert {:ok, fetched} = PositionFeatures.fetch(position_id)
     assert fetched.features == Jason.decode!(Jason.encode!(result.features))
 

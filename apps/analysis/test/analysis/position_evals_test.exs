@@ -35,6 +35,12 @@ defmodule Analysis.PositionEvalsTest do
     assert eval.multipv == 1
     assert [%{"multipv" => 1, "score_cp" => 34, "pv" => "e2e4 e7e5 g1f3"}] = eval.lines
 
+    # Stored as a jsonb array, not a double-encoded string.
+    assert Repo.query!(
+             "SELECT jsonb_typeof(lines) FROM position_evals WHERE position_id = $1 AND engine = $2",
+             [position_id, "stockfish-19-lite-single"]
+           ).rows == [["array"]]
+
     # Another engine identity is a separate row.
     assert :not_found = PositionEvals.get(position_id, "stockfish-16")
 
