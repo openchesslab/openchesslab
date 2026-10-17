@@ -2016,10 +2016,12 @@ defmodule Chess.PositionMoveTest do
       assert Position.piece_at(next, square("a1")) == nil
       assert Position.piece_at(next, square("a8")) == {:white, :rook}
 
+      # The captured rook's right goes — and so does the capturing rook's,
+      # because it left its home square (the old expectation kept it, which
+      # was the bug the differential harness exposed).
       assert next.castling_rights ==
                MapSet.new([
                  :white_kingside,
-                 :white_queenside,
                  :black_kingside
                ])
 

@@ -480,10 +480,18 @@ defmodule Chess.Position do
     castling_moves =
       case position.side_to_move do
         :white ->
-          [Move.new(4, 6), Move.new(4, 2)]
+          # Castle candidates only exist while the king stands on e1. Without
+          # the check, a rook on e1 turned "e1g1"/"e1c1" into plain legal rook
+          # moves through apply_move and duplicated the rook's own move (found
+          # by the differential perft harness).
+          if piece_at(position, 4) == {:white, :king},
+            do: [Move.new(4, 6), Move.new(4, 2)],
+            else: []
 
         :black ->
-          [Move.new(60, 62), Move.new(60, 58)]
+          if piece_at(position, 60) == {:black, :king},
+            do: [Move.new(60, 62), Move.new(60, 58)],
+            else: []
       end
 
     en_passant_moves =
@@ -498,15 +506,21 @@ defmodule Chess.Position do
     castling_moves ++ en_passant_moves
   end
 
-  defp en_passant_candidate_moves(%{side_to_move: :white}, target) do
+  # Only pawns capture en passant. Without the piece check a diagonal slider
+  # next to the double-pushed pawn (a bishop beside it, say) produces its
+  # quiet move onto the target square twice: once here and once from the
+  # bitboard pseudo-move path (found by the differential perft harness).
+  defp en_passant_candidate_moves(%{side_to_move: :white} = position, target) do
     [target - 7, target - 9]
     |> Enum.filter(&(&1 in 0..63))
+    |> Enum.filter(&(piece_at(position, &1) == {:white, :pawn}))
     |> Enum.map(&Move.new(&1, target))
   end
 
-  defp en_passant_candidate_moves(%{side_to_move: :black}, target) do
+  defp en_passant_candidate_moves(%{side_to_move: :black} = position, target) do
     [target + 7, target + 9]
     |> Enum.filter(&(&1 in 0..63))
+    |> Enum.filter(&(piece_at(position, &1) == {:black, :pawn}))
     |> Enum.map(&Move.new(&1, target))
   end
 
@@ -931,6 +945,9 @@ defmodule Chess.Position do
       |> remove_piece(from)
       |> put_piece(to, piece)
       |> update_castling_rights_for_capture(to, captured_piece)
+      # A rook leaving its home square by capture loses its castling right
+      # exactly like a quiet rook move (move_piece/5 does both updates).
+      |> update_castling_rights_for_move(elem(piece, 0), piece, from)
 
     {:ok,
      %{
