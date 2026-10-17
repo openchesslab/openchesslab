@@ -30,7 +30,7 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond, gepusht, NIET gedeployed (deploy vereist expliciete toestemming):** de
+- **Afgerond en gedeployed (toestemming gegeven 2026-10-17); productie gezond:** de
   import-herwerking is klaar, in vijf commits op de domein-slice `f944950`:
   `8f77b4b` (metadata-fetchers: `GameImport.fetch_lichess_recent_games/2` → NDJSON-rijen
   `%{id, white, black, result, speed, year}`; `fetch_chesscom_month_games/3` → rijen incl.
@@ -60,6 +60,11 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   geïmporteerd zonder refetch; geannoteerde PGN met annotations aan → zetlijst
   "1. e4 0.20 0:05:00 e5 0:04:55". Serieel: analysis **666**, web **293**; formatter,
   diffcontrole. architecture.md bijgewerkt (tray-paragraaf).
+  **Deploy 21:41 UTC:** image `01M55WZ1S6…`; release-migratie groen (geen nieuwe
+  migraties), beide health checks passing, `/health` + `/ready` 200, exact één app-machine.
+  De deploy-waarschuwing "not listening on 0.0.0.0:8080" was een timing-artefact van de
+  socket-scan (beam nog aan het opstarten); checks daarna groen. `bulk-resume-3` liep
+  ongestoord door op zijn eigen image (21:34→21:39: kept 18.580 → 20.791).
   **Import-achtergrondwacht (afgerond):** `bulk-resume-3` herstartte 19:14 na de
   serverherstart, skip-scan 35,6M op ~6.180 games/s, grens gepasseerd 20:52 — kept groeit
   (21:25: 14.499). Groeicheck (corpus-teller > 66.237) geslaagd. Machine draait op de
