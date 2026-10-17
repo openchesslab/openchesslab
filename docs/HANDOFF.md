@@ -34,6 +34,22 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond en gedeployed; productie gezond:** `Fix per-side feature values, jsonb double-encoding
+  and board stability` (`84e6758`). Drie correcties uit de feature-lijst-discussie:
+  (1) **per-side waarden** worden nu per kant gelezen i.p.v. `map_size` ("2" bij lege lijsten!):
+  booleans → de ware kant(en) ("White"/"Both"/"—"), lijsten/getallen → "W 2 · B 0", korte
+  lijstjes (≤4 korte strings) → bijv. "a, d"; lege rijen dimmen (opacity-60, "—") maar blijven
+  aanklikbaar voor de omschrijving; (2) **jsonb-dubbelcodering** gefixt in drie stores
+  (`position_feature_vectors.features`, `position_tablebases.result`, `position_evals.lines` —
+  schrijfpad geeft nu het map/de-lijst zelf; lezers blijven beide vormen accepteren) plus migratie
+  `20261017130000` die bestaande rijen unwrapt; tests asserten `jsonb_typeof` = object/array;
+  (3) **bordstabiliteit**: de kolommen-wrapper in de room-shell had na de zijbalk-verwijdering geen
+  `flex-1` meer, waardoor de bordkolom de hoogte van de zettenkolom volgde en het gecentreerde bord
+  bij sommige zetten 3px verschoof — geverifieerd: bordtop blijft 162px over zes zetten.
+  Serieel: analysis **655**, web **280**, chess **591**, features **209**; formatter, diffcontrole.
+  Let op bij deploy: de migratie draait vóór de nieuwe code; oude code crashte op ge-unwrapte rijen
+  (in dev gezien) — het rollout-venster is klein maar bestaat.
+
 - **Afgerond, klaar voor commit/deploy:** `Replace the room sidebar with a room bar and chat drawer`.
   De linkerzijbalk is weg. In plaats daarvan: een **room-bar** onder de app-header met twee rijen —
   (1) roomcode + kopieerknop, presence (avatars/follow), latency, ledenknop en rechts de
