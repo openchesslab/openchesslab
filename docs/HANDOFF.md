@@ -34,6 +34,24 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond en gedeployed; productie gezond:** `Enrich corpus search with previews, rating/date
+  filters and structure modes` (`c4ffe56`). Eerste zoek-slice na de discussie ("search is een
+  beetje embarrassing"): de kamer-modal blíjft de zoekplek (de aparte-pagina-variant is
+  vervallen — je moet niet je kamer verlaten om een partij erin te openen). Nieuw: **minibord-
+  preview** van de gematchte stelling per treffer (statisch component, één gebatcherde
+  `PositionStore.get_many/1` per pagina — geen N+1), **ratingfilter** (min/max, geldt voor beide
+  spelers; `metadata_int_between/3` met cijfer-guard op de JSONB-string), **datumbereik**
+  (`metadata_value_between/3`, lexicografisch op `YYYY.MM.DD`), de **vijf al bestaande
+  structuur-nabijheden** als modes (één pionzet verwijderd, één pionduw, één pion missend,
+  kleurverwisseld, gespiegeld), en een **eerlijke corpus-telling** in de kop
+  ("Searches the N games stored on this server…", `GameSearch.corpus_size/0`). Tests: compiler-
+  ranges (open/gesloten/leeg), rating+date-filters, push/missing/edit-modi met bewust gekozen
+  fixtures (occurrence-matching beperkt wat refuteerbaar is — gedocumenteerd in de test),
+  preview + teller in de bestaande zoektest. Geverifieerd in dev (10.465 games): modal met alle
+  velden, 8 modes in de select, previews tonen de gematchte stelling, count klopt. Serieel:
+  analysis **659**, web **288**; formatter, diffcontrole. Eén sneeuwbal-fix meegenomen: de
+  heat-helpers in `room_live` stonden tussen de `highlights_for`-clauses (compiler-waarschuwing).
+
 - **Afgerond en gedeployed; productie gezond:** `Draw hinted piece features on the board and cue
   drawable rows` (`e69a2fc`) + `Draw per-side square-count features as board heat maps`
   (`adcdd96`). Op vraag van de gebruiker ("count rook zou de torens kunnen markeren, loperpaar de
