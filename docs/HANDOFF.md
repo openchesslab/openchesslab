@@ -34,6 +34,21 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond en gedeployed; productie gezond:** `Mark pinned features in the readout and drop the
+  overlay chip row` (`c2dba9d`). Op verzoek van de gebruiker: de "OP HET BORD"-chiprij is weg
+  (die was eigenlijk overbodig — de vijf oude lagen zíjn features — en veroorzaakte verticale
+  scrollbalken). Gepinde features zijn nu zichtbaar in de lijst zelf: **vet + accentkleur** op het
+  label (`data-pinned`-attribuut voor tests), klik = uitleg + pin, nogmaals = unpin; lege
+  features blijven uitleg-only. Bordtinten ongewijzigd (blauw/rood/amber + file-banden).
+  Geverifieerd in dev: geen overlay-rij meer, `attacks.defended_squares` + `king.zone` gepind
+  (vet + accent), 14 witte tinten, `squares.outpost` op deze stelling leeg → geen pin. Serieel:
+  analysis **655**, web **280**; formatter, diffcontrole. **Import-incident opgelost:** de
+  hervatting draaide urenlang een **verouderde image-tag** (`01M53F2A…`, van vóór de
+  grouped-mode-fix — vandaar de oude logregels zonder `handed` en de stall na de skip-grens);
+  de worker is opnieuw gestart met de actuele tag (`01M5541MP…`, dynamisch opgezocht), draait nu
+  met `handed=`-logging op ~8,2k games/s. Les: worker-machines moeten de image-tag **dynamisch**
+  van de draaiende webmachine halen, nooit hardcoden. Nieuwe watcher actief.
+
 - **Afgerond en gedeployed; productie gezond:** `Pin catalogue features on the board and replace
   the layers block` (`59505d6`). Het LAYERS-blok is weg; onderaan de bordkolom staat nu een
   **"OP HET BORD"-rij** met de vijf oude snelknoppen (Open files, Attacked squares, Defended
