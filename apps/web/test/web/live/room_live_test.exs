@@ -1966,7 +1966,11 @@ defmodule Web.RoomLiveTest do
       render_click(view, "feature-detail", %{"id" => "state.king_squares"})
 
       assert has_element?(view, "#chess-board span[data-highlight='white']")
-      assert has_element?(view, "#overlay-row", "King squares")
+
+      assert has_element?(
+               view,
+               "#features-readout button[data-feature='state.king_squares'][data-pinned='true']"
+             )
 
       render_click(view, "feature-detail", %{"id" => "state.king_squares"})
       refute has_element?(view, "#chess-board span[data-highlight='white']")
@@ -2119,12 +2123,18 @@ defmodule Web.RoomLiveTest do
     :ok = Rooms.add_analysis(code, analysis.id)
     {:ok, view, _html} = live(conn, "/rooms/#{code}?a=open-file")
 
-    render_click(view, "toggle-feature-pin", %{"id" => "lines.open_files"})
+    render_click(view, "select-engine-tab", %{"tab" => "features"})
+    render_click(view, "feature-detail", %{"id" => "lines.open_files"})
 
     assert has_element?(view, "#chess-board span[data-highlight='file']")
 
+    assert has_element?(
+             view,
+             "#features-readout button[data-feature='lines.open_files'][data-pinned='true']"
+           )
+
     # Unpinning clears the bands again.
-    html = render_click(view, "toggle-feature-pin", %{"id" => "lines.open_files"})
+    html = render_click(view, "feature-detail", %{"id" => "lines.open_files"})
     refute html =~ "data-highlight=\"file\""
   end
 
@@ -2133,16 +2143,27 @@ defmodule Web.RoomLiveTest do
     :ok = Rooms.add_analysis(code, analysis.id)
     {:ok, view, _html} = live(conn, "/rooms/#{code}?a=layers")
 
-    render_click(view, "toggle-feature-pin", %{"id" => "attacks.map"})
+    render_click(view, "select-engine-tab", %{"tab" => "features"})
+    render_click(view, "feature-detail", %{"id" => "attacks.map"})
+
     assert has_element?(view, "#chess-board span[data-highlight='white']")
     assert has_element?(view, "#chess-board span[data-highlight='black']")
 
-    render_click(view, "toggle-feature-pin", %{"id" => "attacks.defended_squares"})
+    render_click(view, "feature-detail", %{"id" => "attacks.defended_squares"})
 
-    # The overlay row names the quick toggles; clearing empties them all.
-    assert has_element?(view, "#overlay-row", "Defended pieces")
+    # Both pinned rows carry the accent state; unpinning clears the tints.
+    assert has_element?(
+             view,
+             "#features-readout button[data-feature='attacks.map'][data-pinned='true']"
+           )
 
-    html = render_click(view, "clear-feature-pins", %{})
+    assert has_element?(
+             view,
+             "#features-readout button[data-feature='attacks.defended_squares'][data-pinned='true']"
+           )
+
+    html = render_click(view, "feature-detail", %{"id" => "attacks.map"})
+    html = render_click(view, "feature-detail", %{"id" => "attacks.defended_squares"})
     refute html =~ "data-highlight="
   end
 
@@ -2157,7 +2178,8 @@ defmodule Web.RoomLiveTest do
     :ok = Rooms.add_analysis(code, analysis.id)
     {:ok, view, _html} = live(conn, "/rooms/#{code}?a=outpost")
 
-    render_click(view, "toggle-feature-pin", %{"id" => "squares.outpost"})
+    render_click(view, "select-engine-tab", %{"tab" => "features"})
+    render_click(view, "feature-detail", %{"id" => "squares.outpost"})
 
     # The d4 pawn guards c5 and e5: both are white outposts in the catalogue.
     assert has_element?(view, "#chess-board-square-c5 span[data-highlight='white']")
@@ -2169,9 +2191,16 @@ defmodule Web.RoomLiveTest do
     :ok = Rooms.add_analysis(code, analysis.id)
     {:ok, view, _html} = live(conn, "/rooms/#{code}?a=outpost-start")
 
-    render_click(view, "toggle-feature-pin", %{"id" => "squares.outpost"})
+    render_click(view, "select-engine-tab", %{"tab" => "features"})
+    render_click(view, "feature-detail", %{"id" => "squares.outpost"})
 
+    # Nothing to draw: the row stays unpinned and the board stays clean.
     refute has_element?(view, "#chess-board span[data-highlight='white']")
+
+    assert has_element?(
+             view,
+             "#features-readout button[data-feature='squares.outpost'][data-pinned='false']"
+           )
   end
 
   test "switching locale relocalizes the move tree", %{conn: conn} do

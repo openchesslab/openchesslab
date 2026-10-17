@@ -206,11 +206,6 @@
   "room.copyFen": "Copy FEN",
   "room.exportImage": "Export position image",
   "room.copyFailed": "Copying failed.",
-  "room.layerFiles": "Open files",
-  "room.layerAttacks": "Attacked squares",
-  "room.layerDefended": "Defended pieces",
-  "room.layerKingZone": "King zone",
-  "room.layerOutposts": "Outposts",
   "room.material": "Material",
   "room.space": "Space",
   "room.annotationsHeading": "Annotations",
@@ -795,8 +790,5 @@
   "room.featureBoth": "Both",
   "featureLabels.threats.aantal_checks": "Checks available",
   "featureLabels.threats.aantal_forcing_moves": "Forcing moves available",
-  "featureLabels.pawns.weak_undeprotectable": "Weak undefendable pawns",
-  "room.overlays": "On the board",
-  "room.overlaysClear": "Clear",
-  "room.overlayRemove": "Remove overlay"
+  "featureLabels.pawns.weak_undeprotectable": "Weak undefendable pawns"
 }

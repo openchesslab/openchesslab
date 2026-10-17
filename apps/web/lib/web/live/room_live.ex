@@ -701,19 +701,6 @@ defmodule Web.RoomLive do
     {:noreply, assign(socket, :orientation, orientation)}
   end
 
-  # Overlay chips and readout rows pin catalogue features on the board; the
-  # same click pins and unpins.
-  def handle_event("toggle-feature-pin", %{"id" => id}, socket) when is_binary(id) do
-    {:noreply, toggle_pin(socket, id)}
-  end
-
-  def handle_event("clear-feature-pins", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(:pinned_features, MapSet.new())
-     |> assign(:feature_highlights, empty_highlights())}
-  end
-
   def handle_event("select-strip-tab", %{"tab" => tab}, socket)
       when tab in ["material", "space"] do
     socket = assign(socket, :selected_tab, tab)
@@ -3727,27 +3714,6 @@ defmodule Web.RoomLive do
 
   defp empty_highlights do
     %{white: MapSet.new(), black: MapSet.new(), neutral: MapSet.new(), files: MapSet.new()}
-  end
-
-  # The five common overlays as one-click chips, drawn from catalogue features.
-  defp overlay_presets do
-    [
-      {"lines.open_files", "room.layerFiles"},
-      {"attacks.map", "room.layerAttacks"},
-      {"attacks.defended_squares", "room.layerDefended"},
-      {"king.zone", "room.layerKingZone"},
-      {"squares.outpost", "room.layerOutposts"}
-    ]
-  end
-
-  # Pinned features beyond the presets appear as removable chips.
-  defp overlay_extra_pins(pinned) do
-    preset_ids = MapSet.new(overlay_presets(), &elem(&1, 0))
-
-    pinned
-    |> MapSet.difference(preset_ids)
-    |> MapSet.to_list()
-    |> Enum.sort()
   end
 
   defp compute_highlights(values, pinned) do

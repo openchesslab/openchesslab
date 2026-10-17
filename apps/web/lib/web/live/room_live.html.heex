@@ -739,57 +739,6 @@
               {Web.I18n.t("room.noInsights", @locale)}
             </p>
           </section>
-
-          <div
-            id="overlay-row"
-            class="flex flex-wrap items-center gap-1.5 pt-2 text-xs"
-            aria-label={Web.I18n.t("room.overlays", @locale)}
-          >
-            <span class="text-[.68rem] font-semibold uppercase tracking-wider text-muted">
-              {Web.I18n.t("room.overlays", @locale)}
-            </span>
-
-            <%= for {id, key} <- overlay_presets() do %>
-              <% pinned = MapSet.member?(@pinned_features, id) %>
-              <button
-                type="button"
-                data-overlay={id}
-                class={[
-                  "rounded-full border px-2 py-0.5 text-[.68rem]",
-                  pinned && "border-highlight/50 bg-highlight/15 text-foreground",
-                  not pinned &&
-                    "border-border text-muted hover:bg-panel-hover hover:text-foreground"
-                ]}
-                aria-pressed={to_string(pinned)}
-                title={feature_description(id, @locale)}
-                phx-click="toggle-feature-pin"
-                phx-value-id={id}
-              >{Web.I18n.t(key, @locale)}</button>
-            <% end %>
-
-            <%= for id <- overlay_extra_pins(@pinned_features) do %>
-              <span class="inline-flex items-center gap-1 rounded-full border border-highlight/50 bg-highlight/15 px-2 py-0.5 text-[.68rem] text-foreground">
-                {feature_label(id, @locale)}
-                <button
-                  type="button"
-                  data-overlay={id}
-                  class="text-muted hover:text-error"
-                  aria-label={Web.I18n.t("room.overlayRemove", @locale) <> ": " <> feature_label(id, @locale)}
-                  title={Web.I18n.t("room.overlayRemove", @locale)}
-                  phx-click="toggle-feature-pin"
-                  phx-value-id={id}
-                >×</button>
-              </span>
-            <% end %>
-
-            <button
-              :if={MapSet.size(@pinned_features) > 0}
-              type="button"
-              id="overlay-clear"
-              class="rounded-full px-2 py-0.5 text-[.68rem] text-muted underline hover:text-foreground"
-              phx-click="clear-feature-pins"
-            >{Web.I18n.t("room.overlaysClear", @locale)}</button>
-          </div>
         </section>
 
         <aside
@@ -1208,9 +1157,11 @@
                       <button
                         type="button"
                         data-feature={id}
+                        data-pinned={to_string(MapSet.member?(@pinned_features, id))}
                         class={[
                           "flex w-full flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 rounded px-1 text-left text-xs hover:bg-panel-hover",
                           @features_detail == id && "bg-panel-hover",
+                          MapSet.member?(@pinned_features, id) && "font-semibold",
                           feature_empty?(value) && "opacity-60"
                         ]}
                         aria-pressed={to_string(@features_detail == id)}
@@ -1218,7 +1169,11 @@
                         phx-value-id={id}
                         title={feature_description(id, @locale)}
                       >
-                        <span class="min-w-0 truncate text-muted">{label}</span>
+                        <span class={[
+                          "min-w-0 truncate",
+                          MapSet.member?(@pinned_features, id) && "text-highlight",
+                          not MapSet.member?(@pinned_features, id) && "text-muted"
+                        ]}>{label}</span>
                         <span class="ml-auto shrink-0 tabular-nums text-foreground">
                           {feature_value(value, @locale)}
                         </span>

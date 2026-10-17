@@ -206,11 +206,6 @@
   "room.copyFen": "FEN kopiëren",
   "room.exportImage": "Stelling als afbeelding",
   "room.copyFailed": "Kopiëren is mislukt.",
-  "room.layerFiles": "Open lijnen",
-  "room.layerAttacks": "Aangevallen velden",
-  "room.layerDefended": "Verdedigde stukken",
-  "room.layerKingZone": "Koningszone",
-  "room.layerOutposts": "Outposts",
   "room.material": "Materiaal",
   "room.space": "Ruimte",
   "room.annotationsHeading": "Aantekeningen",
@@ -424,8 +419,5 @@
   "room.featureBoth": "Beide",
   "featureLabels.threats.aantal_checks": "Aantal checks",
   "featureLabels.threats.aantal_forcing_moves": "Aantal forcing moves",
-  "featureLabels.pawns.weak_undeprotectable": "Zwakke onverdedigbare pionnen",
-  "room.overlays": "Op het bord",
-  "room.overlaysClear": "Wissen",
-  "room.overlayRemove": "Overlay verwijderen"
+  "featureLabels.pawns.weak_undeprotectable": "Zwakke onverdedigbare pionnen"
 }
