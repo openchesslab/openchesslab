@@ -95,10 +95,15 @@ Entrypoints are `apps/analysis/lib/analysis/pgn_importer.ex` and `pgn_batch_impo
 | `import_stream/2`, `import_stream/3`, `import_file/2` | Bounded streaming parsing; default parsed group size **10**. Each group commits atomically using replayed batch persistence; on group failure retries individual games in input order to preserve original successful-prefix + **one-based failure index** behavior. Explicit group size 1 uses original path. |
 | `import_stream_parallel/3` or `/4`, `import_file_parallel/3` or `/4` | Explicit throughput mode; bounded concurrent windows, **one transaction per game**, failures collected with one-based source index, and processing continues after failures. **Not successful-prefix semantics**. |
 
-**Room analysis import (2026-10-15, variations added same day):** `Analysis.PgnAnalysisImporter.import/3` wraps
+**Room analysis import (2026-10-15, variations added same day, keep-options 2026-10-17):** `Analysis.PgnAnalysisImporter.import/4` wraps
 single-game parsing with a full annotated-tree import. Brace/semicolon comments,
 root comments, numeric NAGs and symbolic move suffixes are retained in the analysis;
-`[%...]` machine commands are stripped from comments. Side variations graft as real
+`[%...]` machine commands are stripped from comments **unless the import keeps
+annotations** — then `[%clk]`/`[%eval]` values land on the node's `clock` /
+`evaluation` fields (codec tolerates pre-annotation 5-tuple records). Options:
+`keep_comments` / `keep_variations` / `keep_metadata` (all default true; metadata
+off keeps only White/Black/Result/Date on the record) and `keep_annotations`
+(default false). Side variations graft as real
 branches with their annotations intact: a variation following a move is an alternative
 to that move, a sibling of the mainline child (nested arbitrarily deep), with positions
 resolved through the legal-move rules and appended to the canonical position store.

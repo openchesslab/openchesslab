@@ -34,6 +34,45 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Bezig, domeinlaag klaar en gedeployed-veilig; web-laag volgt in de nieuwe sessie:**
+  `Add keep-options and node clock/evaluation annotations to PGN analysis import` (`f944950`).
+  **Referentie-UI:** `/home/jeroen/blunderfest/assets/src/features/import/ImportDialog.tsx`
+  (React-versie die de gebruiker als model gaf: source-rail, checkbox-trays per bron,
+  keep-opties-popover, count-aware checkout-knop). Onze tekst: "de lichess-import van eigen
+  games kiest alleen een AANTAL; er is geen selectie. En kiesbaar wat er meekomt (metadata,
+  variations, computer analysis, clock times, comments)."
+  **Klaar (backward-compatible, defaults = oud gedrag):** `Node.clock`/`Node.evaluation`
+  (nil-defaults), codec tolerant 5↔7-tuple, `PgnAnalysisImporter.import/4` met
+  `keep_comments`/`keep_variations`/`keep_metadata` (default true) en `keep_annotations`
+  (default false; `[%clk]`/`[%eval]` → node-velden, nooit in de commenttekst). Tests groen
+  (optiematrix + oude/nieuwe codec-vormen); analysis **666**.
+  **Nog te doen (in volgorde):**
+  1. `Web.GameImport.fetch_lichess_recent_games(username, max)` — NDJSON-metadata-lijst
+     (geen `pgnInJson`) → `%{id, white, black, result, speed, year}`; en
+     `fetch_chesscom_month_games(username, year, month)` → lijst incl. `pgn` + `url` als id.
+     Foutmapping zoals de bestaande fetchers; HTTP-stub via `stub_game_import` in tests.
+  2. `room_live`: provider-paneels worden **selectie-trays** — rijen met checkbox
+     (Wit – Zwart, resultaat, speed · jaar), alles/niets, en "Import N selected":
+     lichess haalt volledige PGN's via bestaande `fetch_lichess_games_by_ids/1`; chess.com
+     importeert uit de al opgehaalde maand-PGN's in assigns (geen refetch). Gekoppelde account:
+     username vooringevuld via `fetch_lichess_account_username` (patroon op regel ~1471).
+     Vervangt het oude max-count-formulier; de `import-my-games`-flow gaat op in dezelfde tray.
+  3. Keep-opties als vier checkboxes in de modal-footer, zichtbaar voor élke bron
+     (Comments/Variations/Metadata/Engine annotations: eval+clock) → doorgeven aan
+     `run_imports` → `PgnAnalysisImporter.import(..., opts)`; `@import_keep` default
+     %{comments: true, variations: true, metadata: true, annotations: false}.
+  4. Zetlijst toont `clock` (klein, muted, tabular-nums) en `evaluation` (klein mono) per zet
+     wanneer aanwezig — entries komen uit `AnalysisView.move_list_data`; voeg de velden daar toe.
+  5. i18n EN+NL voor alle nieuwe strings; web-tests met de bestaande HTTP-stub; browsercheck op
+     dev-room UIUX01; deploy; HANDOFF + architecture bijwerken. Suites serieel.
+  **Valkuilen deze sessie (ter info):** FEN-fixture-typos ving de harness drie keer
+  (`PPPP1PPP` vs `PPPPPPPP` etc.); heredoc-edits eerst verifiëren; `PositionCodec.decode` geeft
+  `{:ok, position}`; Python-vervangingen: exacte bytes uit het bestand kopiëren (formatter
+  breekt lange regels).
+  **Import-achtergrondwacht:** de watcher op `bulk-resume-3` werd bij de serverherstart
+  afgebroken en opnieuw gezet; bij leesbaarheid van deze regels: controleer
+  `flyctl machine list -a openchesslab` + de groeicheck (corpus-teller > 66.237) en rapporteer.
+
 - **Afgerond (benchmark-slice; bewust nog níet gedeployed als productiefeature):** `Add the
   position similarity digest and its search benchmark` (`b5caa3f`). Eerste S2-stap: de digest +
   meetkring, nog géén tabel/backfill/UI. `Analysis.PositionSimilarity.digest/1` pakt per stelling:
