@@ -2314,6 +2314,48 @@ defmodule Web.RoomLiveTest do
            )
   end
 
+  test "pinning mobility per piece draws a heat map in three intensities", %{
+    conn: conn,
+    code: code
+  } do
+    position =
+      Position.new()
+      |> Position.put_piece(Square.from_algebraic("e1"), {:white, :king})
+      |> Position.put_piece(Square.from_algebraic("e8"), {:black, :king})
+      |> Position.put_piece(Square.from_algebraic("d4"), {:white, :queen})
+      |> Position.put_piece(Square.from_algebraic("a2"), {:white, :pawn})
+
+    {:ok, analysis, _revision} = Analyses.create("heat", position: position)
+    :ok = Rooms.add_analysis(code, analysis.id)
+    {:ok, view, _html} = live(conn, "/rooms/#{code}?a=heat")
+
+    render_click(view, "select-engine-tab", %{"tab" => "features"})
+    render_click(view, "feature-detail", %{"id" => "mobility.per_piece"})
+
+    # The queen is by far the most mobile piece: top intensity on d4; the
+    # pawn's few moves sit in the lowest band; both sides carry a tint.
+    assert has_element?(
+             view,
+             "#chess-board-square-d4 span[data-highlight='white'][data-heat-level='3']"
+           )
+
+    assert has_element?(
+             view,
+             "#chess-board-square-a2 span[data-highlight='white'][data-heat-level='1']"
+           )
+
+    assert has_element?(view, "#chess-board span[data-highlight='black'][data-heat-level]")
+
+    # Heat rows count as drawable.
+    assert has_element?(
+             view,
+             "#features-readout button[data-feature='mobility.per_piece'][data-drawable='true']"
+           )
+
+    html = render_click(view, "feature-detail", %{"id" => "mobility.per_piece"})
+    refute html =~ "data-heat-level"
+  end
+
   test "the starting position has no outposts to pin", %{conn: conn, code: code} do
     {:ok, analysis, _revision} = Analyses.create("outpost-start")
     :ok = Rooms.add_analysis(code, analysis.id)

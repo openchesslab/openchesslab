@@ -3772,7 +3772,14 @@ defmodule Web.RoomLive do
   end
 
   defp empty_highlights do
-    %{white: MapSet.new(), black: MapSet.new(), neutral: MapSet.new(), files: MapSet.new()}
+    %{
+      white: MapSet.new(),
+      black: MapSet.new(),
+      neutral: MapSet.new(),
+      files: MapSet.new(),
+      white_heat: %{},
+      black_heat: %{}
+    }
   end
 
   defp compute_highlights(values, pinned, hints, position) do
@@ -3789,7 +3796,9 @@ defmodule Web.RoomLive do
       white: MapSet.union(a.white, b.white),
       black: MapSet.union(a.black, b.black),
       neutral: MapSet.union(a.neutral, b.neutral),
-      files: MapSet.union(a.files, b.files)
+      files: MapSet.union(a.files, b.files),
+      white_heat: Map.merge(Map.get(a, :white_heat, %{}), Map.get(b, :white_heat, %{})),
+      black_heat: Map.merge(Map.get(a, :black_heat, %{}), Map.get(b, :black_heat, %{}))
     }
   end
 
@@ -3813,6 +3822,52 @@ defmodule Web.RoomLive do
     if MapSet.size(highlights.white) + MapSet.size(highlights.black) > 0,
       do: highlights,
       else: nil
+  end
+
+  # Heat maps are per-side maps of square => count (e.g. mobility.per_piece);
+  # they draw in three intensities, normalised to the highest count on the
+  # board. Other per-side maps (wing counts, structure) do not draw.
+  defp highlights_for(%{"white" => white, "black" => black}, _hint, _position)
+       when is_map(white) and is_map(black) do
+    if (heat_map?(white) or heat_map?(black)) and heat_max(white, black) > 0 do
+      max = heat_max(white, black)
+
+      %{
+        white: MapSet.new(),
+        black: MapSet.new(),
+        neutral: MapSet.new(),
+        files: MapSet.new(),
+        white_heat: heat_levels(white, max),
+        black_heat: heat_levels(black, max)
+      }
+    end
+  end
+
+  # Per-side maps whose keys are all squares and whose values are all numbers
+  # are heat maps; wing counts and structure maps are not.
+  defp heat_map?(map) when map_size(map) == 0, do: false
+
+  defp heat_map?(map) when is_map(map) do
+    Enum.all?(map, fn {square, value} ->
+      is_number(value) and is_integer(Square.from_algebraic(square))
+    end)
+  end
+
+  defp heat_max(white, black) do
+    [white, black]
+    |> Enum.flat_map(&Map.values/1)
+    |> Enum.filter(&is_number/1)
+    |> Enum.max(fn -> 0 end)
+  end
+
+  defp heat_levels(map, max) do
+    if heat_map?(map) do
+      for {square, value} <- map, value > 0, into: %{} do
+        {Square.from_algebraic(square), max(1, ceil(3 * value / max))}
+      end
+    else
+      %{}
+    end
   end
 
   defp highlights_for(value, _hint, _position) when is_binary(value) do

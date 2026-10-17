@@ -60,7 +60,9 @@ defmodule Web.ChessComponents do
             @highlights[:white] && MapSet.member?(@highlights.white, square) %> <% hl_black =
             @highlights[:black] && MapSet.member?(@highlights.black, square) %> <% hl_neutral =
             @highlights[:neutral] && MapSet.member?(@highlights.neutral, square) %> <% hl_file =
-            @highlights[:files] && MapSet.member?(@highlights.files, file) %>
+            @highlights[:files] && MapSet.member?(@highlights.files, file) %> <% hl_white_heat =
+            @highlights[:white_heat] && @highlights.white_heat[square] %> <% hl_black_heat =
+            @highlights[:black_heat] && @highlights.black_heat[square] %>
           <button
             id={"#{@board_id}-square-#{algebraic}"}
             type="button"
@@ -106,6 +108,20 @@ defmodule Web.ChessComponents do
               :if={hl_neutral}
               data-highlight="neutral"
               class="pointer-events-none absolute inset-0 z-[2] bg-amber-400/25"
+              aria-hidden="true"
+            ></span>
+            <span
+              :if={hl_white_heat}
+              data-highlight="white"
+              data-heat-level={hl_white_heat}
+              class={["pointer-events-none absolute inset-0 z-[2]", white_heat_class(hl_white_heat)]}
+              aria-hidden="true"
+            ></span>
+            <span
+              :if={hl_black_heat}
+              data-highlight="black"
+              data-heat-level={hl_black_heat}
+              class={["pointer-events-none absolute inset-0 z-[2]", black_heat_class(hl_black_heat)]}
               aria-hidden="true"
             ></span>
             <span
@@ -194,6 +210,16 @@ defmodule Web.ChessComponents do
   defp ranks(_orientation), do: Enum.to_list(7..0//-1)
   defp files("black"), do: Enum.to_list(7..0//-1)
   defp files(_orientation), do: Enum.to_list(0..7)
+
+  # Heat levels (1..3) pick a fixed intensity; the highlight engine
+  # normalises each feature's counts into these bands.
+  defp white_heat_class(1), do: "bg-blue-500/15"
+  defp white_heat_class(2), do: "bg-blue-500/30"
+  defp white_heat_class(_level), do: "bg-blue-500/50"
+
+  defp black_heat_class(1), do: "bg-red-500/15"
+  defp black_heat_class(2), do: "bg-red-500/30"
+  defp black_heat_class(_level), do: "bg-red-500/50"
 
   defp light_square?(square), do: rem(rem(square, 8) + div(square, 8), 2) == 1
 
