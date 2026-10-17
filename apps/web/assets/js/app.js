@@ -917,67 +917,6 @@ const EvalBar = {
   },
 };
 
-const RoomTabs = {
-  mounted() {
-    this.tabKey = "openchesslab:room-tab";
-    this.sizeKey = "openchesslab:room-panel-size";
-
-    this.setTab = (tab) => {
-      document.body.dataset.roomTab = tab;
-      for (const button of this.el.querySelectorAll("[data-tab]")) {
-        const active = button.dataset.tab === tab;
-        button.setAttribute("aria-selected", active ? "true" : "false");
-      }
-      try {
-        localStorage.setItem(this.tabKey, tab);
-      } catch (_) {
-        /* optional */
-      }
-    };
-
-    this.setPanelSize = (size) => {
-      document.body.dataset.roomPanelSize = size;
-      try {
-        localStorage.setItem(this.sizeKey, size);
-      } catch (_) {
-        /* optional */
-      }
-    };
-
-    this.onClick = (event) => {
-      const tab = event.target.closest("[data-tab]");
-      if (tab && this.el.contains(tab)) {
-        this.setTab(tab.dataset.tab);
-        return;
-      }
-      if (event.target.closest("#room-panel-size")) {
-        this.setPanelSize(
-          document.body.dataset.roomPanelSize === "roomy" ? "big" : "roomy",
-        );
-      }
-    };
-    this.el.addEventListener("click", this.onClick);
-
-    let tab = "moves";
-    let size = "big";
-    try {
-      tab = localStorage.getItem(this.tabKey) || "moves";
-      size = localStorage.getItem(this.sizeKey) || "big";
-    } catch (_) {
-      /* optional */
-    }
-
-    this.setTab(["moves", "games", "chat"].includes(tab) ? tab : "moves");
-    this.setPanelSize(size === "roomy" ? "roomy" : "big");
-  },
-
-  destroyed() {
-    this.el.removeEventListener("click", this.onClick);
-    delete document.body.dataset.roomTab;
-    delete document.body.dataset.roomPanelSize;
-  },
-};
-
 const PaletteDrag = {
   mounted() {
     this.ghost = null;
@@ -1657,7 +1596,7 @@ const EngineAnalysis = {
 
 const csrfToken = document.querySelector("meta[name='csrf-token']")?.content;
 const liveSocket = new LiveSocket("/live", Socket, {
-  hooks: { AppUI, Board, EngineAnalysis, EvalBar, GuidedTour, MoveList, PaletteDrag, RoomTabs, ScrollLog },
+  hooks: { AppUI, Board, EngineAnalysis, EvalBar, GuidedTour, MoveList, PaletteDrag, ScrollLog },
   params: { _csrf_token: csrfToken },
 });
 

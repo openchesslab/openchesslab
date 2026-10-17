@@ -459,6 +459,10 @@ defmodule Web.RoomLiveTest do
     assert length(names) == 2
     assert Enum.all?(names, &Regex.match?(~r/\A[A-Z][a-z]+ [A-Z][a-z]+ [1-9][0-9]\z/, &1))
 
+    # The chat form lives in the drawer; opening it renders the form and
+    # clears the unread badge.
+    render_click(first, "open-chat", %{})
+    render_click(second, "open-chat", %{})
     render_submit(first, "send-chat", %{"message" => "hello from LiveView"})
 
     assert render(second) =~ "hello from LiveView"
@@ -788,19 +792,53 @@ defmodule Web.RoomLiveTest do
     end
   end
 
-  test "the mobile shell renders the tab strip and panels", %{conn: conn, code: code} do
+  test "the room bar carries the analysis chips and the chat button", %{
+    conn: conn,
+    code: code
+  } do
     {:ok, view, _html} = live(conn, "/rooms/#{code}")
     render_click(view, "create-analysis", %{})
     html = render(view)
 
-    assert html =~ ~s(phx-hook="RoomTabs")
-    assert html =~ ~s(data-tab="moves")
-    assert html =~ ~s(data-tab="games")
-    assert html =~ ~s(data-tab="chat")
-    assert html =~ ~s(data-mobile-panel="games")
-    assert html =~ ~s(data-mobile-panel="chat")
-    assert html =~ ~s(data-mobile-panel="moves")
-    refute html =~ "toggle-chat"
+    # The old sidebar drawer scheme is gone.
+    refute html =~ ~s(phx-hook="RoomTabs")
+    refute html =~ "data-tab="
+    refute html =~ "data-mobile-panel"
+
+    # The bar holds the chips, their actions and the chat button.
+    assert html =~ ~s(id="room-bar")
+    assert html =~ ~s(data-tour="analyses")
+    assert html =~ "analysis-chip-"
+    assert html =~ ~s(id="chat-open")
+    refute html =~ ~s(id="chat-drawer")
+
+    # Opening the chat button reveals the drawer with the log and the form.
+    html = render_click(view, "open-chat", %{})
+    assert html =~ ~s(id="chat-drawer")
+    assert html =~ ~s(id="chat-log")
+    assert html =~ ~s(id="chat-message")
+
+    html = render_click(view, "close-chat", %{})
+    refute html =~ ~s(id="chat-drawer")
+  end
+
+  test "chat messages raise the unread badge while the drawer is closed", %{
+    conn: conn,
+    code: code
+  } do
+    {:ok, first, _html} = live(conn, "/rooms/#{code}")
+    {:ok, second, _html} = live(build_conn(), "/rooms/#{code}")
+
+    render_click(second, "open-chat", %{})
+    render_submit(second, "send-chat", %{"message" => "ping"})
+
+    # The first viewer never opened the drawer: badge above the chat button.
+    html = render(first)
+    assert html =~ ~s(id="chat-unread")
+
+    # Opening the drawer clears it.
+    html = render_click(first, "open-chat", %{})
+    refute html =~ ~s(id="chat-unread")
   end
 
   test "pasted FEN game retains annotations in the ordinary room editor", %{

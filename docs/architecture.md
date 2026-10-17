@@ -208,6 +208,15 @@ external service sees one request per unique position ever, and a move can be pl
 the list. Privacy note: the FENs of looked-up positions leave the server to lichess; results are
 facts about positions, not user data. No local tablebase is shipped (7-piece data is terabytes).
 
+**Room shell (2026-10-17):** the left sidebar was removed. A two-row **room bar** under the app
+header carries the room code, presence (with follow buttons), latency, members, and the chat
+button with unread badge (row one) plus the horizontal **analysis chip bar** with track/untrack,
+new-analysis, import and setup actions (row two). Chat lives in a right-side drawer (bottom sheet
+on mobile) with a closing backdrop; the mobile drawer-tab scheme (`RoomTabs` hook,
+`data-mobile-panel`, the media-query block) was deleted, so mobile is a single scrolling column.
+The board's height cap accounts for the bar (`min(100%, calc(100dvh - 20rem))`, shared with the
+evaluation bar).
+
 **Reference panel (2026-10-17):** the book and the endgame table share one contextual panel below
 the move list (where the old inline comment box sat): opening name + ECO and corpus moves with
 statistics while the position is in the corpus, the exact tablebase once seven or fewer pieces

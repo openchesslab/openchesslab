@@ -116,6 +116,8 @@ defmodule Web.RoomLive do
       joined_at: System.system_time(:second),
       chat_messages: [],
       chat_error: nil,
+      chat_open: false,
+      chat_unread: 0,
       local_region: Web.NodeInfo.region(),
       room_region: room_region(code),
       notice: nil,
@@ -969,6 +971,14 @@ defmodule Web.RoomLive do
   def handle_event("clear-annotations", _params, socket) do
     {:noreply, socket |> assign(:annotations, []) |> refresh_presence()}
   end
+
+  # The chat drawer lives behind the room bar's chat button; opening it
+  # clears the unread badge.
+  def handle_event("open-chat", _params, socket),
+    do: {:noreply, assign(socket, chat_open: true, chat_unread: 0)}
+
+  def handle_event("close-chat", _params, socket),
+    do: {:noreply, assign(socket, :chat_open, false)}
 
   def handle_event("send-chat", %{"message" => text}, socket) do
     text = String.trim(text)
@@ -2467,7 +2477,17 @@ defmodule Web.RoomLive do
 
       socket
       |> assign(:chat_messages, messages)
+      |> bump_chat_unread(message)
       |> stream_insert(:chat_messages, message, at: -1, limit: -200)
+    end
+  end
+
+  # A message from someone else while the drawer is closed raises the badge.
+  defp bump_chat_unread(socket, message) do
+    if not socket.assigns.chat_open and message.author_id != socket.assigns.participant_id do
+      assign(socket, :chat_unread, socket.assigns.chat_unread + 1)
+    else
+      socket
     end
   end
 

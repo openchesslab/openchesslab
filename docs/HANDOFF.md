@@ -34,6 +34,22 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond, klaar voor commit/deploy:** `Replace the room sidebar with a room bar and chat drawer`.
+  De linkerzijbalk is weg. In plaats daarvan: een **room-bar** onder de app-header met twee rijen —
+  (1) roomcode + kopieerknop, presence (avatars/follow), latency, ledenknop en rechts de
+  **chatknop met ongelezen-badge**; (2) de **analyse-chips** (`analysis-chip-<id>`, horizontaal
+  scrollbaar, actief gemarkeerd, hover toont detail, ster voor track/untrack, plus-knoppen voor
+  nieuwe analyse/import/stelling). **Chat verhuisde naar een drawer** (`#chat-drawer`, rechts
+  uitschuivend op desktop, bottom sheet op mobiel; backdrop, Escape/klik-buiten sluit; badge
+  verschijnt bij berichten van anderen terwijl de drawer dicht is). De **mobiele drawer-tabs**
+  (RoomTabs-hook, `data-mobile-panel`, het `@media (max-width: 859.98px)`-CSS-blok en
+  `nav#room-tabs`) zijn volledig verwijderd — mobiel is nu één scrollende kolom (bord → strip →
+  engine → zetten mét referentiepaneel). Bordmaat: de hoogteconstante ging van `100dvh - 14rem`
+  naar `100dvh - 20rem` (de room-bar kostte ~90px verticale ruimte; bord meet nu 580px op
+  1440×900 en 363px op 390×844, volledig zichtbaar). Geverifieerd in dev op desktop en mobiel:
+  672→580px bord binnen de kolom, 16 chips, chat openen/sluiten met badge, drawer met log+form.
+  Serieel: analysis **655**, web **280**, chess **591**, features **209**; formatter, diffcontrole.
+
 - **Afgerond, klaar voor commit/deploy:** `Fold the book and endgame table into a reference panel`.
   Het commentaarveld onder de zettenlijst is vervangen door één **contextueel referentiepaneel**
   (zelfde plek, `#reference-panel`): openingnaam + ECO en de gespeelde corpuszetten met statistiek
