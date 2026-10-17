@@ -34,6 +34,30 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond en gedeployed; productie gezond:** `Draw hinted piece features on the board and cue
+  drawable rows` (`e69a2fc`) + `Draw per-side square-count features as board heat maps`
+  (`adcdd96`). Op vraag van de gebruiker ("count rook zou de torens kunnen markeren, loperpaar de
+  lopers, pionnenstructuur etc."). Drie vermogens:
+  (1) **`board`-hint in de catalogus** — `Features.Feature` kreeg een optioneel veld; tien
+  aggregaat-features (de vijf `material.count.*`, `material.bishop_pair(.both)`,
+  `material.bishops.{same,opposite}_color`, `quality.bishop_pair`, `material.exchange_advantage`)
+  noemen hun stuktype(s); de web-engine trekt de velden uit de **huidige stelling**
+  (`Chess.Position.pieces/1`) voor elke kant die de waarde bevestigt (count > 0 / vlag true);
+  scalaire vlaggen markeren beide kanten. De vector blijft het signaal, de stelling levert de
+  locaties — geen nieuwe data of migratie.
+  (2) **Heat maps** — per-side maps `veld => aantal` (o.a. `mobility.per_piece`) tekenen in drie
+  vaste intensiteiten (blauw/rood 15/30/50%), genormaliseerd op het hoogste aantal op het bord;
+  maps zonder veld-sleutels (wing counts, `pawns.structure`) tekenen niet. Nieuwe spans met
+  `data-heat-level` (1..3) in `chess_components`.
+  (3) **Cue + lezer-hardheid** — rijen die kunnen tekenen krijgen een klein bord-icoon
+  (`data-drawable`, tooltip i18n); lijst-van-lijsten (pionnenketens) flatten één niveau; de
+  pin-guard gebruikt nu dezelfde engine (dus counts/paren pinnen pas mee als er iets te zien is).
+  Tests: catalogus-hint-test (features), rooktelling per kant, eenzijdig loperpaar, ketens,
+  heat-niveaus (dame = 3, pion = 1), cue aanwezig/afwezig. Geverifieerd in dev op UIUX01:
+  count.rook + bishop_pair gepind → 4+4 getinte velden (torens + lopers per kant), heat van
+  `mobility.per_piece` met 4/16/4 niveaus, DOM-check h1/h8 (wit/zwart) en a1 (geen span). Serieel:
+  analysis **657**, features **211**, web **286**; formatter, diffcontrole.
+
 - **Afgerond en gedeployed; productie gezond:** `Remove an analysis from the room via the active
   chip` (`a66e8bc`). De **actieve analyse-chip** heeft nu een klein **×** (alleen de actieve; geen
   chipvervuiling, werkt ook op touch); die opent een bevestigingsdialoog ("Remove “…” from this

@@ -223,9 +223,17 @@ feature has squares — pins them on the board; the same click unpins. Pinned ro
 list itself (bold + accent label, `data-pinned` attribute) — a separate overlay chip row was
 tried and removed (vertical clutter, scrollbars) because the five former layers are just
 features, reachable in the list. `room_live` derives `feature_highlights` (`white`/`black`/
-`neutral` square MapSets and `files`) from the raw vector: per-side square lists or single
-squares, plain square lists, and file letters; the board draws blue (white), red (black), amber
-(neutral) tints and amber file bands (`data-highlight` attributes for tests). Empty features stay
+`neutral` square MapSets, `files`, and `white_heat`/`black_heat` square→level maps) from the raw
+vector: per-side square lists or single squares, plain square lists, file letters, and per-side
+square→count maps drawn as heat maps in three fixed opacity bands, normalised to the highest
+count on the board (e.g. `mobility.per_piece`; other per-side maps like wing counts do not draw).
+List-of-lists values (pawn chains) flatten one level. Aggregate features whose value holds no
+squares (counts, pairs) draw through the catalogue's optional `board` hint on `Features.Feature`,
+which names the piece type(s) to resolve from the current position for every side the value
+affirms (`material.count.rook`, `material.bishop_pair`, `quality.bishop_pair`, …). Rows that can
+draw carry a board-glyph cue (`data-drawable`). The board draws blue (white), red (black), amber
+(neutral) tints, amber file bands and heat spans (`data-highlight`, `data-heat-level` attributes
+for tests). Empty features stay
 detail-only and never pin. `Chess.PositionProperties` is no longer used for board overlays (still
 feeds the MATERIAL/SPACE strip tabs — pruning it is follow-up).
 
