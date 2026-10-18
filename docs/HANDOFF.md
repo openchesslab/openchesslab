@@ -30,6 +30,18 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond (2026-10-18), nog níet gedeployed:** **Chess.com-maandkiezer + selectie-UX**
+  (gebruikerswensen). (1) Het tekst-maandveld (`type="month"` rendert in Safari/Firefox als
+  plat tekstveld) is vervangen door een **archives-dropdown** — de chess.com archives-API
+  (`fetch_chesscom_archives/1`) levert alle maanden mét partijen, gelokaliseerd
+  ("October 2026"), nieuwste vooraf; kapotte maand = fout vóór netwerk, archives-fout =
+  tekstveld-fallback. (2) De tray start nu **gedeselecteerd** (was: alles voorgeselecteerd)
+  met een **master-checkbox** boven de lijst (driestand via `ImportMasterCheckbox`-hook:
+  streep bij deelselectie); de Alles/Niets-knoppen onderaan + dode i18n-keys weg. Suites:
+  game_import 11, web **301** (nieuwe tests: archives-parsing, dropdown-maandwissel,
+  fallback, deselected-start, master-toggle + indeterminate). Browsergeverifieerd met
+  echte API (hikaru: 313 partijen, 0→313→312).
+
 - **Afgerond (2026-10-18): feature-review fase 2, laag 1 (python-chess-orakel).** Drie
   scripts (`feature_oracle_export/check.exs` + `feature_oracle.py`, venv in
   `/tmp/opencode/venv-oracle`) vergelijken de catalogus met python-chess op 818
