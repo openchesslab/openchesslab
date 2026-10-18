@@ -30,8 +30,8 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond (2026-10-18), gedeployed:** **Chess.com-maandkiezer + selectie-UX + dialyzer.**
-  (1) Het tekst-maandveld is vervangen door een **archives-dropdown** (gelokaliseerde maanden
+- **Afgerond (2026-10-18), gedeployed:** **Chess.com-maandkiezer + selectie-UX + dialyzer +
+  twee kleine fixes.** (1) Het tekst-maandveld is vervangen door een **archives-dropdown** (gelokaliseerde maanden
   mét partijen, nieuwste vooraf) met prefetch op het username-veld; vóór invoer toont een
   **disabled placeholder-dropdown** ("Latest month"/"Laatste maand"), het tekstveld bestaat
   alleen nog als eerlijke fallback bij een archives-fout. (2) De tray start **gedeselecteerd**
@@ -41,8 +41,12 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   voorzien — de resterende `call_without_opaque` is de OTP 29-:sets-kwestie (opaak in
   `MapSet.union`-spec vs concrete inferentie) en is gericht onderdrukt met
   `@dialyzer {:no_opaque, compute_highlights: 4}` + toelichting. `mix dialyzer` is nu groen
-  (0 errors). Suites: web **304**, analysis **670**. Browsergeverifieerd (placeholder →
-  dropdown na typen).
+  (0 errors). (4) De tab-containers van de importdialoog kregen 2px padding zodat de globale
+  `:focus-visible`-outline niet meer door `overflow-hidden` wordt afgekapt. (5) Op mobiel
+  (≤860px) rendert het features-paneel nu **na** het zetten-paneel (was ervoor): bord →
+  engine → zetten/statistieken → features. Suites: web **304**, analysis **670**.
+  Browsergeverifieerd (placeholder → dropdown na typen; focus-ring rondom zichtbaar;
+  mobiele volgorde op 390px).
 
 - **Afgerond (2026-10-18): feature-review fase 2, laag 1 (python-chess-orakel).** Drie
   scripts (`feature_oracle_export/check.exs` + `feature_oracle.py`, venv in
