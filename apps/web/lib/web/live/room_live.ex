@@ -1485,9 +1485,16 @@ defmodule Web.RoomLive do
 
             {:ok, _typed_year, _typed_month} ->
               # The archives list replaces typing a month: pick from the
-              # months that actually have games. Any archives failure falls
-              # back to the plain month input.
-              case GameImport.fetch_chesscom_archives(username) do
+              # months that actually have games. The username prefetch may
+              # already have fetched them; any failure falls back to the
+              # plain month input.
+              archives_result =
+                case socket.assigns.chesscom_archives do
+                  [_ | _] = archives -> {:ok, archives}
+                  [] -> GameImport.fetch_chesscom_archives(username)
+                end
+
+              case archives_result do
                 {:ok, [_ | _] = archives} ->
                   with {:ok, year, month} <- chesscom_month_choice(params["month"], archives) do
                     case GameImport.fetch_chesscom_month_games(username, year, month) do
@@ -1552,6 +1559,29 @@ defmodule Web.RoomLive do
            import_games: [],
            import_selected: MapSet.new()
          )}
+    end
+  end
+
+  def handle_event("prefetch-chesscom-month", %{"username" => username}, socket) do
+    username = String.trim(username)
+
+    if username == "" or socket.assigns.import_source != "chesscom" do
+      {:noreply, assign(socket, chesscom_archives: [])}
+    else
+      case GameImport.fetch_chesscom_archives(username) do
+        {:ok, [_ | _] = archives} ->
+          # The dropdown appears as soon as the username is known; the
+          # newest month wins unless the current one is among the archives.
+          month =
+            case chesscom_month_choice(socket.assigns.chesscom_month, archives) do
+              {:ok, year, month} -> format_chesscom_month(year, month)
+            end
+
+          {:noreply, assign(socket, chesscom_archives: archives, chesscom_month: month)}
+
+        {:error, _reason} ->
+          {:noreply, assign(socket, chesscom_archives: [])}
+      end
     end
   end
 

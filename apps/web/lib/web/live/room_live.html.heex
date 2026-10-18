@@ -1979,6 +1979,8 @@
                   required
                   value={@provider_username}
                   placeholder={Web.I18n.t("room.importUserPlaceholder", @locale)}
+                  phx-change="prefetch-chesscom-month"
+                  phx-debounce="400"
                   class="rounded-lg border border-border px-3 py-2"
                 />
               </label>

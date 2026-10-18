@@ -1063,10 +1063,10 @@ defmodule Web.RoomLiveTest do
         ]
       }
 
+      # Archives once (prefetch/Load reuses it), then each chosen month.
       stub_game_import([
         {200, Jason.encode!(archives)},
         {200, Jason.encode!(november)},
-        {200, Jason.encode!(archives)},
         {200, Jason.encode!(october)}
       ])
 
@@ -1085,6 +1085,32 @@ defmodule Web.RoomLiveTest do
       render_change(view, "select-chesscom-month", %{"month" => "2023-10"})
 
       assert has_element?(view, "#import-games-tray", "cleo – anna")
+    end
+
+    test "the month becomes a dropdown as soon as the username is known", %{
+      conn: conn,
+      code: code
+    } do
+      archives = %{
+        "archives" => [
+          "https://api.chess.com/pub/player/anna/games/2023/11",
+          "https://api.chess.com/pub/player/anna/games/2023/10"
+        ]
+      }
+
+      stub_game_import([{200, Jason.encode!(archives)}])
+
+      {:ok, view, _} = live(conn, "/rooms/#{code}")
+      render_click(view, "open-import", %{})
+      render_click(view, "set-import-source", %{"source" => "chesscom"})
+
+      assert has_element?(view, "input#provider-month")
+
+      render_change(view, "prefetch-chesscom-month", %{"username" => "anna"})
+
+      assert has_element?(view, "select#provider-month option", "November 2023")
+      assert has_element?(view, "select#provider-month option", "October 2023")
+      refute has_element?(view, "input#provider-month")
     end
 
     test "a failing archives call keeps the plain month input as fallback", %{
