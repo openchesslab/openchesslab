@@ -527,6 +527,52 @@ defmodule Web.RoomLiveTest do
     cleanup_search_corpus(corpus)
   end
 
+  test "game search filters by feature atoms", %{conn: conn, code: code} do
+    OpenChessLab.Repo.query!(
+      "TRUNCATE TABLE game_records, game_occurrences, games, position_features, positions RESTART IDENTITY CASCADE",
+      []
+    )
+
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    corpus = seed_search_corpus()
+
+    render_click(view, "open-search", %{})
+
+    # The seeded games all start from the initial position; digest it so the
+    # atoms resolve.
+    start_position_id = PositionStore.append(Position.starting_position())
+    assert {:ok, _ids} = Analysis.PositionDigests.store_position_id(start_position_id)
+
+    # A startpos atom matches every seeded game; it combines with the other
+    # filters.
+    html =
+      render_submit(view, "search-games", %{
+        "features" => ["material.signature:w:Q1R2B2N2P8"]
+      })
+
+    assert html =~ ~s(id="corpus-#{corpus.carlsen_win}")
+    assert html =~ ~s(id="corpus-#{corpus.other_win}")
+
+    html =
+      render_submit(view, "search-games", %{
+        "player" => "carlsen",
+        "features" => ["material.signature:w:Q1R2B2N2P8"]
+      })
+
+    assert html =~ ~s(id="corpus-#{corpus.carlsen_win}")
+    refute html =~ ~s(id="corpus-#{corpus.other_win}")
+
+    # An atom no seeded position has, matches nothing — also in AND.
+    html =
+      render_submit(view, "search-games", %{
+        "features" => ["material.signature:w:Q1R2B2N2P8", "motifs.greek_gift:b"]
+      })
+
+    refute html =~ ~s(id="corpus-#{corpus.carlsen_win}")
+
+    cleanup_search_corpus(corpus)
+  end
+
   test "a position hit opens the game at the matched ply", %{conn: conn, code: code} do
     OpenChessLab.Repo.query!(
       "TRUNCATE TABLE game_records, game_occurrences, games, position_features, positions RESTART IDENTITY CASCADE",

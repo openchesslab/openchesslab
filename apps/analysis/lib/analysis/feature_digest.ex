@@ -79,7 +79,7 @@ defmodule Analysis.FeatureDigest do
   def ids_for(atoms) when is_list(atoms) do
     cache = cache()
 
-    {known, missing} =
+    {_known, missing} =
       Enum.split_with(atoms, &Map.has_key?(cache, &1))
 
     registered =

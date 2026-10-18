@@ -2351,6 +2351,46 @@
           {Web.I18n.t("room.searchModeReflected", @locale)}
         </option></select></label>
 
+        <details class="rounded-md border border-border p-2 sm:col-span-2 lg:col-span-4">
+          <summary class="cursor-pointer text-xs text-muted">
+            {Web.I18n.t("room.searchFeaturesLabel", @locale)}
+            <span
+              :if={search_atoms(@search_filters["features"]) != []}
+              class="ml-1 font-semibold text-foreground"
+            >
+              ({length(search_atoms(@search_filters["features"]))})
+            </span>
+          </summary>
+          <div class="mt-2 space-y-2">
+            <div :for={{section, atoms} <- search_feature_groups(@locale)}>
+              <p class="m-0 text-[.68rem] font-semibold uppercase tracking-wide text-faint">
+                {Web.I18n.t("room.featuresSection.#{section}", @locale)}
+              </p>
+              <div class="mt-1 flex flex-wrap gap-1">
+                <label
+                  :for={{atom, label} <- atoms}
+                  class={[
+                    "inline-flex cursor-pointer items-center rounded-full border px-2 py-0.5 text-xs",
+                    atom in search_atoms(@search_filters["features"]) &&
+                      "border-accent-strong bg-accent/15 text-foreground",
+                    atom not in search_atoms(@search_filters["features"]) &&
+                      "border-border text-muted hover:bg-panel-hover"
+                  ]}
+                >
+                  <input
+                    type="checkbox"
+                    name="features[]"
+                    value={atom}
+                    checked={atom in search_atoms(@search_filters["features"])}
+                    class="sr-only"
+                  />
+                  {label}
+                </label>
+              </div>
+            </div>
+          </div>
+        </details>
+
         <button
           type="submit"
           class="rounded-md border border-accent-strong bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-strong sm:col-span-2 lg:col-span-1"

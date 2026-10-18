@@ -1390,7 +1390,11 @@ defmodule Web.RoomLive do
   # through PositionQuery/GameSearch (PostgreSQL, keyset-paged), name filters
   # are case-insensitive substrings on the PGN metadata.
   def handle_event("search-games", params, socket) do
-    filters = Map.merge(socket.assigns.search_filters, params)
+    # Unchecked feature chips submit nothing; the selection resets honestly.
+    filters =
+      socket.assigns.search_filters
+      |> Map.merge(params)
+      |> Map.put("features", Map.get(params, "features", []))
 
     case corpus_search(filters, nil) do
       {:ok, results, cursor} ->
@@ -1409,6 +1413,15 @@ defmodule Web.RoomLive do
            search_results: [],
            search_cursor: nil,
            search_error: "room.searchInvalidFen"
+         )}
+
+      {:error, _reason} ->
+        {:noreply,
+         assign(socket,
+           search_filters: filters,
+           search_results: [],
+           search_cursor: nil,
+           search_error: "room.searchFailed"
          )}
     end
   end
@@ -1725,7 +1738,12 @@ defmodule Web.RoomLive do
   end
 
   def handle_event("set-search-filter", params, socket) do
-    {:noreply, assign(socket, :search_filters, Map.merge(socket.assigns.search_filters, params))}
+    {:noreply,
+     assign(
+       socket,
+       :search_filters,
+       Map.merge(socket.assigns.search_filters, Map.put_new(params, "features", []))
+     )}
   end
 
   def handle_event("setup-arm-piece", %{"piece" => piece}, socket) do
@@ -4573,14 +4591,18 @@ defmodule Web.RoomLive do
   # (one row per position a game passes through) and the list shows one row
   # per game record, keeping the first occurrence it reached.
   defp corpus_search(filters, cursor) do
+    atoms = search_atoms(filters["features"])
+
     with {:ok, position_query} <-
-           search_position_query(filters["fen"], filters["position_mode"]) do
+           search_position_query(filters["fen"], filters["position_mode"], atoms) do
       record_query = search_record_query(filters)
 
-      # With a position filter the scan stays position-driven (insertion
-      # order); game-only searches page newest-first.
+      # With a position filter (FEN or feature atoms) the scan stays
+      # position-driven (insertion order); game-only searches page newest-first.
       sort =
-        if blank_to_nil(filters["fen"]), do: :insertion, else: :date_desc
+        if blank_to_nil(filters["fen"]) || atoms != [],
+          do: :insertion,
+          else: :date_desc
 
       options =
         if cursor,
@@ -4606,40 +4628,146 @@ defmodule Web.RoomLive do
     end
   end
 
-  defp search_position_query(fen, _mode) when fen in ["", nil], do: {:ok, true}
+  defp search_position_query(fen, _mode, atoms) when fen in ["", nil] and atoms == [],
+    do: {:ok, true}
 
-  defp search_position_query(fen, mode) do
+  defp search_position_query(fen, _mode, atoms) when fen in ["", nil] do
+    {:ok, Analysis.PositionQuery.digests(atoms)}
+  end
+
+  defp search_position_query(fen, mode, atoms) do
     case FEN.parse(String.trim(to_string(fen))) do
       {:ok, %{position: position}} ->
+        fen_query =
+          case mode do
+            "structure" ->
+              Analysis.PositionQuery.pawn_structure(position)
+
+            "structure_symmetries" ->
+              Analysis.PositionQuery.pawn_structure_symmetries(position)
+
+            "structure_edit1" ->
+              Analysis.PositionQuery.pawn_structure_edit_neighborhood(position, 1)
+
+            "structure_push" ->
+              Analysis.PositionQuery.pawn_structure_single_push_neighborhood(position)
+
+            "structure_missing" ->
+              Analysis.PositionQuery.pawn_structure_missing_pawn_neighborhood(position)
+
+            "structure_color_reversed" ->
+              Analysis.PositionQuery.color_reversed_pawn_structure(position)
+
+            "structure_reflected" ->
+              Analysis.PositionQuery.file_reflected_pawn_structure(position)
+
+            _ ->
+              Analysis.PositionQuery.equivalent(position)
+          end
+
         {:ok,
-         case mode do
-           "structure" ->
-             Analysis.PositionQuery.pawn_structure(position)
-
-           "structure_symmetries" ->
-             Analysis.PositionQuery.pawn_structure_symmetries(position)
-
-           "structure_edit1" ->
-             Analysis.PositionQuery.pawn_structure_edit_neighborhood(position, 1)
-
-           "structure_push" ->
-             Analysis.PositionQuery.pawn_structure_single_push_neighborhood(position)
-
-           "structure_missing" ->
-             Analysis.PositionQuery.pawn_structure_missing_pawn_neighborhood(position)
-
-           "structure_color_reversed" ->
-             Analysis.PositionQuery.color_reversed_pawn_structure(position)
-
-           "structure_reflected" ->
-             Analysis.PositionQuery.file_reflected_pawn_structure(position)
-
-           _ ->
-             Analysis.PositionQuery.equivalent(position)
+         case atoms do
+           [] -> fen_query
+           atoms -> Analysis.PositionQuery.all([fen_query, Analysis.PositionQuery.digests(atoms)])
          end}
 
       _ ->
         {:error, :invalid_fen}
+    end
+  end
+
+  # The form's features[] checkboxes arrive as a list (several), one string
+  # (exactly one) or nil (none).
+  defp search_atoms(nil), do: []
+  defp search_atoms(atoms) when is_list(atoms), do: Enum.uniq(atoms)
+  defp search_atoms(atom) when is_binary(atom), do: [atom]
+
+  # The picker's curated atoms per catalogue section: intrinsically
+  # meaningful, selective facts (see Analysis.FeatureDigest). Labels resolve
+  # through the same feature_label used by the features panel.
+  @search_feature_groups [
+    {11, ["king.opposite_side_castling"]},
+    {2, ["material.bishop_pair:w", "material.bishop_pair:b"]},
+    {3,
+     [
+       "pawns.iqp:w",
+       "pawns.iqp:b",
+       "pawns.isolated:w",
+       "pawns.isolated:b",
+       "pawns.backward:w",
+       "pawns.backward:b",
+       "pawns.doubled:w",
+       "pawns.doubled:b",
+       "pawns.passed:w",
+       "pawns.passed:b",
+       "pawns.minority_attack:w",
+       "pawns.minority_attack:b"
+     ]},
+    {19,
+     [
+       "position.endgame_like_position",
+       "position.queenless_middlegame",
+       "position.opposite_side_castling_position",
+       "position.closed_position",
+       "position.open_position"
+     ]},
+    {17,
+     [
+       "quality.knight_outpost:w",
+       "quality.knight_outpost:b",
+       "quality.opposite_colored_bishops"
+     ]},
+    {8, ["squares.enemy_on_outpost:w", "squares.enemy_on_outpost:b"]},
+    {12,
+     [
+       "tactics.pin:w",
+       "tactics.pin:b",
+       "tactics.hanging_piece:w",
+       "tactics.hanging_piece:b"
+     ]},
+    {13, ["threats.mating_net:w", "threats.mating_net:b"]},
+    {14,
+     [
+       "motifs.greek_gift:w",
+       "motifs.greek_gift:b",
+       "motifs.back_rank_motifs:w",
+       "motifs.back_rank_motifs:b",
+       "motifs.exchange_sacrifice:w",
+       "motifs.exchange_sacrifice:b"
+     ]},
+    {15,
+     [
+       "goals.attack_isolated_pawn:w",
+       "goals.attack_isolated_pawn:b",
+       "goals.blockade_isolated_pawn:w",
+       "goals.blockade_isolated_pawn:b",
+       "goals.pawn_storm:w",
+       "goals.pawn_storm:b"
+     ]}
+  ]
+
+  defp search_feature_groups(locale) do
+    for {section, atoms} <- @search_feature_groups do
+      {section,
+       Enum.map(atoms, fn atom ->
+         {atom, search_atom_label(atom, locale)}
+       end)}
+    end
+  end
+
+  defp search_atom_label(atom, locale) do
+    case String.split(atom, ":") do
+      [id] ->
+        feature_label(id, locale)
+
+      [id, side] ->
+        side_label =
+          Web.I18n.t(
+            if(side == "w", do: "room.searchColourWhite", else: "room.searchColourBlack"),
+            locale
+          )
+
+        "#{feature_label(id, locale)} (#{String.downcase(side_label)})"
     end
   end
 
