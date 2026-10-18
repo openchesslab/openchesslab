@@ -919,9 +919,14 @@
                 </span>
             <% end %>
 
+            <span
+              class="ml-auto inline-flex h-8 w-8 cursor-help items-center justify-center text-muted"
+              title={Web.I18n.t("room.engineNote", @locale)}
+              aria-label={Web.I18n.t("room.engineNote", @locale)}
+            ><.icon name="question" class="h-3.5 w-3.5" /></span>
             <button
               type="button"
-              class="ml-auto inline-flex h-8 w-8 items-center justify-center rounded border border-border text-muted hover:bg-panel-hover hover:text-foreground"
+              class="inline-flex h-8 w-8 items-center justify-center rounded border border-border text-muted hover:bg-panel-hover hover:text-foreground"
               aria-label={Web.I18n.t("room.engineSettings", @locale)}
               title={Web.I18n.t("room.engineSettings", @locale)}
               aria-haspopup="true"
@@ -1194,10 +1199,6 @@
                     </div>
                 <% end %>
               </div>
-
-              <p class="mb-0 mt-2 text-[.68rem] text-muted">
-                {Web.I18n.t("room.engineNote", @locale)}
-              </p>
             </div>
 
             <div
