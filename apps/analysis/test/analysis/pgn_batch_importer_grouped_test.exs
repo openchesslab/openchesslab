@@ -262,6 +262,30 @@ defmodule Analysis.PgnBatchImporterGroupedTest do
     assert GameRecords.get(id(skip_prefix, 5)) == :not_found
   end
 
+  test "extra headers mark every record's metadata without touching dedup" do
+    prefix = prefix()
+
+    games = [{1, "1. e4 *"}, {2, "1. e4 *"}]
+
+    assert PgnBatchImporter.import_stream(
+             lines(games),
+             &id(prefix, &1),
+             10,
+             extra_headers: [{"Source", "lichess-elite"}, {"SourceDetail", "2025-11"}]
+           ) == {:ok, 2}
+
+    for index <- [1, 2] do
+      assert {:ok, record} = GameRecords.get(id(prefix, index))
+      assert record.metadata["source"] == "lichess-elite"
+      assert record.metadata["source_detail"] == "2025-11"
+    end
+
+    # Identical content still dedups to one canonical game, provenance aside.
+    assert {:ok, first} = GameRecords.get(id(prefix, 1))
+    assert {:ok, second} = GameRecords.get(id(prefix, 2))
+    assert first.game_id == second.game_id
+  end
+
   defp simple_games(count), do: for(index <- 1..count, do: {index, "1. e4 *"})
 
   defp pgn(games) do

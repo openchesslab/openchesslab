@@ -227,7 +227,13 @@ defmodule Analysis.PgnBatchImporter do
     end
 
     case reduce_games(lines, 0, fn game, index, imported_count ->
-           import_stream_game(game, index, imported_count, record_id_for_index)
+           import_stream_game(
+             game,
+             index,
+             imported_count,
+             record_id_for_index,
+             Keyword.get(opts, :extra_headers, [])
+           )
          end) do
       {:ok, imported_count} -> {:ok, %{imported: imported_count, malformed: 0}}
       {:error, _reason} = error -> error
@@ -238,10 +244,19 @@ defmodule Analysis.PgnBatchImporter do
        when is_function(record_id_for_index, 1) and is_integer(batch_size) and batch_size > 1 and
               batch_size <= @stream_batch_size do
     skip_malformed? = Keyword.get(opts, :skip_malformed, false)
+    extra_headers = Keyword.get(opts, :extra_headers, [])
     initial = %{pending: [], imported_count: 0, malformed_count: 0}
 
     case reduce_games(lines, initial, fn game, index, state ->
-           queue_stream_game(game, index, state, record_id_for_index, batch_size, skip_malformed?)
+           queue_stream_game(
+             game,
+             index,
+             state,
+             record_id_for_index,
+             batch_size,
+             skip_malformed?,
+             extra_headers
+           )
          end) do
       {:ok, state} ->
         case flush_stream_games(state) do
@@ -289,11 +304,12 @@ defmodule Analysis.PgnBatchImporter do
           Enumerable.t(),
           (pos_integer() -> GameRecord.id()),
           pos_integer(),
-          pos_integer()
+          pos_integer(),
+          keyword()
         ) ::
           {:ok, ParallelImportResult.t()}
           | {:error, parallel_import_error()}
-  def import_stream_parallel(lines, record_id_for_index, max_concurrency, window_size)
+  def import_stream_parallel(lines, record_id_for_index, max_concurrency, window_size, opts \\ [])
       when is_function(record_id_for_index, 1) do
     with :ok <- validate_max_concurrency(max_concurrency),
          :ok <- validate_window_size(window_size, max_concurrency) do
@@ -302,6 +318,8 @@ defmodule Analysis.PgnBatchImporter do
         imported_count: 0,
         failures: []
       }
+
+      extra_headers = Keyword.get(opts, :extra_headers, [])
 
       case reduce_games(
              lines,
@@ -313,12 +331,13 @@ defmodule Analysis.PgnBatchImporter do
                  state,
                  record_id_for_index,
                  max_concurrency,
-                 window_size
+                 window_size,
+                 extra_headers
                )
              end
            ) do
         {:ok, state} ->
-          case flush_parallel_games(state, record_id_for_index, max_concurrency) do
+          case flush_parallel_games(state, record_id_for_index, max_concurrency, extra_headers) do
             {:ok, state} ->
               {:ok,
                %ParallelImportResult{
@@ -336,7 +355,7 @@ defmodule Analysis.PgnBatchImporter do
     end
   end
 
-  def import_stream_parallel(_lines, _record_id_for_index, _max_concurrency, _window_size) do
+  def import_stream_parallel(_lines, _record_id_for_index, _max_concurrency, _window_size, _opts) do
     {:error, :invalid_record_id_provider}
   end
 
@@ -641,11 +660,11 @@ defmodule Analysis.PgnBatchImporter do
     end
   end
 
-  defp import_stream_game(game, index, imported_count, record_id_for_index) do
+  defp import_stream_game(game, index, imported_count, record_id_for_index, extra_headers) do
     case PgnImporter.parse(game) do
       {:ok, parsed} ->
         import_stream_parsed_game(
-          parsed,
+          with_extra_headers(parsed, extra_headers),
           index,
           imported_count,
           record_id_for_index
@@ -698,7 +717,15 @@ defmodule Analysis.PgnBatchImporter do
   # Parsing and record-ID validation happen in source order. A later error
   # first flushes the preceding successful candidates: a persistence error in
   # that prefix must win over a parse/ID error at a later index.
-  defp queue_stream_game(game, index, state, record_id_for_index, batch_size, skip_malformed?) do
+  defp queue_stream_game(
+         game,
+         index,
+         state,
+         record_id_for_index,
+         batch_size,
+         skip_malformed?,
+         extra_headers
+       ) do
     case PgnImporter.parse(game) do
       {:ok, parsed} ->
         record_id = record_id_for_index.(index)
@@ -706,7 +733,9 @@ defmodule Analysis.PgnBatchImporter do
         if is_binary(record_id) and byte_size(record_id) > 0 do
           next_state = %{
             state
-            | pending: [{index, record_id, parsed} | state.pending]
+            | pending: [
+                {index, record_id, with_extra_headers(parsed, extra_headers)} | state.pending
+              ]
           }
 
           if length(next_state.pending) == batch_size do
@@ -780,7 +809,25 @@ defmodule Analysis.PgnBatchImporter do
     {record_id, parsed.initial_position, parsed.moves, parsed.start, metadata, parsed.replay}
   end
 
-  defp queue_parallel_game(game, index, state, record_id_for_index, max_concurrency, window_size) do
+  # Provenance headers (e.g. Source) are merged before the headers become
+  # record metadata; they never touch game content, so canonical dedup is
+  # unaffected.
+  defp with_extra_headers(parsed, []), do: parsed
+
+  defp with_extra_headers(%{headers: headers} = parsed, extra_headers)
+       when is_list(extra_headers) do
+    %{parsed | headers: Map.merge(headers, Map.new(extra_headers))}
+  end
+
+  defp queue_parallel_game(
+         game,
+         index,
+         state,
+         record_id_for_index,
+         max_concurrency,
+         window_size,
+         extra_headers
+       ) do
     state = %{
       state
       | pending: [
@@ -796,18 +843,24 @@ defmodule Analysis.PgnBatchImporter do
       flush_parallel_games(
         state,
         record_id_for_index,
-        max_concurrency
+        max_concurrency,
+        extra_headers
       )
     else
       {:ok, state}
     end
   end
 
-  defp flush_parallel_games(%{pending: []} = state, _record_id_for_index, _max_concurrency) do
+  defp flush_parallel_games(
+         %{pending: []} = state,
+         _record_id_for_index,
+         _max_concurrency,
+         _extra_headers
+       ) do
     {:ok, state}
   end
 
-  defp flush_parallel_games(state, record_id_for_index, max_concurrency) do
+  defp flush_parallel_games(state, record_id_for_index, max_concurrency, extra_headers) do
     pending =
       Enum.reverse(state.pending)
 
@@ -824,7 +877,8 @@ defmodule Analysis.PgnBatchImporter do
           import_parallel_game(
             game,
             index,
-            record_id_for_index
+            record_id_for_index,
+            extra_headers
           )
         }
       end,
@@ -901,11 +955,11 @@ defmodule Analysis.PgnBatchImporter do
     )
   end
 
-  defp import_parallel_game(game, index, record_id_for_index) do
+  defp import_parallel_game(game, index, record_id_for_index, extra_headers) do
     case PgnImporter.parse(game) do
       {:ok, parsed} ->
         import_parallel_parsed_game(
-          parsed,
+          with_extra_headers(parsed, extra_headers),
           index,
           record_id_for_index
         )

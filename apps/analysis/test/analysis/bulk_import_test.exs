@@ -94,6 +94,27 @@ defmodule Analysis.BulkImportTest do
            )
   end
 
+  test "keep_game? with :allow_bullet keeps fast games for pre-filtered sources" do
+    bullet = %{
+      "WhiteElo" => "2500",
+      "BlackElo" => "2400",
+      "Event" => "Rated Bullet game",
+      "TimeControl" => "60+0"
+    }
+
+    blitz_clock = %{
+      "WhiteElo" => "2500",
+      "BlackElo" => "2400",
+      "Event" => "Rated Blitz game",
+      "TimeControl" => "120+1"
+    }
+
+    assert BulkImport.keep_game?(bullet, 2200, allow_bullet: true)
+    assert BulkImport.keep_game?(blitz_clock, 2200, allow_bullet: true)
+    # The rating floor still applies.
+    refute BulkImport.keep_game?(%{bullet | "BlackElo" => "2100"}, 2200, allow_bullet: true)
+  end
+
   test "filter_lines keeps only games above the floor and counts the input" do
     {:ok, stats} = Agent.start_link(fn -> %{read: 0, kept: 0, skipped: 0, malformed: 0} end)
 
@@ -167,6 +188,51 @@ defmodule Analysis.BulkImportTest do
     assert "Delta" in whites
     assert "Iota" in whites
     refute "Gamma" in whites
+  end
+
+  test "run/1 marks every record with its source labels, in grouped and parallel mode" do
+    dir = System.tmp_dir!()
+    path = Path.join(dir, "bulk-source-#{System.unique_integer([:positive])}.pgn")
+    File.write!(path, fixture())
+    prefix = "bulk-source-#{System.unique_integer([:positive])}"
+    on_exit(fn -> File.rm(path) end)
+
+    assert {:ok, grouped} =
+             BulkImport.run(
+               path: path,
+               min_rating: 2200,
+               record_id_prefix: prefix,
+               source: "lichess-elite",
+               source_detail: "2025-11"
+             )
+
+    assert grouped.imported == 2
+
+    assert {:ok, parallel} =
+             BulkImport.run(
+               path: path,
+               min_rating: 2200,
+               record_id_prefix: prefix,
+               record_id_offset: 2,
+               mode: :parallel,
+               concurrency: 2,
+               source: "lichess-elite",
+               source_detail: "2025-11"
+             )
+
+    assert parallel.imported == 2
+
+    on_exit(fn ->
+      Repo.query!("DELETE FROM game_records WHERE record_id LIKE $1", [prefix <> "%"])
+    end)
+
+    sources =
+      Repo.query!(
+        "SELECT DISTINCT metadata ->> 'source', metadata ->> 'source_detail' FROM game_records WHERE record_id LIKE $1",
+        [prefix <> "%"]
+      ).rows
+
+    assert sources == [["lichess-elite", "2025-11"]]
   end
 
   test "a resumed run continues the record-id sequence and never collides" do

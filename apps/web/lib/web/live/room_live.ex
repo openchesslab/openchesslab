@@ -1603,7 +1603,7 @@ defmodule Web.RoomLive do
         case GameImport.fetch_lichess_games_by_ids(ids) do
           {:ok, pgn, found} ->
             skips = for id <- ids -- found, do: skip("lichess.org/#{id}", :not_found, locale)
-            import_text(socket, pgn, skips)
+            import_text(socket, pgn, skips, "lichess")
 
           {:error, reason} ->
             {:noreply, assign(socket, import_error: provider_error(reason, locale))}
@@ -1612,7 +1612,7 @@ defmodule Web.RoomLive do
       true ->
         # Chess.com rows already carry their PGN — no refetch.
         pgn = rows |> Enum.map(& &1.pgn) |> Enum.join("\n\n")
-        import_text(socket, pgn, [])
+        import_text(socket, pgn, [], "chesscom")
     end
   end
 
@@ -2391,13 +2391,13 @@ defmodule Web.RoomLive do
       |> Enum.reject(&is_nil/1)
       |> Enum.flat_map(&split_part/1)
 
-    import_chunks(socket, chunks, skips)
+    import_chunks(socket, chunks, skips, "pgn")
   end
 
   # Imports every game chunk into the room. The dialog stays open when
   # anything was skipped so the list is visible.
-  defp import_text(socket, text, skips) do
-    import_chunks(socket, split_part(text), skips)
+  defp import_text(socket, text, skips, source) do
+    import_chunks(socket, split_part(text), skips, source)
   end
 
   defp split_part(part) do
@@ -2409,9 +2409,12 @@ defmodule Web.RoomLive do
     end
   end
 
-  defp import_chunks(socket, chunks, skips) do
+  defp import_chunks(socket, chunks, skips, source) do
     locale = socket.assigns.locale
-    {analyses, skips} = run_imports(chunks, skips, keep_opts(socket.assigns.import_keep))
+
+    {analyses, skips} =
+      run_imports(chunks, skips, [source: source] ++ keep_opts(socket.assigns.import_keep))
+
     {added, skips} = add_to_room(socket, analyses, skips, locale)
 
     case added do

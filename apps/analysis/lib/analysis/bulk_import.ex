@@ -62,6 +62,13 @@ defmodule Analysis.BulkImport do
     * `:url` — zstd-compressed PGN dump URL (required unless `:path` is given)
     * `:path` — local plain-PGN file instead of a URL
     * `:min_rating` — both players must be at least this Elo (default 2200)
+    * `:allow_bullet` — also keep bullet games (default false; meant for
+      pre-filtered elite sources — `time_control` stays in the metadata, so
+      query-time filtering can still exclude them)
+    * `:source` / `:source_detail` — provenance labels (e.g. `"lichess-elite"`
+      and `"2025-11"`) stored as `source` / `source_detail` in every record's
+      metadata for filtering and bulk deletion. Provenance never participates
+      in canonical dedup: it lives on the concrete record, not on content.
     * `:skip` — input games to discard before importing (default 0)
     * `:limit` — stop after reading this many input games (default: no limit)
     * `:record_id_prefix` — record id prefix (default: derived from the source name)
@@ -95,6 +102,7 @@ defmodule Analysis.BulkImport do
     lines =
       filter_lines(source.lines,
         min_rating: Keyword.get(opts, :min_rating, 2200),
+        allow_bullet: Keyword.get(opts, :allow_bullet, false),
         skip: Keyword.get(opts, :skip, 0),
         limit: limit,
         progress_every: Keyword.get(opts, :progress_every, 100_000),
@@ -128,6 +136,13 @@ defmodule Analysis.BulkImport do
   # The importer call itself is wrapped so a raised database/checkout error
   # ends the run with an honest summary instead of crashing the evaluation.
   defp import_lines(lines, opts, recorded_id) do
+    extra_headers =
+      [
+        {"Source", Keyword.get(opts, :source)},
+        {"SourceDetail", Keyword.get(opts, :source_detail)}
+      ]
+      |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+
     case Keyword.get(opts, :mode, :grouped) do
       :grouped ->
         batch_size = Keyword.get(opts, :batch_size, 10)
@@ -135,7 +150,10 @@ defmodule Analysis.BulkImport do
         # Corpus dumps contain data dirt (games without moves, truncated
         # records): malformed games are counted and skipped, never fatal.
         # Record-id collisions and store errors still abort the run.
-        case PgnBatchImporter.import_stream(lines, recorded_id, batch_size, skip_malformed: true) do
+        case PgnBatchImporter.import_stream(lines, recorded_id, batch_size,
+               skip_malformed: true,
+               extra_headers: extra_headers
+             ) do
           {:ok, %{imported: imported, malformed: malformed}} ->
             {:ok, %{imported_count: imported, failures: [], malformed_games: malformed}}
 
@@ -146,7 +164,10 @@ defmodule Analysis.BulkImport do
       :parallel ->
         concurrency = Keyword.get(opts, :concurrency, 4)
         window = Keyword.get(opts, :window, concurrency * 2)
-        PgnBatchImporter.import_stream_parallel(lines, recorded_id, concurrency, window)
+
+        PgnBatchImporter.import_stream_parallel(lines, recorded_id, concurrency, window,
+          extra_headers: extra_headers
+        )
     end
   rescue
     error -> {:error, {:exception, Exception.message(error)}}
@@ -176,6 +197,7 @@ defmodule Analysis.BulkImport do
       skipped: 0,
       malformed: 0,
       min_rating: Keyword.get(opts, :min_rating, 2200),
+      allow_bullet: Keyword.get(opts, :allow_bullet, false),
       skip: Keyword.get(opts, :skip, 0),
       limit: Keyword.get(opts, :limit),
       progress_every: Keyword.get(opts, :progress_every, 0),
@@ -198,14 +220,19 @@ defmodule Analysis.BulkImport do
     end)
   end
 
-  @doc "Whether a game's header tags pass the filter."
-  @spec keep_game?(map(), non_neg_integer()) :: boolean()
-  def keep_game?(tags, min_rating) do
+  @doc """
+  Whether a game's header tags pass the filter. `:allow_bullet` (default
+  false) lifts the bullet exclusion for pre-filtered elite sources whose
+  fast games are corpus-worthy; `time_control` stays in the record metadata
+  for query-time filtering.
+  """
+  @spec keep_game?(map(), non_neg_integer(), keyword()) :: boolean()
+  def keep_game?(tags, min_rating, opts \\ []) do
     white = parse_rating(tags["WhiteElo"])
     black = parse_rating(tags["BlackElo"])
 
     white != nil and black != nil and white >= min_rating and black >= min_rating and
-      not bullet?(tags)
+      (Keyword.get(opts, :allow_bullet, false) or not bullet?(tags))
   end
 
   # --- stream internals --------------------------------------------------------
@@ -259,9 +286,14 @@ defmodule Analysis.BulkImport do
 
     {kept, skipped, emitted} =
       cond do
-        read <= acc.skip -> {acc.kept, acc.skipped + 1, []}
-        keep_game?(acc.tags, acc.min_rating) -> {acc.kept + 1, acc.skipped, game}
-        true -> {acc.kept, acc.skipped, []}
+        read <= acc.skip ->
+          {acc.kept, acc.skipped + 1, []}
+
+        keep_game?(acc.tags, acc.min_rating, allow_bullet: acc.allow_bullet) ->
+          {acc.kept + 1, acc.skipped, game}
+
+        true ->
+          {acc.kept, acc.skipped, []}
       end
 
     acc = %{

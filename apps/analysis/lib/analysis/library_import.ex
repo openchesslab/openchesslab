@@ -33,7 +33,7 @@ defmodule Analysis.LibraryImport do
     record_id = new_id("game-record")
 
     Repo.transaction(fn ->
-      case PgnAnalysisImporter.import(analysis_id, record_id, pgn) do
+      case PgnAnalysisImporter.import(analysis_id, record_id, pgn, source: "lichess") do
         {:ok, _analysis, _revision} ->
           Repo.query!(
             "INSERT INTO user_analyses (user_id, analysis_id, title) VALUES ($1, $2, $3) ON CONFLICT (user_id, analysis_id) DO NOTHING",

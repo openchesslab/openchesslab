@@ -745,6 +745,11 @@ defmodule Web.RoomLiveTest do
              "#analysis-game-info",
              "Nakamura, Hikaru – Martinez, Josep · Tata Steel · 2026.01.15 · 1-0"
            )
+
+    # The record is marked with its provenance; dedup is content-only.
+    assert {:ok, analysis, _revision} = Analyses.get(analysis_id)
+    assert {:ok, record} = GameRecords.get(AnalysisModel.source_game_record_id(analysis))
+    assert record.metadata["source"] == "pgn"
   end
 
   describe "multi-source game import" do

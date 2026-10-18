@@ -106,6 +106,25 @@ defmodule Analysis.PgnAnalysisImporterTest do
            }
   end
 
+  test "the source option marks the record metadata, even with keep_metadata: false" do
+    pgn = ~s([White "Anna"]\n[Black "Boris"]\n\n1. e4 e5 *\n)
+
+    assert {:ok, analysis, _} = import_pgn(pgn, source: "lichess")
+    assert {:ok, record, _, _} = GameRecords.load(analysis.source_game_record_id)
+    assert record.metadata["source"] == "lichess"
+
+    # The source survives the keep_metadata strip.
+    assert {:ok, bare, _} = import_pgn(pgn, source: "chesscom", keep_metadata: false)
+    assert {:ok, bare_record, _, _} = GameRecords.load(bare.source_game_record_id)
+    assert bare_record.metadata["source"] == "chesscom"
+    refute Map.has_key?(bare_record.metadata, "event")
+
+    # Without the option there is no source key.
+    assert {:ok, plain, _} = import_pgn(pgn)
+    assert {:ok, plain_record, _, _} = GameRecords.load(plain.source_game_record_id)
+    refute Map.has_key?(plain_record.metadata, "source")
+  end
+
   test "different annotations reuse canonical content without changing existing analyses" do
     assert {:ok, first, _} = import_pgn("1. e4! {First} e5 *")
     assert {:ok, second, _} = import_pgn("1. e4? {Second} e5 *")

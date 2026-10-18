@@ -39,6 +39,10 @@ defmodule Analysis.PgnAnalysisImporter do
       stores only the identity headers (White/Black/Result/Date)
     * `keep_annotations` (false) — keep the `[%clk]` / `[%eval]` machine
       commands on the nodes as `clock` / `evaluation`
+    * `:source` — provenance label (`"lichess"`, `"chesscom"`, `"pgn"`, …)
+      stored as `source` in the record metadata, independent of the
+      keep-metadata stripping. Provenance never participates in canonical
+      dedup: it lives on the concrete record, not on the game content.
   """
   @spec import(String.t(), String.t(), String.t(), keyword()) ::
           {:ok, Analysis.Analysis.t(), pos_integer()} | {:error, term()}
@@ -62,6 +66,15 @@ defmodule Analysis.PgnAnalysisImporter do
             parsed
             | headers: Map.take(parsed.headers, ["White", "Black", "Result", "Date"])
           }
+
+      parsed =
+        case Keyword.get(opts, :source) do
+          nil ->
+            parsed
+
+          source when is_binary(source) ->
+            %{parsed | headers: Map.put(parsed.headers, "Source", source)}
+        end
 
       Repo.transaction(fn ->
         with {:ok, record} <- PgnImporter.import_parsed(record_id, parsed),
