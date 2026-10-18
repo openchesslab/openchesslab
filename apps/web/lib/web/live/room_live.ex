@@ -3967,6 +3967,18 @@ defmodule Web.RoomLive do
     Map.new(Catalogue.all(), fn feature -> {feature.id, feature.board} end)
   end
 
+  # What feature pinning draws on the board: per-side and neutral squares,
+  # file markers, and per-square heat levels (1..3).
+  @typep square_highlights :: %{
+           required(:white) => MapSet.t(Square.t()),
+           required(:black) => MapSet.t(Square.t()),
+           required(:neutral) => MapSet.t(Square.t()),
+           required(:files) => MapSet.t(non_neg_integer()),
+           optional(:white_heat) => %{optional(Square.t()) => pos_integer()},
+           optional(:black_heat) => %{optional(Square.t()) => pos_integer()}
+         }
+
+  @spec empty_highlights() :: square_highlights()
   defp empty_highlights do
     %{
       white: MapSet.new(),
@@ -3978,6 +3990,13 @@ defmodule Web.RoomLive do
     }
   end
 
+  # dialyzer flags the merge below as call_without_opaque: on OTP 29 the
+  # inferred representation of MapSet.new() (tuple | map) never matches the
+  # opaque :sets.set() in MapSet.union's spec, however the sets are built.
+  # The values are genuine MapSets, so the opaque family is suppressed here.
+  @dialyzer {:no_opaque, compute_highlights: 4}
+  @spec compute_highlights(map(), [String.t()], map(), Position.t() | nil) ::
+          square_highlights()
   defp compute_highlights(values, pinned, hints, position) do
     Enum.reduce(pinned, empty_highlights(), fn id, acc ->
       case highlights_for(Map.get(values, id), Map.get(hints, id), position) do
@@ -3987,6 +4006,7 @@ defmodule Web.RoomLive do
     end)
   end
 
+  @spec merge_highlights(square_highlights(), square_highlights()) :: square_highlights()
   defp merge_highlights(a, b) do
     %{
       white: MapSet.union(a.white, b.white),
@@ -4000,6 +4020,7 @@ defmodule Web.RoomLive do
 
   # A board hint draws the catalogue's named piece type(s) from the position
   # for every side the value affirms (counts > 0, flags that are true).
+  @spec highlights_for(term(), term(), Position.t() | nil) :: square_highlights() | nil
   defp highlights_for(value, hint, position) when not is_nil(hint) do
     piece_highlights(value, List.wrap(hint), position)
   end
@@ -4086,6 +4107,7 @@ defmodule Web.RoomLive do
     |> Enum.max(fn -> 0 end)
   end
 
+  @spec heat_levels(map(), number()) :: %{optional(Square.t()) => pos_integer()}
   defp heat_levels(map, max) do
     if heat_map?(map) do
       for {square, value} <- map, value > 0, into: %{} do
@@ -4098,6 +4120,7 @@ defmodule Web.RoomLive do
 
   # Piece highlights resolve their squares from the position; without a
   # position there is nothing to draw.
+  @spec piece_highlights(term(), [atom()], Position.t() | nil) :: square_highlights() | nil
   defp piece_highlights(_value, _types, position) when is_nil(position), do: nil
 
   defp piece_highlights(%{"white" => white, "black" => black}, types, position) do
@@ -4124,6 +4147,7 @@ defmodule Web.RoomLive do
   defp truthy?(value) when is_number(value), do: value > 0
   defp truthy?(value), do: value == true
 
+  @spec piece_squares(Position.t(), :white | :black, [atom()]) :: MapSet.t(Square.t())
   defp piece_squares(position, color, types) do
     position
     |> Position.pieces()
@@ -4133,6 +4157,7 @@ defmodule Web.RoomLive do
     |> MapSet.new(fn {square, _piece} -> square end)
   end
 
+  @spec square_set(binary() | [term()]) :: MapSet.t(Square.t())
   defp square_set(value) when is_binary(value), do: square_set([value])
 
   defp square_set(list) when is_list(list) do
@@ -4327,7 +4352,7 @@ defmodule Web.RoomLive do
     context = AnalysisView.move_context(socket.assigns.analysis, socket.assigns.current_path)
 
     pv =
-      (cached.lines || [])
+      cached.lines
       |> Enum.map(fn line ->
         moves =
           (line["pv"] || "")

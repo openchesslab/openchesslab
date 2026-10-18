@@ -210,19 +210,11 @@ defmodule Analysis.Rooms do
            opts
          ) do
       {:ok, pid} ->
-        case RoomServer.remove_analysis(
-               pid,
-               analysis_id
-             ) do
-          :ok ->
-            # The aggregate survives while any room or library entry still
-            # references it; otherwise removing it here deletes it.
-            RoomStore.cleanup_orphaned_analysis(analysis_id)
-            :ok
-
-          {:error, _reason} = error ->
-            error
-        end
+        # The aggregate survives while any room or library entry still
+        # references it; otherwise removing it here deletes it.
+        :ok = RoomServer.remove_analysis(pid, analysis_id)
+        RoomStore.cleanup_orphaned_analysis(analysis_id)
+        :ok
 
       :not_found ->
         {:error, :not_found}
