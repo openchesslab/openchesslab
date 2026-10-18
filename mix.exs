@@ -30,6 +30,7 @@ defmodule Openchesslab.MixProject do
   # Run "mix help deps" for examples and options.
   defp deps do
     [
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:quokka, "~> 2.13", only: [:dev, :test], runtime: false}
     ]
   end
