@@ -31,8 +31,9 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 ## Repository en huidige status
 
 - **Zoek-roadmap (besloten 2026-10-18).** Doel: zoeken naar partijen én posities als USP.
-  **Fase 1** partijzoeken volwassen (ECO/opening/event + verrijkte regels ✅ `2cc72fe`; nog:
-  trigram-spelerindexen, sorteren op datum/rating, ply-deeplinks). **Fase 2** featurezoeken:
+  **Fase 1** partijzoeken volwassen (ECO/opening/event + verrijkte regels ✅ `2cc72fe`;
+  trigram-indexen ✅ `98e5e78` — speler-ILIKE op bench 316 ms seq → 1,1 ms bitmap scan,
+  4 indexen geverifieerd in productie; nog: sorteren op datum/rating, ply-deeplinks). **Fase 2** featurezoeken:
   digest-atomen (intrinsieke catalogue-feiten: `motifs.greek_gift`, `pawns.iqp`, …) in de
   vorm van de oude `position_features.properties` (bytea[] + GIN, hercodering i.p.v. nieuwe
   tabel), POC op ~100K posities met EXPLAIN-bewijs vóór de volledige 19,7M-backfill;
