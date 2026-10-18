@@ -30,6 +30,14 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond (2026-10-18): fase-2 eerste beslissing — `squares.enemy_on_outpost`.** Na de
+  fase-1-finding (PP telt vijandelijk bezette outposts, catalogus niet) koos de gebruiker
+  optie B: de catalogus uitgebreid met een nieuwe sectie-8-feature die vijandelijke stukken
+  op je outpost-velden toont (tactisch doelwit; de term "outpost" is online verdeeld —
+  veld-eigenschap vs. bruikbaarheid). Bestaande twee outpost-features ongemoeid; PP/keys
+  ongemoeid (geen herberekening). EN-beschrijving + spec-bullet + tests (minimale fixture,
+  fase-1-FEN met dubbele richting e5/d4, negatieve gevallen). Features **215**, web **297**.
+
 - **Afgerond (2026-10-18): feature-review fase 1 (mechanische alignment).** Script
   `apps/analysis/benchmarks/feature_alignment.exs` (`47f94c0`) vergelijkt de catalogus met
   `Chess.PositionProperties` op willekeurige bench-posities. **Uitslag (791 posities): 0 bugs**

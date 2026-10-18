@@ -549,6 +549,7 @@
   "features.squares.outpost": "Outpost squares (pawn-defended, safe from enemy pawns)",
   "features.squares.occupied_outpost": "Outposts currently occupied, per side",
   "features.squares.potential_outpost": "Squares that can still become an outpost",
+  "features.squares.enemy_on_outpost": "Enemy pieces sitting on your outpost squares — targets on your weak squares",
   "features.squares.weak_color_complex": "The weakened square colour (light/dark), per side",
   "features.squares.dark_weakness": "Sides weak on the dark squares",
   "features.squares.light_weakness": "Sides weak on the light squares",

@@ -151,6 +151,7 @@
   - outpost square
   - occupied outpost
   - potential outpost
+  - vijand op eigen outpost
   - weak color complex
   - dark-square weakness
   - light-square weakness

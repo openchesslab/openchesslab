@@ -60,6 +60,14 @@ defmodule Features.Catalogue.Squares do
           |> to_alg()
         end)
       end),
+      Feature.new("squares.enemy_on_outpost", 8, [{8, "vijand op eigen outpost"}], fn board ->
+        per_color(board, fn board, color ->
+          Board.color_occupancy(board, Board.opposite(color))
+          |> Bitboard.squares()
+          |> Enum.filter(&outpost_base?(board, &1, color))
+          |> to_alg()
+        end)
+      end),
       Feature.new("squares.weak_color_complex", 8, [{8, "weak color complex"}], fn board ->
         per_color(board, fn board, color ->
           %{light: light, dark: dark} = pawn_complex_counts(board, color)
