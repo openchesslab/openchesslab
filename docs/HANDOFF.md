@@ -41,8 +41,15 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   tabel), POC op ~100K posities met EXPLAIN-bewijs vóór de volledige 19,7M-backfill;
   cross-side OR (record- OF positiepredicaat) en query-transformaties (kleurwissel/
   spiegeling). NB: `position_feature_vectors` (jsonb) is leeg — de backfill/indexfase stond
-  sinds 2026-10-13 als "planned" en is nooit ingepland. **Fase 3** search-by-example +
-  materiaalsubstituties + prefilter/rerank relevantie. **Fase 4** zettenpad/eindspel.
+  sinds 2026-10-13 als "planned" en is nooit ingepland. **POC (2026-10-19, `863d800`,
+  benchmark `feature_digest_poc.exs`, 100K bench-posities): GO.** 50,5 atomen/positie,
+  2.228 distincte; GIN bitmap scans overal (zeldzaam 0,94 ms, conjunctie 0,05 ms,
+  zoekvorm-join LIMIT 26 0,5 ms); extractie 283 posities/s parallel → backfill ~19 uur.
+  **Aanpassing ontwerp:** text[] kost ~30 GB op de volle corpus → productie wordt
+  **`int4[]` + woordenboektabel `feature_atoms`** (~7× compacter, integer-GIN, labels
+  voor de picker). Near-vacuüm ids (≥90%) snoeien we bij de productie-encodering.
+  **Fase 3** search-by-example + materiaalsubstituties + prefilter/rerank relevantie.
+  **Fase 4** zettenpad/eindspel.
 
 - **Afgerond (2026-10-18), gedeployed:** **Chess.com-maandkiezer + selectie-UX + dialyzer +
   twee kleine fixes.** (1) Het tekst-maandveld is vervangen door een **archives-dropdown** (gelokaliseerde maanden
