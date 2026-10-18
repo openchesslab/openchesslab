@@ -1674,6 +1674,10 @@ defmodule Web.RoomLiveTest do
 
     assert html =~ "-0.20"
     refute html =~ "-9.00"
+
+    # The white-relative evaluation shows as a chip on its move in the move
+    # list (Lichess-style, fed from the shared eval store).
+    assert has_element?(view, "#move-list button[data-move-path='0']", "-0.20")
   end
 
   test "engine scores are white-relative, also when Black is to move", %{conn: conn, code: code} do
@@ -2167,7 +2171,7 @@ defmodule Web.RoomLiveTest do
     assert html =~ "+0.37"
     assert html =~ "data-cached-depth=\"20\""
     assert html =~ "data-cached-multipv=\"3\""
-    assert has_element?(view, "#engine-panel ol li button", "Nf3")
+    assert has_element?(view, "#engine-pv ol li button", "Nf3")
 
     # Fewer lines is served from the same cache: the third line leaves.
     html =
@@ -2176,8 +2180,8 @@ defmodule Web.RoomLiveTest do
         "multipv" => "2"
       })
 
-    refute has_element?(view, "#engine-panel ol li button", "Nf3")
-    assert has_element?(view, "#engine-panel ol li button[phx-value-line='2']", "d4")
+    refute has_element?(view, "#engine-pv ol li button", "Nf3")
+    assert has_element?(view, "#engine-pv ol li button[phx-value-line='2']", "d4")
 
     # An uncovered combination (more lines than cached) keeps showing the
     # cached lines while the hook recomputes: the coverage attribute is what
@@ -2189,7 +2193,7 @@ defmodule Web.RoomLiveTest do
       })
 
     assert html =~ "data-cached-multipv=\"3\""
-    assert has_element?(view, "#engine-panel ol li button[phx-value-line='2']", "d4")
+    assert has_element?(view, "#engine-pv ol li button[phx-value-line='2']", "d4")
 
     Repo.query!("DELETE FROM position_evals WHERE position_id = $1", [position_id])
   end
@@ -2371,8 +2375,6 @@ defmodule Web.RoomLiveTest do
       {:ok, view, _html} = live(conn, "/rooms/#{code}")
       render_click(view, "create-analysis", %{})
 
-      render_click(view, "select-engine-tab", %{"tab" => "features"})
-
       assert has_element?(view, "#features-readout")
       refute has_element?(view, "#features-error")
 
@@ -2490,7 +2492,7 @@ defmodule Web.RoomLiveTest do
     assert html =~ "aria-checked=\"false\""
   end
 
-  test "selected analysis, strip tab, and toolbar icons use the cyan SVG treatment", %{
+  test "selected analysis and toolbar icons use the cyan SVG treatment", %{
     conn: conn,
     code: code
   } do
@@ -2500,7 +2502,6 @@ defmodule Web.RoomLiveTest do
 
     assert html =~ "aria-pressed=\"true\""
     assert html =~ "border-highlight/40 bg-highlight/15"
-    assert html =~ "border-highlight text-highlight"
     assert html =~ ~r/<button(?=[^>]*aria-label="Edit this position")[^>]*>\s*<svg/s
     assert html =~ ~r/<button(?=[^>]*aria-label="Engine settings")[^>]*>\s*<svg/s
   end
@@ -2601,7 +2602,6 @@ defmodule Web.RoomLiveTest do
     :ok = Rooms.add_analysis(code, analysis.id)
     {:ok, view, _html} = live(conn, "/rooms/#{code}?a=open-file")
 
-    render_click(view, "select-engine-tab", %{"tab" => "features"})
     render_click(view, "feature-detail", %{"id" => "lines.open_files"})
 
     assert has_element?(view, "#chess-board span[data-highlight='file']")
@@ -2621,7 +2621,6 @@ defmodule Web.RoomLiveTest do
     :ok = Rooms.add_analysis(code, analysis.id)
     {:ok, view, _html} = live(conn, "/rooms/#{code}?a=layers")
 
-    render_click(view, "select-engine-tab", %{"tab" => "features"})
     render_click(view, "feature-detail", %{"id" => "attacks.map"})
 
     assert has_element?(view, "#chess-board span[data-highlight='white']")
@@ -2656,7 +2655,6 @@ defmodule Web.RoomLiveTest do
     :ok = Rooms.add_analysis(code, analysis.id)
     {:ok, view, _html} = live(conn, "/rooms/#{code}?a=outpost")
 
-    render_click(view, "select-engine-tab", %{"tab" => "features"})
     render_click(view, "feature-detail", %{"id" => "squares.outpost"})
 
     # The d4 pawn guards c5 and e5: both are white outposts in the catalogue.
@@ -2672,7 +2670,6 @@ defmodule Web.RoomLiveTest do
     :ok = Rooms.add_analysis(code, analysis.id)
     {:ok, view, _html} = live(conn, "/rooms/#{code}?a=rooks")
 
-    render_click(view, "select-engine-tab", %{"tab" => "features"})
     render_click(view, "feature-detail", %{"id" => "material.count.rook"})
 
     # The start position has two rooks per side, drawn in the side's colour.
@@ -2704,7 +2701,6 @@ defmodule Web.RoomLiveTest do
     :ok = Rooms.add_analysis(code, analysis.id)
     {:ok, view, _html} = live(conn, "/rooms/#{code}?a=bishop-pair")
 
-    render_click(view, "select-engine-tab", %{"tab" => "features"})
     render_click(view, "feature-detail", %{"id" => "material.bishop_pair"})
 
     assert has_element?(view, "#chess-board-square-c1 span[data-highlight='white']")
@@ -2724,7 +2720,6 @@ defmodule Web.RoomLiveTest do
     :ok = Rooms.add_analysis(code, analysis.id)
     {:ok, view, _html} = live(conn, "/rooms/#{code}?a=chains")
 
-    render_click(view, "select-engine-tab", %{"tab" => "features"})
     render_click(view, "feature-detail", %{"id" => "pawns.chains"})
 
     # The catalogue stores chains as a list of chains; the engine flattens them.
@@ -2736,8 +2731,6 @@ defmodule Web.RoomLiveTest do
     {:ok, analysis, _revision} = Analyses.create("drawable")
     :ok = Rooms.add_analysis(code, analysis.id)
     {:ok, view, _html} = live(conn, "/rooms/#{code}?a=drawable")
-
-    render_click(view, "select-engine-tab", %{"tab" => "features"})
 
     # Counts (via the board hint) and square lists can draw; bare numbers cannot.
     assert has_element?(
@@ -2771,7 +2764,6 @@ defmodule Web.RoomLiveTest do
     :ok = Rooms.add_analysis(code, analysis.id)
     {:ok, view, _html} = live(conn, "/rooms/#{code}?a=heat")
 
-    render_click(view, "select-engine-tab", %{"tab" => "features"})
     render_click(view, "feature-detail", %{"id" => "mobility.per_piece"})
 
     # The queen is by far the most mobile piece: top intensity on d4; the
@@ -2803,7 +2795,6 @@ defmodule Web.RoomLiveTest do
     :ok = Rooms.add_analysis(code, analysis.id)
     {:ok, view, _html} = live(conn, "/rooms/#{code}?a=outpost-start")
 
-    render_click(view, "select-engine-tab", %{"tab" => "features"})
     render_click(view, "feature-detail", %{"id" => "squares.outpost"})
 
     # Nothing to draw: the row stays unpinned and the board stays clean.

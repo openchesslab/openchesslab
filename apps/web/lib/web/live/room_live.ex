@@ -176,11 +176,10 @@ defmodule Web.RoomLive do
       engine_pv_cache: %{},
       engine_cached: nil,
       engine_review: nil,
-      engine_tab: "engine",
+      engine_settings_open: false,
       features: nil,
       features_status: nil,
       features_detail: nil,
-      engine_settings_open: false,
       engine_settings: %{depth: 20, multipv: 3}
     }
 
@@ -1232,17 +1231,6 @@ defmodule Web.RoomLive do
 
   def handle_event("engine-peek-clear", _params, socket),
     do: {:noreply, assign(socket, :engine_peek, nil)}
-
-  # The engine column's source tabs: Engine is the local Stockfish panel,
-  # Features is the catalogue readout. The corpus book and the endgame table
-  # live in the reference panel below the move list.
-  def handle_event("select-engine-tab", %{"tab" => tab}, socket)
-      when tab in ["engine", "features"] do
-    {:noreply,
-     socket
-     |> assign(:engine_tab, tab)
-     |> maybe_load_features()}
-  end
 
   # The comment editor lives in a dialog; the moves panel header only keeps
   # the button (with a marker when the current node carries a comment).
@@ -3110,15 +3098,6 @@ defmodule Web.RoomLive do
   defp castling_label("black_kingside", locale), do: Web.I18n.t("room.blackKingside", locale)
   defp castling_label("black_queenside", locale), do: Web.I18n.t("room.blackQueenside", locale)
 
-  defp tab_class(selected, tab) do
-    base =
-      "flex items-center gap-2 border-b-2 px-3 py-2 text-xs font-medium uppercase tracking-wider max-[860px]:py-[.3rem]"
-
-    if selected == tab,
-      do: base <> " border-highlight text-highlight",
-      else: base <> " border-transparent text-muted hover:text-foreground"
-  end
-
   defp nag_label_key(nag), do: Map.fetch!(@nag_labels, nag)
   defp current_nags(%Node{} = node), do: Enum.take(Node.nags(node), 1)
   defp current_nags(_node), do: []
@@ -3799,13 +3778,10 @@ defmodule Web.RoomLive do
     end
   end
 
-  # The vector is needed while the features tab is visible or any feature is
-  # pinned; it is extracted once per position and stored durably.
+  # The vector feeds the always-visible features column (and any pinned
+  # features); it is extracted once per position and stored durably.
   defp maybe_load_features(socket) do
-    needed? =
-      socket.assigns.engine_tab == "features" or MapSet.size(socket.assigns.pinned_features) > 0
-
-    if needed? and not is_nil(socket.assigns.current_node) do
+    if not is_nil(socket.assigns.current_node) do
       load_features(socket)
     else
       socket

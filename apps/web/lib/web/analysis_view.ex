@@ -336,6 +336,7 @@ defmodule Web.AnalysisView do
         evaluation: Node.evaluation(node),
         nags: Enum.take(Node.nags(node), 1),
         side: context.side,
+        position_id: Node.position_id(node),
         children: []
       }
 

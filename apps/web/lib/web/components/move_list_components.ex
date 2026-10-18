@@ -12,6 +12,7 @@ defmodule Web.MoveListComponents do
   attr :locale, :string, required: true
   attr :empty_message, :string, required: true
   attr :help_text, :string, required: true
+  attr :live_evals, :map, default: %{}
 
   def move_list(assigns) do
     ~H"""
@@ -40,6 +41,7 @@ defmodule Web.MoveListComponents do
                   locale={@locale}
                   line="main"
                   show_number={move.show_number}
+                  live_evals={@live_evals}
                 />
                 <div
                   :if={move.entry.comment}
@@ -56,6 +58,7 @@ defmodule Web.MoveListComponents do
               current_path={@current_path}
               focus_path={@focus_path}
               locale={@locale}
+              live_evals={@live_evals}
             />
           <% end %>
         <% end %>
@@ -87,6 +90,7 @@ defmodule Web.MoveListComponents do
           locale={@locale}
           line="variation"
           show_number={item.show_number}
+          live_evals={@live_evals}
         />
         <span :if={item.entry.comment} class="text-xs italic text-muted">
           {item.entry.comment}
@@ -99,6 +103,7 @@ defmodule Web.MoveListComponents do
           current_path={@current_path}
           focus_path={@focus_path}
           locale={@locale}
+          live_evals={@live_evals}
         />
       <% end %>
     </div>
@@ -148,6 +153,11 @@ defmodule Web.MoveListComponents do
           class={"ml-0.5 font-bold " <> review_mark_class(@entry[:review].mark)}
           title={review_mark_title(@entry[:review], @locale)}
         >{@entry[:review].mark}</span>
+        <% live_eval = @live_evals[@entry.position_id] %>
+        <span
+          :if={live_eval}
+          class="ml-1 font-mono text-[.65rem] font-semibold text-muted"
+        >{live_eval.label}</span>
         <span
           :if={@entry.evaluation}
           class="ml-1 font-mono text-[.65rem] text-faint"

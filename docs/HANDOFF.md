@@ -30,6 +30,35 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond (2026-10-18), nog níet gedeployed:** **engine-UI in de zetlijst, features
+  permanent** (Lichess-stijl, gebruikersontwerp). Middelste kolom = altijd de features-
+  catalogus (engine/features-tab weg, `select-engine-tab` en `tab_class` dood);
+  rechterkolom: compacte toolbar (settings+tandwiel) boven de zetlijst, **eval-chips per
+  zet** uit de gedeelde eval-store (`@engine_evals` → `live_evals` in `move_list`,
+  entries kregen `position_id`), daaronder eval-stats, PV (met `#engine-pv`), grafiek,
+  review; reference-paneel ongemoeid. Features laden nu onvoorwaardelijk
+  (`maybe_load_features`). Regressietest: chip −0.20 op e4 na engine-update
+  (wit-relatief). Browsergeverifieerd: chips/stats/PV/grafiek/features tegelijk zichtbaar
+  (screenshot). Serieel: web **297**; formatter, diffcontrole.
+
+- **Afgerond en gedeployed (2026-10-18):** drie fixes/slices bovenop de corpus-transfer.
+  (1) **DSM/parallel-fix voor de boekquery op de startpos:** de reference-panel-query
+  (`count(DISTINCT)` + join over 277k occurrences) koos een parallel plan dat op de kleine
+  mpg-shm faalde ("could not resize shared memory segment") → panel toonde "could not be
+  loaded" alleen op de heetste stelling. Fix zonder deploy: `ALTER TABLE game_occurrences
+  SET (parallel_workers = 0)` (storage-parameter, persistent, door mij direct uitgevoerd;
+  gebruiker heeft geverifieerd dat de startpos-boek nu laadt).
+  (2) **MATERIAL/SPACE-strip verwijderd** (`6b4687a`): beide tabs dupliceerden de
+  features-catalogus (`material.count.*`/`total_value`/`difference`,
+  `space.enemy_half_control`); strip-UI, JS-preference-plumbing, i18n-keys en dode helpers
+  weg + twee pre-existing clause-groep-warnings opgelost (web 296). `PositionProperties`
+  voedt nu niets meer in de UI (prune = aparte slice, TODO).
+  (3) **Chat-historie-fix** (web 297): de drawer toonde geen berichten die vóór het joinen
+  of sluiten arriveerden — de `phx-update=stream`-container bestaat alleen bij open
+  drawer, dus mount-stream-items bereikten de client nooit; `open-chat` reset de stream nu
+  vanuit `@chat_messages` (`stream(..., reset: true)`) + regressietest; live in de browser
+  geverifieerd met twee tabs.
+
 - **Bezig (2026-10-18): Elite-database-experiment lokaal.** Aanleiding: de bulk-import vanaf
   de 2-vCPU worker deed 4,8 games/s (6,3 uur voor 109k); de bottleneck was worker-CPU +
   gedeelde DB — níet de scan en níet de transacties (dedup-lock + per-partij-atomiciteit

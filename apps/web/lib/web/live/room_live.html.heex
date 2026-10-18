@@ -705,7 +705,7 @@
         <aside
           id="engine-panel"
           class="relative flex min-h-0 min-w-0 flex-col overflow-hidden border-l border-border max-[860px]:order-3 max-[860px]:border-l-0"
-          aria-label={Web.I18n.t("room.engine", @locale)}
+          aria-label={Web.I18n.t("room.featuresTab", @locale)}
           data-tour="engine"
           phx-hook="EngineAnalysis"
           data-engine-on={to_string(@engine_on)}
@@ -722,380 +722,8 @@
           data-cached-depth={@engine_cached && @engine_cached.depth}
           data-cached-multipv={@engine_cached && @engine_cached.multipv}
         >
-          <header class="flex min-h-10 shrink-0 border-b border-border px-3">
-            <div
-              class="flex items-stretch gap-1"
-              role="tablist"
-              aria-label={Web.I18n.t("room.engine", @locale)}
-            >
-              <button
-                type="button"
-                id="engine-tab-engine"
-                role="tab"
-                aria-selected={to_string(@engine_tab == "engine")}
-                aria-label={Web.I18n.t("room.engine", @locale)}
-                title={Web.I18n.t("room.engine", @locale)}
-                phx-click="select-engine-tab"
-                phx-value-tab="engine"
-                class={tab_class(@engine_tab, "engine")}
-              >
-                <.icon name="cpu" class="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                id="engine-tab-features"
-                role="tab"
-                aria-selected={to_string(@engine_tab == "features")}
-                aria-label={Web.I18n.t("room.featuresTab", @locale)}
-                title={Web.I18n.t("room.featuresTab", @locale)}
-                phx-click="select-engine-tab"
-                phx-value-tab="features"
-                class={tab_class(@engine_tab, "features")}
-              >
-                <.icon name="list" class="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </header>
-
           <div class="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3 max-[860px]:overflow-visible">
-            <%= if @engine_tab == "engine" do %>
-              <div class="flex shrink-0 items-center justify-end gap-1">
-                <button
-                  type="button"
-                  class="inline-flex h-8 w-8 items-center justify-center rounded border border-border text-muted hover:bg-panel-hover hover:text-foreground"
-                  aria-label={Web.I18n.t("room.engineSettings", @locale)}
-                  title={Web.I18n.t("room.engineSettings", @locale)}
-                  aria-haspopup="true"
-                  aria-expanded={if @engine_settings_open, do: "true", else: "false"}
-                  phx-click={
-                    if @engine_settings_open,
-                      do: "close-engine-settings",
-                      else: "open-engine-settings"
-                  }
-                ><.icon name="settings" class="h-4 w-4" /></button>
-                <button
-                  id="engine-toggle"
-                  type="button"
-                  role="switch"
-                  aria-checked={if @engine_on, do: "true", else: "false"}
-                  aria-label={Web.I18n.t("room.engineToggle", @locale)}
-                  title={Web.I18n.t("room.engineToggle", @locale)}
-                  class={[
-                    "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors",
-                    @engine_on && "border-accent-strong bg-accent",
-                    not @engine_on && "border-border-strong bg-panel"
-                  ]}
-                  phx-click="toggle-engine"
-                >
-                  <span
-                    aria-hidden="true"
-                    class={[
-                      "absolute left-0.5 h-3.5 w-3.5 rounded-full transition-transform",
-                      @engine_on && "translate-x-4 bg-white",
-                      not @engine_on && "bg-muted"
-                    ]}
-                  ></span>
-                </button>
-              </div>
-
-              <div
-                :if={@engine_settings_open}
-                class="absolute right-3 top-[5.5rem] z-40 flex max-h-[80dvh] w-[17rem] max-w-[calc(100%_-_1rem)] flex-col gap-2 overflow-auto rounded-lg border border-border bg-panel p-3 shadow-xl"
-                role="group"
-                aria-label={Web.I18n.t("room.engineSettings", @locale)}
-                phx-click-away="close-engine-settings"
-              >
-                <form
-                  id="engine-settings-form"
-                  phx-change="update-engine-settings"
-                  phx-debounce="300"
-                  class="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-1 text-xs"
-                >
-                  <span class="text-muted">{Web.I18n.t("room.provider", @locale)}</span>
-                  <strong id="engine-provider" class="text-xs font-semibold text-foreground">
-                    {Web.I18n.t("room.engineLocal", @locale)}
-                  </strong>
-
-                  <label for="engine-depth" class="text-muted">{Web.I18n.t(
-                    "room.depth",
-                    @locale
-                  )}</label>
-                  <input
-                    id="engine-depth"
-                    type="number"
-                    name="depth"
-                    min="1"
-                    max="40"
-                    value={@engine_settings.depth}
-                    class="min-w-0 rounded border border-border px-1.5 py-1 text-xs"
-                  />
-                  <label for="engine-multipv" class="text-muted">{Web.I18n.t(
-                    "room.multipv",
-                    @locale
-                  )}</label>
-                  <input
-                    id="engine-multipv"
-                    type="number"
-                    name="multipv"
-                    min="1"
-                    max="10"
-                    value={@engine_settings.multipv}
-                    class="min-w-0 rounded border border-border px-1.5 py-1 text-xs"
-                  />
-                </form>
-
-                <p id="engine-settings-note" class="m-0 text-[.68rem] text-muted">
-                  {Web.I18n.t("room.engineSettingsNote", @locale)}
-                </p>
-
-                <p class="m-0 break-all rounded bg-canvas p-2 text-[.68rem] text-muted">
-                  <span class="font-semibold">{Web.I18n.t("room.fen", @locale)}</span>
-                  <code class="text-foreground">
-                    {if @position,
-                      do: to_fen(@position),
-                      else: Web.I18n.t("room.noPositionSelected", @locale)}
-                  </code>
-                </p>
-              </div>
-
-              <p class="mb-2 mt-2 text-[.68rem] text-muted">
-                {Web.I18n.t("room.engineNote", @locale)}
-              </p>
-
-              <%= cond do %>
-                <% @engine_error -> %>
-                  <p id="engine-error" class="mb-0 mt-2 text-xs text-error" role="alert">
-                    {Web.I18n.t(@engine_error, @locale)}
-                  </p>
-                <% @engine_on and @engine_preview -> %>
-                  <div class="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 rounded bg-canvas p-2 text-xs">
-                    <span class="text-muted">{Web.I18n.t("room.eval", @locale)}</span>
-                    <strong id="engine-eval">{eval_label(@engine_preview)}</strong>
-                    <span class="text-muted">{Web.I18n.t("room.depth", @locale)}</span>
-                    <strong>{@engine_preview.depth}</strong>
-                    <span class="text-muted">{Web.I18n.t("room.nodes", @locale)}</span>
-                    <strong>{@engine_preview.nodes}</strong>
-                    <span class="text-muted">{Web.I18n.t("room.nps", @locale)}</span>
-                    <strong>{@engine_preview.nps}</strong>
-                  </div>
-                <% @engine_on -> %>
-                  <p id="engine-loading" class="mb-0 mt-2 text-xs text-muted" role="status">
-                    {Web.I18n.t("room.engineLoading", @locale)}
-                  </p>
-                <% true -> %>
-                  <p class="mb-0 mt-2 text-xs text-muted">
-                    {Web.I18n.t("room.evalUnavailable", @locale)}
-                  </p>
-              <% end %>
-
-              <% graph =
-                eval_graph(
-                  @engine_evals,
-                  @analysis,
-                  @mainline_length,
-                  @current_path,
-                  review_marks(@engine_review)
-                ) %>
-
-              <div :if={graph.any} id="engine-graph" class="mt-3">
-                <svg
-                  viewBox="0 0 300 60"
-                  class="h-14 w-full rounded border border-border bg-canvas"
-                  role="img"
-                  aria-label={Web.I18n.t("room.evaluationGraph", @locale)}
-                >
-                  <line
-                    x1="0"
-                    y1="30"
-                    x2="300"
-                    y2="30"
-                    stroke="var(--border)"
-                    stroke-width="1"
-                  />
-
-                  <polyline
-                    :for={points <- graph.groups}
-                    points={points}
-                    fill="none"
-                    stroke="var(--foreground)"
-                    stroke-width="1.5"
-                    stroke-linejoin="round"
-                    stroke-linecap="round"
-                  />
-
-                  <circle
-                    :for={dot <- graph.dots}
-                    cx={dot.x}
-                    cy={dot.y}
-                    r="2"
-                    fill={dot.color}
-                  >
-                    <title>{dot.label}</title>
-                  </circle>
-
-                  <rect
-                    :if={@current_path != []}
-                    x={graph.current_x - 1.5}
-                    y="0"
-                    width="3"
-                    height="60"
-                    fill="var(--accent)"
-                    opacity="0.7"
-                  />
-
-                  <rect
-                    :for={column <- graph.columns}
-                    x={column.x}
-                    y="0"
-                    width={column.w}
-                    height="60"
-                    fill="transparent"
-                    class="cursor-pointer"
-                    phx-click="select-path"
-                    phx-value-path={column.path}
-                  >
-                    <title>{column.path}</title>
-                  </rect>
-                </svg>
-              </div>
-
-              <div :if={@mainline_length >= 1} id="engine-review" class="mt-3">
-                <%= case @engine_review do %>
-                  <% nil -> %>
-                    <button
-                      id="engine-review-start"
-                      type="button"
-                      class="rounded-md border border-border px-2 py-1 text-xs hover:bg-panel-hover"
-                      title={Web.I18n.t("room.reviewHelp", @locale)}
-                      phx-click="engine-review-start"
-                    >{Web.I18n.t("room.review", @locale)}</button>
-                  <% %{status: :running} = review -> %>
-                    <div class="flex items-center justify-between gap-2 rounded bg-canvas p-2 text-xs">
-                      <span class="text-muted" role="status">
-                        {Web.I18n.t("room.reviewProgress", @locale, %{
-                          done: review.done,
-                          total: review.total + 1
-                        })}
-                      </span>
-                      <button
-                        id="engine-review-cancel"
-                        type="button"
-                        class="text-muted underline"
-                        phx-click="engine-review-cancel"
-                      >{Web.I18n.t("common.cancel", @locale)}</button>
-                    </div>
-                  <% %{status: :done} = review -> %>
-                    <div class="rounded bg-canvas p-2 text-xs">
-                      <p class="m-0 text-muted">
-                        {Web.I18n.t("room.reviewDone", @locale, %{
-                          blunders: review.counts.blunders,
-                          mistakes: review.counts.mistakes,
-                          inaccuracies: review.counts.inaccuracies
-                        })}
-                      </p>
-
-                      <p
-                        :if={
-                          review[:accuracy] &&
-                            review_accuracy_text(review.accuracy, @locale) != ""
-                        }
-                        id="review-accuracy"
-                        class="m-0 mt-1 font-semibold text-foreground"
-                      >
-                        {Web.I18n.t("room.reviewAccuracy", @locale)}: {review_accuracy_text(
-                          review.accuracy,
-                          @locale
-                        )}
-                      </p>
-
-                      <ul :if={review.marks != %{}} class="m-0 mt-1 list-none space-y-0.5 p-0">
-                        <li :for={moment <- review_critical_moments(@move_entries, review)}>
-                          <button
-                            type="button"
-                            class={[
-                              "font-mono hover:underline",
-                              moment.mark in ["?", "??"] && "text-error",
-                              moment.mark == "?!" && "text-warning"
-                            ]}
-                            phx-click="select-path"
-                            phx-value-path={moment.path}
-                          >{moment.label} {moment.mark}</button>
-                        </li>
-                      </ul>
-
-                      <button
-                        id="engine-review-again"
-                        type="button"
-                        class="mt-1 text-muted underline"
-                        phx-click="engine-review-start"
-                      >{Web.I18n.t("room.reviewAgain", @locale)}</button>
-                    </div>
-                <% end %>
-              </div>
-
-              <div :if={@engine_preview} class="flex min-h-0 flex-1 flex-col">
-                <h4 class="mb-1 shrink-0 text-[.68rem] font-semibold uppercase tracking-wide text-muted">
-                  {Web.I18n.t("room.enginePvHeading", @locale)}
-                </h4>
-
-                <ol class="m-0 min-h-16 flex-1 list-none space-y-1 overflow-y-auto p-0 text-xs leading-relaxed text-muted">
-                  <li
-                    :for={line <- Enum.take(@engine_preview.pv, @engine_settings.multipv)}
-                    class="flex flex-wrap items-baseline gap-x-1"
-                  >
-                    <strong class="mr-1 font-mono text-foreground">{line.score}</strong>
-                    <span
-                      :for={{move, index} <- Enum.with_index(Enum.take(line.moves, 8))}
-                      class="whitespace-nowrap"
-                    >
-                      <span :if={move.label} class="text-faint">{move.label}</span>
-                      <button
-                        type="button"
-                        class="rounded px-0.5 hover:bg-panel-hover hover:text-foreground"
-                        title={Web.I18n.t("room.enginePlayToHere", @locale)}
-                        phx-click="engine-play-pv"
-                        phx-value-line={line.multipv}
-                        phx-value-ply={index}
-                        data-peek-line={line.multipv}
-                        data-peek-ply={index}
-                      >{move.san}</button>
-                    </span>
-                    <span :if={length(line.moves) > 8} class="text-faint">…</span>
-                  </li>
-                </ol>
-
-                <div
-                  :if={@engine_peek}
-                  id="engine-peek"
-                  class="absolute right-3 top-14 z-40 w-44 rounded-lg border border-border bg-panel p-2 shadow-xl"
-                  role="tooltip"
-                >
-                  <div class="grid w-full grid-cols-8 overflow-hidden rounded border border-border">
-                    <div
-                      :for={square <- peek_squares(@engine_peek.position, @orientation)}
-                      class={[
-                        "grid aspect-square place-items-center",
-                        square.light && "bg-board-light",
-                        not square.light && "bg-board-dark"
-                      ]}
-                    >
-                      <.piece_icon
-                        :if={square.piece}
-                        kind={elem(square.piece, 1)}
-                        color={elem(square.piece, 0)}
-                        piece_set={@piece_set}
-                        class="h-[90%] w-[90%]"
-                      />
-                    </div>
-                  </div>
-
-                  <p class="m-0 mt-1 text-center text-[.68rem] font-semibold text-muted">
-                    {@engine_peek.label}
-                  </p>
-                </div>
-              </div>
-            <% end %>
-            <div :if={@engine_tab == "features"} class="flex min-h-0 flex-1 flex-col gap-2">
+            <div class="flex min-h-0 flex-1 flex-col gap-2">
               <p
                 :if={@features_status == :unreachable}
                 id="features-error"
@@ -1184,7 +812,7 @@
           </div>
         </aside>
         <aside
-          class="flex min-h-0 min-w-0 flex-col overflow-hidden border-l border-border max-[860px]:order-4 max-[860px]:border-l-0"
+          class="relative flex min-h-0 min-w-0 flex-col overflow-hidden border-l border-border max-[860px]:order-4 max-[860px]:border-l-0"
           aria-label={Web.I18n.t("room.panelHeading", @locale)}
           data-tour="moves"
         >
@@ -1240,6 +868,105 @@
             </div>
           </header>
 
+          <div class="flex shrink-0 items-center justify-end gap-1 border-b border-border px-3 py-1">
+            <button
+              type="button"
+              class="inline-flex h-8 w-8 items-center justify-center rounded border border-border text-muted hover:bg-panel-hover hover:text-foreground"
+              aria-label={Web.I18n.t("room.engineSettings", @locale)}
+              title={Web.I18n.t("room.engineSettings", @locale)}
+              aria-haspopup="true"
+              aria-expanded={if @engine_settings_open, do: "true", else: "false"}
+              phx-click={
+                if @engine_settings_open,
+                  do: "close-engine-settings",
+                  else: "open-engine-settings"
+              }
+            ><.icon name="settings" class="h-4 w-4" /></button>
+            <button
+              id="engine-toggle"
+              type="button"
+              role="switch"
+              aria-checked={if @engine_on, do: "true", else: "false"}
+              aria-label={Web.I18n.t("room.engineToggle", @locale)}
+              title={Web.I18n.t("room.engineToggle", @locale)}
+              class={[
+                "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors",
+                @engine_on && "border-accent-strong bg-accent",
+                not @engine_on && "border-border-strong bg-panel"
+              ]}
+              phx-click="toggle-engine"
+            >
+              <span
+                aria-hidden="true"
+                class={[
+                  "absolute left-0.5 h-3.5 w-3.5 rounded-full transition-transform",
+                  @engine_on && "translate-x-4 bg-white",
+                  not @engine_on && "bg-muted"
+                ]}
+              ></span>
+            </button>
+          </div>
+
+          <div
+            :if={@engine_settings_open}
+            class="absolute right-3 top-[5.5rem] z-40 flex max-h-[80dvh] w-[17rem] max-w-[calc(100%_-_1rem)] flex-col gap-2 overflow-auto rounded-lg border border-border bg-panel p-3 shadow-xl"
+            role="group"
+            aria-label={Web.I18n.t("room.engineSettings", @locale)}
+            phx-click-away="close-engine-settings"
+          >
+            <form
+              id="engine-settings-form"
+              phx-change="update-engine-settings"
+              phx-debounce="300"
+              class="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-1 text-xs"
+            >
+              <span class="text-muted">{Web.I18n.t("room.provider", @locale)}</span>
+              <strong id="engine-provider" class="text-xs font-semibold text-foreground">
+                {Web.I18n.t("room.engineLocal", @locale)}
+              </strong>
+
+              <label for="engine-depth" class="text-muted">{Web.I18n.t(
+                "room.depth",
+                @locale
+              )}</label>
+              <input
+                id="engine-depth"
+                type="number"
+                name="depth"
+                min="1"
+                max="40"
+                value={@engine_settings.depth}
+                class="min-w-0 rounded border border-border px-1.5 py-1 text-xs"
+              />
+              <label for="engine-multipv" class="text-muted">{Web.I18n.t(
+                "room.multipv",
+                @locale
+              )}</label>
+              <input
+                id="engine-multipv"
+                type="number"
+                name="multipv"
+                min="1"
+                max="10"
+                value={@engine_settings.multipv}
+                class="min-w-0 rounded border border-border px-1.5 py-1 text-xs"
+              />
+            </form>
+
+            <p id="engine-settings-note" class="m-0 text-[.68rem] text-muted">
+              {Web.I18n.t("room.engineSettingsNote", @locale)}
+            </p>
+
+            <p class="m-0 break-all rounded bg-canvas p-2 text-[.68rem] text-muted">
+              <span class="font-semibold">{Web.I18n.t("room.fen", @locale)}</span>
+              <code class="text-foreground">
+                {if @position,
+                  do: to_fen(@position),
+                  else: Web.I18n.t("room.noPositionSelected", @locale)}
+              </code>
+            </p>
+          </div>
+
           <div class="flex-1 space-y-3 overflow-y-auto p-3 max-[860px]:overflow-visible">
             <.move_list
               rows={@move_rows}
@@ -1249,6 +976,7 @@
               locale={@locale}
               empty_message={Web.I18n.t("room.noMoves", @locale)}
               help_text={Web.I18n.t("room.treeHelp", @locale)}
+              live_evals={@engine_evals}
             />
             <div :if={@current_path != []} class="flex gap-2 border-t border-border pt-3">
               <button
@@ -1262,6 +990,245 @@
                 class="rounded-md border border-error/50 px-3 py-1.5 text-xs text-error hover:bg-error/10"
                 phx-click="remove-subtree"
               >{Web.I18n.t("room.removeSubtree", @locale)}</button>
+            </div>
+
+            <div class="border-t border-border pt-3">
+              <%= cond do %>
+                <% @engine_error -> %>
+                  <p id="engine-error" class="mb-0 text-xs text-error" role="alert">
+                    {Web.I18n.t(@engine_error, @locale)}
+                  </p>
+                <% @engine_on and @engine_preview -> %>
+                  <div class="grid grid-cols-2 gap-x-4 gap-y-1 rounded bg-canvas p-2 text-xs">
+                    <span class="text-muted">{Web.I18n.t("room.eval", @locale)}</span>
+                    <strong id="engine-eval">{eval_label(@engine_preview)}</strong>
+                    <span class="text-muted">{Web.I18n.t("room.depth", @locale)}</span>
+                    <strong>{@engine_preview.depth}</strong>
+                    <span class="text-muted">{Web.I18n.t("room.nodes", @locale)}</span>
+                    <strong>{@engine_preview.nodes}</strong>
+                    <span class="text-muted">{Web.I18n.t("room.nps", @locale)}</span>
+                    <strong>{@engine_preview.nps}</strong>
+                  </div>
+                <% @engine_on -> %>
+                  <p id="engine-loading" class="mb-0 text-xs text-muted" role="status">
+                    {Web.I18n.t("room.engineLoading", @locale)}
+                  </p>
+                <% true -> %>
+                  <p class="mb-0 text-xs text-muted">
+                    {Web.I18n.t("room.evalUnavailable", @locale)}
+                  </p>
+              <% end %>
+
+              <div :if={@engine_preview} id="engine-pv" class="mt-2">
+                <h4 class="mb-1 text-[.68rem] font-semibold uppercase tracking-wide text-muted">
+                  {Web.I18n.t("room.enginePvHeading", @locale)}
+                </h4>
+
+                <ol class="m-0 max-h-40 list-none space-y-1 overflow-y-auto p-0 text-xs leading-relaxed text-muted">
+                  <li
+                    :for={line <- Enum.take(@engine_preview.pv, @engine_settings.multipv)}
+                    class="flex flex-wrap items-baseline gap-x-1"
+                  >
+                    <strong class="mr-1 font-mono text-foreground">{line.score}</strong>
+                    <span
+                      :for={{move, index} <- Enum.with_index(Enum.take(line.moves, 8))}
+                      class="whitespace-nowrap"
+                    >
+                      <span :if={move.label} class="text-faint">{move.label}</span>
+                      <button
+                        type="button"
+                        class="rounded px-0.5 hover:bg-panel-hover hover:text-foreground"
+                        title={Web.I18n.t("room.enginePlayToHere", @locale)}
+                        phx-click="engine-play-pv"
+                        phx-value-line={line.multipv}
+                        phx-value-ply={index}
+                        data-peek-line={line.multipv}
+                        data-peek-ply={index}
+                      >{move.san}</button>
+                    </span>
+                    <span :if={length(line.moves) > 8} class="text-faint">…</span>
+                  </li>
+                </ol>
+              </div>
+
+              <% graph =
+                eval_graph(
+                  @engine_evals,
+                  @analysis,
+                  @mainline_length,
+                  @current_path,
+                  review_marks(@engine_review)
+                ) %>
+
+              <div :if={graph.any} id="engine-graph" class="mt-2">
+                <svg
+                  viewBox="0 0 300 60"
+                  class="h-14 w-full rounded border border-border bg-canvas"
+                  role="img"
+                  aria-label={Web.I18n.t("room.evaluationGraph", @locale)}
+                >
+                  <line
+                    x1="0"
+                    y1="30"
+                    x2="300"
+                    y2="30"
+                    stroke="var(--border)"
+                    stroke-width="1"
+                  />
+
+                  <polyline
+                    :for={points <- graph.groups}
+                    points={points}
+                    fill="none"
+                    stroke="var(--foreground)"
+                    stroke-width="1.5"
+                    stroke-linejoin="round"
+                    stroke-linecap="round"
+                  />
+
+                  <circle
+                    :for={dot <- graph.dots}
+                    cx={dot.x}
+                    cy={dot.y}
+                    r="2"
+                    fill={dot.color}
+                  >
+                    <title>{dot.label}</title>
+                  </circle>
+
+                  <rect
+                    :if={@current_path != []}
+                    x={graph.current_x - 1.5}
+                    y="0"
+                    width="3"
+                    height="60"
+                    fill="var(--accent)"
+                    opacity="0.7"
+                  />
+
+                  <rect
+                    :for={column <- graph.columns}
+                    x={column.x}
+                    y="0"
+                    width={column.w}
+                    height="60"
+                    fill="transparent"
+                    class="cursor-pointer"
+                    phx-click="select-path"
+                    phx-value-path={column.path}
+                  >
+                    <title>{column.path}</title>
+                  </rect>
+                </svg>
+              </div>
+
+              <div :if={@mainline_length >= 1} id="engine-review" class="mt-2">
+                <%= case @engine_review do %>
+                  <% nil -> %>
+                    <button
+                      id="engine-review-start"
+                      type="button"
+                      class="rounded-md border border-border px-2 py-1 text-xs hover:bg-panel-hover"
+                      title={Web.I18n.t("room.reviewHelp", @locale)}
+                      phx-click="engine-review-start"
+                    >{Web.I18n.t("room.review", @locale)}</button>
+                  <% %{status: :running} = review -> %>
+                    <div class="flex items-center justify-between gap-2 rounded bg-canvas p-2 text-xs">
+                      <span class="text-muted" role="status">
+                        {Web.I18n.t("room.reviewProgress", @locale, %{
+                          done: review.done,
+                          total: review.total + 1
+                        })}
+                      </span>
+                      <button
+                        id="engine-review-cancel"
+                        type="button"
+                        class="text-muted underline"
+                        phx-click="engine-review-cancel"
+                      >{Web.I18n.t("common.cancel", @locale)}</button>
+                    </div>
+                  <% %{status: :done} = review -> %>
+                    <div class="rounded bg-canvas p-2 text-xs">
+                      <p class="m-0 text-muted">
+                        {Web.I18n.t("room.reviewDone", @locale, %{
+                          blunders: review.counts.blunders,
+                          mistakes: review.counts.mistakes,
+                          inaccuracies: review.counts.inaccuracies
+                        })}
+                      </p>
+
+                      <p
+                        :if={
+                          review[:accuracy] &&
+                            review_accuracy_text(review.accuracy, @locale) != ""
+                        }
+                        id="review-accuracy"
+                        class="m-0 mt-1 font-semibold text-foreground"
+                      >
+                        {Web.I18n.t("room.reviewAccuracy", @locale)}: {review_accuracy_text(
+                          review.accuracy,
+                          @locale
+                        )}
+                      </p>
+
+                      <ul :if={review.marks != %{}} class="m-0 mt-1 list-none space-y-0.5 p-0">
+                        <li :for={moment <- review_critical_moments(@move_entries, review)}>
+                          <button
+                            type="button"
+                            class={[
+                              "font-mono hover:underline",
+                              moment.mark in ["?", "??"] && "text-error",
+                              moment.mark == "?!" && "text-warning"
+                            ]}
+                            phx-click="select-path"
+                            phx-value-path={moment.path}
+                          >{moment.label} {moment.mark}</button>
+                        </li>
+                      </ul>
+
+                      <button
+                        id="engine-review-again"
+                        type="button"
+                        class="mt-1 text-muted underline"
+                        phx-click="engine-review-start"
+                      >{Web.I18n.t("room.reviewAgain", @locale)}</button>
+                    </div>
+                <% end %>
+              </div>
+
+              <p class="mb-0 mt-2 text-[.68rem] text-muted">
+                {Web.I18n.t("room.engineNote", @locale)}
+              </p>
+            </div>
+
+            <div
+              :if={@engine_peek}
+              id="engine-peek"
+              class="absolute right-3 top-14 z-40 w-44 rounded-lg border border-border bg-panel p-2 shadow-xl"
+              role="tooltip"
+            >
+              <div class="grid w-full grid-cols-8 overflow-hidden rounded border border-border">
+                <div
+                  :for={square <- peek_squares(@engine_peek.position, @orientation)}
+                  class={[
+                    "grid aspect-square place-items-center",
+                    square.light && "bg-board-light",
+                    not square.light && "bg-board-dark"
+                  ]}
+                >
+                  <.piece_icon
+                    :if={square.piece}
+                    kind={elem(square.piece, 1)}
+                    color={elem(square.piece, 0)}
+                    piece_set={@piece_set}
+                    class="h-[90%] w-[90%]"
+                  />
+                </div>
+              </div>
+
+              <p class="m-0 mt-1 text-center text-[.68rem] font-semibold text-muted">
+                {@engine_peek.label}
+              </p>
             </div>
 
             <section
