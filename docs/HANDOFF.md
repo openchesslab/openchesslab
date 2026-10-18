@@ -30,6 +30,17 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Zoek-roadmap (besloten 2026-10-18).** Doel: zoeken naar partijen én posities als USP.
+  **Fase 1** partijzoeken volwassen (ECO/opening/event + verrijkte regels ✅ `2cc72fe`; nog:
+  trigram-spelerindexen, sorteren op datum/rating, ply-deeplinks). **Fase 2** featurezoeken:
+  digest-atomen (intrinsieke catalogue-feiten: `motifs.greek_gift`, `pawns.iqp`, …) in de
+  vorm van de oude `position_features.properties` (bytea[] + GIN, hercodering i.p.v. nieuwe
+  tabel), POC op ~100K posities met EXPLAIN-bewijs vóór de volledige 19,7M-backfill;
+  cross-side OR (record- OF positiepredicaat) en query-transformaties (kleurwissel/
+  spiegeling). NB: `position_feature_vectors` (jsonb) is leeg — de backfill/indexfase stond
+  sinds 2026-10-13 als "planned" en is nooit ingepland. **Fase 3** search-by-example +
+  materiaalsubstituties + prefilter/rerank relevantie. **Fase 4** zettenpad/eindspel.
+
 - **Afgerond (2026-10-18), gedeployed:** **Chess.com-maandkiezer + selectie-UX + dialyzer +
   twee kleine fixes.** (1) Het tekst-maandveld is vervangen door een **archives-dropdown** (gelokaliseerde maanden
   mét partijen, nieuwste vooraf) met prefetch op het username-veld; vóór invoer toont een
