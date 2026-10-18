@@ -57,7 +57,17 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   `atom_ids @>`, onbekende atoom → `FALSE`) en **feature-picker in de zoekdialoog**
   (`b1119fa`: ~46 gecureerde atoom-chips per sectie, AND-semantiek, sort-fix
   (atoms ⇒ insertion-order), eerlijke generieke zoekfout-tak; end-to-end
-  bewezen op dev: 2002/5000 posities met `material.bishop_pair:w`). Rest:
+  bewezen op dev: 2002/5000 posities met `material.bishop_pair:w`).
+  **Backfill prod LOOPT (2026-10-19):** op `bulk-resume-3` (performance-2x, AMS)
+  met het import-patroon (`machine run … /app/bin/openchesslab eval
+  'IO.inspect(Analysis.DigestBackfill.run(workers: 8), limit: :infinity)'`),
+  GIN vooraf gedropt; ~65 posities/s → **~3,5 dag**; daarna REINDEX + ANALYZE.
+  Ops-lessen: (1) `DigestBackfill.run/1` start zelf `:analysis`
+  (`2feb582`, BulkImport-patroon); (2) **nieuwe** Fly-machines resolveerden de
+  mpg `direct.`-hostname níet (nxdomain), de bestaande bulk-machine wel —
+  machine `--env` verliest van app-secrets, dus de bestaande worker hergebruikt
+  (image + `--command` geüpdatet); (3) bulk-resume-3's entrypoint was het oude
+  import-command — bij herstart draait dat opnieuw (gestopt vóór schade). Rest:
   **backfill prod** (~19 uur; met gedropte GIN + REINDEX erna; na elke
   bulk-import opnieuw draaien — de job is hervatbaar), query-transformaties
   (kleurwissel/spiegeling), oude `position_features.properties` migreren
