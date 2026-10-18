@@ -153,6 +153,7 @@ defmodule Web.RoomLive do
       provider_username: "",
       chesscom_month: Calendar.strftime(Date.utc_today(), "%Y-%m"),
       chesscom_archives: [],
+      chesscom_month_fallback: false,
       search_filters: %{
         "player" => "",
         "color" => "either",
@@ -1478,12 +1479,13 @@ defmodule Web.RoomLive do
           end
 
         true ->
-          # An invalid month is an honest error before any network call.
-          case parse_month(params["month"]) do
+          # An invalid typed month is an honest error before any network
+          # call; no month at all means the archives pick the newest one.
+          case typed_month(params["month"]) do
             :error ->
               {:error, :bad_month}
 
-            {:ok, _typed_year, _typed_month} ->
+            typed ->
               # The archives list replaces typing a month: pick from the
               # months that actually have games. The username prefetch may
               # already have fetched them; any failure falls back to the
@@ -1507,8 +1509,16 @@ defmodule Web.RoomLive do
                   end
 
                 _archives_unavailable ->
-                  {:ok, year, month} = parse_month(params["month"])
-                  GameImport.fetch_chesscom_month_games(username, year, month)
+                  case typed do
+                    {:ok, year, month} ->
+                      case GameImport.fetch_chesscom_month_games(username, year, month) do
+                        {:ok, rows} -> {:ok, rows, [], format_chesscom_month(year, month)}
+                        {:error, reason} -> {:error, reason}
+                      end
+
+                    :none ->
+                      {:error, :archives_unavailable}
+                  end
               end
           end
       end
@@ -1522,6 +1532,7 @@ defmodule Web.RoomLive do
            provider_username: username,
            chesscom_archives: archives,
            chesscom_month: month,
+           chesscom_month_fallback: archives == [],
            import_error: nil
          )}
 
@@ -1552,6 +1563,17 @@ defmodule Web.RoomLive do
            import_selected: MapSet.new()
          )}
 
+      {:error, :archives_unavailable} ->
+        # Without archives or a typed month there is nothing to load: show
+        # the plain month input with an honest explanation.
+        {:noreply,
+         assign(socket,
+           import_error: Web.I18n.t("room.importArchivesUnavailable", locale),
+           chesscom_month_fallback: true,
+           import_games: [],
+           import_selected: MapSet.new()
+         )}
+
       {:error, reason} ->
         {:noreply,
          assign(socket,
@@ -1566,7 +1588,7 @@ defmodule Web.RoomLive do
     username = String.trim(username)
 
     if username == "" or socket.assigns.import_source != "chesscom" do
-      {:noreply, assign(socket, chesscom_archives: [])}
+      {:noreply, assign(socket, chesscom_archives: [], chesscom_month_fallback: false)}
     else
       case GameImport.fetch_chesscom_archives(username) do
         {:ok, [_ | _] = archives} ->
@@ -1577,7 +1599,12 @@ defmodule Web.RoomLive do
               {:ok, year, month} -> format_chesscom_month(year, month)
             end
 
-          {:noreply, assign(socket, chesscom_archives: archives, chesscom_month: month)}
+          {:noreply,
+           assign(socket,
+             chesscom_archives: archives,
+             chesscom_month: month,
+             chesscom_month_fallback: false
+           )}
 
         {:error, _reason} ->
           {:noreply, assign(socket, chesscom_archives: [])}
@@ -2934,6 +2961,12 @@ defmodule Web.RoomLive do
   end
 
   defp parse_month(_), do: :error
+
+  # The disabled placeholder select submits no month at all; only a typed
+  # but invalid month is an error.
+  defp typed_month(nil), do: :none
+  defp typed_month(""), do: :none
+  defp typed_month(month), do: parse_month(month)
 
   # Pick the typed month when the archives actually contain it, else the
   # newest archive.

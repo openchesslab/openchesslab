@@ -1104,13 +1104,74 @@ defmodule Web.RoomLiveTest do
       render_click(view, "open-import", %{})
       render_click(view, "set-import-source", %{"source" => "chesscom"})
 
-      assert has_element?(view, "input#provider-month")
+      assert has_element?(view, "select#provider-month[disabled]", "Latest month")
 
       render_change(view, "prefetch-chesscom-month", %{"username" => "anna"})
 
       assert has_element?(view, "select#provider-month option", "November 2023")
       assert has_element?(view, "select#provider-month option", "October 2023")
+      refute has_element?(view, "select#provider-month[disabled]")
       refute has_element?(view, "input#provider-month")
+    end
+
+    test "loading without a month picks the newest archive", %{conn: conn, code: code} do
+      archives = %{
+        "archives" => [
+          "https://api.chess.com/pub/player/anna/games/2023/11",
+          "https://api.chess.com/pub/player/anna/games/2023/10"
+        ]
+      }
+
+      november = %{
+        "games" => [
+          %{
+            "url" => "https://www.chess.com/game/live/111",
+            "pgn" => "[Event \"A\"]\n\n1. e4 e5 *",
+            "time_class" => "blitz",
+            "end_time" => 1_700_000_000,
+            "white" => %{"username" => "anna", "result" => "win"},
+            "black" => %{"username" => "boris", "result" => "resigned"}
+          }
+        ]
+      }
+
+      stub_game_import([
+        {200, Jason.encode!(archives)},
+        {200, Jason.encode!(november)}
+      ])
+
+      {:ok, view, _} = live(conn, "/rooms/#{code}")
+      render_click(view, "open-import", %{})
+      render_click(view, "set-import-source", %{"source" => "chesscom"})
+
+      # The disabled placeholder select submits no month at all.
+      render_submit(view, "load-provider-games", %{
+        "provider" => "chesscom",
+        "username" => "anna"
+      })
+
+      assert has_element?(view, "#import-games-tray", "anna – boris")
+      assert has_element?(view, "select#provider-month option[selected]", "November 2023")
+    end
+
+    test "without archives or a month the plain input asks for one", %{
+      conn: conn,
+      code: code
+    } do
+      stub_game_import([{503, ""}])
+
+      {:ok, view, _} = live(conn, "/rooms/#{code}")
+      render_click(view, "open-import", %{})
+      render_click(view, "set-import-source", %{"source" => "chesscom"})
+
+      render_submit(view, "load-provider-games", %{
+        "provider" => "chesscom",
+        "username" => "anna"
+      })
+
+      assert has_element?(view, "input#provider-month")
+      assert render(view) =~ "Could not load the month list"
+      assert room_analysis_ids(code) == []
     end
 
     test "a failing archives call keeps the plain month input as fallback", %{

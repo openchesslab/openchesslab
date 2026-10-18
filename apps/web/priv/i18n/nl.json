@@ -148,7 +148,9 @@
   "room.importChessComNote": "Laad één maand openbare Chess.com-partijen en kies wat je importeert.",
   "room.importLoad": "Partijen laden",
   "room.importMonthLabel": "Maand",
+  "room.importLatestMonth": "Laatste maand",
   "room.importBadMonth": "Kies een geldige maand.",
+  "room.importArchivesUnavailable": "Kon de maandenlijst niet laden. Typ zelf een maand.",
 
   "room.importSelectedCount_one": "Importeer {count} partij",
   "room.importSelectedCount_other": "Importeer {count} partijen",

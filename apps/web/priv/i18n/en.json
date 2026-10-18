@@ -148,7 +148,9 @@
   "room.importChessComNote": "Load one month of public Chess.com games, then select what to import.",
   "room.importLoad": "Load games",
   "room.importMonthLabel": "Month",
+  "room.importLatestMonth": "Latest month",
   "room.importBadMonth": "Pick a valid month.",
+  "room.importArchivesUnavailable": "Could not load the month list. Type a month instead.",
 
   "room.importSelectedCount_one": "Import {count} game",
   "room.importSelectedCount_other": "Import {count} games",
