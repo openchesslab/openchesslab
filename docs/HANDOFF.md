@@ -30,6 +30,13 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Bulk-import afgerond (2026-10-18 01:32 UTC):** `bulk-resume-3` eindigde met exit 0 —
+  `source: :ok`, 89,6M partijen gelezen, 109.798 gehouden, **109.523 geïmporteerd**
+  (275 malformed, 0 failures), ~6,3 uur à gemiddeld 3.955 games/s. Machine staat gestopt
+  (restart policy `no`). Corpus-tellers via ssh-eval op de app-machine
+  (`Application.ensure_all_started(:database)` — níet `:web`: die bindt poort 8080 en faalt
+  in een eval-node): **games 174.462**, **game_records 175.782**, **positions 14.154.117**.
+
 - **Afgerond (2026-10-18), nog níet gedeployed:** de analyses-tabbar- en importdialoog-herwerking,
   in vier commits:
   `599e0b8` (tabs noemen een game-analyse naar de spelers ("Wit – Zwart" uit de
