@@ -52,10 +52,58 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
     `keep_game?` kreeg `:allow_bullet` (default uit) — elite-imports nemen óók de snelle
     partijen mee (2500+-spelers; `time_control` zit in metadata dus query-time filteren op
     tempo blijft mogelijk bij zoeken/opening-boek).
-  - Loopt: volledige november-import lokaal mét `allow_bullet` + source-labels (~52 min à
-    90/s). Daarna de beslissingen: transfer-aanpak (wipe + pg_dump-restore vs. directe
-    import), aantal maanden, eventueel volume-resize. Open: month-files zijn `.zip` i.p.v.
-    `.pgn.zst` (lokaal `unzip`, geen BulkImport-wijziging nodig dankzij `:path`).
+  - **Volledige november-import afgerond in `openchesslab_bench` (2026-10-18):** 280.246
+    gelezen, **280.155 records** (91 malformed, 0 failures), **277.005 canonieke games**
+    (1,1% gedupliceerde records), **19.748.363 posities**, 24,9M occurrences, **16 GB**
+    (positions 6,2 GB · occurrences 6,0 GB · position_features 3,7 GB ≈ 23%). Alle records
+    dragen `source=lichess-elite` + `source_detail=2025-11` (0 ongelabeld); tempo-verdeling
+    180+0 193k / 180+2 51k / 180+1 7,8k / 600+0 7,3k. Tempo zakte 90 → 53 games/s naarmate
+    `positions` groeide (dedup + index-onderhoud).
+  - **Incident (transient, niet root-gecaused):** eerste run stopte stilletjes bij ~264.917
+    — één INSERT in `games` kreeg een PostgreSQL-fout (`db=4,1ms`), batch rolde terug,
+    `run/1` retourneerde `{:error, ...}` maar `mix run -e` print geen return-waarden.
+    Repro van dezelfde 100 partijen slaagt zowel in een schone DB als in bench: **niet
+    data- of toestandsafhankelijk**. Serverlog vereist sudo (gebruiker gevraagd:
+    `sudo journalctl -u postgresql --since "10:05" --until "10:20"`). Hervat met
+    `skip = offset = max-suffix` (id's = input-ordinals; malformed-herverwerking is
+    onschuldig): 15.325 records in ~5 min, 0 failures. Lessen: resultaat altijd
+    `IO.inspect`en, logniveau begrenzen (919 MB debug-log!), voortgangschecks op het
+    beam-proces i.p.v. `pgrep -f` (matchte de eigen shell → valse RUNNING).
+  - **Transfer naar productie (2026-10-18, gebruikersbeslissing: volledige wipe, óók
+    accounts):** prod-inventaris vooraf 175.782 records (source NULL), 174.462 games,
+    14,15M posities, 49 rooms, 59 analyses, 1 bibliotheekentry. Uitgevoerd: dump 786 MB
+    (`pg_dump -Fc -Z6 --data-only`, 5 corpus-tabellen) → prod álle tabellen gedropt +
+    release-migraties opnieuw (openings 3.865 opnieuw geseed) → 7 grote indexen gedropt →
+    `pg_restore --data-only` via `fly proxy 15432:5432 fdaa:ca:a87:0:1::2 -a openchesslab`
+    (direct-IP; credentials stil uit `DATABASE_URL`). **Incidenten:** (1) `--jobs=4` liet
+    `game_occurrences` starten vóór `positions` klaar was → FK-breach (data-only dumps
+    kennen géén TOC-afhankelijkheden; parallel alleen bij afwezige FK's); (2) mpg-diskdruk
+    (dode heaps + temp indexbestanden + WAL-opstapeling) veroorzaakte commit-stalls én één
+    servercrash — hersteld automatisch; (3) de FK-trigger probe per occurrence-rij
+    (~8k rijen/s) was de traagste stap. **Winnende aanpak voor occurrences:** TRUNCATE,
+    beide FK-constraints én de pkey droppen, COPY via psql met `SET synchronous_commit=off`
+    (heap-only, ~150 MB/min), daarna PK/FK's set-based terug en indexen herbouwen.
+    `ALTER DATABASE`/`ALTER ROLE` mag niet (MPG-systeemrollen), `pg_cancel_backend` wél via
+    `SET ROLE "fly-user"`. Sequences kloppen exact (dump SEQUENCE SET-items: positions
+    24.245.511, games 277.012, records 280.261 = bench-max). Lokale PG is 18.6, mpg is ouder
+    (`transaction_timeout` SET faalt onschuldig bij elke pg_restore-sessie).
+    **Bij controle bleek óók `position_features` slachtoffer van dezelfde parallelle
+    FK-race** (COPY failed op `position_id`, stilletjes "finished", 0 rijen met 3,4 GB
+    dode heap) — zelfde behandeling als occurrences: TRUNCATE, pkey/FK/GIN droppen,
+    heap-only COPY met `synchronous_commit=off`, daarna terugzetten. Les: **parallelle
+    data-only restores met FK's niet doen**; bij controle álle tabellen tellen, niet alleen
+    de gefaalde. Indexen: 16/16 aanwezig; ANALYZE gedraaid.
+  - **TRANSFER AFGEROND (2026-10-18 ~16:30):** productie draait nu de elite-november-corpus —
+    games 277.005, records 280.155 (allen `source=lichess-elite`/`2025-11`), posities
+    19.748.363, occurrences 24.909.151, features 19.748.363 (exact bench), 16/16 indexen,
+    4/4 FK's gevalideerd, sequences = bench-max, **15 GB** van 30. Boek-smoketest op de
+    startpos (id 837): e2e4 133.004 · d2d4 87.823 · g1f3 28.641 · c2c4 16.016 met W/D/L-
+    uitsplitsing — startpos is id 837 omdat ids insertvolgorde volgen (vandaar ook de
+    FK-race op precies die positie). Identiteit is gewist (nieuwe logins maken verse
+    users). Te monitoren: **DSM/shm is klein op de mpg** — parallelle queryplannen falen
+    met "could not resize shared memory segment"; de boekquery in de app vermijdt die via
+    index-vorm, maar grote aggregaties kunnen er tegenaan lopen. Identieke corpus blijft
+    lokaal in `openchesslab_bench`; dump 786 MB in `/tmp/opencode/corpus-elite.dump`.
 
 - **Bulk-import afgerond (2026-10-18 01:32 UTC):** `bulk-resume-3` eindigde met exit 0 —
   `source: :ok`, 89,6M partijen gelezen, 109.798 gehouden, **109.523 geïmporteerd**
