@@ -69,8 +69,9 @@
 - [ ] **`:invalid_occurrences` suite-flake** — seed 938846, AnalysesTest/
       PgnBatchImporterTest; gedocumenteerde backlog (development-history §7). Reproduceren,
       oorzaak vinden; **niet onderdrukken** en geen falende run groen noemen.
-- [ ] **`PositionProperties` opruimen** — voedt alleen nog de MATERIAL/SPACE-tabs;
-      highlights lopen via de Features-catalogus.
+- [ ] **`PositionProperties` opruimen** — sinds de strip-verwijdering (2026-10-18) voedt de
+      module niets meer in de UI; `material`/`space` (en mogelijk meer) kunnen uit chess,
+      met bijbehorende tests. Aparte slice.
 - [ ] **Observability & load benchmarks** — productie-monitoring, queryprestaties op
       groeiende corpus; importqueue/regio-uitbreiding pas bij concrete behoefte.
 - [ ] **architecture.md-verstjaring** — zoekmodal-paragraaf noemt nog "provider tabs =

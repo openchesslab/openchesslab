@@ -116,8 +116,6 @@ defmodule Web.RoomLive do
         neutral: MapSet.new(),
         files: MapSet.new()
       },
-      selected_tab: "material",
-      strip_open: true,
       annotation_color: "blue",
       annotations: [],
       board_shapes: [],
@@ -291,16 +289,11 @@ defmodule Web.RoomLive do
     annotation_color =
       valid_annotation_color(preferences["annotation_color"], socket.assigns.annotation_color)
 
-    strip_open = preferences["strip_open"] != "false"
-    selected_tab = valid_strip_tab(preferences["strip_tab"], socket.assigns.selected_tab)
-
     {:noreply,
      assign(socket,
        theme: theme,
        piece_set: piece_set,
-       annotation_color: annotation_color,
-       strip_open: strip_open,
-       selected_tab: selected_tab
+       annotation_color: annotation_color
      )}
   end
 
@@ -778,17 +771,6 @@ defmodule Web.RoomLive do
              )}
         end
     end
-  end
-
-  def handle_event("select-strip-tab", %{"tab" => tab}, socket)
-      when tab in ["material", "space"] do
-    socket = assign(socket, :selected_tab, tab)
-    {:noreply, push_strip_preference(socket)}
-  end
-
-  def handle_event("toggle-strip", _params, socket) do
-    socket = assign(socket, :strip_open, not socket.assigns.strip_open)
-    {:noreply, push_strip_preference(socket)}
   end
 
   def handle_event("board-square", %{"square" => square}, socket) do
@@ -1476,32 +1458,6 @@ defmodule Web.RoomLive do
     {:noreply, assign(socket, :search_filters, filters)}
   end
 
-  # The linked account's username fills the tray's field — "my games" is the
-  # same selection tray as everyone else's. A rejected token deletes the
-  # grant honestly.
-  defp prefill_lichess_username(socket) do
-    case socket.assigns.current_user do
-      %{id: user_id} ->
-        with {:ok, token} <- ProviderGrants.get_token(user_id, "lichess"),
-             {:ok, username} <- GameImport.fetch_lichess_account_username(token) do
-          assign(socket, provider_username: username)
-        else
-          {:error, :unauthorized} ->
-            :ok = ProviderGrants.delete(user_id, "lichess")
-
-            assign(socket,
-              import_error: Web.I18n.t("room.provider.unauthorized", socket.assigns.locale)
-            )
-
-          _ ->
-            socket
-        end
-
-      _ ->
-        socket
-    end
-  end
-
   # Loads the provider's metadata rows into the tray. The games themselves
   # arrive later: Lichess rows are fetched by id on import, Chess.com rows
   # already carry their month's PGNs.
@@ -1615,18 +1571,6 @@ defmodule Web.RoomLive do
         import_text(socket, pgn, [], "chesscom")
     end
   end
-
-  defp parse_month(<<year::binary-4, "-", month::binary-2>>) do
-    with {year, ""} <- Integer.parse(year),
-         {month, ""} <- Integer.parse(month),
-         true <- year > 0 and month in 1..12 do
-      {:ok, year, month}
-    else
-      _ -> :error
-    end
-  end
-
-  defp parse_month(_), do: :error
 
   def handle_event("toggle-import-keep", %{"key" => key}, socket)
       when key in ~w(comments variations metadata annotations) do
@@ -1779,6 +1723,32 @@ defmodule Web.RoomLive do
   def handle_event("latency-ping", _params, socket), do: {:reply, %{}, socket}
 
   def handle_event(_event, _params, socket), do: {:noreply, socket}
+
+  # The linked account's username fills the tray's field — "my games" is the
+  # same selection tray as everyone else's. A rejected token deletes the
+  # grant honestly.
+  defp prefill_lichess_username(socket) do
+    case socket.assigns.current_user do
+      %{id: user_id} ->
+        with {:ok, token} <- ProviderGrants.get_token(user_id, "lichess"),
+             {:ok, username} <- GameImport.fetch_lichess_account_username(token) do
+          assign(socket, provider_username: username)
+        else
+          {:error, :unauthorized} ->
+            :ok = ProviderGrants.delete(user_id, "lichess")
+
+            assign(socket,
+              import_error: Web.I18n.t("room.provider.unauthorized", socket.assigns.locale)
+            )
+
+          _ ->
+            socket
+        end
+
+      _ ->
+        socket
+    end
+  end
 
   @impl true
   def handle_info(:sync_position_url, socket) do
@@ -2869,15 +2839,17 @@ defmodule Web.RoomLive do
   defp valid_annotation_color(color, _fallback) when color in @shape_colors, do: color
   defp valid_annotation_color(_color, fallback), do: fallback
 
-  defp valid_strip_tab(tab, _fallback) when tab in ["material", "space"], do: tab
-  defp valid_strip_tab(_tab, fallback), do: fallback
-
-  defp push_strip_preference(socket) do
-    push_event(socket, "set-strip-preference", %{
-      open: socket.assigns.strip_open,
-      tab: socket.assigns.selected_tab
-    })
+  defp parse_month(<<year::binary-4, "-", month::binary-2>>) do
+    with {year, ""} <- Integer.parse(year),
+         {month, ""} <- Integer.parse(month),
+         true <- year > 0 and month in 1..12 do
+      {:ok, year, month}
+    else
+      _ -> :error
+    end
   end
+
+  defp parse_month(_), do: :error
 
   defp parse_square(value) when is_integer(value) and value in 0..63, do: {:ok, value}
 
@@ -3138,30 +3110,6 @@ defmodule Web.RoomLive do
     if selected == tab,
       do: base <> " border-highlight text-highlight",
       else: base <> " border-transparent text-muted hover:text-foreground"
-  end
-
-  defp material_total(counts) do
-    counts.queen * 9 + counts.rook * 5 + counts.bishop * 3 + counts.knight * 3 + counts.pawn
-  end
-
-  defp material_balance(nil), do: "–"
-
-  defp material_balance(insights) do
-    balance = material_total(insights.material.white) - material_total(insights.material.black)
-    if balance > 0, do: "+#{balance}", else: to_string(balance)
-  end
-
-  defp material_text(counts, color, locale) do
-    [:queen, :rook, :bishop, :knight, :pawn]
-    |> Enum.map(fn kind ->
-      count = Map.get(counts, kind, 0)
-      if count > 0, do: "#{count}× #{piece_name(kind, color, locale)}", else: nil
-    end)
-    |> Enum.reject(&is_nil/1)
-    |> case do
-      [] -> "—"
-      pieces -> Enum.join(pieces, ", ")
-    end
   end
 
   defp nag_label_key(nag), do: Map.fetch!(@nag_labels, nag)

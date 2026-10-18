@@ -1145,15 +1145,6 @@ const AppUI = {
       }
     });
 
-    this.handleEvent("set-strip-preference", ({ open, tab }) => {
-      try {
-        localStorage.setItem("openchesslab:strip-open", String(open));
-        localStorage.setItem("openchesslab:strip-tab", tab);
-      } catch (_) {
-        /* optional */
-      }
-    });
-
     this.handleEvent("focus-move", ({ path }) => {
       const selector = path
         ? `[data-move-path="${path}"]`
@@ -1191,8 +1182,6 @@ const AppUI = {
         locale: localStorage.getItem("openchesslab:locale"),
         piece_set: localStorage.getItem("openchesslab:piece-set"),
         annotation_color: localStorage.getItem("openchesslab:annotation-color"),
-        strip_open: localStorage.getItem("openchesslab:strip-open"),
-        strip_tab: localStorage.getItem("openchesslab:strip-tab"),
       };
     } catch (_) {
       /* optional */

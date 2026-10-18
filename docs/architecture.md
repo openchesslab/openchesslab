@@ -265,8 +265,10 @@ affirms (`material.count.rook`, `material.bishop_pair`, `quality.bishop_pair`, �
 draw carry a board-glyph cue (`data-drawable`). The board draws blue (white), red (black), amber
 (neutral) tints, amber file bands and heat spans (`data-highlight`, `data-heat-level` attributes
 for tests). Empty features stay
-detail-only and never pin. `Chess.PositionProperties` is no longer used for board overlays (still
-feeds the MATERIAL/SPACE strip tabs — pruning it is follow-up).
+detail-only and never pin. `Chess.PositionProperties` is no longer used for board overlays, and
+since the MATERIAL/SPACE strip was removed (2026-10-18 — the strip duplicated catalogue features:
+`material.count.*`/`total_value`/`difference`, `space.enemy_half_control`) it feeds nothing in
+the UI anymore; pruning the module is follow-up.
 
 **Reference panel (2026-10-17):** the book and the endgame table share one contextual panel below
 the move list (where the old inline comment box sat): opening name + ECO and corpus moves with

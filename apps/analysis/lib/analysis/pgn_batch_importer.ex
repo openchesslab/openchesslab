@@ -310,6 +310,8 @@ defmodule Analysis.PgnBatchImporter do
           {:ok, ParallelImportResult.t()}
           | {:error, parallel_import_error()}
   def import_stream_parallel(lines, record_id_for_index, max_concurrency, window_size, opts \\ [])
+
+  def import_stream_parallel(lines, record_id_for_index, max_concurrency, window_size, opts)
       when is_function(record_id_for_index, 1) do
     with :ok <- validate_max_concurrency(max_concurrency),
          :ok <- validate_window_size(window_size, max_concurrency) do
