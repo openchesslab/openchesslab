@@ -45,10 +45,17 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
     13 GB / ~21M posities.
   - Fly mpg `openchesslab` (basic, AMS, id `w8675081zgnr3pk4`): **30 GB disk** — één maand
     erbij ≈ 22/30 GB; meer historie vereist disk-resize of bewuste scope-beperking.
-  - Loopt: volledige november-import lokaal (~50 min à 90/s). Daarna de beslissingen:
-    transfer-aanpak (wipe + pg_dump-restore vs. directe import), aantal maanden, eventueel
-    volume-resize. Open: month-files zijn `.zip` i.p.v. `.pgn.zst` (lokaal `unzip`, geen
-    BulkImport-wijziging nodig dankzij `:path`).
+  - **Herkomstmarkering geïmplementeerd (`f440c00`, analysis 670 / web 296 groen):**
+    `BulkImport` `:source`/`:source_detail` → metadata op elk record; `PgnAnalysisImporter`
+    `:source` → `"pgn"`/`"lichess"`/`"chesscom"` bij kamer-imports, `"lichess"` bij
+    LibraryImport/sync; dedup blijft puur content (bron staat op het concrete record).
+    `keep_game?` kreeg `:allow_bullet` (default uit) — elite-imports nemen óók de snelle
+    partijen mee (2500+-spelers; `time_control` zit in metadata dus query-time filteren op
+    tempo blijft mogelijk bij zoeken/opening-boek).
+  - Loopt: volledige november-import lokaal mét `allow_bullet` + source-labels (~52 min à
+    90/s). Daarna de beslissingen: transfer-aanpak (wipe + pg_dump-restore vs. directe
+    import), aantal maanden, eventueel volume-resize. Open: month-files zijn `.zip` i.p.v.
+    `.pgn.zst` (lokaal `unzip`, geen BulkImport-wijziging nodig dankzij `:path`).
 
 - **Bulk-import afgerond (2026-10-18 01:32 UTC):** `bulk-resume-3` eindigde met exit 0 —
   `source: :ok`, 89,6M partijen gelezen, 109.798 gehouden, **109.523 geïmporteerd**

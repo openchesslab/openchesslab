@@ -143,13 +143,21 @@ and a pinned **checkout bar** at the bottom carries the bulk-selection shortcuts
 tray exceeds five rows), the `{selected} of {total} selected` summary and the count-aware import
 button — long month archives no longer push the action out of reach.
 
-**Bulk corpus import (2026-10-17):** `Analysis.BulkImport` streams an external PGN dump —
+**Bulk corpus import (2026-10-17; provenance and `:allow_bullet` 2026-10-18):**
+`Analysis.BulkImport` streams an external PGN dump —
 built and smoke-tested against the lichess open database (CC0) monthly `*.pgn.zst` files —
 into the canonical corpus. A `curl | zstd -dc` pipeline writes into a FIFO, so reads have
 real backpressure and memory stays bounded for 29 GB sources (curl aborts stalled transfers
 via `--speed-limit/--speed-time`); the downloader's exit status is written to a status file
 so a truncated stream is reported honestly instead of looking complete. Games are filtered by
-their header block (both players ≥ the rating floor, no bullet) **before** moves are parsed.
+their header block (both players ≥ the rating floor, no bullet) **before** moves are parsed;
+for pre-filtered elite sources (whose fast games are still corpus-worthy) `:allow_bullet`
+lifts only the bullet exclusion — `time_control` stays in the record metadata, so search and
+the opening book can still filter on tempo at query time. **Provenance (2026-10-18):** every
+record can carry `source` / `source_detail` metadata (bulk runs via `BulkImport` options,
+room/library imports via `PgnAnalysisImporter`: `"pgn"`, `"lichess"`, `"chesscom"`) for
+filtering and bulk deletion. Provenance lives on the concrete game record and **never
+participates in canonical dedup**: identity remains positions + moves only.
 Kept games are persisted through the **grouped** importer by default
 (`PgnBatchImporter.import_stream/3`, batches of ten: one transaction and one shared position
 batch per group — the per-game parallel mode measurably collapsed to ~2 games/s through
