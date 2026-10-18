@@ -1815,7 +1815,7 @@
       </div>
 
       <%= if @import_source == "paste" do %>
-        <div class="min-h-0 flex-1 overflow-y-auto pr-1">
+        <div class="min-h-0 flex-1 overflow-y-auto py-0.5 pl-0.5 pr-1">
           <form
             id="pgn-import-form"
             phx-change="validate-pgn-upload"
@@ -1880,7 +1880,7 @@
         </div>
       <% else %>
         <%= if @import_source == "library" do %>
-          <div class="min-h-0 flex-1 overflow-y-auto pr-1">
+          <div class="min-h-0 flex-1 overflow-y-auto py-0.5 pl-0.5 pr-1">
             <p class="text-sm text-muted">{Web.I18n.t("library.description", @locale)}</p>
 
             <p :if={!@current_user} class="text-sm text-muted">
@@ -1959,7 +1959,7 @@
             </div>
           </div>
         <% else %>
-          <div class="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+          <div class="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-0.5">
             <p class="m-0 shrink-0 text-sm text-muted">
               {if @import_source == "lichess",
                 do: Web.I18n.t("room.importLichessNote", @locale),
