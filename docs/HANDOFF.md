@@ -30,8 +30,17 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond (2026-10-18), nog níet gedeployed:** **engine-UI in de zetlijst, features
-  permanent** (Lichess-stijl, gebruikersontwerp). Middelste kolom = altijd de features-
+- **Afgerond (2026-10-18), nog níet gedeployed:** **engine-UI in de zetlijst à la Lichess**
+  (twee iteraties; de tweede volgt lichess.org/analysis exact). Eindvorm: middelste kolom =
+  features permanent; rechterkolom van boven naar beneden: **engine-balk** (toggle + grote
+  eval + naam/depth + tandwiel), **compacte PV's** (doorlopende tekstlijnen, spans klikbaar,
+  peek/play behouden, `#engine-pv`), **grafiek**, **zetlijst met eval-chips**, review,
+  reference-paneel. Stats-grid (nodes/nps) vervallen. Tests: 297 groen — nodes/nps-asserts
+  vervangen, PV-selector `#engine-pv button`. **Test-suite-vertraging opgelost:** de
+  onvoorwaardelijke feature-load kostte per test-render een volledige 371-kenmerken-extractie
+  + write (suite 13 s → ~100 s); nu `Application.get_env(:web, :features_autoload)` met
+  `false` in test.exs en expliciete opt-in (`with_features_autoload()`) in de 10
+  feature-tests. Middelste kolom = altijd de features-
   catalogus (engine/features-tab weg, `select-engine-tab` en `tab_class` dood);
   rechterkolom: compacte toolbar (settings+tandwiel) boven de zetlijst, **eval-chips per
   zet** uit de gedeelde eval-store (`@engine_evals` → `live_evals` in `move_list`,
