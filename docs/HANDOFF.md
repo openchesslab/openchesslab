@@ -30,6 +30,26 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Bezig (2026-10-18): Elite-database-experiment lokaal.** Aanleiding: de bulk-import vanaf
+  de 2-vCPU worker deed 4,8 games/s (6,3 uur voor 109k); de bottleneck was worker-CPU +
+  gedeelde DB — níet de scan en níet de transacties (dedup-lock + per-partij-atomiciteit
+  zijn load-bearing: `games` heeft géén unique constraint op fingerprint/content).
+  Greenfield (geen gebruikers) maakt wipe+vervanging mogelijk.
+  - Bron: **Lichess Elite Database** (database.nikonoel.fr, CC0-afgeleid): 2400+/2200+ t/m
+    nov 2021, 2500+/2300+ vanaf dec 2021, geen bullet; maandzips ~65–260 MB.
+  - Benchmark november 2025 (280.246 partijen) in `openchesslab_bench`: 20k-run
+    **90 games/s** (~19× de worker), 4 malformed, 0 failures.
+  - Ons filter blijft nodig: niet voor Elo (0 partijen < 2200), wél voor `TimeControl < 180`
+    — 768 bullet-achtige partijen (0,3%) zitten in het Elite "Blitz"-bestand.
+  - Groei gemeten: **~46 MB per 1.000 partijen** (~75 posities/partij); één maand ≈
+    13 GB / ~21M posities.
+  - Fly mpg `openchesslab` (basic, AMS, id `w8675081zgnr3pk4`): **30 GB disk** — één maand
+    erbij ≈ 22/30 GB; meer historie vereist disk-resize of bewuste scope-beperking.
+  - Loopt: volledige november-import lokaal (~50 min à 90/s). Daarna de beslissingen:
+    transfer-aanpak (wipe + pg_dump-restore vs. directe import), aantal maanden, eventueel
+    volume-resize. Open: month-files zijn `.zip` i.p.v. `.pgn.zst` (lokaal `unzip`, geen
+    BulkImport-wijziging nodig dankzij `:path`).
+
 - **Bulk-import afgerond (2026-10-18 01:32 UTC):** `bulk-resume-3` eindigde met exit 0 —
   `source: :ok`, 89,6M partijen gelezen, 109.798 gehouden, **109.523 geïmporteerd**
   (275 malformed, 0 failures), ~6,3 uur à gemiddeld 3.955 games/s. Machine staat gestopt
