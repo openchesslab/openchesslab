@@ -14,6 +14,7 @@ defmodule Analysis.PositionQuery do
           true
           | false
           | {:property, atom(), term()}
+          | {:digests, [String.t()]}
           | {:pawn_structures, [PawnStructure.t()]}
           | {:pawn_structure_edit_neighborhood, [PawnStructure.t()]}
           | {:equivalent, term()}
@@ -24,6 +25,17 @@ defmodule Analysis.PositionQuery do
   @spec property(atom(), term()) :: t()
   def property(property, value) do
     {:property, property, value}
+  end
+
+  @doc """
+  Searches positions whose feature digest contains every given atom (AND
+  semantics). Atoms are the digest encoding's strings
+  (`Analysis.FeatureDigest`); the persistence engine resolves them to
+  dictionary ids, and an unknown atom matches no position at all.
+  """
+  @spec digests([String.t()]) :: t()
+  def digests(atoms) when is_list(atoms) do
+    {:digests, Enum.uniq(atoms)}
   end
 
   @spec pawn_structure(

@@ -711,6 +711,53 @@ defmodule Analysis.GameSearchTest do
            ) == {:error, :invalid_cursor}
   end
 
+  test "searches positions by digest atoms" do
+    first_position =
+      Position.starting_position()
+
+    {
+      _first_position_id,
+      first_game_id
+    } =
+      stored_game(first_position)
+
+    record =
+      GameRecord.new(
+        "digest-record",
+        first_game_id,
+        %{"white" => "Player"}
+      )
+
+    assert :ok =
+             GameRecordStore.insert(record)
+
+    # The digest of the start position exists once it is stored.
+    assert {:ok, _ids} =
+             Analysis.PositionDigests.store_position_id(
+               PositionStore.append(first_position)
+             )
+
+    {:ok, page} =
+      GameSearch.page(
+        Query.digests(["material.signature:w:Q1R2B2N2P8"]),
+        GameRecordQuery.match_all(),
+        limit: 10
+      )
+
+    assert [{found_record, _occurrence}] = page.entries
+    assert found_record.id == "digest-record"
+
+    # An atom the dictionary does not know matches no position at all.
+    {:ok, empty_page} =
+      GameSearch.page(
+        Query.digests(["material.signature:w:Q1R2B2N2P8", "test.atom.unregistered"]),
+        GameRecordQuery.match_all(),
+        limit: 10
+      )
+
+    assert empty_page.entries == []
+  end
+
   test "match-none queries return an empty page without querying PostgreSQL" do
     {
       position_result,

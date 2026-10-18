@@ -16,6 +16,13 @@ defmodule Analysis.PositionQueryNormalizer do
     query
   end
 
+  defp do_normalize({:digests, atoms}) when is_list(atoms) do
+    case Enum.uniq(atoms) do
+      [] -> true
+      atoms -> {:digests, atoms}
+    end
+  end
+
   defp do_normalize({:pawn_structures, structures}) when is_list(structures) do
     case Enum.uniq(structures) do
       [] ->

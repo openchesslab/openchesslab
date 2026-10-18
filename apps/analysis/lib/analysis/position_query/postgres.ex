@@ -6,6 +6,7 @@ defmodule Analysis.PositionQuery.Postgres do
   the SQL alias `p`.
   """
 
+  alias Analysis.FeatureDigest
   alias Analysis.PositionPawnStructureCodec
   alias Analysis.PositionPropertyKeyCodec
   alias Analysis.PositionQuery
@@ -138,6 +139,44 @@ defmodule Analysis.PositionQuery.Postgres do
       parameters,
       next_parameter
     )
+  end
+
+  defp do_compile_predicate({:digests, atoms}, parameters, next_parameter)
+       when is_list(atoms) do
+    atom_ids =
+      atoms
+      |> Enum.uniq()
+      |> Enum.map(&FeatureDigest.id_of/1)
+
+    if :unknown in atom_ids do
+      # An atom unknown to the dictionary exists on no position.
+      {
+        :ok,
+        "FALSE",
+        parameters,
+        next_parameter
+      }
+    else
+      predicate = """
+      EXISTS (
+        SELECT 1
+        FROM position_digests AS d
+        WHERE
+          d.position_id = p.id
+          AND d.atom_ids @> $#{next_parameter}::integer[]
+      )
+      """
+
+      {
+        :ok,
+        predicate,
+        parameters ++
+          [
+            atom_ids
+          ],
+        next_parameter + 1
+      }
+    end
   end
 
   defp do_compile_predicate({:property, property, value}, parameters, next_parameter) do
