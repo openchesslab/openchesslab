@@ -33,7 +33,11 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 - **Zoek-roadmap (besloten 2026-10-18).** Doel: zoeken naar partijen én posities als USP.
   **Fase 1** partijzoeken volwassen (ECO/opening/event + verrijkte regels ✅ `2cc72fe`;
   trigram-indexen ✅ `98e5e78` — speler-ILIKE op bench 316 ms seq → 1,1 ms bitmap scan,
-  4 indexen geverifieerd in productie; nog: sorteren op datum/rating, ply-deeplinks). **Fase 2** featurezoeken:
+  4 indexen geverifieerd in productie; sorteren ✅ `cc44146` — partij-zoekopdrachten zónder
+  FEN lopen nu record-gedreven **nieuwste-eerst** (`(COALESCE(date,''), id)`-btree + keyset,
+  één rij per partij via LATERAL; mét FEN blijft de positiegedreven insertion-order;
+  `:date_desc` + positiepredicaat = expliciete `:unsupported_sort`; bench: 0,05 ms/pagina
+  match-all, 0,79 ms met spelerfilter; nog: ply-deeplinks). **Fase 2** featurezoeken:
   digest-atomen (intrinsieke catalogue-feiten: `motifs.greek_gift`, `pawns.iqp`, …) in de
   vorm van de oude `position_features.properties` (bytea[] + GIN, hercodering i.p.v. nieuwe
   tabel), POC op ~100K posities met EXPLAIN-bewijs vóór de volledige 19,7M-backfill;
