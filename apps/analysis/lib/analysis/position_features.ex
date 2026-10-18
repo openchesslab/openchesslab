@@ -16,6 +16,7 @@ defmodule Analysis.PositionFeatures do
 
   alias Analysis.Analyses
   alias Analysis.Node
+  alias Analysis.PositionDigests
   alias Analysis.PositionStore
   alias Chess.Board
   alias Chess.Position
@@ -253,7 +254,11 @@ defmodule Analysis.PositionFeatures do
            ]
          ) do
       {:ok, _result} ->
-        {:ok, result}
+        # The same extraction feeds the searchable digest atoms.
+        case PositionDigests.store_features(position_id, result.features) do
+          {:ok, _ids} -> {:ok, result}
+          {:error, reason} -> {:error, reason}
+        end
 
       {:error, reason} ->
         {:error, reason}
