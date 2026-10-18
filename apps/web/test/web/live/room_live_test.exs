@@ -455,6 +455,41 @@ defmodule Web.RoomLiveTest do
     cleanup_search_corpus(corpus)
   end
 
+  test "game search filters by ECO, opening and event", %{conn: conn, code: code} do
+    OpenChessLab.Repo.query!(
+      "TRUNCATE TABLE game_records, game_occurrences, games, position_features, positions RESTART IDENTITY CASCADE",
+      []
+    )
+
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    corpus = seed_search_corpus()
+
+    render_click(view, "open-search", %{})
+
+    # ECO matches case-insensitively as a substring: "c2" finds both C20 games.
+    html = render_submit(view, "search-games", %{"eco" => "c2"})
+    assert html =~ ~s(id="corpus-#{corpus.carlsen_win}")
+    assert html =~ ~s(id="corpus-#{corpus.transpo}")
+    refute html =~ ~s(id="corpus-#{corpus.carlsen_loss}")
+    refute html =~ ~s(id="corpus-#{corpus.other_win}")
+
+    # Opening and event are free-text substrings, combinable with ECO.
+    html =
+      render_submit(view, "search-games", %{
+        "eco" => "C20",
+        "opening" => "pawn game",
+        "event" => "casual"
+      })
+
+    assert html =~ ~s(id="corpus-#{corpus.transpo}")
+    refute html =~ ~s(id="corpus-#{corpus.carlsen_win}")
+
+    # The row shows the ECO and opening of each hit (apostrophe-escaped).
+    assert html =~ "C20 King"
+
+    cleanup_search_corpus(corpus)
+  end
+
   test "game search filters by rating and date range", %{conn: conn, code: code} do
     OpenChessLab.Repo.query!(
       "TRUNCATE TABLE game_records, game_occurrences, games, position_features, positions RESTART IDENTITY CASCADE",
@@ -3249,7 +3284,10 @@ defmodule Web.RoomLiveTest do
           "result" => "1-0",
           "white_elo" => "2830",
           "black_elo" => "2501",
-          "date" => "2026.09.01"
+          "date" => "2026.09.01",
+          "eco" => "C20",
+          "opening" => "King's Pawn Game",
+          "event" => "Search Cup"
         }
       )
 
@@ -3264,7 +3302,10 @@ defmodule Web.RoomLiveTest do
           "result" => "0-1",
           "white_elo" => "2830",
           "black_elo" => "2502",
-          "date" => "2026.09.05"
+          "date" => "2026.09.05",
+          "eco" => "D00",
+          "opening" => "Queen's Pawn Game",
+          "event" => "Search Cup"
         }
       )
 
@@ -3279,7 +3320,10 @@ defmodule Web.RoomLiveTest do
           "result" => "1-0",
           "white_elo" => "2505",
           "black_elo" => "2515",
-          "date" => "2026.09.01"
+          "date" => "2026.09.01",
+          "eco" => "B20",
+          "opening" => "Sicilian Defense",
+          "event" => "Casual Blitz"
         }
       )
 
@@ -3299,7 +3343,10 @@ defmodule Web.RoomLiveTest do
           "result" => "1/2-1/2",
           "white_elo" => "2510",
           "black_elo" => "2499",
-          "date" => "2026.09.03"
+          "date" => "2026.09.03",
+          "eco" => "C20",
+          "opening" => "King's Pawn Game",
+          "event" => "Casual Blitz"
         }
       )
 

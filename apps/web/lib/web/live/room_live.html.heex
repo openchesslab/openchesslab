@@ -2218,6 +2218,34 @@
         >
           ½-½
         </option></select></label>
+        <label class="flex flex-col gap-1 text-xs text-muted">{Web.I18n.t(
+          "room.searchEcoLabel",
+          @locale
+        )}<input
+          name="eco"
+          value={@search_filters["eco"]}
+          placeholder="B12"
+          spellcheck="false"
+          class="rounded-md border border-border px-2 py-2 font-mono text-sm text-foreground"
+        /></label>
+        <label class="flex flex-col gap-1 text-xs text-muted">{Web.I18n.t(
+          "room.searchOpeningLabel",
+          @locale
+        )}<input
+          name="opening"
+          value={@search_filters["opening"]}
+          placeholder={Web.I18n.t("room.searchOpeningPlaceholder", @locale)}
+          class="rounded-md border border-border px-2 py-2 text-sm text-foreground"
+        /></label>
+        <label class="flex flex-col gap-1 text-xs text-muted">{Web.I18n.t(
+          "room.searchEventLabel",
+          @locale
+        )}<input
+          name="event"
+          value={@search_filters["event"]}
+          placeholder={Web.I18n.t("room.searchEventPlaceholder", @locale)}
+          class="rounded-md border border-border px-2 py-2 text-sm text-foreground"
+        /></label>
         <div class="flex flex-col gap-1 text-xs text-muted">
           <span>{Web.I18n.t("room.searchRatingLabel", @locale)}</span>
           <div class="flex gap-1">
@@ -2352,7 +2380,7 @@
             <div class="min-w-0 flex-1">
               <strong class="text-sm">{game.white} – {game.black}</strong>
               <p class="mb-0 mt-1 text-xs text-muted">
-                {[game.event, game.date, game.result]
+                {[game.opening, game.event, game.date, game.result]
                 |> Enum.reject(&is_nil/1)
                 |> Enum.join(" · ")}
                 <span :if={game.ply > 0}>

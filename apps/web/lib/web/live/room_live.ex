@@ -158,7 +158,9 @@ defmodule Web.RoomLive do
         "player" => "",
         "color" => "either",
         "result" => "either",
+        "eco" => "",
         "opening" => "",
+        "event" => "",
         "rating_min" => "",
         "rating_max" => "",
         "date_from" => "",
@@ -544,6 +546,9 @@ defmodule Web.RoomLive do
          "player" => "",
          "color" => "either",
          "result" => "either",
+         "eco" => "",
+         "opening" => "",
+         "event" => "",
          "rating_min" => "",
          "rating_max" => "",
          "date_from" => "",
@@ -4656,6 +4661,14 @@ defmodule Web.RoomLive do
         do: [GameRecordQuery.metadata_contains(%{"result" => filters["result"]})],
         else: []
 
+    # Free-text metadata: substring matches, case-insensitive.
+    text_queries =
+      for key <- ["eco", "opening", "event"],
+          value = blank_to_nil(filters[key]),
+          value != nil do
+        GameRecordQuery.metadata_value_contains(key, value)
+      end
+
     # Rating bounds apply to both players; the corpus stores Elos as strings.
     rating_queries =
       case {parse_rating(filters["rating_min"]), parse_rating(filters["rating_max"])} do
@@ -4674,7 +4687,7 @@ defmodule Web.RoomLive do
         {from, to} -> [GameRecordQuery.metadata_value_between("date", from, to)]
       end
 
-    case player_queries ++ result_queries ++ rating_queries ++ date_queries do
+    case player_queries ++ result_queries ++ text_queries ++ rating_queries ++ date_queries do
       [] -> GameRecordQuery.match_all()
       [single] -> single
       queries -> GameRecordQuery.all(queries)
@@ -4684,10 +4697,17 @@ defmodule Web.RoomLive do
   defp corpus_result(record, occurrence) do
     metadata = record.metadata
 
+    opening_label =
+      case Enum.filter([metadata["eco"], metadata["opening"]], & &1) do
+        [] -> nil
+        parts -> Enum.join(parts, " ")
+      end
+
     %{
       id: record.id,
       white: metadata["white"] || "?",
       black: metadata["black"] || "?",
+      opening: opening_label,
       event: metadata["event"],
       date: metadata["date"],
       result: metadata["result"] || "*",
