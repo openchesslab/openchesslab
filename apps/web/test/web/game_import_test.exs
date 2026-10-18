@@ -178,6 +178,32 @@ defmodule Web.GameImportTest do
     end
   end
 
+  describe "fetch_chesscom_archives/1" do
+    test "parses archive urls into newest-first year/month tuples" do
+      stub([
+        {200,
+         Jason.encode!(%{
+           "archives" => [
+             "https://api.chess.com/pub/player/anna/games/2023/09",
+             "https://api.chess.com/pub/player/anna/games/2023/11",
+             "https://api.chess.com/pub/player/anna/games/2023/10"
+           ]
+         })}
+      ])
+
+      assert {:ok, [{2023, 11}, {2023, 10}, {2023, 9}]} =
+               GameImport.fetch_chesscom_archives("Anna")
+    end
+
+    test "unreachable and unknown users are honest errors" do
+      stub([{404, ""}])
+      assert {:error, :not_found} = GameImport.fetch_chesscom_archives("nobody")
+
+      stub([:timeout])
+      assert {:error, :unreachable} = GameImport.fetch_chesscom_archives("nobody")
+    end
+  end
+
   defp stub(responses) do
     agent =
       start_supervised!(%{id: make_ref(), start: {Agent, :start_link, [fn -> responses end]}})

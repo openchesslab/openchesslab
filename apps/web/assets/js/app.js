@@ -843,6 +843,19 @@ const ScrollLog = {
 // Spotlights the current tour step's target: dims everything else behind a
 // ring drawn over the target and places the explanation card beside it. Steps
 // without a visible anchor fall back to a centered card.
+const ImportMasterCheckbox = {
+  // The master checkbox shows a dash while part of the tray is selected.
+  mounted() {
+    this.sync();
+  },
+  updated() {
+    this.sync();
+  },
+  sync() {
+    this.el.indeterminate = this.el.dataset.indeterminate === "true";
+  },
+};
+
 const GuidedTour = {
   mounted() {
     this.reposition = () => this.position();
@@ -1138,6 +1151,7 @@ const AppUI = {
     });
 
     this.handleEvent("set-annotation-color", ({ color }) => {
+
       try {
         localStorage.setItem("openchesslab:annotation-color", color);
       } catch (_) {
@@ -1623,7 +1637,7 @@ const EngineAnalysis = {
 
 const csrfToken = document.querySelector("meta[name='csrf-token']")?.content;
 const liveSocket = new LiveSocket("/live", Socket, {
-  hooks: { AppUI, AnalysisTabs, Board, EngineAnalysis, EvalBar, GuidedTour, MoveList, PaletteDrag, ScrollLog },
+  hooks: { AppUI, AnalysisTabs, Board, EngineAnalysis, EvalBar, GuidedTour, ImportMasterCheckbox, MoveList, PaletteDrag, ScrollLog },
   params: { _csrf_token: csrfToken },
 });
 

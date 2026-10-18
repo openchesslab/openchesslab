@@ -149,8 +149,7 @@
   "room.importLoad": "Load games",
   "room.importMonthLabel": "Month",
   "room.importBadMonth": "Pick a valid month.",
-  "room.selectAll": "All",
-  "room.selectNone": "None",
+
   "room.importSelectedCount_one": "Import {count} game",
   "room.importSelectedCount_other": "Import {count} games",
   "room.importTraySummary": "{selected} of {total} selected",

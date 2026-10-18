@@ -1989,7 +1989,23 @@
                 for="provider-month"
               >
                 {Web.I18n.t("room.importMonthLabel", @locale)}
+                <select
+                  :if={@chesscom_archives != []}
+                  id="provider-month"
+                  name="month"
+                  phx-change="select-chesscom-month"
+                  class="rounded-lg border border-border px-3 py-2"
+                >
+                  <option
+                    :for={{year, month} <- @chesscom_archives}
+                    value={format_chesscom_month(year, month)}
+                    selected={@chesscom_month == format_chesscom_month(year, month)}
+                  >
+                    {chesscom_month_label({year, month}, @locale)}
+                  </option>
+                </select>
                 <input
+                  :if={@chesscom_archives == []}
                   id="provider-month"
                   name="month"
                   type="month"
@@ -2006,6 +2022,32 @@
                 phx-disable-with={Web.I18n.t("room.importing", @locale)}
               >{Web.I18n.t("room.importLoad", @locale)}</button>
             </form>
+
+            <div
+              :if={@import_games != []}
+              class="flex shrink-0 items-center gap-2 border-b border-border py-1"
+            >
+              <input
+                type="checkbox"
+                id="import-select-all"
+                phx-hook="ImportMasterCheckbox"
+                data-indeterminate={
+                  to_string(
+                    MapSet.size(@import_selected) > 0 and
+                      MapSet.size(@import_selected) < length(@import_games)
+                  )
+                }
+                checked={MapSet.size(@import_selected) == length(@import_games)}
+                phx-click="toggle-import-all"
+                class="accent-accent-strong"
+              />
+              <label for="import-select-all" class="cursor-pointer text-xs text-muted">
+                {Web.I18n.t("room.importTraySummary", @locale, %{
+                  selected: MapSet.size(@import_selected),
+                  total: length(@import_games)
+                })}
+              </label>
+            </div>
 
             <ul
               :if={@import_games != []}
@@ -2081,34 +2123,12 @@
       <div
         :if={@import_source in ["lichess", "chesscom"] and @import_games != []}
         id="import-checkout"
-        class="mt-4 flex shrink-0 flex-wrap items-center gap-2 border-t border-border pt-3"
+        class="mt-4 flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border pt-3"
       >
-        <button
-          :if={length(@import_games) > 5}
-          type="button"
-          id="import-games-all"
-          class="rounded-md border border-border px-2 py-1 text-xs hover:bg-panel-hover"
-          phx-click="select-all-import-games"
-        >{Web.I18n.t("room.selectAll", @locale)}</button>
-        <button
-          :if={length(@import_games) > 5}
-          type="button"
-          id="import-games-none"
-          class="rounded-md border border-border px-2 py-1 text-xs hover:bg-panel-hover"
-          phx-click="select-no-import-games"
-        >{Web.I18n.t("room.selectNone", @locale)}</button>
-
-        <span class="text-xs text-muted">
-          {Web.I18n.t("room.importTraySummary", @locale, %{
-            selected: MapSet.size(@import_selected),
-            total: length(@import_games)
-          })}
-        </span>
-
         <button
           type="button"
           id="import-selected"
-          class="ml-auto rounded-md border border-accent-strong bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-strong disabled:opacity-50"
+          class="rounded-md border border-accent-strong bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-strong disabled:opacity-50"
           disabled={MapSet.size(@import_selected) == 0}
           phx-click="import-selected-games"
           phx-disable-with={Web.I18n.t("room.importing", @locale)}

@@ -294,6 +294,39 @@ defmodule Web.GameImport do
     end
   end
 
+  @doc """
+  The monthly archives a Chess.com user has, newest first, as `{year, month}`
+  tuples — the friendly alternative to typing a month by hand.
+  """
+  @spec fetch_chesscom_archives(String.t()) ::
+          {:ok, [{pos_integer(), 1..12}]} | {:error, fetch_error()}
+  def fetch_chesscom_archives(username) when is_binary(username) do
+    url =
+      "https://api.chess.com/pub/player/#{URI.encode(String.downcase(username))}/games/archives"
+
+    case get_json(url) do
+      {:ok, %{"archives" => archives}} when is_list(archives) ->
+        months =
+          archives
+          |> Enum.flat_map(fn archive ->
+            case Regex.run(~r"/games/(\d{4})/(\d{2})$", archive) do
+              [_, year, month] -> [{String.to_integer(year), String.to_integer(month)}]
+              _ -> []
+            end
+          end)
+          |> Enum.uniq()
+          |> Enum.sort(:desc)
+
+        {:ok, months}
+
+      {:ok, _other} ->
+        {:error, :no_games}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
   defp chesscom_row(game) do
     %{
       id: game["url"],

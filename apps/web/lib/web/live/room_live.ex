@@ -152,6 +152,7 @@ defmodule Web.RoomLive do
       import_selected: MapSet.new(),
       provider_username: "",
       chesscom_month: Calendar.strftime(Date.utc_today(), "%Y-%m"),
+      chesscom_archives: [],
       search_filters: %{
         "player" => "",
         "color" => "either",
@@ -1477,19 +1478,53 @@ defmodule Web.RoomLive do
           end
 
         true ->
+          # An invalid month is an honest error before any network call.
           case parse_month(params["month"]) do
-            {:ok, year, month} -> GameImport.fetch_chesscom_month_games(username, year, month)
-            :error -> {:error, :bad_month}
+            :error ->
+              {:error, :bad_month}
+
+            {:ok, _typed_year, _typed_month} ->
+              # The archives list replaces typing a month: pick from the
+              # months that actually have games. Any archives failure falls
+              # back to the plain month input.
+              case GameImport.fetch_chesscom_archives(username) do
+                {:ok, [_ | _] = archives} ->
+                  with {:ok, year, month} <- chesscom_month_choice(params["month"], archives) do
+                    case GameImport.fetch_chesscom_month_games(username, year, month) do
+                      {:ok, rows} ->
+                        {:ok, rows, archives, format_chesscom_month(year, month)}
+
+                      {:error, reason} ->
+                        {:error, reason}
+                    end
+                  end
+
+                _archives_unavailable ->
+                  {:ok, year, month} = parse_month(params["month"])
+                  GameImport.fetch_chesscom_month_games(username, year, month)
+              end
           end
       end
 
     case result do
+      {:ok, rows, archives, month} ->
+        {:noreply,
+         assign(socket,
+           import_games: rows,
+           import_selected: MapSet.new(),
+           provider_username: username,
+           chesscom_archives: archives,
+           chesscom_month: month,
+           import_error: nil
+         )}
+
       {:ok, rows} ->
         {:noreply,
          assign(socket,
            import_games: rows,
-           import_selected: MapSet.new(Enum.map(rows, & &1.id)),
+           import_selected: MapSet.new(),
            provider_username: username,
+           chesscom_archives: [],
            chesscom_month: params["month"] || socket.assigns.chesscom_month,
            import_error: nil
          )}
@@ -1518,6 +1553,30 @@ defmodule Web.RoomLive do
            import_selected: MapSet.new()
          )}
     end
+  end
+
+  def handle_event("toggle-import-all", _params, socket) do
+    all_selected? =
+      MapSet.size(socket.assigns.import_selected) == length(socket.assigns.import_games)
+
+    if all_selected? do
+      handle_event("select-no-import-games", %{}, socket)
+    else
+      handle_event("select-all-import-games", %{}, socket)
+    end
+  end
+
+  def handle_event("select-chesscom-month", %{"month" => month}, socket) do
+    # Choosing a month in the archives dropdown loads it right away.
+    handle_event(
+      "load-provider-games",
+      %{
+        "provider" => "chesscom",
+        "username" => socket.assigns.provider_username,
+        "month" => month
+      },
+      socket
+    )
   end
 
   def handle_event("toggle-import-game", %{"id" => id}, socket) do
@@ -2845,6 +2904,45 @@ defmodule Web.RoomLive do
   end
 
   defp parse_month(_), do: :error
+
+  # Pick the typed month when the archives actually contain it, else the
+  # newest archive.
+  defp chesscom_month_choice(typed, archives) do
+    case parse_month(typed || "") do
+      {:ok, year, month} ->
+        if {year, month} in archives,
+          do: {:ok, year, month},
+          else: newest_archive(archives)
+
+      :error ->
+        newest_archive(archives)
+    end
+  end
+
+  defp newest_archive([{year, month} | _rest]), do: {:ok, year, month}
+
+  defp format_chesscom_month(year, month) do
+    "#{year}-#{String.pad_leading(Integer.to_string(month), 2, "0")}"
+  end
+
+  @doc false
+  def chesscom_month_label({year, month}, locale) do
+    "#{month_name(month, locale)} #{year}"
+  end
+
+  defp month_name(month, "nl") do
+    Enum.at(
+      ~w(januari februari maart april mei juni juli augustus september oktober november december),
+      month - 1
+    )
+  end
+
+  defp month_name(month, _locale) do
+    Enum.at(
+      ~w(January February March April May June July August September October November December),
+      month - 1
+    )
+  end
 
   defp parse_square(value) when is_integer(value) and value in 0..63, do: {:ok, value}
 

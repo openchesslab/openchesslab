@@ -149,8 +149,7 @@
   "room.importLoad": "Partijen laden",
   "room.importMonthLabel": "Maand",
   "room.importBadMonth": "Kies een geldige maand.",
-  "room.selectAll": "Alles",
-  "room.selectNone": "Geen",
+
   "room.importSelectedCount_one": "Importeer {count} partij",
   "room.importSelectedCount_other": "Importeer {count} partijen",
   "room.importTraySummary": "{selected} van {total} geselecteerd",

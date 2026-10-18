@@ -895,19 +895,20 @@ defmodule Web.RoomLiveTest do
 
       assert has_element?(view, "#import-games-tray", "Anna – Boris")
       assert has_element?(view, "#import-games-tray", "Cleo – Anna")
-      assert has_element?(view, "#import-selected", "Import 2 games")
+      assert has_element?(view, "#import-selected[disabled]")
+      assert render(view) =~ "0 of 2 selected"
 
-      # Deselecting one updates the count-aware button. Short trays do
-      # not need the bulk-selection shortcuts.
+      # The master checkbox selects everything at once; deselecting one
+      # updates the count-aware button.
+      render_click(view, "toggle-import-all", %{})
+      assert has_element?(view, "#import-selected", "Import 2 games")
+      assert render(view) =~ "2 of 2 selected"
+
       render_click(view, "toggle-import-game", %{"id" => "PndlSDZg"})
       assert has_element?(view, "#import-selected", "Import 1 game")
-      refute has_element?(view, "#import-games-all")
-      render_click(view, "toggle-import-game", %{"id" => "PndlSDZg"})
-      assert has_element?(view, "#import-selected", "Import 2 games")
 
       # The deselected game is fetched too, but comes back missing: an
       # honest skip, and the dialog stays open to show it.
-      render_click(view, "toggle-import-game", %{"id" => "PndlSDZg"})
       render_click(view, "import-selected-games", %{})
 
       assert length(room_analysis_ids(code)) == 1
@@ -942,6 +943,7 @@ defmodule Web.RoomLiveTest do
         "username" => "anna"
       })
 
+      render_click(view, "toggle-import-all", %{})
       render_click(view, "import-selected-games", %{})
 
       assert room_analysis_ids(code) == []
@@ -991,8 +993,82 @@ defmodule Web.RoomLiveTest do
         ]
       }
 
-      # One response only: a refetch on import would crash the stub.
-      stub_game_import([{200, Jason.encode!(month)}])
+      archives = %{
+        "archives" => [
+          "https://api.chess.com/pub/player/anna/games/2023/11",
+          "https://api.chess.com/pub/player/anna/games/2023/10"
+        ]
+      }
+
+      # Archives + month: the dropdown offers the months that have games;
+      # the import itself needs no further request.
+      stub_game_import([
+        {200, Jason.encode!(archives)},
+        {200, Jason.encode!(month)}
+      ])
+
+      {:ok, view, _} = live(conn, "/rooms/#{code}")
+      render_click(view, "open-import", %{})
+      render_click(view, "set-import-source", %{"source" => "chesscom"})
+
+      render_submit(view, "load-provider-games", %{
+        "provider" => "chesscom",
+        "username" => "anna",
+        "month" => "2023-11"
+      })
+
+      assert has_element?(view, "#provider-month option", "November 2023")
+      assert has_element?(view, "#import-games-tray", "anna – boris")
+
+      render_click(view, "toggle-import-all", %{})
+      render_click(view, "import-selected-games", %{})
+
+      assert length(room_analysis_ids(code)) == 2
+    end
+
+    test "choosing another month in the archives dropdown loads it right away", %{
+      conn: conn,
+      code: code
+    } do
+      archives = %{
+        "archives" => [
+          "https://api.chess.com/pub/player/anna/games/2023/11",
+          "https://api.chess.com/pub/player/anna/games/2023/10"
+        ]
+      }
+
+      november = %{
+        "games" => [
+          %{
+            "url" => "https://www.chess.com/game/live/111",
+            "pgn" => "[Event \"A\"]\n\n1. e4 e5 *",
+            "time_class" => "blitz",
+            "end_time" => 1_700_000_000,
+            "white" => %{"username" => "anna", "result" => "win"},
+            "black" => %{"username" => "boris", "result" => "resigned"}
+          }
+        ]
+      }
+
+      october = %{
+        "games" => [
+          %{
+            "url" => "https://www.chess.com/game/live/222",
+            "pgn" => "[Event \"B\"]\n\n1. d4 d5 *",
+            "time_class" => "rapid",
+            "end_time" => 1_690_000_000,
+            "white" => %{"username" => "cleo", "result" => "win"},
+            "black" => %{"username" => "anna", "result" => "resigned"}
+          }
+        ]
+      }
+
+      stub_game_import([
+        {200, Jason.encode!(archives)},
+        {200, Jason.encode!(november)},
+        {200, Jason.encode!(archives)},
+        {200, Jason.encode!(october)}
+      ])
 
       {:ok, view, _} = live(conn, "/rooms/#{code}")
       render_click(view, "open-import", %{})
@@ -1005,12 +1081,49 @@ defmodule Web.RoomLiveTest do
       })
 
       assert has_element?(view, "#import-games-tray", "anna – boris")
-      render_click(view, "import-selected-games", %{})
 
-      assert length(room_analysis_ids(code)) == 2
+      render_change(view, "select-chesscom-month", %{"month" => "2023-10"})
+
+      assert has_element?(view, "#import-games-tray", "cleo – anna")
     end
 
-    test "a long tray keeps the selection actions in the pinned checkout bar", %{
+    test "a failing archives call keeps the plain month input as fallback", %{
+      conn: conn,
+      code: code
+    } do
+      month = %{
+        "games" => [
+          %{
+            "url" => "https://www.chess.com/game/live/111",
+            "pgn" => "[Event \"A\"]\n\n1. e4 e5 *",
+            "time_class" => "blitz",
+            "end_time" => 1_700_000_000,
+            "white" => %{"username" => "anna", "result" => "win"},
+            "black" => %{"username" => "boris", "result" => "resigned"}
+          }
+        ]
+      }
+
+      stub_game_import([
+        {503, ""},
+        {200, Jason.encode!(month)}
+      ])
+
+      {:ok, view, _} = live(conn, "/rooms/#{code}")
+      render_click(view, "open-import", %{})
+      render_click(view, "set-import-source", %{"source" => "chesscom"})
+
+      render_submit(view, "load-provider-games", %{
+        "provider" => "chesscom",
+        "username" => "anna",
+        "month" => "2023-11"
+      })
+
+      assert has_element?(view, "input#provider-month")
+      assert has_element?(view, "#import-games-tray", "anna – boris")
+    end
+
+    test "a long tray starts deselected and selects via the master checkbox", %{
       conn: conn,
       code: code
     } do
@@ -1040,20 +1153,29 @@ defmodule Web.RoomLiveTest do
         "username" => "anna"
       })
 
-      # Long trays offer bulk selection in the pinned checkout bar.
+      # Long trays start with nothing selected; the master checkbox does
+      # the bulk work and shows a dash while the selection is partial.
       assert has_element?(view, "#import-checkout")
-      assert has_element?(view, "#import-games-all")
-      assert has_element?(view, "#import-games-none")
-      assert has_element?(view, "#import-selected", "Import 8 games")
-      assert render(view) =~ "8 of 8 selected"
-
-      render_click(view, "select-no-import-games", %{})
+      assert has_element?(view, "#import-select-all")
       assert has_element?(view, "#import-selected[disabled]")
       assert render(view) =~ "0 of 8 selected"
 
-      render_click(view, "select-all-import-games", %{})
+      render_click(view, "toggle-import-all", %{})
       assert has_element?(view, "#import-selected", "Import 8 games")
       assert render(view) =~ "8 of 8 selected"
+
+      # One row off makes the selection partial — the master checkbox
+      # carries the indeterminate marker and toggles back to all.
+      render_click(view, "toggle-import-game", %{"id" => "game1"})
+      assert render(view) =~ "7 of 8 selected"
+      assert has_element?(view, "#import-select-all[data-indeterminate='true']")
+
+      render_click(view, "toggle-import-all", %{})
+      assert render(view) =~ "8 of 8 selected"
+
+      render_click(view, "toggle-import-all", %{})
+      assert has_element?(view, "#import-selected[disabled]")
+      assert render(view) =~ "0 of 8 selected"
     end
 
     test "a broken Chess.com month is an honest error", %{conn: conn, code: code} do
