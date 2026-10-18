@@ -27,7 +27,7 @@ defmodule Features.Catalogue.TacticMap do
     |> Enum.filter(&((1 <<< &1.to &&& enemy) != 0))
   end
 
-  @doc "Pseudo-legal moves of `color` that give check."
+  @doc "Legal moves of `color` that give check."
   @spec checks(Board.t(), atom()) :: [Features.Chess.Move.t()]
   def checks(board, color) do
     king = enemy_king_square(board, color)
@@ -39,7 +39,11 @@ defmodule Features.Catalogue.TacticMap do
       |> pseudo_moves(color)
       |> Enum.filter(fn move ->
         after_board = Board.apply_move(board, move)
-        Board.attacked?(after_board, king, color)
+
+        # A check must be a move you may actually play: the mover's own king
+        # may not be attacked afterwards (the same filter as legal moves).
+        not Board.in_check?(after_board, color) and
+          Board.attacked?(after_board, king, color)
       end)
     end
   end

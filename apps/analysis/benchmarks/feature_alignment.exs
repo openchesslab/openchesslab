@@ -7,14 +7,14 @@
 #
 # Rapporteert per paar: aantal posities met mismatch, en max 3 voorbeeld-FENs.
 
-Logger.configure(level: :warning)
-
-Application.ensure_all_started(:database)
-
 alias Analysis.PositionFeatures
 alias Analysis.PositionStore
 alias Chess.{Position, PositionProperties, Square}
 alias OpenChessLab.Repo
+
+Logger.configure(level: :warning)
+
+Application.ensure_all_started(:database)
 
 sample_size =
   case Enum.reject(System.argv(), &(&1 == "--")) do
@@ -105,13 +105,17 @@ defmodule Align do
                 {parts, empty + 1}
 
               {color, kind} ->
-                part =
-                  kind
-                  |> Atom.to_string()
-                  |> String.first()
-                  |> then(fn letter ->
-                    if color == :white, do: String.upcase(letter), else: letter
-                  end)
+                letter =
+                  case kind do
+                    :pawn -> "p"
+                    :knight -> "n"
+                    :bishop -> "b"
+                    :rook -> "r"
+                    :queen -> "q"
+                    :king -> "k"
+                  end
+
+                part = if color == :white, do: String.upcase(letter), else: letter
 
                 if empty > 0,
                   do: {parts ++ [Integer.to_string(empty), part], 0},
@@ -185,8 +189,7 @@ pairs = [
      occupied = Align.per_color(vec["squares.occupied_outpost"])
 
      for color <- [:white, :black], into: %{} do
-       {color,
-        Align.squares(Map.get(outpost, color, []) ++ Map.get(occupied, color, []))}
+       {color, Align.squares(Map.get(outpost, color, []) ++ Map.get(occupied, color, []))}
      end
    end,
    fn pos ->
@@ -198,7 +201,10 @@ pairs = [
    fn vec, _pos -> Align.per_color(vec["space.enemy_half_control"]) end,
    fn pos ->
      space = PositionProperties.space(pos)
-     for color <- [:white, :black], into: %{} do {color, space[color].controlled} end
+
+     for color <- [:white, :black], into: %{} do
+       {color, space[color].controlled}
+     end
    end},
   {"IDENTITEIT attacks.map − PP.attacked_squares == PP.defended_squares",
    fn vec, pos ->
@@ -206,7 +212,9 @@ pairs = [
      attacked = PositionProperties.attacked_squares(pos)
 
      for color <- [:white, :black], into: %{} do
-       diff = MapSet.difference(MapSet.new(Align.squares(map[color])), MapSet.new(attacked[color]))
+       diff =
+         MapSet.difference(MapSet.new(Align.squares(map[color])), MapSet.new(attacked[color]))
+
        {color, diff |> MapSet.to_list() |> Enum.sort()}
      end
    end,
@@ -254,8 +262,7 @@ pairs = [
        {piece, %{white: material.white[key], black: material.black[key]}}
      end
    end},
-  {"material.total_value",
-   fn vec, _pos -> Align.per_color(vec["material.total_value"]) end,
+  {"material.total_value", fn vec, _pos -> Align.per_color(vec["material.total_value"]) end,
    fn pos ->
      material = PositionProperties.material(pos)
 
@@ -266,8 +273,7 @@ pairs = [
 
      %{white: total.(material.white), black: total.(material.black)}
    end},
-  {"lines.open_files",
-   fn vec, _pos -> Align.files(vec["lines.open_files"]) end,
+  {"lines.open_files", fn vec, _pos -> Align.files(vec["lines.open_files"]) end,
    fn pos -> Align.files(PositionProperties.open_files(pos)) end},
   {"lines.semi_open_files",
    fn vec, _pos ->
@@ -277,16 +283,17 @@ pairs = [
    end,
    fn pos ->
      semi = PositionProperties.semi_open_files(pos)
-     for color <- [:white, :black], into: %{} do {color, Align.files(semi[color])} end
+
+     for color <- [:white, :black], into: %{} do
+       {color, Align.files(semi[color])}
+     end
    end},
-  {"state.side_to_move",
-   fn vec, _pos -> to_string(vec["state.side_to_move"]) end,
+  {"state.side_to_move", fn vec, _pos -> to_string(vec["state.side_to_move"]) end,
    fn pos -> to_string(pos.side_to_move) end},
   {"state.castling_rights",
    fn vec, _pos -> Align.castling(List.wrap(vec["state.castling_rights"])) end,
    fn pos -> Align.castling(MapSet.to_list(pos.castling_rights)) end},
-  {"state.en_passant",
-   fn vec, _pos -> to_string(vec["state.en_passant"] || "-") end,
+  {"state.en_passant", fn vec, _pos -> to_string(vec["state.en_passant"] || "-") end,
    fn pos -> to_string(pos.en_passant || "-") end}
 ]
 
@@ -295,24 +302,26 @@ report =
     initial = %{checked: 0, mismatches: 0, examples: []}
 
     Enum.reduce(positions, initial, fn {_id, position, _record}, acc ->
-      with {:ok, vector} <- PositionFeatures.extract(position) do
-        left = catalogue_fn.(vector.features, position)
-        right = chess_fn.(position)
+      case PositionFeatures.extract(position) do
+        {:ok, vector} ->
+          left = catalogue_fn.(vector.features, position)
+          right = chess_fn.(position)
 
-        if left == right do
-          %{acc | checked: acc.checked + 1}
-        else
-          examples =
-            if length(acc.examples) < 3 do
-              [{vector.fen, left, right} | acc.examples]
-            else
-              acc.examples
-            end
+          if left == right do
+            %{acc | checked: acc.checked + 1}
+          else
+            examples =
+              if length(acc.examples) < 3 do
+                [{vector.fen, left, right} | acc.examples]
+              else
+                acc.examples
+              end
 
-          %{acc | checked: acc.checked + 1, mismatches: acc.mismatches + 1, examples: examples}
-        end
-      else
-        _ -> acc
+            %{acc | checked: acc.checked + 1, mismatches: acc.mismatches + 1, examples: examples}
+          end
+
+        _ ->
+          acc
       end
     end)
     |> then(&{name, &1})

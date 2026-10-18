@@ -30,6 +30,19 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond (2026-10-18): feature-review fase 2, laag 1 (python-chess-orakel).** Drie
+  scripts (`feature_oracle_export/check.exs` + `feature_oracle.py`, venv in
+  `/tmp/opencode/venv-oracle`) vergelijken de catalogus met python-chess op 818
+  willekeurige bench-posities. **Twee echte bugs gevonden én verholpen:** (1)
+  **en-passant-movegen** (`Features.Chess.Movegen`): ep-zetten werden gegenereerd voor de
+  verkeerde kant/vanaf de verkeerde rij (`f2g3`) wanneer het ep-target op de rij van de
+  andere kleur stond — rij-guard toegevoegd (wit: index 5, zwart: index 2) + tests;
+  (2) **`TacticMap.checks/2`** telde pseudo-legale "checks" zonder eigen-koning-veiligheid
+  (o.a. koningen naast elkaar) — nu hetzelfde legaliteitsfilter als `legal_moves` + test.
+  Eindstand: **alle 7 oracle-paren 0/818** (attacked_pieces, defended, legal_moves,
+  per_side, absolute_pin, aantal_checks, check). Suites: features 217, analysis 670
+  (feature-telling 371→372), web 297. Volgende lagen: semantische review per sectie.
+
 - **Afgerond (2026-10-18): fase-2 eerste beslissing — `squares.enemy_on_outpost`.** Na de
   fase-1-finding (PP telt vijandelijk bezette outposts, catalogus niet) koos de gebruiker
   optie B: de catalogus uitgebreid met een nieuwe sectie-8-feature die vijandelijke stukken

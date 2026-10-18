@@ -152,6 +152,22 @@ defmodule Features.Chess.MovegenTest do
     assert Movegen.legal_moves(board) == []
   end
 
+  test "en passant is generated only on the capturing side's rank" do
+    # Black just pushed g2-g4: only black may capture en passant, from rank 4.
+    board = FEN.parse("5rk1/3q3p/p2n4/1ppPp3/5pPB/2P4P/P4P2/2QR2K1 b - g3 0 1")
+
+    refute "f2g3" in uci(Movegen.pseudo_legal_moves(board))
+    assert "f4g3" in uci(Movegen.pseudo_legal_moves(board))
+
+    # The mirror: black just pushed g7-g5; white captures from rank 5, and
+    # black's f7 pawn must not get a bogus en passant move from the wrong rank.
+    board = FEN.parse("4k3/5p2/8/3P3P/8/8/8/4K3 w - g6 0 1")
+    assert "h5g6" in uci(Movegen.pseudo_legal_moves(board))
+
+    board = FEN.parse("4k3/5p2/8/3P2P1/8/8/8/4K3 b - g6 0 1")
+    refute "f7g6" in uci(Movegen.pseudo_legal_moves(board))
+  end
+
   test "stalemate leaves no legal moves and no check" do
     board = FEN.parse("7k/5Q2/6K1/8/8/8/8/8 b - - 0 1")
 

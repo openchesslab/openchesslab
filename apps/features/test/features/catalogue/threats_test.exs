@@ -35,6 +35,15 @@ defmodule Features.Catalogue.ThreatsTest do
     assert features["threats.aantal_checks"]["black"] >= 1
   end
 
+  test "checks are legal moves only, never king-adjacency tricks" do
+    # Both kings one square apart with a white pawn between them: neither
+    # side has a legal check — capturing the pawn puts the kings adjacent,
+    # and every other "check" leaves the mover's own king attacked.
+    features = extract("8/8/1KPk4/8/8/8/8/8 b - - 0 1")
+
+    assert features["threats.aantal_checks"] == %{"white" => 0, "black" => 0}
+  end
+
   test "promotion threat on the seventh rank" do
     features = extract("4k3/P7/8/8/8/8/8/4K3 w - - 0 1")
 

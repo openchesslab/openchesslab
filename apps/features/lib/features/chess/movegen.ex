@@ -137,9 +137,20 @@ defmodule Features.Chess.Movegen do
         []
 
       square ->
-        (AttackTables.pawn_attackers(color, square) &&& pawns)
-        |> Bitboard.squares()
-        |> Enum.map(&Move.new(&1, square))
+        # En passant is only a capture on the rank of the double push: white
+        # captures onto rank index 5 (from rank 4), black onto rank index 2
+        # (from rank 3). Without the rank guard, a target on the other
+        # colour's rank produced pseudo "en passant" moves for the wrong side
+        # and from the wrong rank (e.g. f2xg3).
+        expected_rank = if color == :white, do: 5, else: 2
+
+        if div(square, 8) == expected_rank do
+          (AttackTables.pawn_attackers(color, square) &&& pawns)
+          |> Bitboard.squares()
+          |> Enum.map(&Move.new(&1, square))
+        else
+          []
+        end
     end
   end
 
