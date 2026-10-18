@@ -3779,9 +3779,11 @@ defmodule Web.RoomLive do
   end
 
   # The vector feeds the always-visible features column (and any pinned
-  # features); it is extracted once per position and stored durably.
+  # features); it is extracted once per position and stored durably. Tests
+  # disable the autoload to avoid paying extraction per rendered position.
   defp maybe_load_features(socket) do
-    if not is_nil(socket.assigns.current_node) do
+    if not is_nil(socket.assigns.current_node) and
+         Application.get_env(:web, :features_autoload, true) do
       load_features(socket)
     else
       socket

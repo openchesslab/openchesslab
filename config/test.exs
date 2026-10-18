@@ -49,4 +49,7 @@ config :database, OpenChessLab.Repo,
   pool_size: 10,
   log: false
 
+# Feature extraction (371 catalogue fields + persistence) is opt-in per test
+# instead of paid on every rendered position.
+config :web, :features_autoload, false
 config :web, :lichess_sync_worker, false

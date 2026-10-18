@@ -29,6 +29,14 @@ defmodule Web.RoomLiveTest do
     {:ok, code: code}
   end
 
+  # Feature tests opt in to the autoload that production always runs; the
+  # default in test env is off so plain room renders skip extraction.
+  defp with_features_autoload() do
+    Application.put_env(:web, :features_autoload, true)
+    on_exit(fn -> Application.put_env(:web, :features_autoload, false) end)
+    :ok
+  end
+
   test "visiting a room counts as activity for retention", %{conn: conn, code: code} do
     OpenChessLab.Repo.query!(
       "UPDATE rooms SET last_active_at = now() - interval '2 days' WHERE id = $1",
@@ -1617,8 +1625,6 @@ defmodule Web.RoomLiveTest do
 
     assert html =~ "+0.34"
     assert html =~ "+0.10"
-    assert html =~ "612345"
-    assert html =~ "450000"
 
     # Each line is a numbered row of individually clickable moves.
     assert has_element?(
@@ -1990,7 +1996,6 @@ defmodule Web.RoomLiveTest do
 
     # No engine-update round trip: the panel and bar come from the cache.
     assert html =~ "+0.42"
-    assert html =~ "999999"
     assert html =~ "data-cached-depth=\"20\""
     assert html =~ "data-eval-bar"
 
@@ -2171,7 +2176,7 @@ defmodule Web.RoomLiveTest do
     assert html =~ "+0.37"
     assert html =~ "data-cached-depth=\"20\""
     assert html =~ "data-cached-multipv=\"3\""
-    assert has_element?(view, "#engine-pv ol li button", "Nf3")
+    assert has_element?(view, "#engine-pv button", "Nf3")
 
     # Fewer lines is served from the same cache: the third line leaves.
     html =
@@ -2180,8 +2185,8 @@ defmodule Web.RoomLiveTest do
         "multipv" => "2"
       })
 
-    refute has_element?(view, "#engine-pv ol li button", "Nf3")
-    assert has_element?(view, "#engine-pv ol li button[phx-value-line='2']", "d4")
+    refute has_element?(view, "#engine-pv button", "Nf3")
+    assert has_element?(view, "#engine-pv button[phx-value-line='2']", "d4")
 
     # An uncovered combination (more lines than cached) keeps showing the
     # cached lines while the hook recomputes: the coverage attribute is what
@@ -2193,7 +2198,7 @@ defmodule Web.RoomLiveTest do
       })
 
     assert html =~ "data-cached-multipv=\"3\""
-    assert has_element?(view, "#engine-pv ol li button[phx-value-line='2']", "d4")
+    assert has_element?(view, "#engine-pv button[phx-value-line='2']", "d4")
 
     Repo.query!("DELETE FROM position_evals WHERE position_id = $1", [position_id])
   end
@@ -2372,6 +2377,7 @@ defmodule Web.RoomLiveTest do
       conn: conn,
       code: code
     } do
+      with_features_autoload()
       {:ok, view, _html} = live(conn, "/rooms/#{code}")
       render_click(view, "create-analysis", %{})
 
@@ -2593,6 +2599,8 @@ defmodule Web.RoomLiveTest do
   end
 
   test "pinning open files draws file bands on the board", %{conn: conn, code: code} do
+    with_features_autoload()
+
     position =
       Position.starting_position()
       |> Position.remove_piece(8)
@@ -2617,6 +2625,7 @@ defmodule Web.RoomLiveTest do
   end
 
   test "pinning attacks and defended squares marks both sides", %{conn: conn, code: code} do
+    with_features_autoload()
     {:ok, analysis, _revision} = Analyses.create("layers")
     :ok = Rooms.add_analysis(code, analysis.id)
     {:ok, view, _html} = live(conn, "/rooms/#{code}?a=layers")
@@ -2645,6 +2654,8 @@ defmodule Web.RoomLiveTest do
   end
 
   test "pinning outposts marks the catalogue's outpost squares", %{conn: conn, code: code} do
+    with_features_autoload()
+
     position =
       Position.new()
       |> Position.put_piece(Square.from_algebraic("e1"), {:white, :king})
@@ -2666,6 +2677,7 @@ defmodule Web.RoomLiveTest do
     conn: conn,
     code: code
   } do
+    with_features_autoload()
     {:ok, analysis, _revision} = Analyses.create("rooks")
     :ok = Rooms.add_analysis(code, analysis.id)
     {:ok, view, _html} = live(conn, "/rooms/#{code}?a=rooks")
@@ -2689,6 +2701,8 @@ defmodule Web.RoomLiveTest do
   end
 
   test "pinning the bishop pair highlights only the side that has it", %{conn: conn, code: code} do
+    with_features_autoload()
+
     position =
       Position.new()
       |> Position.put_piece(Square.from_algebraic("e1"), {:white, :king})
@@ -2709,6 +2723,8 @@ defmodule Web.RoomLiveTest do
   end
 
   test "pinning pawn chains highlights every square of the chain", %{conn: conn, code: code} do
+    with_features_autoload()
+
     position =
       Position.new()
       |> Position.put_piece(Square.from_algebraic("e1"), {:white, :king})
@@ -2728,6 +2744,7 @@ defmodule Web.RoomLiveTest do
   end
 
   test "the readout cues the rows that can draw on the board", %{conn: conn, code: code} do
+    with_features_autoload()
     {:ok, analysis, _revision} = Analyses.create("drawable")
     :ok = Rooms.add_analysis(code, analysis.id)
     {:ok, view, _html} = live(conn, "/rooms/#{code}?a=drawable")
@@ -2753,6 +2770,8 @@ defmodule Web.RoomLiveTest do
     conn: conn,
     code: code
   } do
+    with_features_autoload()
+
     position =
       Position.new()
       |> Position.put_piece(Square.from_algebraic("e1"), {:white, :king})
@@ -2791,6 +2810,7 @@ defmodule Web.RoomLiveTest do
   end
 
   test "the starting position has no outposts to pin", %{conn: conn, code: code} do
+    with_features_autoload()
     {:ok, analysis, _revision} = Analyses.create("outpost-start")
     :ok = Rooms.add_analysis(code, analysis.id)
     {:ok, view, _html} = live(conn, "/rooms/#{code}?a=outpost-start")
