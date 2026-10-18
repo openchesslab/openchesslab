@@ -35,12 +35,14 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   plat tekstveld) is vervangen door een **archives-dropdown** — de chess.com archives-API
   (`fetch_chesscom_archives/1`) levert alle maanden mét partijen, gelokaliseerd
   ("October 2026"), nieuwste vooraf; kapotte maand = fout vóór netwerk, archives-fout =
-  tekstveld-fallback. (2) De tray start nu **gedeselecteerd** (was: alles voorgeselecteerd)
+  tekstveld-fallback; een **prefetch** (gedebounced op het username-veld) toont de dropdown
+  zodra de naam bekend is en `Load` hergebruikt die — dus geen tekstveld-tussenstap meer.
+  (2) De tray start nu **gedeselecteerd** (was: alles voorgeselecteerd)
   met een **master-checkbox** boven de lijst (driestand via `ImportMasterCheckbox`-hook:
   streep bij deelselectie); de Alles/Niets-knoppen onderaan + dode i18n-keys weg. Suites:
-  game_import 11, web **301** (nieuwe tests: archives-parsing, dropdown-maandwissel,
-  fallback, deselected-start, master-toggle + indeterminate). Browsergeverifieerd met
-  echte API (hikaru: 313 partijen, 0→313→312).
+  game_import 11, web **302** (nieuwe tests: archives-parsing, dropdown-maandwissel,
+  fallback, deselected-start, master-toggle + indeterminate, prefetch). Browsergeverifieerd
+  met echte API (hikaru: 313 partijen, 0→313→312).
 
 - **Afgerond (2026-10-18): feature-review fase 2, laag 1 (python-chess-orakel).** Drie
   scripts (`feature_oracle_export/check.exs` + `feature_oracle.py`, venv in
