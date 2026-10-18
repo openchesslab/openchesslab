@@ -48,6 +48,13 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   **Aanpassing ontwerp:** text[] kost ~30 GB op de volle corpus → productie wordt
   **`int4[]` + woordenboektabel `feature_atoms`** (~7× compacter, integer-GIN, labels
   voor de picker). Near-vacuüm ids (≥90%) snoeien we bij de productie-encodering.
+  **Fase 2 status (2026-10-19):** encoder + woordenboek (`5826e43`, luie registratie,
+  append-only); `position_digests` + schrijfhaak in `store_result` (`db1908b`);
+  `DigestBackfill` (`362b4a1`, hervatbaar/parallel, 20K bench-run 0 failures,
+  12 MB/20K incl. GIN → ~12 GB volledig). **GIN-les:** bulk-fill met gedropte GIN,
+  daarna REINDEX (incrementele inserts in een lege GIN → seq scans; na rebuild
+  0,115 ms). Rest: queryterm `{:digests}`, feature-picker UI, backfill prod, oude
+  `position_features.properties` migreren (structure-modes naar kolommen) + opruimen.
   **Fase 3** search-by-example + materiaalsubstituties + prefilter/rerank relevantie.
   **Fase 4** zettenpad/eindspel.
 
