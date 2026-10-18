@@ -594,6 +594,19 @@ defmodule Web.RoomLiveTest do
     assert Enum.any?(messages, &(&1.text == "hello from LiveView" and &1.author in names))
   end
 
+  test "the drawer shows chat history that arrived before joining", %{conn: conn, code: code} do
+    {:ok, first, _html} = live(conn, "/rooms/#{code}")
+    render_click(first, "open-chat", %{})
+    render_submit(first, "send-chat", %{"message" => "already here before you"})
+
+    # A view that joins later carries the history in its mount assigns, but
+    # the chat-log container only exists once the drawer opens.
+    {:ok, second, _html} = live(build_conn(), "/rooms/#{code}")
+
+    html = render_click(second, "open-chat", %{})
+    assert html =~ "already here before you"
+  end
+
   test "analysis mutations arrive in other LiveViews sharing the room", %{conn: conn, code: code} do
     {:ok, analysis, _revision} = Analyses.create("shared-analysis")
     :ok = Rooms.add_analysis(code, analysis.id)

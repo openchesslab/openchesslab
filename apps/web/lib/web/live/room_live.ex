@@ -1036,8 +1036,15 @@ defmodule Web.RoomLive do
 
   # The chat drawer lives behind the room bar's chat button; opening it
   # clears the unread badge.
-  def handle_event("open-chat", _params, socket),
-    do: {:noreply, assign(socket, chat_open: true, chat_unread: 0)}
+  def handle_event("open-chat", _params, socket) do
+    # The chat-log container only exists while the drawer is open, so the
+    # mount-time stream items never reached the client. Re-sync the stream
+    # from the message list whenever the drawer opens.
+    {:noreply,
+     socket
+     |> assign(chat_open: true, chat_unread: 0)
+     |> stream(:chat_messages, socket.assigns.chat_messages, reset: true)}
+  end
 
   def handle_event("close-chat", _params, socket),
     do: {:noreply, assign(socket, :chat_open, false)}
