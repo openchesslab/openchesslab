@@ -53,8 +53,12 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   `DigestBackfill` (`362b4a1`, hervatbaar/parallel, 20K bench-run 0 failures,
   12 MB/20K incl. GIN → ~12 GB volledig). **GIN-les:** bulk-fill met gedropte GIN,
   daarna REINDEX (incrementele inserts in een lege GIN → seq scans; na rebuild
-  0,115 ms). Rest: queryterm `{:digests}`, feature-picker UI, backfill prod, oude
-  `position_features.properties` migreren (structure-modes naar kolommen) + opruimen.
+  0,115 ms). **Gedaan sinds:** queryterm `{:digests, atoms}` (`b657119`, AND via
+  `atom_ids @>`, onbekende atoom → `FALSE`). Rest: feature-picker UI, backfill prod,
+  oude `position_features.properties` migreren (structure-modes naar kolommen) +
+  opruimen. **Let op:** `library_branch_test`-setup faalde ~1/3 van de suite-runs
+  met `{:game_store, :invalid_occurrences}` — nondeterministisch, niet met vaste
+  seed te reproduceren, niet digest-gerelateerd; staat op de watchlijst.
   **Fase 3** search-by-example + materiaalsubstituties + prefilter/rerank relevantie.
   **Fase 4** zettenpad/eindspel.
 
