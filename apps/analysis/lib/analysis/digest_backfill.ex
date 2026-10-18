@@ -35,6 +35,8 @@ defmodule Analysis.DigestBackfill do
 
   @spec run(keyword()) :: %{computed: non_neg_integer(), failed: non_neg_integer()}
   def run(opts \\ []) do
+    {:ok, _apps} = Application.ensure_all_started(:analysis)
+
     chunk_size = Keyword.get(opts, :chunk_size, 1_000)
     limit = Keyword.get(opts, :limit)
     workers = Keyword.get(opts, :workers, System.schedulers_online())
