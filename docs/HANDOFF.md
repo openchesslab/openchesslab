@@ -30,6 +30,18 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
+- **Afgerond (2026-10-18): feature-review fase 1 (mechanische alignment).** Script
+  `apps/analysis/benchmarks/feature_alignment.exs` (`47f94c0`) vergelijkt de catalogus met
+  `Chess.PositionProperties` op willekeurige bench-posities. **Uitslag (791 posities): 0 bugs**
+  — 9/9 direct vergelijkbare paren exact gelijk (attacked_pieces, defended_squares, open/
+  semi-open files, material counts/total, castling, side-to-move, en_passant). Twee
+  **definitieverschillen, identiteit bewezen**: (1) `attacks.map`/`space` telt de catalogus
+  eigen bezette velden mee in dekking, PP maskeert die (`catalogus − chess == verdedigde
+  eigen stukken`, 0/791); (2) `squares.outpost`: PP telt vijandelijk bezette outpost-velden
+  mee, catalogus alleen leeg + eigen-bezet (7,8% van posities) — **productbeslissing voor
+  fase 2**, geen rekenfout. Fase 2 (semantische review per sectie) volgt; modeladvies:
+  Kimi K3 hoge reasoning.
+
 - **Afgerond (2026-10-18), nog níet gedeployed:** **engine-UI in de zetlijst à la Lichess**
   (twee iteraties; de tweede volgt lichess.org/analysis exact). Eindvorm: middelste kolom =
   features permanent; rechterkolom van boven naar beneden: **engine-balk** (toggle + grote
