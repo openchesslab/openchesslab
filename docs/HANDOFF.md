@@ -30,19 +30,19 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
 
 ## Repository en huidige status
 
-- **Afgerond (2026-10-18), nog níet gedeployed:** **Chess.com-maandkiezer + selectie-UX**
-  (gebruikerswensen). (1) Het tekst-maandveld (`type="month"` rendert in Safari/Firefox als
-  plat tekstveld) is vervangen door een **archives-dropdown** — de chess.com archives-API
-  (`fetch_chesscom_archives/1`) levert alle maanden mét partijen, gelokaliseerd
-  ("October 2026"), nieuwste vooraf; kapotte maand = fout vóór netwerk, archives-fout =
-  tekstveld-fallback; een **prefetch** (gedebounced op het username-veld) toont de dropdown
-  zodra de naam bekend is en `Load` hergebruikt die — dus geen tekstveld-tussenstap meer.
-  (2) De tray start nu **gedeselecteerd** (was: alles voorgeselecteerd)
-  met een **master-checkbox** boven de lijst (driestand via `ImportMasterCheckbox`-hook:
-  streep bij deelselectie); de Alles/Niets-knoppen onderaan + dode i18n-keys weg. Suites:
-  game_import 11, web **302** (nieuwe tests: archives-parsing, dropdown-maandwissel,
-  fallback, deselected-start, master-toggle + indeterminate, prefetch). Browsergeverifieerd
-  met echte API (hikaru: 313 partijen, 0→313→312).
+- **Afgerond (2026-10-18), gedeployed:** **Chess.com-maandkiezer + selectie-UX + dialyzer.**
+  (1) Het tekst-maandveld is vervangen door een **archives-dropdown** (gelokaliseerde maanden
+  mét partijen, nieuwste vooraf) met prefetch op het username-veld; vóór invoer toont een
+  **disabled placeholder-dropdown** ("Latest month"/"Laatste maand"), het tekstveld bestaat
+  alleen nog als eerlijke fallback bij een archives-fout. (2) De tray start **gedeselecteerd**
+  met een driestand-master-checkbox. (3) **Dialyxir toegevoegd** (gebruiker) en de eerste
+  drie warnings opgelost: dode error-tak in `Rooms.remove_analysis/3` (RoomServer levert
+  altijd `:ok`), dode `|| []` op `cached.lines`, en de highlights-pijplijn van typespecs
+  voorzien — de resterende `call_without_opaque` is de OTP 29-:sets-kwestie (opaak in
+  `MapSet.union`-spec vs concrete inferentie) en is gericht onderdrukt met
+  `@dialyzer {:no_opaque, compute_highlights: 4}` + toelichting. `mix dialyzer` is nu groen
+  (0 errors). Suites: web **304**, analysis **670**. Browsergeverifieerd (placeholder →
+  dropdown na typen).
 
 - **Afgerond (2026-10-18): feature-review fase 2, laag 1 (python-chess-orakel).** Drie
   scripts (`feature_oracle_export/check.exs` + `feature_oracle.py`, venv in
