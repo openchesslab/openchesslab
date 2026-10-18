@@ -1078,6 +1078,163 @@ defmodule Analysis.GameSearch.PostgresQuery do
     end
   end
 
+  # The record-driven newest-first page for game-only searches: one row per
+  # record, the first occurrence (lowest ply) joined for the preview. The
+  # (coalesced date, id) keyset matches the game_records_date_id_index.
+  @spec compile_date_first(
+          GameRecordQuery.t(),
+          pos_integer()
+        ) ::
+          compile_result()
+  def compile_date_first(record_query, limit) when is_integer(limit) and limit > 0 do
+    with {
+           :ok,
+           record_predicate,
+           parameters,
+           next_parameter
+         } <-
+           GameRecordPostgres.compile_predicate(
+             record_query,
+             1
+           ) do
+      limit_parameter =
+        next_parameter
+
+      sql = """
+      SELECT
+        COALESCE(
+          (
+            SELECT max(id)
+            FROM game_records
+          ),
+          0
+        )::bigint AS maximum_record_row_id,
+        gr.id,
+        gr.record_id,
+        gr.game_id,
+        gr.fullmove_number,
+        gr.metadata,
+        go.id,
+        go.ply,
+        go.position_id
+      FROM game_records AS gr
+      LEFT JOIN LATERAL (
+        SELECT
+          id,
+          ply,
+          position_id
+        FROM game_occurrences
+        WHERE game_id = gr.game_id
+        ORDER BY ply
+        LIMIT 1
+      ) AS go
+        ON TRUE
+      WHERE
+        (#{record_predicate})
+      ORDER BY
+        COALESCE(gr.metadata ->> 'date', '') DESC,
+        gr.id DESC
+      LIMIT $#{limit_parameter}::bigint
+      """
+
+      {
+        :ok,
+        sql,
+        parameters ++
+          [
+            limit
+          ]
+      }
+    end
+  end
+
+  @spec compile_date_next(
+          GameRecordQuery.t(),
+          non_neg_integer(),
+          String.t(),
+          pos_integer(),
+          pos_integer()
+        ) ::
+          compile_result()
+  def compile_date_next(record_query, maximum_record_row_id, last_date, last_record_row_id, limit)
+      when is_integer(maximum_record_row_id) and maximum_record_row_id >= 0 and
+             is_binary(last_date) and is_integer(last_record_row_id) and last_record_row_id > 0 and
+             is_integer(limit) and limit > 0 do
+    with {
+           :ok,
+           record_predicate,
+           parameters,
+           next_parameter
+         } <-
+           GameRecordPostgres.compile_predicate(
+             record_query,
+             1
+           ) do
+      maximum_parameter =
+        next_parameter
+
+      last_date_parameter =
+        maximum_parameter + 1
+
+      last_record_parameter =
+        last_date_parameter + 1
+
+      limit_parameter =
+        last_record_parameter + 1
+
+      sql = """
+      SELECT
+        $#{maximum_parameter}::bigint AS maximum_record_row_id,
+        gr.id,
+        gr.record_id,
+        gr.game_id,
+        gr.fullmove_number,
+        gr.metadata,
+        go.id,
+        go.ply,
+        go.position_id
+      FROM game_records AS gr
+      LEFT JOIN LATERAL (
+        SELECT
+          id,
+          ply,
+          position_id
+        FROM game_occurrences
+        WHERE game_id = gr.game_id
+        ORDER BY ply
+        LIMIT 1
+      ) AS go
+        ON TRUE
+      WHERE
+        gr.id <= $#{maximum_parameter}::bigint
+        AND (
+          COALESCE(gr.metadata ->> 'date', ''),
+          gr.id
+        ) < (
+          $#{last_date_parameter}::text,
+          $#{last_record_parameter}::bigint
+        )
+        AND (#{record_predicate})
+      ORDER BY
+        COALESCE(gr.metadata ->> 'date', '') DESC,
+        gr.id DESC
+      LIMIT $#{limit_parameter}::bigint
+      """
+
+      {
+        :ok,
+        sql,
+        parameters ++
+          [
+            maximum_record_row_id,
+            last_date,
+            last_record_row_id,
+            limit
+          ]
+      }
+    end
+  end
+
   defp compile_predicates(position_query, record_query, next_parameter) do
     with {
            :ok,

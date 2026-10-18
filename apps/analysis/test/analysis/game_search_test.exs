@@ -3,6 +3,7 @@ defmodule Analysis.GameSearchTest do
 
   alias Analysis.GameContent
   alias Analysis.GameFingerprint
+  alias Analysis.GameOccurrence
   alias Analysis.GameRecord
   alias Analysis.GameRecordQuery
   alias Analysis.GameRecords
@@ -565,6 +566,149 @@ defmodule Analysis.GameSearchTest do
 
     refute occurrence.position_id ==
              first_position_id
+  end
+
+  test "game-only searches page newest-first with one row per record" do
+    {_position_id, game_id} =
+      stored_game(Position.starting_position())
+
+    for {record_id, date} <- [
+          {"dated-oldest", "2026.09.01"},
+          {"dated-newest", "2026.09.05"},
+          {"dated-middle", "2026.09.03"},
+          {"undated", nil}
+        ] do
+      metadata =
+        if date,
+          do: %{"white" => "Player", "date" => date},
+          else: %{"white" => "Player"}
+
+      assert :ok =
+               GameRecordStore.insert(
+                 GameRecord.new(
+                   record_id,
+                   game_id,
+                   metadata
+                 )
+               )
+    end
+
+    {:ok, first_page} =
+      GameSearch.page(
+        Query.match_all(),
+        GameRecordQuery.match_all(),
+        limit: 2,
+        sort: :date_desc
+      )
+
+    assert Enum.map(first_page.entries, fn {record, _occurrence} -> record.id end) == [
+             "dated-newest",
+             "dated-middle"
+           ]
+
+    assert %GameSearch.Cursor{} = first_page.next
+
+    {:ok, second_page} =
+      GameSearch.page(
+        Query.match_all(),
+        GameRecordQuery.match_all(),
+        limit: 2,
+        cursor: first_page.next,
+        sort: :date_desc
+      )
+
+    # The undated record honestly sorts last; the corpus is fully paged.
+    assert Enum.map(second_page.entries, fn {record, _occurrence} -> record.id end) == [
+             "dated-oldest",
+             "undated"
+           ]
+
+    assert second_page.next == nil
+
+    # One row per record, with the first occurrence joined for the preview.
+    for {record, occurrence} <- first_page.entries ++ second_page.entries do
+      assert %GameOccurrence{} = occurrence
+      assert occurrence.game_id == record.game_id
+    end
+  end
+
+  test "date-sorted pages exclude rows inserted after the first page snapshot" do
+    {_position_id, game_id} =
+      stored_game(Position.starting_position())
+
+    for {record_id, date} <- [
+          {"old", "2026.09.01"},
+          {"new", "2026.09.05"}
+        ] do
+      assert :ok =
+               GameRecordStore.insert(
+                 GameRecord.new(
+                   record_id,
+                   game_id,
+                   %{"date" => date}
+                 )
+               )
+    end
+
+    {:ok, first_page} =
+      GameSearch.page(
+        Query.match_all(),
+        GameRecordQuery.match_all(),
+        limit: 1,
+        sort: :date_desc
+      )
+
+    assert [{first_record, _occurrence}] = first_page.entries
+    assert first_record.id == "new"
+
+    assert :ok =
+             GameRecordStore.insert(
+               GameRecord.new(
+                 "late",
+                 game_id,
+                 %{"date" => "2026.09.09"}
+               )
+             )
+
+    {:ok, second_page} =
+      GameSearch.page(
+        Query.match_all(),
+        GameRecordQuery.match_all(),
+        limit: 1,
+        cursor: first_page.next,
+        sort: :date_desc
+      )
+
+    assert [{second_record, _occurrence}] = second_page.entries
+    assert second_record.id == "old"
+  end
+
+  test "date sort with a position predicate is an explicit error" do
+    assert GameSearch.page(
+             Query.equivalent(Position.starting_position()),
+             GameRecordQuery.match_all(),
+             limit: 5,
+             sort: :date_desc
+           ) == {:error, :unsupported_sort}
+  end
+
+  test "an insertion-order cursor is not valid for a date-sorted search" do
+    insertion_cursor = %GameSearch.Cursor{
+      maximum_position_id: 1,
+      maximum_occurrence_id: 1,
+      maximum_record_row_id: 1,
+      last_position_id: 1,
+      last_occurrence_id: 1,
+      last_record_row_id: 1
+    }
+
+    assert GameSearch.page(
+             Query.match_all(),
+             GameRecordQuery.match_all(),
+             limit: 5,
+             cursor: insertion_cursor,
+             sort: :date_desc
+           ) == {:error, :invalid_cursor}
   end
 
   test "match-none queries return an empty page without querying PostgreSQL" do

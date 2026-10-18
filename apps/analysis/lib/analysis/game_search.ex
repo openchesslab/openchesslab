@@ -6,6 +6,14 @@ defmodule Analysis.GameSearch do
   A search page is one joined PostgreSQL query. Pagination uses a
   stateless compound keyset cursor and captures high-water marks when
   the first page is read, excluding later inserts from the same scan.
+
+  Two orders exist. The default `:insertion` order drives the scan from
+  the position side and supports every position predicate. `:date_desc`
+  pages newest-first directly from `game_records` (one row per record,
+  the first occurrence joined for the preview) and is only defined for
+  game-only searches — with a position predicate it returns
+  `{:error, :unsupported_sort}` rather than materializing the whole
+  position-driven join per page.
   """
 
   alias Analysis.GameOccurrence
@@ -35,16 +43,18 @@ defmodule Analysis.GameSearch do
       :maximum_record_row_id,
       :last_position_id,
       :last_occurrence_id,
-      :last_record_row_id
+      :last_record_row_id,
+      :last_date
     ]
 
     @type t :: %__MODULE__{
             maximum_position_id: non_neg_integer(),
             maximum_occurrence_id: non_neg_integer(),
             maximum_record_row_id: non_neg_integer(),
-            last_position_id: pos_integer(),
-            last_occurrence_id: pos_integer(),
-            last_record_row_id: pos_integer()
+            last_position_id: pos_integer() | nil,
+            last_occurrence_id: pos_integer() | nil,
+            last_record_row_id: pos_integer(),
+            last_date: String.t() | nil
           }
   end
 
@@ -67,7 +77,7 @@ defmodule Analysis.GameSearch do
   end
 
   @type occurrence_match ::
-          {GameRecord.t(), GameOccurrence.t()}
+          {GameRecord.t(), GameOccurrence.t() | nil}
 
   @opaque cursor :: Cursor.t()
 
@@ -101,12 +111,15 @@ defmodule Analysis.GameSearch do
     with {:ok, limit} <-
            fetch_limit(options),
          {:ok, cursor} <-
-           fetch_cursor(options) do
+           fetch_cursor(options),
+         {:ok, sort} <-
+           fetch_sort(options) do
       do_page(
         normalized_position_query,
         record_query,
         limit,
-        cursor
+        cursor,
+        sort
       )
     end
   end
@@ -126,15 +139,86 @@ defmodule Analysis.GameSearch do
     count
   end
 
-  defp do_page(false, _record_query, _limit, _cursor) do
+  defp do_page(false, _record_query, _limit, _cursor, _sort) do
     empty_page()
   end
 
-  defp do_page(_position_query, false, _limit, _cursor) do
+  defp do_page(_position_query, false, _limit, _cursor, _sort) do
     empty_page()
   end
 
-  defp do_page(position_query, record_query, limit, nil) do
+  # Newest-first paging drives from game_records (one row per record) and only
+  # exists without a position predicate: sorting the position-driven join
+  # would materialize the whole match set per page.
+  defp do_page(position_query, _record_query, _limit, _cursor, :date_desc)
+       when position_query != true do
+    {:error, :unsupported_sort}
+  end
+
+  defp do_page(true, _record_query, _limit, %Cursor{last_date: nil}, :date_desc) do
+    {:error, :invalid_cursor}
+  end
+
+  defp do_page(true, record_query, limit, nil, :date_desc) do
+    requested_rows =
+      limit + 1
+
+    with {
+           :ok,
+           sql,
+           parameters
+         } <-
+           PostgresQuery.compile_date_first(
+             record_query,
+             requested_rows
+           ),
+         {:ok, %{rows: rows}} <-
+           Repo.query(
+             sql,
+             parameters
+           ) do
+      {
+        :ok,
+        build_date_page(
+          rows,
+          limit
+        )
+      }
+    end
+  end
+
+  defp do_page(true, record_query, limit, %Cursor{} = cursor, :date_desc) do
+    requested_rows =
+      limit + 1
+
+    with {
+           :ok,
+           sql,
+           parameters
+         } <-
+           PostgresQuery.compile_date_next(
+             record_query,
+             cursor.maximum_record_row_id,
+             cursor.last_date,
+             cursor.last_record_row_id,
+             requested_rows
+           ),
+         {:ok, %{rows: rows}} <-
+           Repo.query(
+             sql,
+             parameters
+           ) do
+      {
+        :ok,
+        build_date_page(
+          rows,
+          limit
+        )
+      }
+    end
+  end
+
+  defp do_page(position_query, record_query, limit, nil, :insertion) do
     requested_rows =
       limit + 1
 
@@ -163,7 +247,7 @@ defmodule Analysis.GameSearch do
     end
   end
 
-  defp do_page(position_query, record_query, limit, %Cursor{} = cursor) do
+  defp do_page(position_query, record_query, limit, %Cursor{} = cursor, :insertion) do
     requested_rows =
       limit + 1
 
@@ -291,6 +375,99 @@ defmodule Analysis.GameSearch do
     }
   end
 
+  # The date-sorted path pages game_records directly, one row per record with
+  # the first occurrence joined for the preview (records without moves get an
+  # honest nil). Undated records coalesce to "" and sort last.
+  defp build_date_page(rows, limit) when length(rows) <= limit do
+    %Page{
+      entries:
+        Enum.map(
+          rows,
+          &date_match_from_row/1
+        )
+    }
+  end
+
+  defp build_date_page(rows, limit) do
+    {
+      page_rows,
+      _remaining_rows
+    } =
+      Enum.split(
+        rows,
+        limit
+      )
+
+    %Page{
+      entries:
+        Enum.map(
+          page_rows,
+          &date_match_from_row/1
+        ),
+      next:
+        page_rows
+        |> List.last()
+        |> date_cursor_from_row()
+    }
+  end
+
+  defp date_cursor_from_row([
+         maximum_record_row_id,
+         record_row_id,
+         _record_id,
+         _record_game_id,
+         _fullmove_number,
+         metadata,
+         _occurrence_id,
+         _ply,
+         _position_id
+       ]) do
+    %Cursor{
+      maximum_position_id: 0,
+      maximum_occurrence_id: 0,
+      maximum_record_row_id: maximum_record_row_id,
+      last_position_id: nil,
+      last_occurrence_id: nil,
+      last_record_row_id: record_row_id,
+      last_date: Map.get(metadata, "date") || ""
+    }
+  end
+
+  defp date_match_from_row([
+         _maximum_record_row_id,
+         _record_row_id,
+         record_id,
+         record_game_id,
+         fullmove_number,
+         metadata,
+         occurrence_id,
+         ply,
+         position_id
+       ]) do
+    record =
+      GameRecord.new(
+        record_id,
+        record_game_id,
+        GameStart.new(fullmove_number),
+        metadata
+      )
+
+    occurrence =
+      if occurrence_id do
+        GameOccurrence.new(
+          occurrence_id,
+          record_game_id,
+          ply,
+          position_id
+        )
+      end
+
+    {
+      record,
+      occurrence
+    }
+  end
+
   defp fetch_limit(options) do
     case Keyword.fetch(
            options,
@@ -321,6 +498,25 @@ defmodule Analysis.GameSearch do
 
       _cursor ->
         {:error, :invalid_cursor}
+    end
+  end
+
+  # :insertion is the position-driven scan order; :date_desc is the
+  # record-driven newest-first order for game-only searches.
+  defp fetch_sort(options) do
+    case Keyword.get(
+           options,
+           :sort,
+           :insertion
+         ) do
+      :insertion ->
+        {:ok, :insertion}
+
+      :date_desc ->
+        {:ok, :date_desc}
+
+      _sort ->
+        {:error, :invalid_sort}
     end
   end
 

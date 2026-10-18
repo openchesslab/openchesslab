@@ -4572,10 +4572,15 @@ defmodule Web.RoomLive do
            search_position_query(filters["fen"], filters["position_mode"]) do
       record_query = search_record_query(filters)
 
+      # With a position filter the scan stays position-driven (insertion
+      # order); game-only searches page newest-first.
+      sort =
+        if blank_to_nil(filters["fen"]), do: :insertion, else: :date_desc
+
       options =
         if cursor,
-          do: [limit: @search_page_size, cursor: cursor],
-          else: [limit: @search_page_size]
+          do: [limit: @search_page_size, cursor: cursor, sort: sort],
+          else: [limit: @search_page_size, sort: sort]
 
       case GameSearch.page(position_query, record_query, options) do
         {:ok, page} ->
@@ -4711,8 +4716,8 @@ defmodule Web.RoomLive do
       event: metadata["event"],
       date: metadata["date"],
       result: metadata["result"] || "*",
-      ply: occurrence.ply,
-      position_id: occurrence.position_id,
+      ply: if(occurrence, do: occurrence.ply, else: 0),
+      position_id: if(occurrence, do: occurrence.position_id, else: nil),
       position: nil
     }
   end
@@ -4722,6 +4727,7 @@ defmodule Web.RoomLive do
     positions =
       results
       |> Enum.map(& &1.position_id)
+      |> Enum.reject(&is_nil/1)
       |> PositionStore.get_many()
 
     Enum.map(results, &Map.put(&1, :position, Map.get(positions, &1.position_id)))

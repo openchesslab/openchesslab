@@ -490,6 +490,42 @@ defmodule Web.RoomLiveTest do
     cleanup_search_corpus(corpus)
   end
 
+  test "game-only search results come newest first", %{conn: conn, code: code} do
+    OpenChessLab.Repo.query!(
+      "TRUNCATE TABLE game_records, game_occurrences, games, position_features, positions RESTART IDENTITY CASCADE",
+      []
+    )
+
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    corpus = seed_search_corpus()
+
+    render_click(view, "open-search", %{})
+
+    html = render_submit(view, "search-games", %{"player" => ""})
+
+    # Newest first; the 2026.09.01 tie breaks on the record row id (the later
+    # insert comes first).
+    expected_order = [
+      corpus.carlsen_loss,
+      corpus.transpo,
+      corpus.other_win,
+      corpus.carlsen_win
+    ]
+
+    row_positions =
+      Enum.map(expected_order, fn id ->
+        case :binary.match(html, ~s(id="corpus-#{id}")) do
+          {index, _length} -> index
+          :nomatch -> -1
+        end
+      end)
+
+    refute -1 in row_positions
+    assert row_positions == Enum.sort(row_positions)
+
+    cleanup_search_corpus(corpus)
+  end
+
   test "game search filters by rating and date range", %{conn: conn, code: code} do
     OpenChessLab.Repo.query!(
       "TRUNCATE TABLE game_records, game_occurrences, games, position_features, positions RESTART IDENTITY CASCADE",
