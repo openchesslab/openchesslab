@@ -14,6 +14,7 @@ defmodule Web.RoomLiveTest do
   alias Analysis.UserSessions
   alias Analysis.Users
   alias Chess.Move
+  alias Chess.Notation.FEN
   alias Chess.Position
   alias Chess.PositionCodec
   alias Chess.Square
@@ -522,6 +523,38 @@ defmodule Web.RoomLiveTest do
 
     refute -1 in row_positions
     assert row_positions == Enum.sort(row_positions)
+
+    cleanup_search_corpus(corpus)
+  end
+
+  test "a position hit opens the game at the matched ply", %{conn: conn, code: code} do
+    OpenChessLab.Repo.query!(
+      "TRUNCATE TABLE game_records, game_occurrences, games, position_features, positions RESTART IDENTITY CASCADE",
+      []
+    )
+
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    corpus = seed_search_corpus()
+
+    render_click(view, "open-search", %{})
+
+    # The position after 1.e4 e5 occurs at ply 2 in the Carlsen win.
+    render_submit(view, "search-games", %{
+      "fen" => "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2"
+    })
+
+    render_click(view, "open-corpus-game", %{"id" => corpus.carlsen_win, "ply" => "2"})
+
+    analysis_id = room_analysis_id!(code)
+    assert_patch(view, "/rooms/#{code}?a=#{analysis_id}&p=0,0")
+
+    {:ok, analysis, _revision} = AnalysisStore.get(analysis_id)
+    node = AnalysisModel.node_at(analysis, [0, 0])
+
+    {:ok, %{position: expected}} =
+      FEN.parse("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2")
+
+    assert Node.position_id(node) == PositionStore.append(expected)
 
     cleanup_search_corpus(corpus)
   end

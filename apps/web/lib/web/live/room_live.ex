@@ -1436,13 +1436,16 @@ defmodule Web.RoomLive do
     end
   end
 
-  # Opens a corpus hit as a fresh room analysis, like branching a library game.
-  def handle_event("open-corpus-game", %{"id" => record_id}, socket) do
+  # Opens a corpus hit as a fresh room analysis, like branching a library
+  # game. The hit's ply becomes the landing path: a FEN hit opens on the
+  # matched position itself, not on the game's start.
+  def handle_event("open-corpus-game", %{"id" => record_id} = params, socket) do
     new_id = new_analysis_id()
+    path = List.duplicate(0, parse_ply(params["ply"]))
 
     with {:ok, _analysis, _revision} <- Analyses.create_from_game_record(new_id, record_id),
          :ok <- Rooms.add_analysis(socket.assigns.room_code, new_id) do
-      added(socket, new_id, "room.libraryAdded")
+      added(socket, new_id, "room.libraryAdded", path)
     else
       _ ->
         {:noreply,
@@ -2143,7 +2146,9 @@ defmodule Web.RoomLive do
 
   # Adding from the library closes the import dialog, refreshes the room,
   # selects the analysis and reports what happened.
-  defp added(socket, analysis_id, message_key) do
+  defp added(socket, analysis_id, message_key), do: added(socket, analysis_id, message_key, [])
+
+  defp added(socket, analysis_id, message_key, path) do
     socket =
       socket
       |> assign(:ui_modal, nil)
@@ -2152,8 +2157,8 @@ defmodule Web.RoomLive do
 
     {:noreply,
      socket
-     |> assign(:current_path, [])
-     |> push_patch(to: analysis_url(socket.assigns.room_code, analysis_id))}
+     |> assign(:current_path, path)
+     |> push_patch(to: analysis_url(socket.assigns.room_code, analysis_id, path))}
   end
 
   defp shared(socket, analysis_id), do: added(socket, analysis_id, "room.libraryShared")
@@ -4732,6 +4737,15 @@ defmodule Web.RoomLive do
 
     Enum.map(results, &Map.put(&1, :position, Map.get(positions, &1.position_id)))
   end
+
+  defp parse_ply(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {ply, ""} when ply in 0..999 -> ply
+      _ -> 0
+    end
+  end
+
+  defp parse_ply(_value), do: 0
 
   defp parse_rating(value) do
     case Integer.parse(to_string(value) |> String.trim()) do
