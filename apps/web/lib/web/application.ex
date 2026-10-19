@@ -12,11 +12,28 @@ defmodule Web.Application do
         do: [Web.LichessSync.Worker],
         else: []
 
+    # The Prometheus scrape endpoint listens on a separate port that only
+    # Fly's internal scraper reaches; the public service stays on 8080.
+    metrics_children =
+      if Application.get_env(:web, :prometheus_listener, true) do
+        [
+          {TelemetryMetricsPrometheus,
+           metrics: Web.Telemetry.metrics(),
+           protocol: :http,
+           name: :web_metrics,
+           port: 9091,
+           plug_cowboy_opts: [ip: {0, 0, 0, 0}]}
+        ]
+      else
+        []
+      end
+
     children =
       [
         {Phoenix.PubSub, name: Web.PubSub},
-        Web.Presence
-      ] ++ sync_children ++ [Web.Endpoint]
+        Web.Presence,
+        Web.Telemetry
+      ] ++ sync_children ++ metrics_children ++ [Web.Endpoint]
 
     # See https://elixir.hexdocs.pm/Supervisor.html
     # for other strategies and supported options

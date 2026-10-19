@@ -41,6 +41,7 @@ defmodule Web.MixProject do
       {:phoenix_html, "~> 4.3"},
       {:phoenix_live_dashboard, "~> 0.8"},
       {:ecto_psql_extras, "~> 0.8"},
+      {:telemetry_metrics_prometheus, "~> 1.1"},
       {:phoenix_live_reload, "~> 1.7", only: :dev},
       {:phoenix_live_view, "~> 1.2"},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},

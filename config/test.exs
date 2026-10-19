@@ -53,3 +53,4 @@ config :database, OpenChessLab.Repo,
 # instead of paid on every rendered position.
 config :web, :features_autoload, false
 config :web, :lichess_sync_worker, false
+config :web, :prometheus_listener, false
