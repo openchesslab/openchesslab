@@ -69,6 +69,20 @@ defmodule Web.Telemetry do
       sum("openchesslab.db.stats.blks_hit", description: "PG blocks read from cache"),
       sum("openchesslab.db.stats.blks_read", description: "PG blocks read from disk"),
 
+      # Domain: corpus search latency per search shape
+      distribution(
+        "openchesslab.search.page.stop.duration",
+        description: "Corpus search page duration per search shape",
+        unit: {:native, :millisecond},
+        tags: [:search_type],
+        reporter_options: [buckets: @latency_buckets]
+      ),
+      counter(
+        "openchesslab.search.page.stop.count",
+        description: "Corpus search pages per search shape",
+        tags: [:search_type]
+      ),
+
       # Phoenix
       distribution(
         "phoenix.endpoint.stop.duration",

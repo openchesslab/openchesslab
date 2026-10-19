@@ -114,12 +114,23 @@ defmodule Analysis.GameSearch do
            fetch_cursor(options),
          {:ok, sort} <-
            fetch_sort(options) do
-      do_page(
-        normalized_position_query,
-        record_query,
-        limit,
-        cursor,
-        sort
+      search_type = search_type(normalized_position_query)
+
+      :telemetry.span(
+        [:openchesslab, :search, :page],
+        %{search_type: search_type},
+        fn ->
+          result =
+            do_page(
+              normalized_position_query,
+              record_query,
+              limit,
+              cursor,
+              sort
+            )
+
+          {result, %{search_type: search_type}}
+        end
       )
     end
   end
@@ -519,6 +530,26 @@ defmodule Analysis.GameSearch do
         {:error, :invalid_sort}
     end
   end
+
+  # The search shape, for the latency metric's bounded label.
+  defp search_type(true), do: :games
+  defp search_type(false), do: :games
+  defp search_type({:equivalent, _position}), do: :exact
+  defp search_type({:digests, _atoms}), do: :digest
+
+  defp search_type({:and, queries}) do
+    if Enum.any?(queries, &match?({:digests, _}, &1)),
+      do: :digest,
+      else: :combined
+  end
+
+  defp search_type({:or, queries}) do
+    if Enum.all?(queries, &match?({:equivalent, _}, &1)),
+      do: :exact,
+      else: :combined
+  end
+
+  defp search_type(_query), do: :structure
 
   defp empty_page do
     {

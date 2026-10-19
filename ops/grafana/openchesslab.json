@@ -443,6 +443,62 @@
       ],
       "title": "Edge responses (built-in)",
       "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 41},
+      "id": 18,
+      "panels": [],
+      "title": "Domein: zoeken",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "datasource", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"unit": "ms"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 42},
+      "id": 19,
+      "options": {
+        "legend": {"calcs": ["lastNotNull"], "displayMode": "list", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "datasource": {"type": "datasource", "uid": "${DS_PROMETHEUS}"},
+          "expr": "histogram_quantile(0.95, sum by (le, search_type) (rate(openchesslab_search_page_stop_duration_bucket{app=\"openchesslab\"}[5m])))",
+          "legendFormat": "{{search_type}} p95",
+          "refId": "A"
+        },
+        {
+          "datasource": {"type": "datasource", "uid": "${DS_PROMETHEUS}"},
+          "expr": "histogram_quantile(0.50, sum by (le, search_type) (rate(openchesslab_search_page_stop_duration_bucket{app=\"openchesslab\"}[5m])))",
+          "legendFormat": "{{search_type}} p50",
+          "refId": "B"
+        }
+      ],
+      "title": "Search latency per search shape",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "datasource", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 42},
+      "id": 20,
+      "options": {
+        "legend": {"calcs": ["lastNotNull"], "displayMode": "list", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "datasource": {"type": "datasource", "uid": "${DS_PROMETHEUS}"},
+          "expr": "sum by (search_type) (rate(openchesslab_search_page_stop_count{app=\"openchesslab\"}[5m]))",
+          "legendFormat": "{{search_type}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Searches per shape",
+      "type": "timeseries"
     }
   ],
   "refresh": "30s",

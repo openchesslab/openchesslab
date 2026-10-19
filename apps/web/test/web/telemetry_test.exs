@@ -27,6 +27,8 @@ defmodule Web.TelemetryTest do
     Web.Telemetry.db_stats()
     OpenChessLab.Repo.query!("SELECT 1")
 
+    {:ok, _page} = Analysis.GameSearch.page(true, limit: 1)
+
     :telemetry.execute(
       [:phoenix, :endpoint, :stop],
       %{duration: System.convert_time_unit(5, :millisecond, :native)},
@@ -37,6 +39,7 @@ defmodule Web.TelemetryTest do
 
     assert text =~ "open_chess_lab_repo_query_total_time"
     assert text =~ ~s(phoenix_endpoint_stop_duration_bucket{status_int="200")
+    assert text =~ ~s(openchesslab_search_page_stop_duration_bucket{search_type="games")
 
     size_line =
       Enum.find(

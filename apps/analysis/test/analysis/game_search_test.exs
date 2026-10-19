@@ -820,6 +820,43 @@ defmodule Analysis.GameSearchTest do
              ["mirrored-record"]
   end
 
+  test "the search span reports the search shape" do
+    parent = self()
+
+    :telemetry.attach(
+      "search-probe",
+      [:openchesslab, :search, :page, :stop],
+      fn _event, _measurements, metadata, _config ->
+        send(parent, {:search_type, metadata.search_type})
+      end,
+      nil
+    )
+
+    GameSearch.page(Query.match_all(), limit: 1)
+    assert_received {:search_type, :games}
+
+    GameSearch.page(Query.equivalent(Position.starting_position()), limit: 1)
+    assert_received {:search_type, :exact}
+
+    GameSearch.page(Query.digests(["test.atom.probe"]), limit: 1)
+    assert_received {:search_type, :digest}
+
+    GameSearch.page(Query.pawn_structure(Position.starting_position()), limit: 1)
+    assert_received {:search_type, :structure}
+
+    GameSearch.page(
+      Query.all([
+        Query.pawn_structure(Position.starting_position()),
+        Query.digests(["test.atom.probe"])
+      ]),
+      limit: 1
+    )
+
+    assert_received {:search_type, :digest}
+
+    :telemetry.detach("search-probe")
+  end
+
   test "match-none queries return an empty page without querying PostgreSQL" do
     {
       position_result,
