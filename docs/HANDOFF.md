@@ -35,7 +35,12 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   (`2cc72fe`); trigram-indexen (`98e5e78`, speler-ILIKE 316→1,1 ms); nieuwste-eerst
   (`cc44146`, record-gedreven `(COALESCE(date,''), id)`-keyset, één rij per partij;
   mét FEN blijft insertion-order); ply-deeplinks (`cd2e457`, FEN-hit opent op `p=0,0…`
-  — de gematchte stelling zelf). **Fase 2** featurezoeken:
+  — de gematchte stelling zelf). **Fase 3 (2026-10-19, begonnen): search-by-example
+  ✅ (`614df8e`):** modus "Vergelijkbare stellingen" — prefilter pionstructuur-buurt
+  (edit-afstand 1) + beide materiaal-signaturen (digest-atomen), rerank op
+  `cardinality(atom_ids & query_atoms)` (intarray-extensie), keyset op (shared, ids);
+  rijen tonen "N gedeelde atomen"; browsergeverifieerd. Rest fase 3:
+  materiaalsubstituties. **Fase 2** (hieronder) is waar. **Fase 4** zettenpad/eindspel. **Fase 2** featurezoeken:
   digest-atomen (intrinsieke catalogue-feiten: `motifs.greek_gift`, `pawns.iqp`, …) in de
   vorm van de oude `position_features.properties` (bytea[] + GIN, hercodering i.p.v. nieuwe
   tabel), POC op ~100K posities met EXPLAIN-bewijs vóór de volledige 19,7M-backfill;
