@@ -1433,6 +1433,73 @@ defmodule Chess.PositionTest do
 
   defp square(algebraic), do: Chess.Square.from_algebraic(algebraic)
 
+  describe "color_swapped/1 and file_reflected/1" do
+    alias Chess.Notation.FEN
+
+    test "the starting position only changes the side to move when color-swapped" do
+      swapped = Position.color_swapped(Position.starting_position())
+
+      assert swapped.board == Position.starting_position().board
+      assert swapped.side_to_move == :black
+      assert swapped.castling_rights == Position.starting_position().castling_rights
+    end
+
+    test "the starting position's file reflection swaps king and queen files" do
+      reflected = Position.file_reflected(Position.starting_position())
+
+      # The start position is not mirror-symmetric: d1/e1 (and d8/e8) swap.
+      assert Position.piece_at(reflected, square("e1")) == {:white, :queen}
+      assert Position.piece_at(reflected, square("d1")) == {:white, :king}
+      assert Position.piece_at(reflected, square("e8")) == {:black, :queen}
+      assert Position.piece_at(reflected, square("d8")) == {:black, :king}
+      assert reflected.side_to_move == :white
+      assert reflected.castling_rights == Position.starting_position().castling_rights
+    end
+
+    test "a color swap recolors pieces, flips ranks and swaps castling sides" do
+      {:ok, %{position: position}} =
+        FEN.parse("r3k2r/pp3ppp/8/8/3pP3/8/PP3PPP/R3K2R b KQkq e3 0 1")
+
+      swapped = Position.color_swapped(position)
+
+      # White king e1 → black king e8; white rook a1 → black rook a8.
+      assert Position.piece_at(swapped, square("e8")) == {:black, :king}
+      assert Position.piece_at(swapped, square("a8")) == {:black, :rook}
+      assert Position.piece_at(swapped, square("e1")) == {:white, :king}
+      assert Position.piece_at(swapped, square("h1")) == {:white, :rook}
+      assert Position.piece_at(swapped, square("a7")) == {:black, :pawn}
+      assert Position.piece_at(swapped, square("a2")) == {:white, :pawn}
+
+      assert swapped.side_to_move == :white
+      assert swapped.castling_rights == position.castling_rights
+      assert swapped.en_passant == square("e6")
+    end
+
+    test "a file reflection mirrors files and swaps castling wings" do
+      {:ok, %{position: position}} =
+        FEN.parse("r3k2r/pp3ppp/8/8/3pP3/8/PP3PPP/R3K2R b KQkq e3 0 1")
+
+      reflected = Position.file_reflected(position)
+
+      # The e-file mirrors to the d-file: white king e1 → d1; rook a1 → h1.
+      assert Position.piece_at(reflected, square("d1")) == {:white, :king}
+      assert Position.piece_at(reflected, square("h1")) == {:white, :rook}
+      assert Position.piece_at(reflected, square("a8")) == {:black, :rook}
+
+      assert reflected.side_to_move == :black
+      assert reflected.castling_rights == position.castling_rights
+      assert reflected.en_passant == square("d3")
+    end
+
+    test "double transformations are identities" do
+      position = Position.starting_position()
+
+      assert position |> Position.color_swapped() |> Position.color_swapped() == position
+
+      assert position |> Position.file_reflected() |> Position.file_reflected() == position
+    end
+  end
+
   defp put_white_pawns(position) do
     Enum.reduce(~w(a2 b2 c2 d2 e2 f2 g2 h2), position, fn algebraic, position ->
       Position.put_piece(position, square(algebraic), {:white, :pawn})

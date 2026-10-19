@@ -94,6 +94,83 @@ defmodule Chess.Position do
     Board.pieces(board)
   end
 
+  @doc """
+  The position with colors swapped: pieces change color and mirror
+  vertically (rank 1 ↔ 8), the side to move flips and castling rights
+  swap sides (K ↔ k, Q ↔ q). Same convention as
+  `Chess.PawnStructure.color_reversed/1`.
+  """
+  @spec color_swapped(t()) :: t()
+  def color_swapped(%__MODULE__{} = position) do
+    %__MODULE__{
+      board:
+        transform_board(position, fn {color, type}, square ->
+          {{opposite_color(color), type}, vertical_mirror(square)}
+        end),
+      side_to_move: opposite_color(position.side_to_move),
+      castling_rights:
+        remap_castling(position.castling_rights, %{
+          white_kingside: :black_kingside,
+          black_kingside: :white_kingside,
+          white_queenside: :black_queenside,
+          black_queenside: :white_queenside
+        }),
+      en_passant: mirror_en_passant(position.en_passant, :vertical)
+    }
+  end
+
+  @doc """
+  The position reflected across the vertical center line (files a ↔ h),
+  preserving colors and ranks; castling rights swap wings within each
+  color (K ↔ Q, k ↔ q). Same convention as
+  `Chess.PawnStructure.file_reflected/1`.
+  """
+  @spec file_reflected(t()) :: t()
+  def file_reflected(%__MODULE__{} = position) do
+    %__MODULE__{
+      board:
+        transform_board(position, fn piece, square ->
+          {piece, horizontal_mirror(square)}
+        end),
+      side_to_move: position.side_to_move,
+      castling_rights:
+        remap_castling(position.castling_rights, %{
+          white_kingside: :white_queenside,
+          white_queenside: :white_kingside,
+          black_kingside: :black_queenside,
+          black_queenside: :black_kingside
+        }),
+      en_passant: mirror_en_passant(position.en_passant, :horizontal)
+    }
+  end
+
+  defp transform_board(position, fun) do
+    Enum.reduce(pieces(position), Board.empty(), fn {square, piece}, board ->
+      {new_piece, new_square} = fun.(piece, square)
+      Board.put(board, new_square, new_piece)
+    end)
+  end
+
+  defp remap_castling(rights, mapping) do
+    MapSet.new(rights, &Map.fetch!(mapping, &1))
+  end
+
+  # Squares count rank * 8 + file from a1: vertical flips ranks (1 ↔ 8),
+  # horizontal mirrors files (a ↔ h).
+  defp vertical_mirror(square) do
+    file = rem(square, 8)
+    56 - square + 2 * file
+  end
+
+  defp horizontal_mirror(square) do
+    file = rem(square, 8)
+    square + 7 - 2 * file
+  end
+
+  defp mirror_en_passant(nil, _mode), do: nil
+  defp mirror_en_passant(square, :vertical), do: vertical_mirror(square)
+  defp mirror_en_passant(square, :horizontal), do: horizontal_mirror(square)
+
   def apply_move(%__MODULE__{side_to_move: side} = position, %Move{
         from: from,
         to: to,

@@ -4640,6 +4640,18 @@ defmodule Web.RoomLive do
       {:ok, %{position: position}} ->
         fen_query =
           case mode do
+            "exact_color_swapped" ->
+              Analysis.PositionQuery.any([
+                Analysis.PositionQuery.equivalent(position),
+                Analysis.PositionQuery.equivalent(Position.color_swapped(position))
+              ])
+
+            "exact_mirrored" ->
+              Analysis.PositionQuery.any([
+                Analysis.PositionQuery.equivalent(position),
+                Analysis.PositionQuery.equivalent(Position.file_reflected(position))
+              ])
+
             "structure" ->
               Analysis.PositionQuery.pawn_structure(position)
 

@@ -733,9 +733,7 @@ defmodule Analysis.GameSearchTest do
 
     # The digest of the start position exists once it is stored.
     assert {:ok, _ids} =
-             Analysis.PositionDigests.store_position_id(
-               PositionStore.append(first_position)
-             )
+             Analysis.PositionDigests.store_position_id(PositionStore.append(first_position))
 
     {:ok, page} =
       GameSearch.page(
@@ -756,6 +754,71 @@ defmodule Analysis.GameSearchTest do
       )
 
     assert empty_page.entries == []
+  end
+
+  test "color-swapped and mirrored exact searches find the transformed position" do
+    alias Chess.Notation.FEN
+
+    # No castling rights, so the transformed positions are valid positions
+    # too. White pawn e4, black pawn e5, white king e1, black king e8.
+    {:ok, %{position: original}} =
+      FEN.parse("4k3/8/8/4p3/4P3/8/8/4K3 w - - 0 1")
+
+    color_swapped = Position.color_swapped(original)
+    mirrored = Position.file_reflected(original)
+
+    {_swapped_position_id, swapped_game_id} =
+      stored_game(color_swapped)
+
+    {_mirrored_position_id, mirrored_game_id} =
+      stored_game(mirrored)
+
+    swapped_record =
+      GameRecord.new(
+        "swapped-record",
+        swapped_game_id,
+        %{"white" => "Player"}
+      )
+
+    mirrored_record =
+      GameRecord.new(
+        "mirrored-record",
+        mirrored_game_id,
+        %{"white" => "Player"}
+      )
+
+    for record <- [swapped_record, mirrored_record] do
+      assert :ok =
+               GameRecordStore.insert(record)
+    end
+
+    # The color-swapped search matches both the original and the swap.
+    {:ok, page} =
+      GameSearch.page(
+        Query.any([
+          Query.equivalent(original),
+          Query.equivalent(color_swapped)
+        ]),
+        GameRecordQuery.match_all(),
+        limit: 10
+      )
+
+    assert Enum.map(page.entries, fn {record, _occurrence} -> record.id end) ==
+             ["swapped-record"]
+
+    # The mirrored search matches the mirror image.
+    {:ok, mirrored_page} =
+      GameSearch.page(
+        Query.any([
+          Query.equivalent(original),
+          Query.equivalent(mirrored)
+        ]),
+        GameRecordQuery.match_all(),
+        limit: 10
+      )
+
+    assert Enum.map(mirrored_page.entries, fn {record, _occurrence} -> record.id end) ==
+             ["mirrored-record"]
   end
 
   test "match-none queries return an empty page without querying PostgreSQL" do

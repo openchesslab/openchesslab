@@ -188,6 +188,8 @@
   "room.searchPlyLabel": "at ply {ply}",
   "room.searchPositionMode": "Match",
   "room.searchModeExact": "Exact position",
+  "room.searchModeColorSwapped": "Same position, colors swapped",
+  "room.searchModeMirrored": "Mirrored position",
   "room.searchModeStructure": "Same pawn structure",
   "room.searchModeStructureSymmetries": "Pawn structure, any symmetry",
   "tour.searchBody": "Search canonical games by player, colour, result and position. Results open as an analysis in the room you are in.",

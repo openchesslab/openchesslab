@@ -188,6 +188,8 @@
   "room.searchPlyLabel": "op zet {ply}",
   "room.searchPositionMode": "Overeenkomst",
   "room.searchModeExact": "Exacte stelling",
+  "room.searchModeColorSwapped": "Zelfde stelling, kleuren omgedraaid",
+  "room.searchModeMirrored": "Gespiegelde stelling",
   "room.searchModeStructure": "Zelfde pionnenstructuur",
   "room.searchModeStructureSymmetries": "Pionnenstructuur, elke symmetrie",
   "tour.searchBody": "Zoek canonieke partijen op speler, kleur, resultaat en stelling. Resultaten openen als analyse in de kamer waar je bent.",

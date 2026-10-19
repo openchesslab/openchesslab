@@ -2315,6 +2315,16 @@
         ><option value="exact" selected={@search_filters["position_mode"] == "exact"}>
           {Web.I18n.t("room.searchModeExact", @locale)}
         </option><option
+          value="exact_color_swapped"
+          selected={@search_filters["position_mode"] == "exact_color_swapped"}
+        >
+          {Web.I18n.t("room.searchModeColorSwapped", @locale)}
+        </option><option
+          value="exact_mirrored"
+          selected={@search_filters["position_mode"] == "exact_mirrored"}
+        >
+          {Web.I18n.t("room.searchModeMirrored", @locale)}
+        </option><option
           value="structure"
           selected={@search_filters["position_mode"] == "structure"}
         >

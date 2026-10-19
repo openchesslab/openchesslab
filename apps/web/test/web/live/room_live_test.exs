@@ -456,6 +456,52 @@ defmodule Web.RoomLiveTest do
     cleanup_search_corpus(corpus)
   end
 
+  test "color-swapped and mirrored position modes search the transformed position", %{
+    conn: conn,
+    code: code
+  } do
+    OpenChessLab.Repo.query!(
+      "TRUNCATE TABLE game_records, game_occurrences, games, position_features, positions RESTART IDENTITY CASCADE",
+      []
+    )
+
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    corpus = seed_search_corpus()
+
+    render_click(view, "open-search", %{})
+
+    # The color-swapped FEN of the position after 1.e4 c5 finds the game via
+    # the swapped branch; plain exact mode finds nothing.
+    swapped_fen = "rnbqkbnr/pppp1ppp/8/4p3/2P5/8/PP1PPPPP/RNBQKBNR b KQkq - 0 2"
+
+    html =
+      render_submit(view, "search-games", %{
+        "fen" => swapped_fen,
+        "position_mode" => "exact_color_swapped"
+      })
+
+    assert html =~ ~s(id="corpus-#{corpus.other_win}")
+
+    html =
+      render_submit(view, "search-games", %{
+        "fen" => swapped_fen,
+        "position_mode" => "exact"
+      })
+
+    refute html =~ ~s(id="corpus-#{corpus.other_win}")
+
+    # Mirrored mode keeps the original position in the search too.
+    html =
+      render_submit(view, "search-games", %{
+        "fen" => "rnbqkbnr/ppp1pppp/8/3p4/3P4/8/PPP1PPPP/RNBQKBNR w KQkq d6 0 2",
+        "position_mode" => "exact_mirrored"
+      })
+
+    assert html =~ ~s(id="corpus-#{corpus.carlsen_loss}")
+
+    cleanup_search_corpus(corpus)
+  end
+
   test "game search filters by ECO, opening and event", %{conn: conn, code: code} do
     OpenChessLab.Repo.query!(
       "TRUNCATE TABLE game_records, game_occurrences, games, position_features, positions RESTART IDENTITY CASCADE",
