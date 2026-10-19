@@ -2,7 +2,7 @@ defmodule Analysis.PgnAnalysisImporterTest do
   use ExUnit.Case, async: false
 
   alias Analysis.{Analyses, AnalysisStore, GameRecords, GameStart, PgnAnalysisImporter}
-  alias Chess.{Position, Square}
+  alias Chess.Position
   alias OpenChessLab.Repo
 
   defp position_of(node), do: Analysis.PositionStore.get(node.position_id)
@@ -66,7 +66,7 @@ defmodule Analysis.PgnAnalysisImporterTest do
     assert e4.comment == "Nice"
     assert e4.clock == nil
     assert e4.evaluation == nil
-    [e5, c5] = e4.children
+    [_e5, c5] = e4.children
     assert c5.comment == "Sicilian"
 
     assert {:ok, record, _, _} = GameRecords.load(analysis.source_game_record_id)

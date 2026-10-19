@@ -63,13 +63,6 @@ defmodule Analysis.RoomRetentionTest do
     assert copy == %{original | id: copy.id}
   end
 
-  defp record_of(analysis_id) do
-    case Repo.query!("SELECT record FROM analyses WHERE analysis_id = $1", [analysis_id]).rows do
-      [[record]] -> {:ok, record}
-      [] -> :not_found
-    end
-  end
-
   test "visits and chat count as activity", %{} do
     suffix = Base.encode16(:crypto.strong_rand_bytes(4))
     code = "RR-TOUCH-" <> suffix

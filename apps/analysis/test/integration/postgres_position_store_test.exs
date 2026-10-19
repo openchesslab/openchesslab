@@ -1,12 +1,10 @@
 defmodule Analysis.PostgresPositionStoreTest do
   use ExUnit.Case, async: false
 
-  alias Analysis.PositionPropertyKeyCodec
   alias Analysis.PositionQuery, as: Query
   alias Analysis.PositionStore
   alias Chess.Move
   alias Chess.Position
-  alias Chess.PositionProperties
   alias Chess.Square
   alias OpenChessLab.Repo
 

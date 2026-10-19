@@ -2,7 +2,6 @@ defmodule Analysis.OpeningBookTest do
   use ExUnit.Case, async: false
 
   alias Analysis.{GameContent, GameRecords, GameStart, GameStore, OpeningBook, PositionStore}
-  alias Analysis.PositionQuery, as: Query
   alias Chess.{Move, Position, Square}
   alias OpenChessLab.Repo
 
