@@ -39,8 +39,11 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   ✅ (`614df8e`):** modus "Vergelijkbare stellingen" — prefilter pionstructuur-buurt
   (edit-afstand 1) + beide materiaal-signaturen (digest-atomen), rerank op
   `cardinality(atom_ids & query_atoms)` (intarray-extensie), keyset op (shared, ids);
-  rijen tonen "N gedeelde atomen"; browsergeverifieerd. Rest fase 3:
-  materiaalsubstituties. **Fase 2** (hieronder) is waar. **Fase 4** zettenpad/eindspel. **Fase 2** featurezoeken:
+  rijen tonen "N gedeelde atomen"; browsergeverifieerd. **UX-vervolg (`95fa5fc`):**
+  score als **percentage** ("100% match"), **similar is de defaultmodus** bij een
+  FEN (⌖ zet FEN+similar), en **interpretatie-tabs** met tellingen per modus
+  (exact/similar/structuur; `count_matches`/`similar_count`, klik = moduswissel).
+  Rest fase 3: materiaalsubstituties. **Fase 2** (hieronder) is waar. **Fase 4** zettenpad/eindspel. **Fase 2** featurezoeken:
   digest-atomen (intrinsieke catalogue-feiten: `motifs.greek_gift`, `pawns.iqp`, …) in de
   vorm van de oude `position_features.properties` (bytea[] + GIN, hercodering i.p.v. nieuwe
   tabel), POC op ~100K posities met EXPLAIN-bewijs vóór de volledige 19,7M-backfill;
