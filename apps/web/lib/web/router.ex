@@ -1,6 +1,7 @@
 defmodule Web.Router do
   use Web, :router
   import Web.UserAuth, only: [require_authenticated_user: 2]
+  import Phoenix.LiveDashboard.Router
 
   pipeline :authenticated do
     plug(:require_authenticated_user)
@@ -53,6 +54,20 @@ defmodule Web.Router do
     end
 
     get("/rooms/:code/join/:token", RoomInviteController, :join)
+  end
+
+  # Ops surface behind basic auth (OPS_USER/OPS_PASSWORD, Fly secrets):
+  # the LiveDashboard and a small honest status snapshot.
+  scope "/ops", Web do
+    pipe_through([:browser, Web.OpsAuth])
+
+    get("/status.json", OpsStatusController, :show)
+
+    live_dashboard("/dashboard",
+      metrics: false,
+      ecto_repos: [OpenChessLab.Repo],
+      allow_destructive_actions: false
+    )
   end
 
   # Other scopes may use custom stacks.

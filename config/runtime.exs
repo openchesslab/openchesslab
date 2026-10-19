@@ -117,6 +117,12 @@ if config_env() == :dev do
 end
 
 if config_env() == :prod do
+  System.get_env("OPS_PASSWORD") ||
+    raise """
+    environment variable OPS_PASSWORD is missing.
+    The ops dashboard and status endpoint must not boot without credentials.
+    """
+
   secret_key_base =
     System.get_env("SECRET_KEY_BASE") ||
       raise """

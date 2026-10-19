@@ -30,6 +30,7 @@ defmodule Web.MixProject do
     [
       {:phoenix, "~> 1.8"},
       {:phoenix_html, "~> 4.3"},
+      {:phoenix_live_dashboard, "~> 0.8"},
       {:phoenix_live_reload, "~> 1.7", only: :dev},
       {:phoenix_live_view, "~> 1.2"},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},

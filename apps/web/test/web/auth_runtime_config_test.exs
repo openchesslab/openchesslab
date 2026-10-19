@@ -2,7 +2,7 @@ defmodule Web.AuthRuntimeConfigTest do
   use ExUnit.Case, async: false
 
   @runtime Path.expand("../../../../config/runtime.exs", __DIR__)
-  @variables ~w(GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET GOOGLE_REDIRECT_URI ACCOUNT_SUBJECT_HMAC_KEY LICHESS_CLIENT_ID LICHESS_REDIRECT_URI SECRET_KEY_BASE DATABASE_URL DNS_CLUSTER_QUERY PORT POOL_SIZE)
+  @variables ~w(GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET GOOGLE_REDIRECT_URI ACCOUNT_SUBJECT_HMAC_KEY LICHESS_CLIENT_ID LICHESS_REDIRECT_URI SECRET_KEY_BASE DATABASE_URL DNS_CLUSTER_QUERY PORT POOL_SIZE OPS_USER OPS_PASSWORD)
   @key Base.encode64(String.duplicate("private-test-key", 3))
 
   setup do
@@ -11,6 +11,7 @@ defmodule Web.AuthRuntimeConfigTest do
 
     System.put_env("SECRET_KEY_BASE", String.duplicate("endpoint-test-secret", 4))
     System.put_env("DATABASE_URL", "ecto://unused:unused@localhost/openchesslab_test")
+    System.put_env("OPS_PASSWORD", "ops-test-password")
 
     on_exit(fn ->
       Enum.each(previous, fn
@@ -27,6 +28,12 @@ defmodule Web.AuthRuntimeConfigTest do
     assert config[:web][:lichess_oauth] == nil
     assert config[:web][:google_oauth] == nil
     refute Keyword.has_key?(config[:analysis], :account_subject_hmac_key)
+  end
+
+  test "the ops surface requires a password in production" do
+    System.delete_env("OPS_PASSWORD")
+
+    assert_raise RuntimeError, ~r/OPS_PASSWORD/, fn -> read(:prod) end
   end
 
   test "Google can be enabled independently with a secret, stable HMAC key and HTTPS" do
