@@ -63,7 +63,15 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   **`/ops/status.json`** (corpus-/digest-/kamer-tellingen, digest_coverage als
   backfill-voortgangsindicator) achter basic auth (`OPS_USER`/`OPS_PASSWORD`
   als Fly-secrets; prod weigert te booten zonder; destructieve acties uit).
-  Resterend: slice 4 `/ready` verdiepen. **Slice 3 ✅ compleet:** zoek-latentie
+  Resterend: geen — **observability compleet (2026-10-19).** Slice 4 ✅
+  (`39f9f8e`): `/ready` verdiept — database-ping, **migraties-current**
+  (`OpenChessLab.Database.Migrations` met compile-time versielijst, drift →
+  503 met versienummers), **Horde levend** (registry-count met rescue),
+  en `digest_coverage` als informatief veld (stallen volgen = monitor-werk,
+  geen readiness). Samenvattend: LiveDashboard+status.json (`3c97bb4`,
+  `a6493bd` incl. Ecto stats/request logger), Prometheus op 9091 (`a0db5a3`),
+  Grafana-dashboard (`65c0caa` + eigen DB-stats `141f16d`), domeinmetrics
+  zoek/kamer/engine (`2881304`, `cb65bb4`, `f22d83a`).
   (`2881304`), kamer-activiteit (`cb65bb4`), engine (`f22d83a`: cache
   hit/miss/store in `PositionEvals.get/put`, tablebase hit/miss, review
   started/ply; dashboard-rij "Domein: engine" met hit-ratios; prod bevestigd
