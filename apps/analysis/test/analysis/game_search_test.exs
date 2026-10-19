@@ -1003,6 +1003,85 @@ defmodule Analysis.GameSearchTest do
     assert second_page.next == nil
   end
 
+  test "similar search with a material substitution finds substituted positions" do
+    alias Chess.Square
+
+    query_position =
+      Position.new()
+      |> Position.put_piece(Square.from_algebraic("d4"), {:white, :pawn})
+      |> Position.put_piece(Square.from_algebraic("d5"), {:black, :pawn})
+      |> Position.put_piece(Square.from_algebraic("d1"), {:white, :queen})
+      |> Position.put_piece(Square.from_algebraic("e1"), {:white, :king})
+      |> Position.put_piece(Square.from_algebraic("e8"), {:black, :king})
+
+    # Two rooks instead of the queen; otherwise identical.
+    substituted_position =
+      Position.new()
+      |> Position.put_piece(Square.from_algebraic("d4"), {:white, :pawn})
+      |> Position.put_piece(Square.from_algebraic("d5"), {:black, :pawn})
+      |> Position.put_piece(Square.from_algebraic("a1"), {:white, :rook})
+      |> Position.put_piece(Square.from_algebraic("h1"), {:white, :rook})
+      |> Position.put_piece(Square.from_algebraic("e1"), {:white, :king})
+      |> Position.put_piece(Square.from_algebraic("e8"), {:black, :king})
+
+    {query_position_id, query_game_id} = stored_game(query_position)
+    {:ok, _ids} = Analysis.PositionDigests.store_position_id(query_position_id)
+
+    assert :ok =
+             GameRecordStore.insert(
+               GameRecord.new(
+                 "same",
+                 query_game_id,
+                 %{"white" => "Player"}
+               )
+             )
+
+    {substituted_position_id, substituted_game_id} = stored_game(substituted_position)
+
+    {:ok, _ids} =
+      Analysis.PositionDigests.store_position_id(substituted_position_id)
+
+    assert :ok =
+             GameRecordStore.insert(
+               GameRecord.new(
+                 "substituted",
+                 substituted_game_id,
+                 %{"white" => "Player"}
+               )
+             )
+
+    # Without the substitution the material signature excludes the rook pair.
+    {:ok, without_page} =
+      GameSearch.similar(
+        query_position,
+        GameRecordQuery.match_all(),
+        limit: 10
+      )
+
+    refute "substituted" in Enum.map(
+             without_page.entries,
+             fn {record, _occurrence, _shared} -> record.id end
+           )
+
+    # With it, the rook-pair twin qualifies — ranked below the exact twin by
+    # the missing signature atom.
+    {:ok, with_page} =
+      GameSearch.similar(
+        query_position,
+        GameRecordQuery.match_all(),
+        limit: 10,
+        substitution: :two_rooks_queen
+      )
+
+    assert Enum.map(with_page.entries, fn {record, _occurrence, _shared} -> record.id end) ==
+             ["same", "substituted"]
+
+    assert [same_shared, substituted_shared] =
+             Enum.map(with_page.entries, fn {_record, _occurrence, shared} -> shared end)
+
+    assert same_shared > substituted_shared
+  end
+
   test "match-none queries return an empty page without querying PostgreSQL" do
     {
       position_result,

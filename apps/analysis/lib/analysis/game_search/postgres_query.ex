@@ -1125,20 +1125,22 @@ defmodule Analysis.GameSearch.PostgresQuery do
   # interpretation tabs.
   @spec compile_similar_count(
           Chess.Position.t(),
-          [String.t()],
+          %{white: [String.t()], black: [String.t()]},
           GameRecordQuery.t()
         ) ::
           compile_result()
-  def compile_similar_count(position, signatures, record_query) do
+  def compile_similar_count(position, variants, record_query) do
     with {:ok, {white_pawns, black_pawns}} <-
            encode_neighborhood(position),
-         {:ok, signature_ids} <- resolve_atom_ids(signatures),
+         {:ok, white_ids} <- resolve_atom_ids(variants.white),
+         {:ok, black_ids} <- resolve_atom_ids(variants.black),
          {:ok, record_predicate, record_parameters, next_parameter} <-
            GameRecordPostgres.compile_predicate(
              record_query,
              3
            ) do
-      signature_parameter = next_parameter
+      white_parameter = next_parameter
+      black_parameter = white_parameter + 1
 
       sql = """
       SELECT
@@ -1160,7 +1162,8 @@ defmodule Analysis.GameSearch.PostgresQuery do
       JOIN game_records AS gr
         ON gr.game_id = go.game_id
       WHERE
-        pd.atom_ids @> $#{signature_parameter}::integer[]
+        pd.atom_ids && $#{white_parameter}::integer[]
+        AND pd.atom_ids && $#{black_parameter}::integer[]
         AND (#{record_predicate})
       """
 
@@ -1169,7 +1172,7 @@ defmodule Analysis.GameSearch.PostgresQuery do
         sql,
         [white_pawns, black_pawns] ++
           record_parameters ++
-          [signature_ids]
+          [white_ids, black_ids]
       }
     end
   end
@@ -1242,7 +1245,8 @@ defmodule Analysis.GameSearch.PostgresQuery do
 
   defp similar_sql(
          record_predicate,
-         signature_parameter,
+         white_parameter,
+         black_parameter,
          atoms_parameter,
          maximum_parameters,
          keyset_conditions,
@@ -1321,7 +1325,8 @@ defmodule Analysis.GameSearch.PostgresQuery do
     JOIN game_records AS gr
       ON gr.game_id = go.game_id
     WHERE
-      pd.atom_ids @> $#{signature_parameter}::integer[]
+      pd.atom_ids && $#{white_parameter}::integer[]
+      AND pd.atom_ids && $#{black_parameter}::integer[]
       AND (#{record_predicate})#{keyset_where}
     ORDER BY
       shared DESC,
@@ -1337,26 +1342,28 @@ defmodule Analysis.GameSearch.PostgresQuery do
   # (coalesced date, id) keyset matches the game_records_date_id_index.
   @spec compile_similar(
           Chess.Position.t(),
-          [String.t()],
+          %{white: [String.t()], black: [String.t()]},
           [String.t()],
           GameRecordQuery.t(),
           Analysis.GameSearch.Cursor.t() | nil,
           pos_integer()
         ) ::
           compile_result()
-  def compile_similar(position, signatures, atoms, record_query, cursor, limit)
+  def compile_similar(position, variants, atoms, record_query, cursor, limit)
       when is_integer(limit) and limit > 0 do
     with {:ok, {white_pawns, black_pawns}} <-
            encode_neighborhood(position),
-         {:ok, signature_ids} <- resolve_atom_ids(signatures),
+         {:ok, white_ids} <- resolve_atom_ids(variants.white),
+         {:ok, black_ids} <- resolve_atom_ids(variants.black),
          {:ok, atom_ids} <- resolve_atom_ids(atoms),
          {:ok, record_predicate, record_parameters, next_parameter} <-
            GameRecordPostgres.compile_predicate(
              record_query,
              3
            ) do
-      signature_parameter = next_parameter
-      atoms_parameter = signature_parameter + 1
+      white_parameter = next_parameter
+      black_parameter = white_parameter + 1
+      atoms_parameter = black_parameter + 1
 
       {maximum_parameters, keyset_conditions, keyset_parameters} =
         similar_keyset(cursor, atoms_parameter)
@@ -1366,7 +1373,8 @@ defmodule Analysis.GameSearch.PostgresQuery do
       sql =
         similar_sql(
           record_predicate,
-          signature_parameter,
+          white_parameter,
+          black_parameter,
           atoms_parameter,
           maximum_parameters,
           keyset_conditions,
@@ -1379,7 +1387,7 @@ defmodule Analysis.GameSearch.PostgresQuery do
           black_pawns
         ] ++
           record_parameters ++
-          [signature_ids, atom_ids] ++
+          [white_ids, black_ids, atom_ids] ++
           keyset_parameters ++
           [limit]
 

@@ -155,7 +155,8 @@ defmodule Analysis.GameSearch do
   def similar(%Chess.Position{} = position, record_query, options) when is_list(options) do
     with {:ok, limit} <- fetch_limit(options),
          {:ok, cursor} <- fetch_cursor(options),
-         {:ok, query_atoms} <- similar_query_atoms(position) do
+         {:ok, query_atoms} <-
+           similar_query_atoms(position, Keyword.get(options, :substitution)) do
       :telemetry.span(
         [:openchesslab, :search, :page],
         %{search_type: :similar},
@@ -171,12 +172,38 @@ defmodule Analysis.GameSearch do
     {:error, :invalid_page_options}
   end
 
-  # The full atom set ranks candidates; the material signatures prefilter.
-  defp similar_query_atoms(position) do
+  # The full atom set ranks candidates; the material signatures (and any
+  # substitution variants) prefilter.
+  defp similar_query_atoms(position, substitution) do
     with {:ok, result} <- Analysis.PositionFeatures.extract(position) do
       atoms = FeatureDigest.atoms(result.features)
-      signatures = Enum.filter(atoms, &String.starts_with?(&1, "material.signature:"))
-      {:ok, %{atoms: atoms, signatures: signatures}}
+
+      variants =
+        case substitution do
+          nil ->
+            %{
+              white: [FeatureDigest.material_signature(result.features, "white")],
+              black: [FeatureDigest.material_signature(result.features, "black")]
+            }
+
+          substitution ->
+            %{
+              white:
+                FeatureDigest.material_signature_variants(
+                  result.features,
+                  "white",
+                  substitution
+                ),
+              black:
+                FeatureDigest.material_signature_variants(
+                  result.features,
+                  "black",
+                  substitution
+                )
+            }
+        end
+
+      {:ok, %{atoms: atoms, variants: variants}}
     end
   end
 
@@ -195,7 +222,7 @@ defmodule Analysis.GameSearch do
          } <-
            PostgresQuery.compile_similar(
              position,
-             query_atoms.signatures,
+             query_atoms.variants,
              query_atoms.atoms,
              record_query,
              cursor,
@@ -268,12 +295,13 @@ defmodule Analysis.GameSearch do
   @spec similar_count(Chess.Position.t(), GameRecordQuery.t()) ::
           {:ok, non_neg_integer()}
           | {:error, term()}
-  def similar_count(%Chess.Position{} = position, record_query) do
-    with {:ok, query_atoms} <- similar_query_atoms(position),
+  def similar_count(%Chess.Position{} = position, record_query, opts \\ []) do
+    with {:ok, query_atoms} <-
+           similar_query_atoms(position, Keyword.get(opts, :substitution)),
          {:ok, sql, parameters} <-
            PostgresQuery.compile_similar_count(
              position,
-             query_atoms.signatures,
+             query_atoms.variants,
              record_query
            ),
          {:ok, %{rows: [[count]]}} <-

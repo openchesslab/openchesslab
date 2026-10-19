@@ -181,16 +181,65 @@ defmodule Analysis.FeatureDigest do
   defp square?(value), do: value =~ @square_re
 
   defp material_signatures(features) do
-    for {side, prefix} <- [{"white", "w"}, {"black", "b"}] do
-      [queen, rook, bishop, knight, pawn] =
-        for piece <- ["queen", "rook", "bishop", "knight", "pawn"] do
-          features
-          |> Map.get("material.count." <> piece, %{})
-          |> Map.get(side, 0)
-        end
+    for side <- ["white", "black"], do: material_signature(features, side)
+  end
 
-      "material.signature:#{prefix}:Q#{queen}R#{rook}B#{bishop}N#{knight}P#{pawn}"
+  @doc "The material signature atom of one side."
+  @spec material_signature(%{String.t() => term()}, String.t()) :: String.t()
+  def material_signature(features, side) when side in ["white", "black"] do
+    [queen, rook, bishop, knight, pawn] = material_counts(features, side)
+    format_signature(side, queen, rook, bishop, knight, pawn)
+  end
+
+  @doc """
+  Material signature variants for a substitution search, always including
+  the base signature. `:two_rooks_queen` trades a queen for two rooks in
+  either direction; `:bishop_knight` trades one minor piece for the other.
+  """
+  @spec material_signature_variants(%{String.t() => term()}, String.t(), atom()) ::
+          [String.t()]
+  def material_signature_variants(features, side, substitution)
+      when side in ["white", "black"] and substitution in [:two_rooks_queen, :bishop_knight] do
+    [queen, rook, bishop, knight, pawn] = material_counts(features, side)
+    base = format_signature(side, queen, rook, bishop, knight, pawn)
+
+    variants =
+      case substitution do
+        :two_rooks_queen ->
+          [
+            if(queen >= 1,
+              do: format_signature(side, queen - 1, rook + 2, bishop, knight, pawn)
+            ),
+            if(rook >= 2,
+              do: format_signature(side, queen + 1, rook - 2, bishop, knight, pawn)
+            )
+          ]
+
+        :bishop_knight ->
+          [
+            if(bishop >= 1,
+              do: format_signature(side, queen, rook, bishop - 1, knight + 1, pawn)
+            ),
+            if(knight >= 1,
+              do: format_signature(side, queen, rook, bishop + 1, knight - 1, pawn)
+            )
+          ]
+      end
+
+    Enum.uniq([base | Enum.reject(variants, &is_nil/1)])
+  end
+
+  defp material_counts(features, side) do
+    for piece <- ["queen", "rook", "bishop", "knight", "pawn"] do
+      features
+      |> Map.get("material.count." <> piece, %{})
+      |> Map.get(side, 0)
     end
+  end
+
+  defp format_signature(side, queen, rook, bishop, knight, pawn) do
+    prefix = if side == "white", do: "w", else: "b"
+    "material.signature:#{prefix}:Q#{queen}R#{rook}B#{bishop}N#{knight}P#{pawn}"
   end
 
   # ── dictionary ────────────────────────────────────────────────────────────

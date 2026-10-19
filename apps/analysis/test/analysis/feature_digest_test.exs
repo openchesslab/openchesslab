@@ -56,4 +56,36 @@ defmodule Analysis.FeatureDigestTest do
     [id] = FeatureDigest.ids_for(["test.atom.label"])
     assert FeatureDigest.labels()[id] == "test.atom.label"
   end
+
+  test "material substitution variants cover both directions and the base" do
+    {:ok, result} = PositionFeatures.extract(Position.starting_position())
+    features = result.features
+
+    assert FeatureDigest.material_signature(features, "white") ==
+             "material.signature:w:Q1R2B2N2P8"
+
+    assert FeatureDigest.material_signature_variants(features, "white", :two_rooks_queen) ==
+             [
+               "material.signature:w:Q1R2B2N2P8",
+               "material.signature:w:Q0R4B2N2P8",
+               "material.signature:w:Q2R0B2N2P8"
+             ]
+
+    assert FeatureDigest.material_signature_variants(features, "white", :bishop_knight) ==
+             [
+               "material.signature:w:Q1R2B2N2P8",
+               "material.signature:w:Q1R2B1N3P8",
+               "material.signature:w:Q1R2B3N1P8"
+             ]
+  end
+
+  test "substitution variants skip directions that would go negative" do
+    {:ok, %{position: bare}} =
+      Chess.Notation.FEN.parse("8/8/8/8/8/8/P7/K6k w - - 0 1")
+
+    {:ok, result} = PositionFeatures.extract(bare)
+
+    assert FeatureDigest.material_signature_variants(result.features, "white", :two_rooks_queen) ==
+             ["material.signature:w:Q0R0B0N0P1"]
+  end
 end

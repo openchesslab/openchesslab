@@ -575,6 +575,79 @@ defmodule Web.RoomLiveTest do
     cleanup_search_corpus(corpus)
   end
 
+  test "the material substitution select widens similar search", %{conn: conn, code: code} do
+    OpenChessLab.Repo.query!(
+      "TRUNCATE TABLE game_records, game_occurrences, games, positions RESTART IDENTITY CASCADE",
+      []
+    )
+
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+
+    # The query position: a queen position after 1.e4 e5 2.Qh5.
+    suffix = Base.encode16(:crypto.strong_rand_bytes(4))
+    start_id = PositionStore.append(Position.starting_position())
+
+    {:ok, queenly} =
+      GameRecords.create(
+        "queenly-#{suffix}",
+        GameContent.new(start_id, [
+          corpus_move("e2", "e4"),
+          corpus_move("e7", "e5"),
+          corpus_move("d1", "h5")
+        ]),
+        GameStart.standard(),
+        %{"white" => "Queen Player", "black" => "Opponent", "result" => "1-0"}
+      )
+
+    # The same position with the queen traded for two rooks: queen off,
+    # rooks on d1 and b1 (the b1 knight steps to c3), full pawn structure.
+    {:ok, %{position: base_position}} =
+      Chess.Notation.FEN.parse("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1")
+
+    rooks_position =
+      base_position
+      |> Position.remove_piece(Chess.Square.from_algebraic("d1"))
+      |> Position.put_piece(Chess.Square.from_algebraic("d1"), {:white, :rook})
+      |> Position.remove_piece(Chess.Square.from_algebraic("b1"))
+      |> Position.put_piece(Chess.Square.from_algebraic("b1"), {:white, :rook})
+      |> Position.put_piece(Chess.Square.from_algebraic("c3"), {:white, :knight})
+
+    rooks_id = PositionStore.append(rooks_position)
+
+    {:ok, rooks} =
+      GameRecords.create(
+        "rooks-#{suffix}",
+        GameContent.new(rooks_id, []),
+        GameStart.standard(),
+        %{"white" => "Rook Player", "black" => "Opponent", "result" => "0-1"}
+      )
+
+    assert %{failed: 0} = Analysis.DigestBackfill.run(workers: 2)
+
+    render_click(view, "open-search", %{})
+
+    # The select only appears in similar mode, which is the default.
+    assert has_element?(view, "select[name='material_substitution']")
+
+    fen = "rnbqkbnr/pppp1ppp/8/4p2Q/4P3/8/PPPP1PPP/RNB1KBNR b KQkq - 2 2"
+
+    # Without a substitution the rook-pair game stays out.
+    html = render_submit(view, "search-games", %{"fen" => fen})
+
+    assert html =~ ~s(id="corpus-#{queenly.id}")
+    refute html =~ ~s(id="corpus-#{rooks.id}")
+
+    # With Q ↔ RR it joins in, ranked below the exact twin.
+    html =
+      render_submit(view, "search-games", %{
+        "fen" => fen,
+        "material_substitution" => "two_rooks_queen"
+      })
+
+    assert html =~ ~s(id="corpus-#{queenly.id}")
+    assert html =~ ~s(id="corpus-#{rooks.id}")
+  end
+
   test "game search filters by ECO, opening and event", %{conn: conn, code: code} do
     OpenChessLab.Repo.query!(
       "TRUNCATE TABLE game_records, game_occurrences, games, positions RESTART IDENTITY CASCADE",

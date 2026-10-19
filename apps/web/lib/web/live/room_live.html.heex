@@ -2406,6 +2406,26 @@
           </div>
         </details>
 
+        <label
+          :if={@search_filters["position_mode"] == "similar"}
+          class="flex flex-col gap-1 text-xs text-muted"
+        >{Web.I18n.t("room.searchMaterialSubstitution", @locale)}<select
+          name="material_substitution"
+          class="rounded-md border border-border px-2 py-2 text-sm text-foreground"
+        ><option value="" selected={@search_filters["material_substitution"] in [nil, ""]}>
+          {Web.I18n.t("room.searchSubstitutionNone", @locale)}
+        </option><option
+          value="two_rooks_queen"
+          selected={@search_filters["material_substitution"] == "two_rooks_queen"}
+        >
+          {Web.I18n.t("room.searchSubstitutionTwoRooksQueen", @locale)}
+        </option><option
+          value="bishop_knight"
+          selected={@search_filters["material_substitution"] == "bishop_knight"}
+        >
+          {Web.I18n.t("room.searchSubstitutionBishopKnight", @locale)}
+        </option></select></label>
+
         <button
           type="submit"
           class="rounded-md border border-accent-strong bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-strong sm:col-span-2 lg:col-span-1"

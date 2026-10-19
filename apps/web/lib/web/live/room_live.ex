@@ -167,6 +167,7 @@ defmodule Web.RoomLive do
         "date_to" => "",
         "position_mode" => "similar",
         "fen" => "",
+        "material_substitution" => "",
         "substitutions" => ""
       },
       search_corpus_size: nil,
@@ -556,7 +557,8 @@ defmodule Web.RoomLive do
          "date_from" => "",
          "date_to" => "",
          "position_mode" => "similar",
-         "fen" => ""
+         "fen" => "",
+         "material_substitution" => ""
        },
        search_corpus_size: GameSearch.corpus_size()
      )}
@@ -4628,7 +4630,12 @@ defmodule Web.RoomLive do
             record_query
           )
 
-        similar = GameSearch.similar_count(position, record_query)
+        similar =
+          GameSearch.similar_count(
+            position,
+            record_query,
+            substitution_option(filters["material_substitution"])
+          )
 
         structure =
           GameSearch.count_matches(
@@ -4691,9 +4698,16 @@ defmodule Web.RoomLive do
         record_query = search_record_query(filters)
 
         options =
-          if cursor,
-            do: [limit: @search_page_size, cursor: cursor],
-            else: [limit: @search_page_size]
+          [limit: @search_page_size]
+          |> then(fn options ->
+            if cursor, do: Keyword.put(options, :cursor, cursor), else: options
+          end)
+          |> then(fn options ->
+            case parse_substitution(filters["material_substitution"]) do
+              nil -> options
+              substitution -> Keyword.put(options, :substitution, substitution)
+            end
+          end)
 
         case GameSearch.similar(position, record_query, options) do
           {:ok, page} ->
@@ -4705,6 +4719,17 @@ defmodule Web.RoomLive do
 
       _ ->
         {:error, :invalid_fen}
+    end
+  end
+
+  defp parse_substitution("two_rooks_queen"), do: :two_rooks_queen
+  defp parse_substitution("bishop_knight"), do: :bishop_knight
+  defp parse_substitution(_other), do: nil
+
+  defp substitution_option(value) do
+    case parse_substitution(value) do
+      nil -> []
+      substitution -> [substitution: substitution]
     end
   end
 
