@@ -76,7 +76,11 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   `ops/grafana/openchesslab.json` (importeerbaar op fly-metrics.net, 17
   panelen: gezondheid/verkeer+LV/database) + `ops/README.md` met importstappen
   en de kanttekening dat de pg_-panelen afhangen van MPG-export (docs baseren
-  die series op unmanaged postgres). **Dashboard-aanvulling (`a6493bd`):** Ecto stats (catalogus:
+  die series op unmanaged postgres). **Bleek: MPG exporteert geen pg_-series**
+  (drie panelen "No data") → **eigen DB-stats via de poller** (`141f16d`:
+  `openchesslab_db_stats_{size_bytes,connections,blks_hit,blks_read}` elke
+  10 s via de Repo; prod: 12,2 GiB, 24 conns; dashboard-JSON aangepast,
+  herimport op uid). LV-event-paneel werkte al (had alleen verkeer nodig). **Dashboard-aanvulling (`a6493bd`):** Ecto stats (catalogus:
   groottes/indexen/locks/langdurige query's — **`pg_stat_statements` kan niet:**
   geen trusted extensie én MPG heeft geen superuser), Request Logger (vereiste
   `Phoenix.LiveDashboard.RequestLogger`-plug in de endpoint), OS Data **niet
