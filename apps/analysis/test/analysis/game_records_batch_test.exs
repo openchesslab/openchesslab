@@ -17,7 +17,6 @@ defmodule Analysis.GameRecordsBatchTest do
         game_records,
         game_occurrences,
         games,
-        position_features,
         positions
       RESTART IDENTITY CASCADE
       """,
@@ -29,7 +28,7 @@ defmodule Analysis.GameRecordsBatchTest do
 
   test "an empty batch is a no-op" do
     assert GameRecords.create_replayed_many([]) == {:ok, []}
-    assert counts() == [0, 0, 0, 0, 0]
+    assert counts() == [0, 0, 0, 0]
   end
 
   test "persists unique and duplicate games with ordered positions and metadata" do
@@ -49,7 +48,7 @@ defmodule Analysis.GameRecordsBatchTest do
 
     assert first.game_id == third.game_id
     refute first.game_id == second.game_id
-    assert Enum.slice(counts(), 2, 3) == [2, 5, 3]
+    assert Enum.slice(counts(), 1, 3) == [2, 5, 3]
 
     for {record, {record_id, _initial, moves, start, metadata, replay}} <-
           Enum.zip([first, second, third], entries) do
@@ -68,8 +67,8 @@ defmodule Analysis.GameRecordsBatchTest do
       end
     end
 
-    [positions, features, _games, _occurrences, _records] = counts()
-    assert positions == features
+    [positions, _games, _occurrences, _records] = counts()
+    assert positions > 0
   end
 
   test "retains custom initial positions and fullmove numbers" do
@@ -107,7 +106,7 @@ defmodule Analysis.GameRecordsBatchTest do
     assert GameRecords.create_replayed_many(entries) ==
              {:error, {2, :duplicate_record_id}}
 
-    assert counts() == [0, 0, 0, 0, 0]
+    assert counts() == [0, 0, 0, 0]
   end
 
   test "rejects a mismatched replay before writing anything" do
@@ -121,7 +120,7 @@ defmodule Analysis.GameRecordsBatchTest do
     assert GameRecords.create_replayed_many([valid, invalid]) ==
              {:error, {2, {:invalid_game, :invalid_replay}}}
 
-    assert counts() == [0, 0, 0, 0, 0]
+    assert counts() == [0, 0, 0, 0]
   end
 
   test "rejects invalid metadata and record ids without writing" do
@@ -137,7 +136,7 @@ defmodule Analysis.GameRecordsBatchTest do
            ]) == {:error, {1, :invalid_record_id}}
 
     assert GameRecords.create_replayed_many(:not_a_list) == {:error, :invalid_batch}
-    assert counts() == [0, 0, 0, 0, 0]
+    assert counts() == [0, 0, 0, 0]
   end
 
   test "a conflict on the second record rolls back the entire group" do
@@ -176,7 +175,7 @@ defmodule Analysis.GameRecordsBatchTest do
 
     assert [{:ok, [first]}, {:ok, [second]}] = Task.await_many(tasks, 30_000)
     assert first.game_id == second.game_id
-    assert Enum.slice(counts(), 2, 3) == [1, 3, 2]
+    assert Enum.slice(counts(), 1, 3) == [1, 3, 2]
   end
 
   defp entry(record_id, moves, event) do
@@ -201,7 +200,6 @@ defmodule Analysis.GameRecordsBatchTest do
         """
         SELECT
           (SELECT count(*) FROM positions),
-          (SELECT count(*) FROM position_features),
           (SELECT count(*) FROM games),
           (SELECT count(*) FROM game_occurrences),
           (SELECT count(*) FROM game_records)

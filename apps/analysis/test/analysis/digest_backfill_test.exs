@@ -15,7 +15,6 @@ defmodule Analysis.DigestBackfillTest do
         game_records,
         game_occurrences,
         games,
-        position_features,
         positions,
         feature_atoms
       RESTART IDENTITY

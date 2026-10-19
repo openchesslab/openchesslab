@@ -14,15 +14,12 @@ defmodule Analysis.PositionStore do
   """
 
   alias Analysis.PositionPawnStructureCodec
-  alias Analysis.PositionPropertyKeyCodec
   alias Analysis.PositionQuery
   alias Analysis.PositionQuery.PostgresPage
   alias Analysis.PositionQueryNormalizer
-  alias Chess.Bitboard
   alias Chess.PawnStructure
   alias Chess.Position
   alias Chess.PositionCodec
-  alias Chess.PositionProperties
   alias OpenChessLab.Repo
 
   defmodule Cursor do
@@ -136,32 +133,6 @@ defmodule Analysis.PositionStore do
     ON p.record = input.record
   ORDER BY
     input.ordinality
-  """
-
-  @insert_features_sql """
-  INSERT INTO position_features (
-    position_id,
-    properties
-  )
-  VALUES (
-    $1,
-    $2::bytea[]
-  )
-  ON CONFLICT (position_id) DO NOTHING
-  """
-
-  @insert_features_many_sql """
-  INSERT INTO position_features (
-    position_id,
-    properties
-  )
-  SELECT
-    input.position_id,
-    array_agg(input.property ORDER BY input.ordinality)
-  FROM unnest($1::bigint[], $2::bytea[])
-    WITH ORDINALITY AS input(position_id, property, ordinality)
-  GROUP BY input.position_id
-  ON CONFLICT (position_id) DO NOTHING
   """
 
   @get_sql """
@@ -479,14 +450,8 @@ defmodule Analysis.PositionStore do
 
   defp put(%Position{} = position) do
     transact(fn ->
-      with {:ok, position_id, status} <-
-             put_position(position),
-           :ok <-
-             put_features_if_needed(
-               position,
-               position_id,
-               status
-             ) do
+      with {:ok, position_id, _status} <-
+             put_position(position) do
         {:ok, position_id}
       end
     end)
@@ -537,34 +502,12 @@ defmodule Analysis.PositionStore do
           end
         )
 
-      positions_by_record =
-        Map.new(
-          encoded_positions,
-          fn
-            {
-              record,
-              position,
-              _white_pawns,
-              _black_pawns
-            } ->
-              {
-                record,
-                position
-              }
-          end
-        )
-
       transact(fn ->
-        with {:ok, inserted_rows} <-
+        with {:ok, _inserted_rows} <-
                insert_positions(
                  records,
                  white_pawns,
                  black_pawns
-               ),
-             :ok <-
-               put_inserted_features(
-                 inserted_rows,
-                 positions_by_record
                ) do
           find_position_ids(records)
         end
@@ -743,192 +686,6 @@ defmodule Analysis.PositionStore do
 
       :not_found ->
         {:error, :position_not_found_after_conflict}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  defp put_inserted_features(inserted_rows, positions_by_record) do
-    inserted_rows
-    |> Enum.reduce_while({:ok, []}, fn [position_id, record], {:ok, feature_rows} ->
-      with {:ok, position} <- Map.fetch(positions_by_record, record),
-           {:ok, properties} <- encoded_properties(position) do
-        {:cont, {:ok, [{position_id, properties} | feature_rows]}}
-      else
-        :error ->
-          {:halt, {:error, :inserted_position_not_in_batch}}
-
-        {:error, reason} ->
-          {:halt, {:error, reason}}
-      end
-    end)
-    |> case do
-      {:ok, feature_rows} ->
-        feature_rows
-        |> Enum.reverse()
-        |> put_features_many()
-
-      {:error, _reason} = error ->
-        error
-    end
-  end
-
-  defp put_features_many([]), do: :ok
-
-  defp put_features_many(feature_rows) do
-    flattened =
-      Enum.flat_map(feature_rows, fn {position_id, properties} ->
-        Enum.map(properties, &{position_id, &1})
-      end)
-
-    {position_ids, properties} = Enum.unzip(flattened)
-
-    case Repo.query(@insert_features_many_sql, [position_ids, properties]) do
-      {:ok, _result} ->
-        :ok
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  defp put_features_if_needed(position, position_id, :inserted) do
-    with {:ok, properties} <-
-           encoded_properties(position) do
-      put_features(
-        position_id,
-        properties
-      )
-    end
-  end
-
-  defp put_features_if_needed(_position, _position_id, :existing) do
-    :ok
-  end
-
-  defp put_features(position_id, properties) do
-    case Repo.query(
-           @insert_features_sql,
-           [
-             position_id,
-             properties
-           ]
-         ) do
-      {:ok, _result} ->
-        :ok
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  defp encoded_properties(%Position{} = position) do
-    board = Bitboard.from_position(position)
-
-    semi_open_files = PositionProperties.semi_open_files(board)
-
-    outposts = PositionProperties.outposts(board)
-
-    checks = PositionProperties.in_check(board)
-
-    castling_rights =
-      [
-        :white_kingside,
-        :white_queenside,
-        :black_kingside,
-        :black_queenside
-      ]
-      |> Enum.filter(&MapSet.member?(position.castling_rights, &1))
-
-    en_passant_properties =
-      case position.en_passant do
-        nil -> []
-        square -> [{:en_passant_target, square}]
-      end
-
-    properties =
-      Enum.map(
-        PositionProperties.open_files(board),
-        &{:open_files, &1}
-      ) ++
-        Enum.flat_map(
-          [:white, :black],
-          fn color ->
-            semi_open_files
-            |> Map.fetch!(color)
-            |> Enum.map(fn file ->
-              {:semi_open_files, {color, file}}
-            end)
-          end
-        ) ++
-        Enum.flat_map(
-          [:white, :black],
-          fn color ->
-            outposts
-            |> Map.fetch!(color)
-            |> Enum.map(fn square ->
-              {:outposts, {color, square}}
-            end)
-          end
-        ) ++
-        Enum.flat_map(
-          [:white, :black],
-          fn color ->
-            if Map.fetch!(checks, color) do
-              [{:in_check, color}]
-            else
-              []
-            end
-          end
-        ) ++
-        Enum.map(castling_rights, &{:castling_right, &1}) ++
-        en_passant_properties ++
-        [
-          {
-            :material,
-            PositionProperties.material(board)
-          },
-          {:side_to_move, position.side_to_move}
-        ]
-
-    properties
-    |> Enum.reduce_while(
-      {:ok, []},
-      fn
-        {
-          property,
-          value
-        },
-        {
-          :ok,
-          encoded_properties
-        } ->
-          case PositionPropertyKeyCodec.encode(
-                 property,
-                 value
-               ) do
-            {:ok, encoded_property} ->
-              {:cont,
-               {
-                 :ok,
-                 [
-                   encoded_property
-                   | encoded_properties
-                 ]
-               }}
-
-            {:error, reason} ->
-              {:halt, {:error, reason}}
-          end
-      end
-    )
-    |> case do
-      {:ok, encoded_properties} ->
-        {:ok,
-         encoded_properties
-         |> Enum.reverse()
-         |> Enum.uniq()}
 
       {:error, reason} ->
         {:error, reason}

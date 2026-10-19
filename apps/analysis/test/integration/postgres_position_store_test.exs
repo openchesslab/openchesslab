@@ -16,7 +16,6 @@ defmodule Analysis.PostgresPositionStoreTest do
     Repo.query!(
       """
       TRUNCATE TABLE
-        position_features,
         positions
       RESTART IDENTITY
       CASCADE
@@ -77,163 +76,6 @@ defmodule Analysis.PostgresPositionStoreTest do
   test "returns not found for an unknown position id" do
     assert PositionStore.get(999_999) ==
              :not_found
-  end
-
-  test "stores derived material properties" do
-    position =
-      Position.starting_position()
-
-    position_id =
-      PositionStore.append(position)
-
-    assert [[properties]] =
-             Repo.query!(
-               """
-               SELECT properties
-               FROM position_features
-               WHERE position_id = $1
-               """,
-               [position_id]
-             ).rows
-
-    {:ok, material_property} =
-      PositionPropertyKeyCodec.encode(
-        :material,
-        PositionProperties.material(position)
-      )
-
-    assert Enum.count(
-             properties,
-             &(&1 == material_property)
-           ) == 1
-  end
-
-  test "stores every open file as an independently searchable property" do
-    empty_position =
-      Position.new()
-
-    position_id =
-      PositionStore.append(empty_position)
-
-    assert [[properties]] =
-             Repo.query!(
-               """
-               SELECT properties
-               FROM position_features
-               WHERE position_id = $1
-               """,
-               [position_id]
-             ).rows
-
-    expected_open_files =
-      Enum.map(
-        PositionProperties.open_files(empty_position),
-        fn file ->
-          {:ok, encoded} =
-            PositionPropertyKeyCodec.encode(
-              :open_files,
-              file
-            )
-
-          encoded
-        end
-      )
-
-    assert Enum.all?(
-             expected_open_files,
-             &(&1 in properties)
-           )
-  end
-
-  test "queries matching positions by material" do
-    first =
-      Position.starting_position()
-
-    {:ok, second} =
-      Position.apply_move(
-        first,
-        move(
-          "e2",
-          "e4"
-        )
-      )
-
-    first_id =
-      PositionStore.append(first)
-
-    second_id =
-      PositionStore.append(second)
-
-    material =
-      PositionProperties.material(first)
-
-    assert {
-             :ok,
-             %PositionStore.Page{
-               entries: position_ids,
-               next: nil
-             }
-           } =
-             PositionStore.page(
-               Query.property(
-                 :material,
-                 material
-               ),
-               limit: 10
-             )
-
-    assert position_ids ==
-             [
-               first_id,
-               second_id
-             ]
-  end
-
-  test "supports boolean property queries" do
-    starting =
-      Position.starting_position()
-
-    empty =
-      Position.new()
-
-    starting_id =
-      PositionStore.append(starting)
-
-    empty_id =
-      PositionStore.append(empty)
-
-    starting_material =
-      PositionProperties.material(starting)
-
-    query =
-      Query.any([
-        Query.property(
-          :material,
-          starting_material
-        ),
-        Query.property(
-          :open_files,
-          :a
-        )
-      ])
-
-    assert {
-             :ok,
-             %PositionStore.Page{
-               entries: position_ids,
-               next: nil
-             }
-           } =
-             PositionStore.page(
-               query,
-               limit: 10
-             )
-
-    assert MapSet.new(position_ids) ==
-             MapSet.new([
-               starting_id,
-               empty_id
-             ])
   end
 
   test "pages queries without duplicates or omissions" do
@@ -428,28 +270,6 @@ defmodule Analysis.PostgresPositionStoreTest do
              ).rows
   end
 
-  test "does not rewrite features when storing an existing exact position" do
-    position =
-      Position.starting_position()
-
-    position_id =
-      PositionStore.append(position)
-
-    queries =
-      capture_queries(fn ->
-        assert PositionStore.append(position) ==
-                 position_id
-      end)
-
-    refute Enum.any?(
-             queries,
-             &String.contains?(
-               &1,
-               "INSERT INTO position_features"
-             )
-           )
-  end
-
   test "resolves an existing exact position without a separate lookup query" do
     position =
       Position.starting_position()
@@ -494,63 +314,6 @@ defmodule Analysis.PostgresPositionStoreTest do
            )
   end
 
-  test "append_many writes features once for new positions, preserving individual property arrays" do
-    first = Position.starting_position()
-    {:ok, second} = Position.apply_move(first, move("e2", "e4"))
-    empty = Position.new()
-    positions = [first, second, empty, first]
-
-    queries =
-      capture_queries(fn ->
-        assert {:ok, [first_id, second_id, empty_id, repeated_id]} =
-                 PositionStore.append_many(positions)
-
-        assert repeated_id == first_id
-        assert length(Enum.uniq([first_id, second_id, empty_id])) == 3
-      end)
-
-    assert Enum.count(queries, &String.contains?(&1, "INSERT INTO position_features")) == 1
-
-    assert [[3]] = Repo.query!("SELECT count(*) FROM positions", []).rows
-    assert [[3]] = Repo.query!("SELECT count(*) FROM position_features", []).rows
-
-    assert {:ok, [first_id, second_id, empty_id, repeated_id]} =
-             PositionStore.append_many(positions)
-
-    assert repeated_id == first_id
-
-    assert [[first_properties]] =
-             Repo.query!("SELECT properties FROM position_features WHERE position_id = $1", [
-               first_id
-             ]).rows
-
-    assert [[second_properties]] =
-             Repo.query!("SELECT properties FROM position_features WHERE position_id = $1", [
-               second_id
-             ]).rows
-
-    assert [[empty_properties]] =
-             Repo.query!("SELECT properties FROM position_features WHERE position_id = $1", [
-               empty_id
-             ]).rows
-
-    {:ok, white_key} = PositionPropertyKeyCodec.encode(:side_to_move, :white)
-    {:ok, black_key} = PositionPropertyKeyCodec.encode(:side_to_move, :black)
-
-    assert white_key in first_properties
-    assert black_key in second_properties
-    refute Enum.empty?(empty_properties)
-    refute first_properties == empty_properties
-
-    repeated_queries =
-      capture_queries(fn ->
-        assert {:ok, [^first_id, ^second_id, ^empty_id, ^first_id]} =
-                 PositionStore.append_many(positions)
-      end)
-
-    refute Enum.any?(repeated_queries, &String.contains?(&1, "INSERT INTO position_features"))
-  end
-
   test "concurrent exact position stores reuse one canonical position" do
     position =
       Position.starting_position()
@@ -584,15 +347,6 @@ defmodule Analysis.PostgresPositionStoreTest do
                """
                SELECT count(*)
                FROM positions
-               """,
-               []
-             ).rows
-
-    assert [[1]] =
-             Repo.query!(
-               """
-               SELECT count(*)
-               FROM position_features
                """,
                []
              ).rows

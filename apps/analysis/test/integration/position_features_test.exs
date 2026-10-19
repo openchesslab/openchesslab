@@ -15,7 +15,6 @@ defmodule Analysis.PositionFeaturesTest do
       """
       TRUNCATE TABLE
         position_feature_vectors,
-        position_features,
         positions
       RESTART IDENTITY
       CASCADE

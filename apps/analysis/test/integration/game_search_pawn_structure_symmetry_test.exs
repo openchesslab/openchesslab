@@ -11,7 +11,6 @@ defmodule Analysis.GameSearchPawnStructureSymmetryTest do
   alias Analysis.PositionQuery, as: Query
   alias Analysis.PositionStore
   alias Chess.Position
-  alias Chess.PositionProperties
   alias Chess.Square
   alias OpenChessLab.Repo
 
@@ -24,7 +23,6 @@ defmodule Analysis.GameSearchPawnStructureSymmetryTest do
         game_records,
         game_occurrences,
         games,
-        position_features,
         positions
       RESTART IDENTITY
       CASCADE
@@ -250,16 +248,22 @@ defmodule Analysis.GameSearchPawnStructureSymmetryTest do
       stored_game(source)
 
     {
-      _reflected_position_id,
+      reflected_position_id,
       reflected_game_id
     } =
       stored_game(reflected)
 
     {
-      _reflected_with_rook_position_id,
+      reflected_with_rook_position_id,
       reflected_with_rook_game_id
     } =
       stored_game(reflected_with_rook)
+
+    digest_positions([
+      source_position_id,
+      reflected_position_id,
+      reflected_with_rook_position_id
+    ])
 
     matching_record =
       GameRecord.new(
@@ -300,10 +304,7 @@ defmodule Analysis.GameSearchPawnStructureSymmetryTest do
     position_query =
       Query.all([
         Query.pawn_structure_symmetries(source),
-        Query.property(
-          :material,
-          PositionProperties.material(source)
-        )
+        Query.digests([material_signature(source)])
       ])
 
     record_query =
@@ -331,6 +332,20 @@ defmodule Analysis.GameSearchPawnStructureSymmetryTest do
 
     assert occurrence.position_id ==
              source_position_id
+  end
+
+  defp material_signature(position) do
+    {:ok, result} = Analysis.PositionFeatures.extract(position)
+
+    result.features
+    |> Analysis.FeatureDigest.atoms()
+    |> Enum.find(&String.starts_with?(&1, "material.signature:w:"))
+  end
+
+  defp digest_positions(ids) do
+    Enum.each(ids, fn id ->
+      {:ok, _ids} = Analysis.PositionDigests.store_position_id(id)
+    end)
   end
 
   defp stored_game(position) do

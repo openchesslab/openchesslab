@@ -1,0 +1,61 @@
+[     403ms] [LOG] phx-GN--6lllCm2wfMVi mount: received diff -  {0:  data-theme="system", 1:  data-room-code="VWLET3", 2: Skip to content, 3: Object, 4:  aria-label="Application settings", 5: Object, 6: Object, 7: Object, 8:  aria-label="Color scheme: Follow system theme. Switch to Light theme.", 9:  title="Color scheme: Follow system theme. Switch to Light theme.", 10:  phx-value-theme="light", 11: Object, 12:  aria-label="Switch language to Nederlands", 13:  title="Language", 14:  phx-value-locale="nl", 15: EN, 16: Object, 17: , 18: , 19: Object, 20: , 21: , 22: , 23: , p: Object, s: 59, r: 1, t: Room VWLET3} @ http://localhost:4000/assets/app.js:1789
+[     475ms] [LOG] phx-GN--6lllCm2wfMVi update: received diff -  {19: Object, p: Object} @ http://localhost:4000/assets/app.js:1789
+[     518ms] [LOG] phx-GN--6lllCm2wfMVi update: received diff -  {19: Object} @ http://localhost:4000/assets/app.js:1789
+[    3780ms] [LOG] phx-GN--6lllCm2wfMVi update: received diff -  {19: Object, 20: , 21: , 22: , 23: , p: Object} @ http://localhost:4000/assets/app.js:1789
+[    6670ms] [LOG] phx-GN--6lllCm2wfMVi update: received diff -  {19: Object, p: Object} @ http://localhost:4000/assets/app.js:1789
+[   10530ms] [LOG] phx-GN--6lllCm2wfMVi update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[   20467ms] [LOG] phx-GN--6lllCm2wfMVi update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[   30465ms] [LOG] phx-GN--6lllCm2wfMVi update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[   40465ms] [LOG] phx-GN--6lllCm2wfMVi update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[   50466ms] [LOG] phx-GN--6lllCm2wfMVi update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[   60467ms] [LOG] phx-GN--6lllCm2wfMVi update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[   70465ms] [LOG] phx-GN--6lllCm2wfMVi update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[   80467ms] [LOG] phx-GN--6lllCm2wfMVi update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[   90465ms] [LOG] phx-GN--6lllCm2wfMVi update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  100465ms] [LOG] phx-GN--6lllCm2wfMVi update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  110467ms] [LOG] phx-GN--6lllCm2wfMVi update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  120465ms] [LOG] phx-GN--6lllCm2wfMVi update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  130467ms] [LOG] phx-GN--6lllCm2wfMVi update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  140466ms] [LOG] phx-GN--6lllCm2wfMVi update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  150466ms] [LOG] phx-GN--6lllCm2wfMVi update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  160465ms] [LOG] phx-GN--6lllCm2wfMVi update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  170467ms] [LOG] phx-GN--6lllCm2wfMVi update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  180465ms] [LOG] phx-GN--6lllCm2wfMVi update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  190472ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:4000/rooms/VWLET3?a=analysis-44I3EwZVHT2JkenAyzp6dw:0
+[  194250ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:4000/rooms/VWLET3?a=analysis-44I3EwZVHT2JkenAyzp6dw:0
+[  205889ms] [LOG] phx-GN-_GjhGxDeSdtLh mount: received diff -  {0:  data-theme="system", 1:  data-room-code="VWLET3", 2: Skip to content, 3: Object, 4:  aria-label="Application settings", 5: Object, 6: Object, 7: Object, 8:  aria-label="Color scheme: Follow system theme. Switch to Light theme.", 9:  title="Color scheme: Follow system theme. Switch to Light theme.", 10:  phx-value-theme="light", 11: Object, 12:  aria-label="Switch language to Nederlands", 13:  title="Language", 14:  phx-value-locale="nl", 15: EN, 16: Object, 17: , 18: , 19: Object, 20: , 21: , 22: , 23: , p: Object, s: 57, r: 1, t: Room VWLET3} @ http://localhost:4000/assets/app.js:1789
+[  205999ms] [LOG] phx-GN-_GjhGxDeSdtLh update: received diff -  {19: Object, p: Object} @ http://localhost:4000/assets/app.js:1789
+[  206047ms] [LOG] phx-GN-_GjhGxDeSdtLh update: received diff -  {19: Object} @ http://localhost:4000/assets/app.js:1789
+[  206146ms] [LOG] phx-GN-_GjhGxDeSdtLh update: received diff -  {19: Object, p: Object} @ http://localhost:4000/assets/app.js:1789
+[  206189ms] [LOG] phx-GN-_GjhGxDeSdtLh update: received diff -  {19: Object, p: Object} @ http://localhost:4000/assets/app.js:1789
+[  206234ms] [LOG] phx-GN-_GjhGxDeSdtLh update: received diff -  {19: Object} @ http://localhost:4000/assets/app.js:1789
+[  215987ms] [LOG] phx-GN-_GjhGxDeSdtLh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  225988ms] [LOG] phx-GN-_GjhGxDeSdtLh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  235991ms] [LOG] phx-GN-_GjhGxDeSdtLh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  245988ms] [LOG] phx-GN-_GjhGxDeSdtLh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  255987ms] [LOG] phx-GN-_GjhGxDeSdtLh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  265988ms] [LOG] phx-GN-_GjhGxDeSdtLh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  275992ms] [LOG] phx-GN-_GjhGxDeSdtLh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  282962ms] [LOG] phx-GN-_GjhGxDeSdtLh update: received diff -  {19: Object, p: Object} @ http://localhost:4000/assets/app.js:1789
+[  285987ms] [LOG] phx-GN-_GjhGxDeSdtLh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  295991ms] [LOG] phx-GN-_GjhGxDeSdtLh error: view crashed -  {reason: channel_crash} @ http://localhost:4000/assets/app.js:1789
+[  296993ms] [LOG] phx-GN-_GjhGxDeSdtLh error: unauthorized live_redirect. Falling back to page request -  {reason: stale} @ http://localhost:4000/assets/app.js:1789
+[  296993ms] [LOG] phx-GN-_GjhGxDeSdtLh socket: disconnect for page nav -  undefined @ http://localhost:4000/assets/app.js:1789
+[  296993ms] [LOG] phx-GN-_GjhGxDeSdtLh destroyed: the child has been removed from the parent -  undefined @ http://localhost:4000/assets/app.js:1789
+[  296994ms] [LOG]  destroyed: the child has been removed from the parent -  undefined @ http://localhost:4000/assets/app.js:1789
+[  297474ms] [LOG] phx-GN-_L4ZBf4vyHPuh mount: received diff -  {0:  data-theme="system", 1:  data-room-code="VWLET3", 2: Skip to content, 3: Object, 4:  aria-label="Application settings", 5: Object, 6: Object, 7: Object, 8:  aria-label="Color scheme: Follow system theme. Switch to Light theme.", 9:  title="Color scheme: Follow system theme. Switch to Light theme.", 10:  phx-value-theme="light", 11: Object, 12:  aria-label="Switch language to Nederlands", 13:  title="Language", 14:  phx-value-locale="nl", 15: EN, 16: Object, 17: , 18: , 19: Object, 20: , 21: , 22: , 23: , p: Object, s: 57, r: 1, t: Room VWLET3} @ http://localhost:4000/assets/app.js:1789
+[  297552ms] [LOG] phx-GN-_L4ZBf4vyHPuh update: received diff -  {19: Object, p: Object} @ http://localhost:4000/assets/app.js:1789
+[  297593ms] [LOG] phx-GN-_L4ZBf4vyHPuh update: received diff -  {19: Object} @ http://localhost:4000/assets/app.js:1789
+[  307542ms] [LOG] phx-GN-_L4ZBf4vyHPuh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  317542ms] [LOG] phx-GN-_L4ZBf4vyHPuh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  327542ms] [LOG] phx-GN-_L4ZBf4vyHPuh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  337543ms] [LOG] phx-GN-_L4ZBf4vyHPuh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  347543ms] [LOG] phx-GN-_L4ZBf4vyHPuh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  357543ms] [LOG] phx-GN-_L4ZBf4vyHPuh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  367542ms] [LOG] phx-GN-_L4ZBf4vyHPuh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  377542ms] [LOG] phx-GN-_L4ZBf4vyHPuh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  387542ms] [LOG] phx-GN-_L4ZBf4vyHPuh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  397543ms] [LOG] phx-GN-_L4ZBf4vyHPuh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  407543ms] [LOG] phx-GN-_L4ZBf4vyHPuh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  417542ms] [LOG] phx-GN-_L4ZBf4vyHPuh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  427543ms] [LOG] phx-GN-_L4ZBf4vyHPuh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789

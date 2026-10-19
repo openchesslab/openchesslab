@@ -357,7 +357,7 @@ defmodule Web.RoomLiveTest do
     # leftover games from earlier tests fill the first keyset page and push
     # this test's records past it. Give this test its own clean corpus.
     OpenChessLab.Repo.query!(
-      "TRUNCATE TABLE game_records, game_occurrences, games, position_features, positions RESTART IDENTITY CASCADE",
+      "TRUNCATE TABLE game_records, game_occurrences, games, positions RESTART IDENTITY CASCADE",
       []
     )
 
@@ -461,7 +461,7 @@ defmodule Web.RoomLiveTest do
     code: code
   } do
     OpenChessLab.Repo.query!(
-      "TRUNCATE TABLE game_records, game_occurrences, games, position_features, positions RESTART IDENTITY CASCADE",
+      "TRUNCATE TABLE game_records, game_occurrences, games, positions RESTART IDENTITY CASCADE",
       []
     )
 
@@ -504,7 +504,7 @@ defmodule Web.RoomLiveTest do
 
   test "game search filters by ECO, opening and event", %{conn: conn, code: code} do
     OpenChessLab.Repo.query!(
-      "TRUNCATE TABLE game_records, game_occurrences, games, position_features, positions RESTART IDENTITY CASCADE",
+      "TRUNCATE TABLE game_records, game_occurrences, games, positions RESTART IDENTITY CASCADE",
       []
     )
 
@@ -539,7 +539,7 @@ defmodule Web.RoomLiveTest do
 
   test "game-only search results come newest first", %{conn: conn, code: code} do
     OpenChessLab.Repo.query!(
-      "TRUNCATE TABLE game_records, game_occurrences, games, position_features, positions RESTART IDENTITY CASCADE",
+      "TRUNCATE TABLE game_records, game_occurrences, games, positions RESTART IDENTITY CASCADE",
       []
     )
 
@@ -575,7 +575,7 @@ defmodule Web.RoomLiveTest do
 
   test "game search filters by feature atoms", %{conn: conn, code: code} do
     OpenChessLab.Repo.query!(
-      "TRUNCATE TABLE game_records, game_occurrences, games, position_features, positions RESTART IDENTITY CASCADE",
+      "TRUNCATE TABLE game_records, game_occurrences, games, positions RESTART IDENTITY CASCADE",
       []
     )
 
@@ -621,7 +621,7 @@ defmodule Web.RoomLiveTest do
 
   test "a position hit opens the game at the matched ply", %{conn: conn, code: code} do
     OpenChessLab.Repo.query!(
-      "TRUNCATE TABLE game_records, game_occurrences, games, position_features, positions RESTART IDENTITY CASCADE",
+      "TRUNCATE TABLE game_records, game_occurrences, games, positions RESTART IDENTITY CASCADE",
       []
     )
 
@@ -653,7 +653,7 @@ defmodule Web.RoomLiveTest do
 
   test "game search filters by rating and date range", %{conn: conn, code: code} do
     OpenChessLab.Repo.query!(
-      "TRUNCATE TABLE game_records, game_occurrences, games, position_features, positions RESTART IDENTITY CASCADE",
+      "TRUNCATE TABLE game_records, game_occurrences, games, positions RESTART IDENTITY CASCADE",
       []
     )
 
@@ -693,7 +693,7 @@ defmodule Web.RoomLiveTest do
     code: code
   } do
     OpenChessLab.Repo.query!(
-      "TRUNCATE TABLE game_records, game_occurrences, games, position_features, positions RESTART IDENTITY CASCADE",
+      "TRUNCATE TABLE game_records, game_occurrences, games, positions RESTART IDENTITY CASCADE",
       []
     )
 

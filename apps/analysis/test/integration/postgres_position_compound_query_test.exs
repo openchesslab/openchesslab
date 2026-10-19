@@ -4,7 +4,6 @@ defmodule Analysis.PostgresPositionCompoundQueryTest do
   alias Analysis.PositionQuery, as: Query
   alias Analysis.PositionStore
   alias Chess.Position
-  alias Chess.PositionProperties
   alias Chess.Square
   alias OpenChessLab.Repo
 
@@ -14,7 +13,6 @@ defmodule Analysis.PostgresPositionCompoundQueryTest do
     Repo.query!(
       """
       TRUNCATE TABLE
-        position_features,
         positions
       RESTART IDENTITY
       CASCADE
@@ -45,12 +43,17 @@ defmodule Analysis.PostgresPositionCompoundQueryTest do
     distant_id = PositionStore.append(distant)
     different_material_id = PositionStore.append(different_material)
 
+    digest_positions([
+      source_id,
+      white_shift_id,
+      black_shift_id,
+      distant_id,
+      different_material_id
+    ])
+
     query =
       Query.all([
-        Query.property(
-          :material,
-          PositionProperties.material(source)
-        ),
+        Query.digests([material_signature(source)]),
         Query.pawn_structure_edit_neighborhood(source, 2)
       ])
 
@@ -128,13 +131,12 @@ defmodule Analysis.PostgresPositionCompoundQueryTest do
     excluded_id =
       PositionStore.append(distant_different_material)
 
+    digest_positions([source_id, shift_id, distant_id, different_material_id, excluded_id])
+
     query =
       Query.any([
         Query.pawn_structure_edit_neighborhood(source, 1),
-        Query.property(
-          :material,
-          PositionProperties.material(source)
-        )
+        Query.digests([material_signature(source)])
       ])
 
     assert {:ok,
@@ -167,5 +169,19 @@ defmodule Analysis.PostgresPositionCompoundQueryTest do
       Square.from_algebraic(black_square),
       {:black, :pawn}
     )
+  end
+
+  defp material_signature(position) do
+    {:ok, result} = Analysis.PositionFeatures.extract(position)
+
+    result.features
+    |> Analysis.FeatureDigest.atoms()
+    |> Enum.find(&String.starts_with?(&1, "material.signature:w:"))
+  end
+
+  defp digest_positions(ids) do
+    Enum.each(ids, fn id ->
+      {:ok, _ids} = Analysis.PositionDigests.store_position_id(id)
+    end)
   end
 end

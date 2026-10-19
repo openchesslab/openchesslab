@@ -13,7 +13,6 @@ defmodule Analysis.PostgresPositionStoreBatchTest do
     Repo.query!(
       """
       TRUNCATE TABLE
-        position_features,
         positions
       RESTART IDENTITY
       CASCADE
@@ -69,18 +68,9 @@ defmodule Analysis.PostgresPositionStoreBatchTest do
                """,
                []
              ).rows
-
-    assert [[2]] =
-             Repo.query!(
-               """
-               SELECT count(*)
-               FROM position_features
-               """,
-               []
-             ).rows
   end
 
-  test "existing position batches use one insert and one id lookup without rewriting features" do
+  test "existing position batches use one insert and one id lookup" do
     first =
       Position.starting_position()
 
@@ -135,14 +125,6 @@ defmodule Analysis.PostgresPositionStoreBatchTest do
              )
            ) ==
              1
-
-    refute Enum.any?(
-             normalized_queries,
-             &String.contains?(
-               &1,
-               "INSERT INTO position_features"
-             )
-           )
   end
 
   test "concurrent batches reuse canonical positions even when input order differs" do
@@ -214,15 +196,6 @@ defmodule Analysis.PostgresPositionStoreBatchTest do
                """
                SELECT count(*)
                FROM positions
-               """,
-               []
-             ).rows
-
-    assert [[2]] =
-             Repo.query!(
-               """
-               SELECT count(*)
-               FROM position_features
                """,
                []
              ).rows

@@ -1,0 +1,21 @@
+[ 1431301ms] [LOG] phx-GN-58_xg81v1AdoB update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1
+[ 1441302ms] [LOG] phx-GN-58_xg81v1AdoB update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1
+[ 1451301ms] [LOG] phx-GN-58_xg81v1AdoB update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1
+[ 1461302ms] [LOG] phx-GN-58_xg81v1AdoB update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1
+[ 1471301ms] [LOG] phx-GN-58_xg81v1AdoB update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1
+[ 1481301ms] [LOG] phx-GN-58_xg81v1AdoB update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1
+[ 1491302ms] [LOG] phx-GN-58_xg81v1AdoB update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1
+[ 1501300ms] [LOG] phx-GN-58_xg81v1AdoB update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1
+[ 1511301ms] [LOG] phx-GN-58_xg81v1AdoB update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1
+[ 1521301ms] [LOG] phx-GN-58_xg81v1AdoB update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1
+[ 1531300ms] [LOG] phx-GN-58_xg81v1AdoB update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1
+[ 1541301ms] [LOG] phx-GN-58_xg81v1AdoB update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1
+[ 1551301ms] [LOG] phx-GN-58_xg81v1AdoB update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1
+[ 1561304ms] [LOG] phx-GN-58_xg81v1AdoB error: view crashed -  {reason: channel_crash} @ http://localhost:4000/assets/app.js:1
+[ 1562306ms] [LOG] phx-GN-58_xg81v1AdoB error: unauthorized live_redirect. Falling back to page request -  {reason: stale} @ http://localhost:4000/assets/app.js:1
+[ 1562306ms] [LOG] phx-GN-58_xg81v1AdoB socket: disconnect for page nav -  undefined @ http://localhost:4000/assets/app.js:1
+[ 1562307ms] [LOG] phx-GN-58_xg81v1AdoB destroyed: the child has been removed from the parent -  undefined @ http://localhost:4000/assets/app.js:1
+[ 1562307ms] [LOG]  destroyed: the child has been removed from the parent -  undefined @ http://localhost:4000/assets/app.js:1
+[ 1565088ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:4000/rooms/VWLET3?a=analysis-44I3EwZVHT2JkenAyzp6dw:0
+[ 1567832ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:4000/rooms/VWLET3?a=analysis-44I3EwZVHT2JkenAyzp6dw:0
+[ 1573202ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:4000/rooms/VWLET3?a=analysis-44I3EwZVHT2JkenAyzp6dw:0

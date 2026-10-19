@@ -5,7 +5,6 @@ defmodule Analysis.GameSearchPostgresQueryTest do
   alias Analysis.GameSearch.PostgresQuery
   alias Analysis.PositionQuery, as: Query
   alias Chess.Position
-  alias Chess.PositionProperties
   alias Chess.Square
 
   test "compiles first pawn symmetry game-search page as ordered UNION ALL scans" do
@@ -146,10 +145,7 @@ defmodule Analysis.GameSearchPostgresQueryTest do
     position_query =
       Query.all([
         Query.pawn_structure_symmetries(position),
-        Query.property(
-          :material,
-          PositionProperties.material(position)
-        )
+        Query.pawn_structure(Position.starting_position())
       ])
 
     record_query =
@@ -181,21 +177,21 @@ defmodule Analysis.GameSearchPostgresQueryTest do
              sql,
              "FROM position_features AS f"
            ) ==
-             4
+             0
 
     assert occurrences(
              sql,
-             "gr.metadata @> $10::jsonb"
+             "gr.metadata @> $11::jsonb"
            ) ==
              1
 
     assert String.contains?(
              sql,
-             "ORDER BY matches.id, go.id, gr.id LIMIT $11::bigint"
+             "ORDER BY matches.id, go.id, gr.id LIMIT $12::bigint"
            )
 
     assert length(parameters) ==
-             11
+             12
 
     assert List.last(parameters) ==
              101
@@ -208,10 +204,7 @@ defmodule Analysis.GameSearchPostgresQueryTest do
     query =
       Query.any([
         Query.pawn_structure_symmetries(position),
-        Query.property(
-          :material,
-          PositionProperties.material(position)
-        )
+        Query.pawn_structure(Position.starting_position())
       ])
 
     assert {
@@ -245,11 +238,11 @@ defmodule Analysis.GameSearchPostgresQueryTest do
 
     assert String.contains?(
              sql,
-             "ORDER BY p.id, go.id, gr.id LIMIT $10::bigint"
+             "ORDER BY p.id, go.id, gr.id LIMIT $11::bigint"
            )
 
     assert length(parameters) ==
-             10
+             11
 
     assert List.last(parameters) ==
              101
@@ -407,10 +400,7 @@ defmodule Analysis.GameSearchPostgresQueryTest do
           position,
           2
         ),
-        Query.property(
-          :material,
-          PositionProperties.material(position)
-        )
+        Query.pawn_structure(Position.starting_position())
       ])
 
     record_query =
@@ -441,20 +431,20 @@ defmodule Analysis.GameSearchPostgresQueryTest do
              sql,
              "FROM position_features AS f"
            ) ==
-             1
+             0
 
     assert String.contains?(
              sql,
-             "gr.metadata @> $4::jsonb"
+             "gr.metadata @> $5::jsonb"
            )
 
     assert String.contains?(
              sql,
-             "ORDER BY p.id, go.id, gr.id LIMIT $5::bigint"
+             "ORDER BY p.id, go.id, gr.id LIMIT $6::bigint"
            )
 
     assert length(parameters) ==
-             5
+             6
 
     assert List.last(parameters) ==
              101
@@ -470,10 +460,7 @@ defmodule Analysis.GameSearchPostgresQueryTest do
           position,
           2
         ),
-        Query.property(
-          :material,
-          PositionProperties.material(position)
-        )
+        Query.pawn_structure(Position.starting_position())
       ])
 
     assert {
@@ -512,11 +499,11 @@ defmodule Analysis.GameSearchPostgresQueryTest do
 
     assert String.contains?(
              sql,
-             "ORDER BY p.id, go.id, gr.id LIMIT $4::bigint"
+             "ORDER BY p.id, go.id, gr.id LIMIT $5::bigint"
            )
 
     assert length(parameters) ==
-             4
+             5
 
     assert List.last(parameters) ==
              101

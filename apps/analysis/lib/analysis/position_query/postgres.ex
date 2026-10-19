@@ -8,7 +8,6 @@ defmodule Analysis.PositionQuery.Postgres do
 
   alias Analysis.FeatureDigest
   alias Analysis.PositionPawnStructureCodec
-  alias Analysis.PositionPropertyKeyCodec
   alias Analysis.PositionQuery
   alias Analysis.PositionQueryNormalizer
   alias Chess.Position
@@ -141,8 +140,7 @@ defmodule Analysis.PositionQuery.Postgres do
     )
   end
 
-  defp do_compile_predicate({:digests, atoms}, parameters, next_parameter)
-       when is_list(atoms) do
+  defp do_compile_predicate({:digests, atoms}, parameters, next_parameter) when is_list(atoms) do
     atom_ids =
       atoms
       |> Enum.uniq()
@@ -179,35 +177,10 @@ defmodule Analysis.PositionQuery.Postgres do
     end
   end
 
-  defp do_compile_predicate({:property, property, value}, parameters, next_parameter) do
-    case PositionPropertyKeyCodec.encode(
-           property,
-           value
-         ) do
-      {:ok, encoded_property} ->
-        predicate = """
-        EXISTS (
-          SELECT 1
-          FROM position_features AS f
-          WHERE
-            f.position_id = p.id
-            AND f.properties @> ARRAY[$#{next_parameter}::bytea]::bytea[]
-        )
-        """
-
-        {
-          :ok,
-          predicate,
-          parameters ++
-            [
-              encoded_property
-            ],
-          next_parameter + 1
-        }
-
-      {:error, reason} ->
-        {:error, reason}
-    end
+  # Only pawn structures are supported properties (they run on the positions
+  # columns; the other old position_features.properties keys are gone).
+  defp do_compile_predicate({:property, property, _value}, _parameters, _next_parameter) do
+    {:error, {:unsupported_property, property}}
   end
 
   defp do_compile_predicate({:equivalent, %Position{} = position}, parameters, next_parameter) do

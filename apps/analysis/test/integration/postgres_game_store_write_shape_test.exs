@@ -18,7 +18,6 @@ defmodule Analysis.PostgresGameStoreWriteShapeTest do
       TRUNCATE TABLE
         game_occurrences,
         games,
-        position_features,
         positions
       RESTART IDENTITY
       CASCADE

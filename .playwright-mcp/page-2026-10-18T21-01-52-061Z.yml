@@ -1,0 +1,1892 @@
+- generic [ref=f25e3]:
+  - link "Skip to content" [ref=f25e4] [cursor=pointer]:
+    - /url: "#main-content"
+  - banner [ref=f25e5]:
+    - link "OpenChessLab" [ref=f25e6] [cursor=pointer]:
+      - /url: /
+    - navigation "Application settings" [ref=f25e8]:
+      - button "Search games & positions" [ref=f25e9] [cursor=pointer]
+      - generic [ref=f25e13]:
+        - generic [ref=f25e14]: Piece sets
+        - combobox "Piece sets" [ref=f25e15]:
+          - option "Merida" [selected]
+          - option "Cburnett"
+      - 'button "Color scheme: Follow system theme. Switch to Light theme." [ref=f25e16] [cursor=pointer]'
+      - button "Switch language to Nederlands" [ref=f25e20] [cursor=pointer]: EN
+      - group [ref=f25e21]:
+        - generic "Help" [ref=f25e22] [cursor=pointer]
+  - main [ref=f25e26]:
+    - generic [ref=f25e27]:
+      - generic [ref=f25e28]:
+        - generic [ref=f25e29]:
+          - heading [level=1] [ref=f25e30]:
+            - text: Room
+            - code [ref=f25e31]: VWLET3
+          - button "Copy code" [ref=f25e33] [cursor=pointer]
+          - status [ref=f25e37]:
+            - generic [ref=f25e39]: 1 person here
+            - list [ref=f25e40]:
+              - listitem [ref=f25e41]:
+                - generic "Kind Gecko 59 — Analysis 1" [ref=f25e2000]: KG
+          - generic "You are connected to Local; the room runs in Local." [ref=f25e43]:
+            - generic [aria-hidden] [ref=f25e44]: ⌂
+            - generic [ref=f25e45]: — ms
+          - button "Room chat" [ref=f25e48] [cursor=pointer]
+        - generic [ref=f25e51]:
+          - generic [ref=f25e52]: Analyses 1
+          - tablist "Analyses" [ref=f25e53]:
+            - generic [ref=f25e54]:
+              - button "Analysis 1" [pressed] [ref=f25e2001] [cursor=pointer]
+              - button "Remove from room" [ref=f25e58] [cursor=pointer]: ×
+            - button "New analysis" [ref=f25e59] [cursor=pointer]
+            - button "Import games" [ref=f25e62] [cursor=pointer]
+            - button "New analysis from a position…" [ref=f25e65] [cursor=pointer]
+      - generic [ref=f25e66]:
+        - region "Chessboard" [ref=f25e67]:
+          - generic [ref=f25e68]:
+            - group "Chessboard" [ref=f25e71]:
+              - generic [ref=f25e72]:
+                - button "occupied by black rook a8" [ref=f25e73] [cursor=pointer]:
+                  - generic [aria-hidden] [ref=f25e75]: "8"
+                - button "occupied by black knight b8" [ref=f25e76] [cursor=pointer]
+                - button "occupied by black bishop c8" [ref=f25e78] [cursor=pointer]
+                - button "occupied by black queen d8" [ref=f25e80] [cursor=pointer]
+                - button "occupied by black king e8" [ref=f25e82] [cursor=pointer]
+                - button "occupied by black bishop f8" [ref=f25e84] [cursor=pointer]
+                - button "occupied by black knight g8" [ref=f25e86] [cursor=pointer]
+                - button "occupied by black rook h8" [ref=f25e88] [cursor=pointer]
+                - button "occupied by black pawn a7" [ref=f25e90] [cursor=pointer]:
+                  - generic [aria-hidden] [ref=f25e92]: "7"
+                - button "occupied by black pawn b7" [ref=f25e93] [cursor=pointer]
+                - button "occupied by black pawn c7" [ref=f25e95] [cursor=pointer]
+                - button "occupied by black pawn d7" [ref=f25e97] [cursor=pointer]
+                - button "occupied by black pawn e7" [ref=f25e99] [cursor=pointer]
+                - button "occupied by black pawn f7" [ref=f25e101] [cursor=pointer]
+                - button "occupied by black pawn g7" [ref=f25e103] [cursor=pointer]
+                - button "occupied by black pawn h7" [ref=f25e105] [cursor=pointer]
+                - button "empty a6" [ref=f25e107] [cursor=pointer]:
+                  - generic [aria-hidden] [ref=f25e108]: "6"
+                - button "empty b6" [ref=f25e109] [cursor=pointer]
+                - button "empty c6" [ref=f25e110] [cursor=pointer]
+                - button "empty d6" [ref=f25e111] [cursor=pointer]
+                - button "empty e6" [ref=f25e112] [cursor=pointer]
+                - button "empty f6" [ref=f25e113] [cursor=pointer]
+                - button "empty g6" [ref=f25e114] [cursor=pointer]
+                - button "empty h6" [ref=f25e115] [cursor=pointer]
+                - button "empty a5" [ref=f25e116] [cursor=pointer]:
+                  - generic [aria-hidden] [ref=f25e117]: "5"
+                - button "empty b5" [ref=f25e118] [cursor=pointer]
+                - button "empty c5" [ref=f25e119] [cursor=pointer]
+                - button "empty d5" [ref=f25e120] [cursor=pointer]
+                - button "empty e5" [ref=f25e121] [cursor=pointer]
+                - button "empty f5" [ref=f25e122] [cursor=pointer]
+                - button "empty g5" [ref=f25e123] [cursor=pointer]
+                - button "empty h5" [ref=f25e124] [cursor=pointer]
+                - button "empty a4" [ref=f25e125] [cursor=pointer]:
+                  - generic [aria-hidden] [ref=f25e126]: "4"
+                - button "empty b4" [ref=f25e127] [cursor=pointer]
+                - button "empty c4" [ref=f25e128] [cursor=pointer]
+                - button "empty d4" [ref=f25e129] [cursor=pointer]
+                - button "empty e4" [ref=f25e130] [cursor=pointer]
+                - button "empty f4" [ref=f25e131] [cursor=pointer]
+                - button "empty g4" [ref=f25e132] [cursor=pointer]
+                - button "empty h4" [ref=f25e133] [cursor=pointer]
+                - button "empty a3" [ref=f25e134] [cursor=pointer]:
+                  - generic [aria-hidden] [ref=f25e135]: "3"
+                - button "empty b3" [ref=f25e136] [cursor=pointer]
+                - button "empty c3" [ref=f25e137] [cursor=pointer]
+                - button "empty d3" [ref=f25e138] [cursor=pointer]
+                - button "empty e3" [ref=f25e139] [cursor=pointer]
+                - button "empty f3" [ref=f25e140] [cursor=pointer]
+                - button "empty g3" [ref=f25e141] [cursor=pointer]
+                - button "empty h3" [ref=f25e142] [cursor=pointer]
+                - button "occupied by white pawn a2" [ref=f25e143] [cursor=pointer]:
+                  - generic [aria-hidden] [ref=f25e145]: "2"
+                - button "occupied by white pawn b2" [ref=f25e146] [cursor=pointer]
+                - button "occupied by white pawn c2" [ref=f25e148] [cursor=pointer]
+                - button "occupied by white pawn d2" [ref=f25e150] [cursor=pointer]
+                - button "occupied by white pawn e2" [ref=f25e152] [cursor=pointer]
+                - button "occupied by white pawn f2" [ref=f25e154] [cursor=pointer]
+                - button "occupied by white pawn g2" [ref=f25e156] [cursor=pointer]
+                - button "occupied by white pawn h2" [ref=f25e158] [cursor=pointer]
+                - button "occupied by white rook a1" [ref=f25e160] [cursor=pointer]:
+                  - generic [aria-hidden] [ref=f25e162]: a
+                  - generic [aria-hidden] [ref=f25e163]: "1"
+                - button "occupied by white knight b1" [ref=f25e164] [cursor=pointer]:
+                  - generic [aria-hidden] [ref=f25e166]: b
+                - button "occupied by white bishop c1" [ref=f25e167] [cursor=pointer]:
+                  - generic [aria-hidden] [ref=f25e169]: c
+                - button "occupied by white queen d1" [ref=f25e170] [cursor=pointer]:
+                  - generic [aria-hidden] [ref=f25e172]: d
+                - button "occupied by white king e1" [ref=f25e173] [cursor=pointer]:
+                  - generic [aria-hidden] [ref=f25e175]: e
+                - button "occupied by white bishop f1" [ref=f25e176] [cursor=pointer]:
+                  - generic [aria-hidden] [ref=f25e178]: f
+                - button "occupied by white knight g1" [ref=f25e179] [cursor=pointer]:
+                  - generic [aria-hidden] [ref=f25e181]: g
+                - button "occupied by white rook h1" [ref=f25e182] [cursor=pointer]:
+                  - generic [aria-hidden] [ref=f25e184]: h
+            - generic [ref=f25e185]:
+              - generic [ref=f25e187]:
+                - text: "Side to move:"
+                - strong [ref=f25e188]: White
+              - group "Move controls" [ref=f25e189]:
+                - button "First move" [disabled] [ref=f25e190]
+                - button "Previous move" [disabled] [ref=f25e193]
+                - generic [ref=f25e196]: 0/1
+                - button "Next move" [ref=f25e197] [cursor=pointer]
+                - button "Last move" [ref=f25e200] [cursor=pointer]
+                - button "Flip board" [ref=f25e203] [cursor=pointer]
+              - generic [ref=f25e206]:
+                - generic [ref=f25e207]: Annotations
+                - button "Yellow" [ref=f25e208] [cursor=pointer]
+                - button "Blue" [ref=f25e209] [cursor=pointer]
+                - button "Red" [ref=f25e210] [cursor=pointer]
+                - button "Orange" [ref=f25e211] [cursor=pointer]
+                - button "Purple" [ref=f25e212] [cursor=pointer]
+                - button "Clear drawings" [ref=f25e213] [cursor=pointer]
+                - button "Edit this position" [ref=f25e217] [cursor=pointer]
+        - complementary "Features" [ref=f25e220]:
+          - generic [ref=f25e222]:
+            - generic [ref=f25e223]:
+              - generic [ref=f25e224]:
+                - heading "State" [level=4] [ref=f25e225]
+                - list [ref=f25e226]:
+                  - listitem [ref=f25e227]:
+                    - button "Square occupancy 64" [ref=f25e228] [cursor=pointer]:
+                      - generic [ref=f25e229]: Square occupancy
+                      - generic [ref=f25e230]: "64"
+                  - listitem [ref=f25e231]:
+                    - button "Pieces 32" [ref=f25e232] [cursor=pointer]:
+                      - generic [ref=f25e233]: Pieces
+                      - generic [ref=f25e234]: "32"
+                  - listitem [ref=f25e235]:
+                    - button "Side to move white" [ref=f25e236] [cursor=pointer]:
+                      - generic [ref=f25e237]: Side to move
+                      - generic [ref=f25e238]: white
+                  - listitem [ref=f25e239]:
+                    - button "King squares W e1 · B e8" [ref=f25e240] [cursor=pointer]:
+                      - generic [ref=f25e241]: King squares
+                      - generic [ref=f25e242]:
+                        - generic "Highlights on the board when pinned" [ref=f25e243]
+                        - text: W e1 · B e8
+                  - listitem [ref=f25e247]:
+                    - button "Castling rights KQkq" [ref=f25e248] [cursor=pointer]:
+                      - generic [ref=f25e249]: Castling rights
+                      - generic [ref=f25e250]: KQkq
+                  - listitem [ref=f25e251]:
+                    - button "En passant —" [ref=f25e252] [cursor=pointer]:
+                      - generic [ref=f25e253]: En passant
+                      - generic [ref=f25e254]: —
+                  - listitem [ref=f25e255]:
+                    - button "White pawn squares 8" [ref=f25e256] [cursor=pointer]:
+                      - generic [ref=f25e257]: White pawn squares
+                      - generic [ref=f25e258]:
+                        - generic "Highlights on the board when pinned" [ref=f25e259]
+                        - text: "8"
+                  - listitem [ref=f25e263]:
+                    - button "Black pawn squares 8" [ref=f25e264] [cursor=pointer]:
+                      - generic [ref=f25e265]: Black pawn squares
+                      - generic [ref=f25e266]:
+                        - generic "Highlights on the board when pinned" [ref=f25e267]
+                        - text: "8"
+                  - listitem [ref=f25e271]:
+                    - button "Piece occupancy W 16 · B 16" [ref=f25e272] [cursor=pointer]:
+                      - generic [ref=f25e273]: Piece occupancy
+                      - generic [ref=f25e274]: W 16 · B 16
+              - generic [ref=f25e275]:
+                - heading "Material" [level=4] [ref=f25e276]
+                - list [ref=f25e277]:
+                  - listitem [ref=f25e278]:
+                    - button "Count queen W 1 · B 1" [ref=f25e279] [cursor=pointer]:
+                      - generic [ref=f25e280]: Count queen
+                      - generic [ref=f25e281]:
+                        - generic "Highlights on the board when pinned" [ref=f25e282]
+                        - text: W 1 · B 1
+                  - listitem [ref=f25e286]:
+                    - button "Count rook W 2 · B 2" [ref=f25e287] [cursor=pointer]:
+                      - generic [ref=f25e288]: Count rook
+                      - generic [ref=f25e289]:
+                        - generic "Highlights on the board when pinned" [ref=f25e290]
+                        - text: W 2 · B 2
+                  - listitem [ref=f25e294]:
+                    - button "Count bishop W 2 · B 2" [ref=f25e295] [cursor=pointer]:
+                      - generic [ref=f25e296]: Count bishop
+                      - generic [ref=f25e297]:
+                        - generic "Highlights on the board when pinned" [ref=f25e298]
+                        - text: W 2 · B 2
+                  - listitem [ref=f25e302]:
+                    - button "Count knight W 2 · B 2" [ref=f25e303] [cursor=pointer]:
+                      - generic [ref=f25e304]: Count knight
+                      - generic [ref=f25e305]:
+                        - generic "Highlights on the board when pinned" [ref=f25e306]
+                        - text: W 2 · B 2
+                  - listitem [ref=f25e310]:
+                    - button "Count pawn W 8 · B 8" [ref=f25e311] [cursor=pointer]:
+                      - generic [ref=f25e312]: Count pawn
+                      - generic [ref=f25e313]:
+                        - generic "Highlights on the board when pinned" [ref=f25e314]
+                        - text: W 8 · B 8
+                  - listitem [ref=f25e318]:
+                    - button "Total value W 39 · B 39" [ref=f25e319] [cursor=pointer]:
+                      - generic [ref=f25e320]: Total value
+                      - generic [ref=f25e321]: W 39 · B 39
+                  - listitem [ref=f25e322]:
+                    - button "Difference 0" [ref=f25e323] [cursor=pointer]:
+                      - generic [ref=f25e324]: Difference
+                      - generic [ref=f25e325]: "0"
+                  - listitem [ref=f25e326]:
+                    - button "Value ratio per type 5" [ref=f25e327] [cursor=pointer]:
+                      - generic [ref=f25e328]: Value ratio per type
+                      - generic [ref=f25e329]: "5"
+                  - listitem [ref=f25e330]:
+                    - button "Bishop pair Both" [ref=f25e331] [cursor=pointer]:
+                      - generic [ref=f25e332]: Bishop pair
+                      - generic [ref=f25e333]:
+                        - generic "Highlights on the board when pinned" [ref=f25e334]
+                        - text: Both
+                  - listitem [ref=f25e338]:
+                    - button "Bishop pair both Yes" [ref=f25e339] [cursor=pointer]:
+                      - generic [ref=f25e340]: Bishop pair both
+                      - generic [ref=f25e341]:
+                        - generic "Highlights on the board when pinned" [ref=f25e342]
+                        - text: "Yes"
+                  - listitem [ref=f25e346]:
+                    - button "Imbalance knight vs bishop No" [ref=f25e347] [cursor=pointer]:
+                      - generic [ref=f25e348]: Imbalance knight vs bishop
+                      - generic [ref=f25e349]: "No"
+                  - listitem [ref=f25e350]:
+                    - button "Imbalance rook vs minor No" [ref=f25e351] [cursor=pointer]:
+                      - generic [ref=f25e352]: Imbalance rook vs minor
+                      - generic [ref=f25e353]: "No"
+                  - listitem [ref=f25e354]:
+                    - button "Imbalance queen vs rooks No" [ref=f25e355] [cursor=pointer]:
+                      - generic [ref=f25e356]: Imbalance queen vs rooks
+                      - generic [ref=f25e357]: "No"
+                  - listitem [ref=f25e358]:
+                    - button "Imbalance two rooks vs queen No" [ref=f25e359] [cursor=pointer]:
+                      - generic [ref=f25e360]: Imbalance two rooks vs queen
+                      - generic [ref=f25e361]: "No"
+                  - listitem [ref=f25e362]:
+                    - button "Exchange advantage —" [ref=f25e363] [cursor=pointer]:
+                      - generic [ref=f25e364]: Exchange advantage
+                      - generic [ref=f25e365]: —
+                  - listitem [ref=f25e366]:
+                    - button "Imbalanced No" [ref=f25e367] [cursor=pointer]:
+                      - generic [ref=f25e368]: Imbalanced
+                      - generic [ref=f25e369]: "No"
+                  - listitem [ref=f25e370]:
+                    - button "Bishops opposite color No" [ref=f25e371] [cursor=pointer]:
+                      - generic [ref=f25e372]: Bishops opposite color
+                      - generic [ref=f25e373]: "No"
+                  - listitem [ref=f25e374]:
+                    - button "Bishops same color Yes" [ref=f25e375] [cursor=pointer]:
+                      - generic [ref=f25e376]: Bishops same color
+                      - generic [ref=f25e377]:
+                        - generic "Highlights on the board when pinned" [ref=f25e378]
+                        - text: "Yes"
+                  - listitem [ref=f25e382]:
+                    - button "Queenless No" [ref=f25e383] [cursor=pointer]:
+                      - generic [ref=f25e384]: Queenless
+                      - generic [ref=f25e385]: "No"
+                  - listitem [ref=f25e386]:
+                    - button "Endgame transition No" [ref=f25e387] [cursor=pointer]:
+                      - generic [ref=f25e388]: Endgame transition
+                      - generic [ref=f25e389]: "No"
+              - generic [ref=f25e390]:
+                - heading "Pawns" [level=4] [ref=f25e391]
+                - list [ref=f25e392]:
+                  - listitem [ref=f25e393]:
+                    - button "Structure W 8 · B 8" [ref=f25e394] [cursor=pointer]:
+                      - generic [ref=f25e395]: Structure
+                      - generic [ref=f25e396]: W 8 · B 8
+                  - listitem [ref=f25e397]:
+                    - button "Count per wing W 2 · B 2" [ref=f25e398] [cursor=pointer]:
+                      - generic [ref=f25e399]: Count per wing
+                      - generic [ref=f25e400]: W 2 · B 2
+                  - listitem [ref=f25e401]:
+                    - button "Islands W 1 · B 1" [ref=f25e402] [cursor=pointer]:
+                      - generic [ref=f25e403]: Islands
+                      - generic [ref=f25e404]: W 1 · B 1
+                  - listitem [ref=f25e405]:
+                    - button "Isolated W 0 · B 0" [ref=f25e406] [cursor=pointer]:
+                      - generic [ref=f25e407]: Isolated
+                      - generic [ref=f25e408]: W 0 · B 0
+                  - listitem [ref=f25e409]:
+                    - button "Iqp W 0 · B 0" [ref=f25e410] [cursor=pointer]:
+                      - generic [ref=f25e411]: Iqp
+                      - generic [ref=f25e412]: W 0 · B 0
+                  - listitem [ref=f25e413]:
+                    - button "Backward W 0 · B 0" [ref=f25e414] [cursor=pointer]:
+                      - generic [ref=f25e415]: Backward
+                      - generic [ref=f25e416]: W 0 · B 0
+                  - listitem [ref=f25e417]:
+                    - button "Doubled W 0 · B 0" [ref=f25e418] [cursor=pointer]:
+                      - generic [ref=f25e419]: Doubled
+                      - generic [ref=f25e420]: W 0 · B 0
+                  - listitem [ref=f25e421]:
+                    - button "Tripled W 0 · B 0" [ref=f25e422] [cursor=pointer]:
+                      - generic [ref=f25e423]: Tripled
+                      - generic [ref=f25e424]: W 0 · B 0
+                  - listitem [ref=f25e425]:
+                    - button "Passed W 0 · B 0" [ref=f25e426] [cursor=pointer]:
+                      - generic [ref=f25e427]: Passed
+                      - generic [ref=f25e428]: W 0 · B 0
+                  - listitem [ref=f25e429]:
+                    - button "Protected passed W 0 · B 0" [ref=f25e430] [cursor=pointer]:
+                      - generic [ref=f25e431]: Protected passed
+                      - generic [ref=f25e432]: W 0 · B 0
+                  - listitem [ref=f25e433]:
+                    - button "Connected passed W 0 · B 0" [ref=f25e434] [cursor=pointer]:
+                      - generic [ref=f25e435]: Connected passed
+                      - generic [ref=f25e436]: W 0 · B 0
+                  - listitem [ref=f25e437]:
+                    - button "Candidate passed W 0 · B 0" [ref=f25e438] [cursor=pointer]:
+                      - generic [ref=f25e439]: Candidate passed
+                      - generic [ref=f25e440]: W 0 · B 0
+                  - listitem [ref=f25e441]:
+                    - button "Connected W 0 · B 0" [ref=f25e442] [cursor=pointer]:
+                      - generic [ref=f25e443]: Connected
+                      - generic [ref=f25e444]: W 0 · B 0
+                  - listitem [ref=f25e445]:
+                    - button "Hanging W 0 · B 0" [ref=f25e446] [cursor=pointer]:
+                      - generic [ref=f25e447]: Hanging
+                      - generic [ref=f25e448]: W 0 · B 0
+                  - listitem [ref=f25e449]:
+                    - button "Chains W 0 · B 0" [ref=f25e450] [cursor=pointer]:
+                      - generic [ref=f25e451]: Chains
+                      - generic [ref=f25e452]: W 0 · B 0
+                  - listitem [ref=f25e453]:
+                    - button "Chain bases W 0 · B 0" [ref=f25e454] [cursor=pointer]:
+                      - generic [ref=f25e455]: Chain bases
+                      - generic [ref=f25e456]: W 0 · B 0
+                  - listitem [ref=f25e457]:
+                    - button "Majority —" [ref=f25e458] [cursor=pointer]:
+                      - generic [ref=f25e459]: Majority
+                      - generic [ref=f25e460]: —
+                  - listitem [ref=f25e461]:
+                    - button "Kingside majority —" [ref=f25e462] [cursor=pointer]:
+                      - generic [ref=f25e463]: Kingside majority
+                      - generic [ref=f25e464]: —
+                  - listitem [ref=f25e465]:
+                    - button "Queenside majority —" [ref=f25e466] [cursor=pointer]:
+                      - generic [ref=f25e467]: Queenside majority
+                      - generic [ref=f25e468]: —
+                  - listitem [ref=f25e469]:
+                    - button "Minority —" [ref=f25e470] [cursor=pointer]:
+                      - generic [ref=f25e471]: Minority
+                      - generic [ref=f25e472]: —
+                  - listitem [ref=f25e473]:
+                    - button "Minority attack —" [ref=f25e474] [cursor=pointer]:
+                      - generic [ref=f25e475]: Minority attack
+                      - generic [ref=f25e476]: —
+                  - listitem [ref=f25e477]:
+                    - button "Levers W 0 · B 0" [ref=f25e478] [cursor=pointer]:
+                      - generic [ref=f25e479]: Levers
+                      - generic [ref=f25e480]: W 0 · B 0
+                  - listitem [ref=f25e481]:
+                    - button "Breaks W 0 · B 0" [ref=f25e482] [cursor=pointer]:
+                      - generic [ref=f25e483]: Breaks
+                      - generic [ref=f25e484]: W 0 · B 0
+                  - listitem [ref=f25e485]:
+                    - button "Locked No" [ref=f25e486] [cursor=pointer]:
+                      - generic [ref=f25e487]: Locked
+                      - generic [ref=f25e488]: "No"
+                  - listitem [ref=f25e489]:
+                    - button "Open structure Yes" [ref=f25e490] [cursor=pointer]:
+                      - generic [ref=f25e491]: Open structure
+                      - generic [ref=f25e492]: "Yes"
+                  - listitem [ref=f25e493]:
+                    - button "Fixed No" [ref=f25e494] [cursor=pointer]:
+                      - generic [ref=f25e495]: Fixed
+                      - generic [ref=f25e496]: "No"
+                  - listitem [ref=f25e497]:
+                    - button "Weak W 0 · B 0" [ref=f25e498] [cursor=pointer]:
+                      - generic [ref=f25e499]: Weak
+                      - generic [ref=f25e500]: W 0 · B 0
+                  - listitem [ref=f25e501]:
+                    - button "Weak undefendable pawns W 0 · B 0" [ref=f25e502] [cursor=pointer]:
+                      - generic [ref=f25e503]: Weak undefendable pawns
+                      - generic [ref=f25e504]: W 0 · B 0
+                  - listitem [ref=f25e505]:
+                    - button "Advanced W 0 · B 0" [ref=f25e506] [cursor=pointer]:
+                      - generic [ref=f25e507]: Advanced
+                      - generic [ref=f25e508]: W 0 · B 0
+                  - listitem [ref=f25e509]:
+                    - button "Overextended W 0 · B 0" [ref=f25e510] [cursor=pointer]:
+                      - generic [ref=f25e511]: Overextended
+                      - generic [ref=f25e512]: W 0 · B 0
+                  - listitem [ref=f25e513]:
+                    - button "Rook behind passed —" [ref=f25e514] [cursor=pointer]:
+                      - generic [ref=f25e515]: Rook behind passed
+                      - generic [ref=f25e516]: —
+                  - listitem [ref=f25e517]:
+                    - button "Blockaded passed W 0 · B 0" [ref=f25e518] [cursor=pointer]:
+                      - generic [ref=f25e519]: Blockaded passed
+                      - generic [ref=f25e520]: W 0 · B 0
+                  - listitem [ref=f25e521]:
+                    - button "Blockade square W 0 · B 0" [ref=f25e522] [cursor=pointer]:
+                      - generic [ref=f25e523]: Blockade square
+                      - generic [ref=f25e524]: W 0 · B 0
+                  - listitem [ref=f25e525]:
+                    - button "Structure gap 5.0" [ref=f25e526] [cursor=pointer]:
+                      - generic [ref=f25e527]: Structure gap
+                      - generic [ref=f25e528]: "5.0"
+                  - listitem [ref=f25e529]:
+                    - button "Single rank shift No" [ref=f25e530] [cursor=pointer]:
+                      - generic [ref=f25e531]: Single rank shift
+                      - generic [ref=f25e532]: "No"
+                  - listitem [ref=f25e533]:
+                    - button "Diagonal displacement —" [ref=f25e534] [cursor=pointer]:
+                      - generic [ref=f25e535]: Diagonal displacement
+                      - generic [ref=f25e536]: —
+                  - listitem [ref=f25e537]:
+                    - button "Count anomaly W 0 · B 0" [ref=f25e538] [cursor=pointer]:
+                      - generic [ref=f25e539]: Count anomaly
+                      - generic [ref=f25e540]: W 0 · B 0
+                  - listitem [ref=f25e541]:
+                    - button "Color mirrored Yes" [ref=f25e542] [cursor=pointer]:
+                      - generic [ref=f25e543]: Color mirrored
+                      - generic [ref=f25e544]: "Yes"
+              - generic [ref=f25e545]:
+                - heading "Placement" [level=4] [ref=f25e546]
+                - list [ref=f25e547]:
+                  - listitem [ref=f25e548]:
+                    - button "Piece on square 32" [ref=f25e549] [cursor=pointer]:
+                      - generic [ref=f25e550]: Piece on square
+                      - generic [ref=f25e551]: "32"
+                  - listitem [ref=f25e552]:
+                    - button "Type at square 32" [ref=f25e553] [cursor=pointer]:
+                      - generic [ref=f25e554]: Type at square
+                      - generic [ref=f25e555]: "32"
+                  - listitem [ref=f25e556]:
+                    - button "Concentration per wing W 2 · B 2" [ref=f25e557] [cursor=pointer]:
+                      - generic [ref=f25e558]: Concentration per wing
+                      - generic [ref=f25e559]: W 2 · B 2
+                  - listitem [ref=f25e560]:
+                    - button "Center W 0 · B 0" [ref=f25e561] [cursor=pointer]:
+                      - generic [ref=f25e562]: Center
+                      - generic [ref=f25e563]: W 0 · B 0
+                  - listitem [ref=f25e564]:
+                    - button "Enemy territory W 0 · B 0" [ref=f25e565] [cursor=pointer]:
+                      - generic [ref=f25e566]: Enemy territory
+                      - generic [ref=f25e567]: W 0 · B 0
+                  - listitem [ref=f25e568]:
+                    - button "Advanced W 0 · B 0" [ref=f25e569] [cursor=pointer]:
+                      - generic [ref=f25e570]: Advanced
+                      - generic [ref=f25e571]: W 0 · B 0
+                  - listitem [ref=f25e572]:
+                    - button "Centralized W 0 · B 0" [ref=f25e573] [cursor=pointer]:
+                      - generic [ref=f25e574]: Centralized
+                      - generic [ref=f25e575]: W 0 · B 0
+                  - listitem [ref=f25e576]:
+                    - button "Knight on rim W 0 · B 0" [ref=f25e577] [cursor=pointer]:
+                      - generic [ref=f25e578]: Knight on rim
+                      - generic [ref=f25e579]: W 0 · B 0
+                  - listitem [ref=f25e580]:
+                    - button "Knight outpost W 0 · B 0" [ref=f25e581] [cursor=pointer]:
+                      - generic [ref=f25e582]: Knight outpost
+                      - generic [ref=f25e583]: W 0 · B 0
+                  - listitem [ref=f25e584]:
+                    - button "Bishop active W 0 · B 0" [ref=f25e585] [cursor=pointer]:
+                      - generic [ref=f25e586]: Bishop active
+                      - generic [ref=f25e587]: W 0 · B 0
+                  - listitem [ref=f25e588]:
+                    - button "Bad bishop W c1, f1 · B c8, f8" [ref=f25e589] [cursor=pointer]:
+                      - generic [ref=f25e590]: Bad bishop
+                      - generic [ref=f25e591]:
+                        - generic "Highlights on the board when pinned" [ref=f25e592]
+                        - text: W c1, f1 · B c8, f8
+                  - listitem [ref=f25e596]:
+                    - button "Good bishop W 0 · B 0" [ref=f25e597] [cursor=pointer]:
+                      - generic [ref=f25e598]: Good bishop
+                      - generic [ref=f25e599]: W 0 · B 0
+                  - listitem [ref=f25e600]:
+                    - button "Bishop outside chain W 0 · B 0" [ref=f25e601] [cursor=pointer]:
+                      - generic [ref=f25e602]: Bishop outside chain
+                      - generic [ref=f25e603]: W 0 · B 0
+                  - listitem [ref=f25e604]:
+                    - button "Trapped bishop W c1, f1 · B c8, f8" [ref=f25e605] [cursor=pointer]:
+                      - generic [ref=f25e606]: Trapped bishop
+                      - generic [ref=f25e607]:
+                        - generic "Highlights on the board when pinned" [ref=f25e608]
+                        - text: W c1, f1 · B c8, f8
+                  - listitem [ref=f25e612]:
+                    - button "Trapped rook W a1, h1 · B a8, h8" [ref=f25e613] [cursor=pointer]:
+                      - generic [ref=f25e614]: Trapped rook
+                      - generic [ref=f25e615]:
+                        - generic "Highlights on the board when pinned" [ref=f25e616]
+                        - text: W a1, h1 · B a8, h8
+                  - listitem [ref=f25e620]:
+                    - button "Trapped queen W d1 · B d8" [ref=f25e621] [cursor=pointer]:
+                      - generic [ref=f25e622]: Trapped queen
+                      - generic [ref=f25e623]:
+                        - generic "Highlights on the board when pinned" [ref=f25e624]
+                        - text: W d1 · B d8
+                  - listitem [ref=f25e628]:
+                    - button "Trapped piece W 5 · B 5" [ref=f25e629] [cursor=pointer]:
+                      - generic [ref=f25e630]: Trapped piece
+                      - generic [ref=f25e631]:
+                        - generic "Highlights on the board when pinned" [ref=f25e632]
+                        - text: W 5 · B 5
+                  - listitem [ref=f25e636]:
+                    - button "Rook seventh W 0 · B 0" [ref=f25e637] [cursor=pointer]:
+                      - generic [ref=f25e638]: Rook seventh
+                      - generic [ref=f25e639]: W 0 · B 0
+                  - listitem [ref=f25e640]:
+                    - button "Rook behind passed —" [ref=f25e641] [cursor=pointer]:
+                      - generic [ref=f25e642]: Rook behind passed
+                      - generic [ref=f25e643]: —
+                  - listitem [ref=f25e644]:
+                    - button "Rook open file W 0 · B 0" [ref=f25e645] [cursor=pointer]:
+                      - generic [ref=f25e646]: Rook open file
+                      - generic [ref=f25e647]: W 0 · B 0
+                  - listitem [ref=f25e648]:
+                    - button "Rook semi open file W 0 · B 0" [ref=f25e649] [cursor=pointer]:
+                      - generic [ref=f25e650]: Rook semi open file
+                      - generic [ref=f25e651]: W 0 · B 0
+                  - listitem [ref=f25e652]:
+                    - button "Doubled rooks —" [ref=f25e653] [cursor=pointer]:
+                      - generic [ref=f25e654]: Doubled rooks
+                      - generic [ref=f25e655]: —
+                  - listitem [ref=f25e656]:
+                    - button "Connected rooks —" [ref=f25e657] [cursor=pointer]:
+                      - generic [ref=f25e658]: Connected rooks
+                      - generic [ref=f25e659]: —
+                  - listitem [ref=f25e660]:
+                    - button "Queen center W 0 · B 0" [ref=f25e661] [cursor=pointer]:
+                      - generic [ref=f25e662]: Queen center
+                      - generic [ref=f25e663]: W 0 · B 0
+                  - listitem [ref=f25e664]:
+                    - button "King center W 0 · B 0" [ref=f25e665] [cursor=pointer]:
+                      - generic [ref=f25e666]: King center
+                      - generic [ref=f25e667]: W 0 · B 0
+              - generic [ref=f25e668]:
+                - heading "Mobility" [level=4] [ref=f25e669]
+                - list [ref=f25e670]:
+                  - listitem [ref=f25e671]:
+                    - button "Total 40" [ref=f25e672] [cursor=pointer]:
+                      - generic [ref=f25e673]: Total
+                      - generic [ref=f25e674]: "40"
+                  - listitem [ref=f25e675]:
+                    - button "Per side W 20 · B 20" [ref=f25e676] [cursor=pointer]:
+                      - generic [ref=f25e677]: Per side
+                      - generic [ref=f25e678]: W 20 · B 20
+                  - listitem [ref=f25e679]:
+                    - button "Per piece W 10 · B 10" [ref=f25e680] [cursor=pointer]:
+                      - generic [ref=f25e681]: Per piece
+                      - generic [ref=f25e682]:
+                        - generic "Highlights on the board when pinned" [ref=f25e683]
+                        - text: W 10 · B 10
+                  - listitem [ref=f25e687]:
+                    - button "Legal moves 20" [ref=f25e688] [cursor=pointer]:
+                      - generic [ref=f25e689]: Legal moves
+                      - generic [ref=f25e690]: "20"
+                  - listitem [ref=f25e691]:
+                    - button "Available squares W 10 · B 10" [ref=f25e692] [cursor=pointer]:
+                      - generic [ref=f25e693]: Available squares
+                      - generic [ref=f25e694]:
+                        - generic "Highlights on the board when pinned" [ref=f25e695]
+                        - text: W 10 · B 10
+                  - listitem [ref=f25e699]:
+                    - button "Restricted W 5 · B 5" [ref=f25e700] [cursor=pointer]:
+                      - generic [ref=f25e701]: Restricted
+                      - generic [ref=f25e702]:
+                        - generic "Highlights on the board when pinned" [ref=f25e703]
+                        - text: W 5 · B 5
+                  - listitem [ref=f25e707]:
+                    - button "Trapped piece W 6 · B 6" [ref=f25e708] [cursor=pointer]:
+                      - generic [ref=f25e709]: Trapped piece
+                      - generic [ref=f25e710]:
+                        - generic "Highlights on the board when pinned" [ref=f25e711]
+                        - text: W 6 · B 6
+                  - listitem [ref=f25e715]:
+                    - button "Active passive W 2 · B 2" [ref=f25e716] [cursor=pointer]:
+                      - generic [ref=f25e717]: Active passive
+                      - generic [ref=f25e718]: W 2 · B 2
+                  - listitem [ref=f25e719]:
+                    - button "Rook activity W 0 · B 0" [ref=f25e720] [cursor=pointer]:
+                      - generic [ref=f25e721]: Rook activity
+                      - generic [ref=f25e722]: W 0 · B 0
+                  - listitem [ref=f25e723]:
+                    - button "Bishop activity W 0 · B 0" [ref=f25e724] [cursor=pointer]:
+                      - generic [ref=f25e725]: Bishop activity
+                      - generic [ref=f25e726]: W 0 · B 0
+                  - listitem [ref=f25e727]:
+                    - button "Queen activity W 0 · B 0" [ref=f25e728] [cursor=pointer]:
+                      - generic [ref=f25e729]: Queen activity
+                      - generic [ref=f25e730]: W 0 · B 0
+                  - listitem [ref=f25e731]:
+                    - button "Knight activity W 4 · B 4" [ref=f25e732] [cursor=pointer]:
+                      - generic [ref=f25e733]: Knight activity
+                      - generic [ref=f25e734]: W 4 · B 4
+                  - listitem [ref=f25e735]:
+                    - button "King activity W 0 · B 0" [ref=f25e736] [cursor=pointer]:
+                      - generic [ref=f25e737]: King activity
+                      - generic [ref=f25e738]: W 0 · B 0
+                  - listitem [ref=f25e739]:
+                    - button "Development W 0 · B 0" [ref=f25e740] [cursor=pointer]:
+                      - generic [ref=f25e741]: Development
+                      - generic [ref=f25e742]: W 0 · B 0
+                  - listitem [ref=f25e743]:
+                    - button "Development advantage 0" [ref=f25e744] [cursor=pointer]:
+                      - generic [ref=f25e745]: Development advantage
+                      - generic [ref=f25e746]: "0"
+                  - listitem [ref=f25e747]:
+                    - button "Undeveloped W b1, c1, f1, g1 · B b8, c8, f8, g8" [ref=f25e748] [cursor=pointer]:
+                      - generic [ref=f25e749]: Undeveloped
+                      - generic [ref=f25e750]:
+                        - generic "Highlights on the board when pinned" [ref=f25e751]
+                        - text: W b1, c1, f1, g1 · B b8, c8, f8, g8
+                  - listitem [ref=f25e755]:
+                    - button "Development deficit W 5 · B 5" [ref=f25e756] [cursor=pointer]:
+                      - generic [ref=f25e757]: Development deficit
+                      - generic [ref=f25e758]: W 5 · B 5
+                  - listitem [ref=f25e759]:
+                    - button "Coordination W 5 · B 5" [ref=f25e760] [cursor=pointer]:
+                      - generic [ref=f25e761]: Coordination
+                      - generic [ref=f25e762]: W 5 · B 5
+                  - listitem [ref=f25e763]:
+                    - button "Uncoordinated W a1, h1 · B a8, h8" [ref=f25e764] [cursor=pointer]:
+                      - generic [ref=f25e765]: Uncoordinated
+                      - generic [ref=f25e766]:
+                        - generic "Highlights on the board when pinned" [ref=f25e767]
+                        - text: W a1, h1 · B a8, h8
+              - generic [ref=f25e771]:
+                - heading "Center" [level=4] [ref=f25e772]
+                - list [ref=f25e773]:
+                  - listitem [ref=f25e774]:
+                    - button "Occupation W 0 · B 0" [ref=f25e775] [cursor=pointer]:
+                      - generic [ref=f25e776]: Occupation
+                      - generic [ref=f25e777]: W 0 · B 0
+                  - listitem [ref=f25e778]:
+                    - button "Control W 4 · B 4" [ref=f25e779] [cursor=pointer]:
+                      - generic [ref=f25e780]: Control
+                      - generic [ref=f25e781]: W 4 · B 4
+                  - listitem [ref=f25e782]:
+                    - button "Key control W 0 · B 0" [ref=f25e783] [cursor=pointer]:
+                      - generic [ref=f25e784]: Key control
+                      - generic [ref=f25e785]: W 0 · B 0
+                  - listitem [ref=f25e786]:
+                    - button "Extended W 0 · B 0" [ref=f25e787] [cursor=pointer]:
+                      - generic [ref=f25e788]: Extended
+                      - generic [ref=f25e789]: W 0 · B 0
+                  - listitem [ref=f25e790]:
+                    - button "Pawn center W 0 · B 0" [ref=f25e791] [cursor=pointer]:
+                      - generic [ref=f25e792]: Pawn center
+                      - generic [ref=f25e793]: W 0 · B 0
+                  - listitem [ref=f25e794]:
+                    - button "Piece center W 0 · B 0" [ref=f25e795] [cursor=pointer]:
+                      - generic [ref=f25e796]: Piece center
+                      - generic [ref=f25e797]: W 0 · B 0
+                  - listitem [ref=f25e798]:
+                    - button "Stable —" [ref=f25e799] [cursor=pointer]:
+                      - generic [ref=f25e800]: Stable
+                      - generic [ref=f25e801]: —
+                  - listitem [ref=f25e802]:
+                    - button "Mobile —" [ref=f25e803] [cursor=pointer]:
+                      - generic [ref=f25e804]: Mobile
+                      - generic [ref=f25e805]: —
+                  - listitem [ref=f25e806]:
+                    - button "Locked No" [ref=f25e807] [cursor=pointer]:
+                      - generic [ref=f25e808]: Locked
+                      - generic [ref=f25e809]: "No"
+                  - listitem [ref=f25e810]:
+                    - button "Open Yes" [ref=f25e811] [cursor=pointer]:
+                      - generic [ref=f25e812]: Open
+                      - generic [ref=f25e813]: "Yes"
+                  - listitem [ref=f25e814]:
+                    - button "Tension No" [ref=f25e815] [cursor=pointer]:
+                      - generic [ref=f25e816]: Tension
+                      - generic [ref=f25e817]: "No"
+                  - listitem [ref=f25e818]:
+                    - button "Breakthrough —" [ref=f25e819] [cursor=pointer]:
+                      - generic [ref=f25e820]: Breakthrough
+                      - generic [ref=f25e821]: —
+                  - listitem [ref=f25e822]:
+                    - button "Dominance 0" [ref=f25e823] [cursor=pointer]:
+                      - generic [ref=f25e824]: Dominance
+                      - generic [ref=f25e825]: "0"
+              - generic [ref=f25e826]:
+                - heading "Space" [level=4] [ref=f25e827]
+                - list [ref=f25e828]:
+                  - listitem [ref=f25e829]:
+                    - button "Total 0" [ref=f25e830] [cursor=pointer]:
+                      - generic [ref=f25e831]: Total
+                      - generic [ref=f25e832]: "0"
+                  - listitem [ref=f25e833]:
+                    - button "Kingside 0" [ref=f25e834] [cursor=pointer]:
+                      - generic [ref=f25e835]: Kingside
+                      - generic [ref=f25e836]: "0"
+                  - listitem [ref=f25e837]:
+                    - button "Queenside 0" [ref=f25e838] [cursor=pointer]:
+                      - generic [ref=f25e839]: Queenside
+                      - generic [ref=f25e840]: "0"
+                  - listitem [ref=f25e841]:
+                    - button "Center 0" [ref=f25e842] [cursor=pointer]:
+                      - generic [ref=f25e843]: Center
+                      - generic [ref=f25e844]: "0"
+                  - listitem [ref=f25e845]:
+                    - button "Enemy half control W 0 · B 0" [ref=f25e846] [cursor=pointer]:
+                      - generic [ref=f25e847]: Enemy half control
+                      - generic [ref=f25e848]: W 0 · B 0
+                  - listitem [ref=f25e849]:
+                    - button "Territory W 0 · B 0" [ref=f25e850] [cursor=pointer]:
+                      - generic [ref=f25e851]: Territory
+                      - generic [ref=f25e852]: W 0 · B 0
+                  - listitem [ref=f25e853]:
+                    - button "Cramping —" [ref=f25e854] [cursor=pointer]:
+                      - generic [ref=f25e855]: Cramping
+                      - generic [ref=f25e856]: —
+                  - listitem [ref=f25e857]:
+                    - button "Advanced chain —" [ref=f25e858] [cursor=pointer]:
+                      - generic [ref=f25e859]: Advanced chain
+                      - generic [ref=f25e860]: —
+                  - listitem [ref=f25e861]:
+                    - button "Gaining push Both" [ref=f25e862] [cursor=pointer]:
+                      - generic [ref=f25e863]: Gaining push
+                      - generic [ref=f25e864]: Both
+              - generic [ref=f25e865]:
+                - heading "Squares" [level=4] [ref=f25e866]
+                - list [ref=f25e867]:
+                  - listitem [ref=f25e868]:
+                    - button "Weak W 0 · B 0" [ref=f25e869] [cursor=pointer]:
+                      - generic [ref=f25e870]: Weak
+                      - generic [ref=f25e871]: W 0 · B 0
+                  - listitem [ref=f25e872]:
+                    - button "Hole W 8 · B 8" [ref=f25e873] [cursor=pointer]:
+                      - generic [ref=f25e874]: Hole
+                      - generic [ref=f25e875]:
+                        - generic "Highlights on the board when pinned" [ref=f25e876]
+                        - text: W 8 · B 8
+                  - listitem [ref=f25e880]:
+                    - button "Outpost W 0 · B 0" [ref=f25e881] [cursor=pointer]:
+                      - generic [ref=f25e882]: Outpost
+                      - generic [ref=f25e883]: W 0 · B 0
+                  - listitem [ref=f25e884]:
+                    - button "Occupied outpost W 0 · B 0" [ref=f25e885] [cursor=pointer]:
+                      - generic [ref=f25e886]: Occupied outpost
+                      - generic [ref=f25e887]: W 0 · B 0
+                  - listitem [ref=f25e888]:
+                    - button "Potential outpost W 0 · B 0" [ref=f25e889] [cursor=pointer]:
+                      - generic [ref=f25e890]: Potential outpost
+                      - generic [ref=f25e891]: W 0 · B 0
+                  - listitem [ref=f25e892]:
+                    - button "Enemy on outpost —" [ref=f25e893] [cursor=pointer]:
+                      - generic [ref=f25e894]: Enemy on outpost
+                      - generic [ref=f25e895]: —
+                  - listitem [ref=f25e896]:
+                    - button "Weak color complex W — · B —" [ref=f25e897] [cursor=pointer]:
+                      - generic [ref=f25e898]: Weak color complex
+                      - generic [ref=f25e899]: W — · B —
+                  - listitem [ref=f25e900]:
+                    - button "Dark weakness —" [ref=f25e901] [cursor=pointer]:
+                      - generic [ref=f25e902]: Dark weakness
+                      - generic [ref=f25e903]: —
+                  - listitem [ref=f25e904]:
+                    - button "Light weakness —" [ref=f25e905] [cursor=pointer]:
+                      - generic [ref=f25e906]: Light weakness
+                      - generic [ref=f25e907]: —
+                  - listitem [ref=f25e908]:
+                    - button "King weak W 0 · B 0" [ref=f25e909] [cursor=pointer]:
+                      - generic [ref=f25e910]: King weak
+                      - generic [ref=f25e911]: W 0 · B 0
+                  - listitem [ref=f25e912]:
+                    - button "Behind pawns W 0 · B 0" [ref=f25e913] [cursor=pointer]:
+                      - generic [ref=f25e914]: Behind pawns
+                      - generic [ref=f25e915]: W 0 · B 0
+                  - listitem [ref=f25e916]:
+                    - button "Invasion W 0 · B 0" [ref=f25e917] [cursor=pointer]:
+                      - generic [ref=f25e918]: Invasion
+                      - generic [ref=f25e919]: W 0 · B 0
+                  - listitem [ref=f25e920]:
+                    - button "Heavy entry W 0 · B 0" [ref=f25e921] [cursor=pointer]:
+                      - generic [ref=f25e922]: Heavy entry
+                      - generic [ref=f25e923]: W 0 · B 0
+                  - listitem [ref=f25e924]:
+                    - button "Weakness duration W 0 · B 0" [ref=f25e925] [cursor=pointer]:
+                      - generic [ref=f25e926]: Weakness duration
+                      - generic [ref=f25e927]: W 0 · B 0
+              - generic [ref=f25e928]:
+                - heading "Lines" [level=4] [ref=f25e929]
+                - list [ref=f25e930]:
+                  - listitem [ref=f25e931]:
+                    - button "Open files 0" [ref=f25e932] [cursor=pointer]:
+                      - generic [ref=f25e933]: Open files
+                      - generic [ref=f25e934]: "0"
+                  - listitem [ref=f25e935]:
+                    - button "Semi open files W 0 · B 0" [ref=f25e936] [cursor=pointer]:
+                      - generic [ref=f25e937]: Semi open files
+                      - generic [ref=f25e938]: W 0 · B 0
+                  - listitem [ref=f25e939]:
+                    - button "Closed files 8" [ref=f25e940] [cursor=pointer]:
+                      - generic [ref=f25e941]: Closed files
+                      - generic [ref=f25e942]:
+                        - generic "Highlights on the board when pinned" [ref=f25e943]
+                        - text: "8"
+                  - listitem [ref=f25e947]:
+                    - button "Open diagonals W 10 · B 10" [ref=f25e948] [cursor=pointer]:
+                      - generic [ref=f25e949]: Open diagonals
+                      - generic [ref=f25e950]: W 10 · B 10
+                  - listitem [ref=f25e951]:
+                    - button "Semi open diagonals W 10 · B 10" [ref=f25e952] [cursor=pointer]:
+                      - generic [ref=f25e953]: Semi open diagonals
+                      - generic [ref=f25e954]: W 10 · B 10
+                  - listitem [ref=f25e955]:
+                    - button "Long diagonals W 4 · B 4" [ref=f25e956] [cursor=pointer]:
+                      - generic [ref=f25e957]: Long diagonals
+                      - generic [ref=f25e958]: W 4 · B 4
+                  - listitem [ref=f25e959]:
+                    - button "Open ranks 6" [ref=f25e960] [cursor=pointer]:
+                      - generic [ref=f25e961]: Open ranks
+                      - generic [ref=f25e962]: "6"
+                  - listitem [ref=f25e963]:
+                    - button "Rook open file —" [ref=f25e964] [cursor=pointer]:
+                      - generic [ref=f25e965]: Rook open file
+                      - generic [ref=f25e966]: —
+                  - listitem [ref=f25e967]:
+                    - button "Rook semi open file —" [ref=f25e968] [cursor=pointer]:
+                      - generic [ref=f25e969]: Rook semi open file
+                      - generic [ref=f25e970]: —
+                  - listitem [ref=f25e971]:
+                    - button "Open file control —" [ref=f25e972] [cursor=pointer]:
+                      - generic [ref=f25e973]: Open file control
+                      - generic [ref=f25e974]: —
+                  - listitem [ref=f25e975]:
+                    - button "Contested files —" [ref=f25e976] [cursor=pointer]:
+                      - generic [ref=f25e977]: Contested files
+                      - generic [ref=f25e978]: —
+                  - listitem [ref=f25e979]:
+                    - button "Penetration —" [ref=f25e980] [cursor=pointer]:
+                      - generic [ref=f25e981]: Penetration
+                      - generic [ref=f25e982]: —
+                  - listitem [ref=f25e983]:
+                    - button "Battery on file —" [ref=f25e984] [cursor=pointer]:
+                      - generic [ref=f25e985]: Battery on file
+                      - generic [ref=f25e986]: —
+                  - listitem [ref=f25e987]:
+                    - button "Battery on diagonal —" [ref=f25e988] [cursor=pointer]:
+                      - generic [ref=f25e989]: Battery on diagonal
+                      - generic [ref=f25e990]: —
+                  - listitem [ref=f25e991]:
+                    - button "Queen rook battery —" [ref=f25e992] [cursor=pointer]:
+                      - generic [ref=f25e993]: Queen rook battery
+                      - generic [ref=f25e994]: —
+                  - listitem [ref=f25e995]:
+                    - button "Queen bishop battery —" [ref=f25e996] [cursor=pointer]:
+                      - generic [ref=f25e997]: Queen bishop battery
+                      - generic [ref=f25e998]: —
+                  - listitem [ref=f25e999]:
+                    - button "Bishop battery —" [ref=f25e1000] [cursor=pointer]:
+                      - generic [ref=f25e1001]: Bishop battery
+                      - generic [ref=f25e1002]: —
+                  - listitem [ref=f25e1003]:
+                    - button "Xray Both" [ref=f25e1004] [cursor=pointer]:
+                      - generic [ref=f25e1005]: Xray
+                      - generic [ref=f25e1006]: Both
+              - generic [ref=f25e1007]:
+                - heading "Attacks" [level=4] [ref=f25e1008]
+                - list [ref=f25e1009]:
+                  - listitem [ref=f25e1010]:
+                    - button "Map W 22 · B 22" [ref=f25e1011] [cursor=pointer]:
+                      - generic [ref=f25e1012]: Map
+                      - generic [ref=f25e1013]:
+                        - generic "Highlights on the board when pinned" [ref=f25e1014]
+                        - text: W 22 · B 22
+                  - listitem [ref=f25e1018]:
+                    - button "Attacked squares 44" [ref=f25e1019] [cursor=pointer]:
+                      - generic [ref=f25e1020]: Attacked squares
+                      - generic [ref=f25e1021]:
+                        - generic "Highlights on the board when pinned" [ref=f25e1022]
+                        - text: "44"
+                  - listitem [ref=f25e1026]:
+                    - button "Defended squares W 14 · B 14" [ref=f25e1027] [cursor=pointer]:
+                      - generic [ref=f25e1028]: Defended squares
+                      - generic [ref=f25e1029]:
+                        - generic "Highlights on the board when pinned" [ref=f25e1030]
+                        - text: W 14 · B 14
+                  - listitem [ref=f25e1034]:
+                    - button "Attackers per square W 22 · B 22" [ref=f25e1035] [cursor=pointer]:
+                      - generic [ref=f25e1036]: Attackers per square
+                      - generic [ref=f25e1037]:
+                        - generic "Highlights on the board when pinned" [ref=f25e1038]
+                        - text: W 22 · B 22
+                  - listitem [ref=f25e1042]:
+                    - button "Defenders per square W 14 · B 14" [ref=f25e1043] [cursor=pointer]:
+                      - generic [ref=f25e1044]: Defenders per square
+                      - generic [ref=f25e1045]:
+                        - generic "Highlights on the board when pinned" [ref=f25e1046]
+                        - text: W 14 · B 14
+                  - listitem [ref=f25e1050]:
+                    - button "Attacked pieces W 0 · B 0" [ref=f25e1051] [cursor=pointer]:
+                      - generic [ref=f25e1052]: Attacked pieces
+                      - generic [ref=f25e1053]: W 0 · B 0
+                  - listitem [ref=f25e1054]:
+                    - button "Undefended W a1, h1 · B a8, h8" [ref=f25e1055] [cursor=pointer]:
+                      - generic [ref=f25e1056]: Undefended
+                      - generic [ref=f25e1057]:
+                        - generic "Highlights on the board when pinned" [ref=f25e1058]
+                        - text: W a1, h1 · B a8, h8
+                  - listitem [ref=f25e1062]:
+                    - button "Loose W 0 · B 0" [ref=f25e1063] [cursor=pointer]:
+                      - generic [ref=f25e1064]: Loose
+                      - generic [ref=f25e1065]: W 0 · B 0
+                  - listitem [ref=f25e1066]:
+                    - button "Hanging W 0 · B 0" [ref=f25e1067] [cursor=pointer]:
+                      - generic [ref=f25e1068]: Hanging
+                      - generic [ref=f25e1069]: W 0 · B 0
+                  - listitem [ref=f25e1070]:
+                    - button "En prise W 0 · B 0" [ref=f25e1071] [cursor=pointer]:
+                      - generic [ref=f25e1072]: En prise
+                      - generic [ref=f25e1073]: W 0 · B 0
+                  - listitem [ref=f25e1074]:
+                    - button "Overprotected W d2, e2 · B d7, e7" [ref=f25e1075] [cursor=pointer]:
+                      - generic [ref=f25e1076]: Overprotected
+                      - generic [ref=f25e1077]:
+                        - generic "Highlights on the board when pinned" [ref=f25e1078]
+                        - text: W d2, e2 · B d7, e7
+                  - listitem [ref=f25e1082]:
+                    - button "Overloaded W 0 · B 0" [ref=f25e1083] [cursor=pointer]:
+                      - generic [ref=f25e1084]: Overloaded
+                      - generic [ref=f25e1085]: W 0 · B 0
+                  - listitem [ref=f25e1086]:
+                    - button "Underdefended W 0 · B 0" [ref=f25e1087] [cursor=pointer]:
+                      - generic [ref=f25e1088]: Underdefended
+                      - generic [ref=f25e1089]: W 0 · B 0
+                  - listitem [ref=f25e1090]:
+                    - button "Force ratio W — · B —" [ref=f25e1091] [cursor=pointer]:
+                      - generic [ref=f25e1092]: Force ratio
+                      - generic [ref=f25e1093]: W — · B —
+                  - listitem [ref=f25e1094]:
+                    - button "Pressure squares W 0 · B 0" [ref=f25e1095] [cursor=pointer]:
+                      - generic [ref=f25e1096]: Pressure squares
+                      - generic [ref=f25e1097]: W 0 · B 0
+                  - listitem [ref=f25e1098]:
+                    - button "Pressure piece W — · B —" [ref=f25e1099] [cursor=pointer]:
+                      - generic [ref=f25e1100]: Pressure piece
+                      - generic [ref=f25e1101]: W — · B —
+                  - listitem [ref=f25e1102]:
+                    - button "Pressure isolated W 0 · B 0" [ref=f25e1103] [cursor=pointer]:
+                      - generic [ref=f25e1104]: Pressure isolated
+                      - generic [ref=f25e1105]: W 0 · B 0
+                  - listitem [ref=f25e1106]:
+                    - button "Pressure backward W 0 · B 0" [ref=f25e1107] [cursor=pointer]:
+                      - generic [ref=f25e1108]: Pressure backward
+                      - generic [ref=f25e1109]: W 0 · B 0
+                  - listitem [ref=f25e1110]:
+                    - button "Pressure passed W 0 · B 0" [ref=f25e1111] [cursor=pointer]:
+                      - generic [ref=f25e1112]: Pressure passed
+                      - generic [ref=f25e1113]: W 0 · B 0
+                  - listitem [ref=f25e1114]:
+                    - button "F2 f7 W 0 · B 0" [ref=f25e1115] [cursor=pointer]:
+                      - generic [ref=f25e1116]: F2 f7
+                      - generic [ref=f25e1117]: W 0 · B 0
+                  - listitem [ref=f25e1118]:
+                    - button "King zone pressure W 0 · B 0" [ref=f25e1119] [cursor=pointer]:
+                      - generic [ref=f25e1120]: King zone pressure
+                      - generic [ref=f25e1121]: W 0 · B 0
+              - generic [ref=f25e1122]:
+                - heading "King" [level=4] [ref=f25e1123]
+                - list [ref=f25e1124]:
+                  - listitem [ref=f25e1125]:
+                    - button "Castled —" [ref=f25e1126] [cursor=pointer]:
+                      - generic [ref=f25e1127]: Castled
+                      - generic [ref=f25e1128]: —
+                  - listitem [ref=f25e1129]:
+                    - button "Castled kingside —" [ref=f25e1130] [cursor=pointer]:
+                      - generic [ref=f25e1131]: Castled kingside
+                      - generic [ref=f25e1132]: —
+                  - listitem [ref=f25e1133]:
+                    - button "Castled queenside —" [ref=f25e1134] [cursor=pointer]:
+                      - generic [ref=f25e1135]: Castled queenside
+                      - generic [ref=f25e1136]: —
+                  - listitem [ref=f25e1137]:
+                    - button "Uncastled Both" [ref=f25e1138] [cursor=pointer]:
+                      - generic [ref=f25e1139]: Uncastled
+                      - generic [ref=f25e1140]: Both
+                  - listitem [ref=f25e1141]:
+                    - button "Center —" [ref=f25e1142] [cursor=pointer]:
+                      - generic [ref=f25e1143]: Center
+                      - generic [ref=f25e1144]: —
+                  - listitem [ref=f25e1145]:
+                    - button "Castle rights lost —" [ref=f25e1146] [cursor=pointer]:
+                      - generic [ref=f25e1147]: Castle rights lost
+                      - generic [ref=f25e1148]: —
+                  - listitem [ref=f25e1149]:
+                    - button "Shield W d2, e2, f2 · B d7, e7, f7" [ref=f25e1150] [cursor=pointer]:
+                      - generic [ref=f25e1151]: Shield
+                      - generic [ref=f25e1152]:
+                        - generic "Highlights on the board when pinned" [ref=f25e1153]
+                        - text: W d2, e2, f2 · B d7, e7, f7
+                  - listitem [ref=f25e1157]:
+                    - button "Missing shield W d3, e3, f3 · B d6, e6, f6" [ref=f25e1158] [cursor=pointer]:
+                      - generic [ref=f25e1159]: Missing shield
+                      - generic [ref=f25e1160]:
+                        - generic "Highlights on the board when pinned" [ref=f25e1161]
+                        - text: W d3, e3, f3 · B d6, e6, f6
+                  - listitem [ref=f25e1165]:
+                    - button "Weak shield pawns W 0 · B 0" [ref=f25e1166] [cursor=pointer]:
+                      - generic [ref=f25e1167]: Weak shield pawns
+                      - generic [ref=f25e1168]: W 0 · B 0
+                  - listitem [ref=f25e1169]:
+                    - button "Open file —" [ref=f25e1170] [cursor=pointer]:
+                      - generic [ref=f25e1171]: Open file
+                      - generic [ref=f25e1172]: —
+                  - listitem [ref=f25e1173]:
+                    - button "Semi open file —" [ref=f25e1174] [cursor=pointer]:
+                      - generic [ref=f25e1175]: Semi open file
+                      - generic [ref=f25e1176]: —
+                  - listitem [ref=f25e1177]:
+                    - button "Open diagonal W 0 · B 0" [ref=f25e1178] [cursor=pointer]:
+                      - generic [ref=f25e1179]: Open diagonal
+                      - generic [ref=f25e1180]: W 0 · B 0
+                  - listitem [ref=f25e1181]:
+                    - button "Exposed —" [ref=f25e1182] [cursor=pointer]:
+                      - generic [ref=f25e1183]: Exposed
+                      - generic [ref=f25e1184]: —
+                  - listitem [ref=f25e1185]:
+                    - button "Zone W 5 · B 5" [ref=f25e1186] [cursor=pointer]:
+                      - generic [ref=f25e1187]: Zone
+                      - generic [ref=f25e1188]:
+                        - generic "Highlights on the board when pinned" [ref=f25e1189]
+                        - text: W 5 · B 5
+                  - listitem [ref=f25e1193]:
+                    - button "Attackers W 0 · B 0" [ref=f25e1194] [cursor=pointer]:
+                      - generic [ref=f25e1195]: Attackers
+                      - generic [ref=f25e1196]: W 0 · B 0
+                  - listitem [ref=f25e1197]:
+                    - button "Defenders W 5 · B 5" [ref=f25e1198] [cursor=pointer]:
+                      - generic [ref=f25e1199]: Defenders
+                      - generic [ref=f25e1200]:
+                        - generic "Highlights on the board when pinned" [ref=f25e1201]
+                        - text: W 5 · B 5
+                  - listitem [ref=f25e1205]:
+                    - button "Attack power W 0 · B 0" [ref=f25e1206] [cursor=pointer]:
+                      - generic [ref=f25e1207]: Attack power
+                      - generic [ref=f25e1208]: W 0 · B 0
+                  - listitem [ref=f25e1209]:
+                    - button "Escape squares W 0 · B 0" [ref=f25e1210] [cursor=pointer]:
+                      - generic [ref=f25e1211]: Escape squares
+                      - generic [ref=f25e1212]: W 0 · B 0
+                  - listitem [ref=f25e1213]:
+                    - button "Limited escapes Both" [ref=f25e1214] [cursor=pointer]:
+                      - generic [ref=f25e1215]: Limited escapes
+                      - generic [ref=f25e1216]: Both
+                  - listitem [ref=f25e1217]:
+                    - button "Back rank weakness Both" [ref=f25e1218] [cursor=pointer]:
+                      - generic [ref=f25e1219]: Back rank weakness
+                      - generic [ref=f25e1220]: Both
+                  - listitem [ref=f25e1221]:
+                    - button "Mating net —" [ref=f25e1222] [cursor=pointer]:
+                      - generic [ref=f25e1223]: Mating net
+                      - generic [ref=f25e1224]: —
+                  - listitem [ref=f25e1225]:
+                    - button "Opposite side castling No" [ref=f25e1226] [cursor=pointer]:
+                      - generic [ref=f25e1227]: Opposite side castling
+                      - generic [ref=f25e1228]: "No"
+                  - listitem [ref=f25e1229]:
+                    - button "Safety advantage 0" [ref=f25e1230] [cursor=pointer]:
+                      - generic [ref=f25e1231]: Safety advantage
+                      - generic [ref=f25e1232]: "0"
+              - generic [ref=f25e1233]:
+                - heading "Tactics" [level=4] [ref=f25e1234]
+                - list [ref=f25e1235]:
+                  - listitem [ref=f25e1236]:
+                    - button "Pin W 0 · B 0" [ref=f25e1237] [cursor=pointer]:
+                      - generic [ref=f25e1238]: Pin
+                      - generic [ref=f25e1239]: W 0 · B 0
+                  - listitem [ref=f25e1240]:
+                    - button "Absolute pin W 0 · B 0" [ref=f25e1241] [cursor=pointer]:
+                      - generic [ref=f25e1242]: Absolute pin
+                      - generic [ref=f25e1243]: W 0 · B 0
+                  - listitem [ref=f25e1244]:
+                    - button "Relative pin W 0 · B 0" [ref=f25e1245] [cursor=pointer]:
+                      - generic [ref=f25e1246]: Relative pin
+                      - generic [ref=f25e1247]: W 0 · B 0
+                  - listitem [ref=f25e1248]:
+                    - button "Skewer W 0 · B 0" [ref=f25e1249] [cursor=pointer]:
+                      - generic [ref=f25e1250]: Skewer
+                      - generic [ref=f25e1251]: W 0 · B 0
+                  - listitem [ref=f25e1252]:
+                    - button "Fork W 0 · B 0" [ref=f25e1253] [cursor=pointer]:
+                      - generic [ref=f25e1254]: Fork
+                      - generic [ref=f25e1255]: W 0 · B 0
+                  - listitem [ref=f25e1256]:
+                    - button "Discovered attack W a2, d2, h2 · B a7, d7, h7" [ref=f25e1257] [cursor=pointer]:
+                      - generic [ref=f25e1258]: Discovered attack
+                      - generic [ref=f25e1259]:
+                        - generic "Highlights on the board when pinned" [ref=f25e1260]
+                        - text: W a2, d2, h2 · B a7, d7, h7
+                  - listitem [ref=f25e1264]:
+                    - button "Discovered check W 0 · B 0" [ref=f25e1265] [cursor=pointer]:
+                      - generic [ref=f25e1266]: Discovered check
+                      - generic [ref=f25e1267]: W 0 · B 0
+                  - listitem [ref=f25e1268]:
+                    - button "Double attack W 0 · B 0" [ref=f25e1269] [cursor=pointer]:
+                      - generic [ref=f25e1270]: Double attack
+                      - generic [ref=f25e1271]: W 0 · B 0
+                  - listitem [ref=f25e1272]:
+                    - button "Double check —" [ref=f25e1273] [cursor=pointer]:
+                      - generic [ref=f25e1274]: Double check
+                      - generic [ref=f25e1275]: —
+                  - listitem [ref=f25e1276]:
+                    - button "Xray attack W a7, d7, h7 · B a2, d2, h2" [ref=f25e1277] [cursor=pointer]:
+                      - generic [ref=f25e1278]: Xray attack
+                      - generic [ref=f25e1279]:
+                        - generic "Highlights on the board when pinned" [ref=f25e1280]
+                        - text: W a7, d7, h7 · B a2, d2, h2
+                  - listitem [ref=f25e1284]:
+                    - button "Battery —" [ref=f25e1285] [cursor=pointer]:
+                      - generic [ref=f25e1286]: Battery
+                      - generic [ref=f25e1287]: —
+                  - listitem [ref=f25e1288]:
+                    - button "Overloaded piece W 0 · B 0" [ref=f25e1289] [cursor=pointer]:
+                      - generic [ref=f25e1290]: Overloaded piece
+                      - generic [ref=f25e1291]: W 0 · B 0
+                  - listitem [ref=f25e1292]:
+                    - button "Deflection possibility W 0 · B 0" [ref=f25e1293] [cursor=pointer]:
+                      - generic [ref=f25e1294]: Deflection possibility
+                      - generic [ref=f25e1295]: W 0 · B 0
+                  - listitem [ref=f25e1296]:
+                    - button "Decoy possibility W 5 · B 5" [ref=f25e1297] [cursor=pointer]:
+                      - generic [ref=f25e1298]: Decoy possibility
+                      - generic [ref=f25e1299]:
+                        - generic "Highlights on the board when pinned" [ref=f25e1300]
+                        - text: W 5 · B 5
+                  - listitem [ref=f25e1304]:
+                    - button "Removal of defender W 0 · B 0" [ref=f25e1305] [cursor=pointer]:
+                      - generic [ref=f25e1306]: Removal of defender
+                      - generic [ref=f25e1307]: W 0 · B 0
+                  - listitem [ref=f25e1308]:
+                    - button "Interference W 6 · B 6" [ref=f25e1309] [cursor=pointer]:
+                      - generic [ref=f25e1310]: Interference
+                      - generic [ref=f25e1311]:
+                        - generic "Highlights on the board when pinned" [ref=f25e1312]
+                        - text: W 6 · B 6
+                  - listitem [ref=f25e1316]:
+                    - button "Clearance W 6 · B 6" [ref=f25e1317] [cursor=pointer]:
+                      - generic [ref=f25e1318]: Clearance
+                      - generic [ref=f25e1319]:
+                        - generic "Highlights on the board when pinned" [ref=f25e1320]
+                        - text: W 6 · B 6
+                  - listitem [ref=f25e1324]:
+                    - button "Zwischenzug possibilities —" [ref=f25e1325] [cursor=pointer]:
+                      - generic [ref=f25e1326]: Zwischenzug possibilities
+                      - generic [ref=f25e1327]: —
+                  - listitem [ref=f25e1328]:
+                    - button "Trapped piece W 5 · B 5" [ref=f25e1329] [cursor=pointer]:
+                      - generic [ref=f25e1330]: Trapped piece
+                      - generic [ref=f25e1331]:
+                        - generic "Highlights on the board when pinned" [ref=f25e1332]
+                        - text: W 5 · B 5
+                  - listitem [ref=f25e1336]:
+                    - button "Loose piece W 0 · B 0" [ref=f25e1337] [cursor=pointer]:
+                      - generic [ref=f25e1338]: Loose piece
+                      - generic [ref=f25e1339]: W 0 · B 0
+                  - listitem [ref=f25e1340]:
+                    - button "Hanging piece W 0 · B 0" [ref=f25e1341] [cursor=pointer]:
+                      - generic [ref=f25e1342]: Hanging piece
+                      - generic [ref=f25e1343]: W 0 · B 0
+              - generic [ref=f25e1344]:
+                - heading "Threats" [level=4] [ref=f25e1345]
+                - list [ref=f25e1346]:
+                  - listitem [ref=f25e1347]:
+                    - button "Check —" [ref=f25e1348] [cursor=pointer]:
+                      - generic [ref=f25e1349]: Check
+                      - generic [ref=f25e1350]: —
+                  - listitem [ref=f25e1351]:
+                    - button "Checks available W 0 · B 0" [ref=f25e1352] [cursor=pointer]:
+                      - generic [ref=f25e1353]: Checks available
+                      - generic [ref=f25e1354]: W 0 · B 0
+                  - listitem [ref=f25e1355]:
+                    - button "Capture threats W 0 · B 0" [ref=f25e1356] [cursor=pointer]:
+                      - generic [ref=f25e1357]: Capture threats
+                      - generic [ref=f25e1358]: W 0 · B 0
+                  - listitem [ref=f25e1359]:
+                    - button "Mate threat —" [ref=f25e1360] [cursor=pointer]:
+                      - generic [ref=f25e1361]: Mate threat
+                      - generic [ref=f25e1362]: —
+                  - listitem [ref=f25e1363]:
+                    - button "Mating net —" [ref=f25e1364] [cursor=pointer]:
+                      - generic [ref=f25e1365]: Mating net
+                      - generic [ref=f25e1366]: —
+                  - listitem [ref=f25e1367]:
+                    - button "Promotion threat W 0 · B 0" [ref=f25e1368] [cursor=pointer]:
+                      - generic [ref=f25e1369]: Promotion threat
+                      - generic [ref=f25e1370]: W 0 · B 0
+                  - listitem [ref=f25e1371]:
+                    - button "Discovered attack threat W 0 · B 0" [ref=f25e1372] [cursor=pointer]:
+                      - generic [ref=f25e1373]: Discovered attack threat
+                      - generic [ref=f25e1374]: W 0 · B 0
+                  - listitem [ref=f25e1375]:
+                    - button "Fork threat W 0 · B 0" [ref=f25e1376] [cursor=pointer]:
+                      - generic [ref=f25e1377]: Fork threat
+                      - generic [ref=f25e1378]: W 0 · B 0
+                  - listitem [ref=f25e1379]:
+                    - button "Pin exploitation W 0 · B 0" [ref=f25e1380] [cursor=pointer]:
+                      - generic [ref=f25e1381]: Pin exploitation
+                      - generic [ref=f25e1382]: W 0 · B 0
+                  - listitem [ref=f25e1383]:
+                    - button "Sacrifice opportunity W 0 · B 0" [ref=f25e1384] [cursor=pointer]:
+                      - generic [ref=f25e1385]: Sacrifice opportunity
+                      - generic [ref=f25e1386]: W 0 · B 0
+                  - listitem [ref=f25e1387]:
+                    - button "Tactical tension 0" [ref=f25e1388] [cursor=pointer]:
+                      - generic [ref=f25e1389]: Tactical tension
+                      - generic [ref=f25e1390]: "0"
+                  - listitem [ref=f25e1391]:
+                    - button "Forcing move density W 0.0 · B 0.0" [ref=f25e1392] [cursor=pointer]:
+                      - generic [ref=f25e1393]: Forcing move density
+                      - generic [ref=f25e1394]: W 0.0 · B 0.0
+                  - listitem [ref=f25e1395]:
+                    - button "Forcing moves available W 0 · B 0" [ref=f25e1396] [cursor=pointer]:
+                      - generic [ref=f25e1397]: Forcing moves available
+                      - generic [ref=f25e1398]: W 0 · B 0
+                  - listitem [ref=f25e1399]:
+                    - button "Check capture threat moves W 0 · B 0" [ref=f25e1400] [cursor=pointer]:
+                      - generic [ref=f25e1401]: Check capture threat moves
+                      - generic [ref=f25e1402]: W 0 · B 0
+              - generic [ref=f25e1403]:
+                - heading "Motifs" [level=4] [ref=f25e1404]
+                - list [ref=f25e1405]:
+                  - listitem [ref=f25e1406]:
+                    - button "Greek gift —" [ref=f25e1407] [cursor=pointer]:
+                      - generic [ref=f25e1408]: Greek gift
+                      - generic [ref=f25e1409]: —
+                  - listitem [ref=f25e1410]:
+                    - button "Back rank motifs Both" [ref=f25e1411] [cursor=pointer]:
+                      - generic [ref=f25e1412]: Back rank motifs
+                      - generic [ref=f25e1413]: Both
+                  - listitem [ref=f25e1414]:
+                    - button "Smothered mate motifs —" [ref=f25e1415] [cursor=pointer]:
+                      - generic [ref=f25e1416]: Smothered mate motifs
+                      - generic [ref=f25e1417]: —
+                  - listitem [ref=f25e1418]:
+                    - button "Rook sacrifice against king —" [ref=f25e1419] [cursor=pointer]:
+                      - generic [ref=f25e1420]: Rook sacrifice against king
+                      - generic [ref=f25e1421]: —
+                  - listitem [ref=f25e1422]:
+                    - button "Exchange sacrifice W 0 · B 0" [ref=f25e1423] [cursor=pointer]:
+                      - generic [ref=f25e1424]: Exchange sacrifice
+                      - generic [ref=f25e1425]: W 0 · B 0
+                  - listitem [ref=f25e1426]:
+                    - button "Clearance sacrifice —" [ref=f25e1427] [cursor=pointer]:
+                      - generic [ref=f25e1428]: Clearance sacrifice
+                      - generic [ref=f25e1429]: —
+                  - listitem [ref=f25e1430]:
+                    - button "Deflection W 0 · B 0" [ref=f25e1431] [cursor=pointer]:
+                      - generic [ref=f25e1432]: Deflection
+                      - generic [ref=f25e1433]: W 0 · B 0
+                  - listitem [ref=f25e1434]:
+                    - button "Overloaded defender W 0 · B 0" [ref=f25e1435] [cursor=pointer]:
+                      - generic [ref=f25e1436]: Overloaded defender
+                      - generic [ref=f25e1437]: W 0 · B 0
+                  - listitem [ref=f25e1438]:
+                    - button "Trapped queen W d8 · B d1" [ref=f25e1439] [cursor=pointer]:
+                      - generic [ref=f25e1440]: Trapped queen
+                      - generic [ref=f25e1441]:
+                        - generic "Highlights on the board when pinned" [ref=f25e1442]
+                        - text: W d8 · B d1
+                  - listitem [ref=f25e1446]:
+                    - button "Mating battery —" [ref=f25e1447] [cursor=pointer]:
+                      - generic [ref=f25e1448]: Mating battery
+                      - generic [ref=f25e1449]: —
+                  - listitem [ref=f25e1450]:
+                    - button "F2 f7 attack W 0 · B 0" [ref=f25e1451] [cursor=pointer]:
+                      - generic [ref=f25e1452]: F2 f7 attack
+                      - generic [ref=f25e1453]: W 0 · B 0
+              - generic [ref=f25e1454]:
+                - heading "Goals" [level=4] [ref=f25e1455]
+                - list [ref=f25e1456]:
+                  - listitem [ref=f25e1457]:
+                    - button "Kingside attack —" [ref=f25e1458] [cursor=pointer]:
+                      - generic [ref=f25e1459]: Kingside attack
+                      - generic [ref=f25e1460]: —
+                  - listitem [ref=f25e1461]:
+                    - button "Queenside attack —" [ref=f25e1462] [cursor=pointer]:
+                      - generic [ref=f25e1463]: Queenside attack
+                      - generic [ref=f25e1464]: —
+                  - listitem [ref=f25e1465]:
+                    - button "Queenside expansion W 0 · B 0" [ref=f25e1466] [cursor=pointer]:
+                      - generic [ref=f25e1467]: Queenside expansion
+                      - generic [ref=f25e1468]: W 0 · B 0
+                  - listitem [ref=f25e1469]:
+                    - button "Central attack —" [ref=f25e1470] [cursor=pointer]:
+                      - generic [ref=f25e1471]: Central attack
+                      - generic [ref=f25e1472]: —
+                  - listitem [ref=f25e1473]:
+                    - button "Minority attack —" [ref=f25e1474] [cursor=pointer]:
+                      - generic [ref=f25e1475]: Minority attack
+                      - generic [ref=f25e1476]: —
+                  - listitem [ref=f25e1477]:
+                    - button "Attack isolated pawn W 0 · B 0" [ref=f25e1478] [cursor=pointer]:
+                      - generic [ref=f25e1479]: Attack isolated pawn
+                      - generic [ref=f25e1480]: W 0 · B 0
+                  - listitem [ref=f25e1481]:
+                    - button "Blockade isolated pawn W 0 · B 0" [ref=f25e1482] [cursor=pointer]:
+                      - generic [ref=f25e1483]: Blockade isolated pawn
+                      - generic [ref=f25e1484]: W 0 · B 0
+                  - listitem [ref=f25e1485]:
+                    - button "Attack backward pawn W 0 · B 0" [ref=f25e1486] [cursor=pointer]:
+                      - generic [ref=f25e1487]: Attack backward pawn
+                      - generic [ref=f25e1488]: W 0 · B 0
+                  - listitem [ref=f25e1489]:
+                    - button "Exploit weak square W 0 · B 0" [ref=f25e1490] [cursor=pointer]:
+                      - generic [ref=f25e1491]: Exploit weak square
+                      - generic [ref=f25e1492]: W 0 · B 0
+                  - listitem [ref=f25e1493]:
+                    - button "Establish outpost W 0 · B 0" [ref=f25e1494] [cursor=pointer]:
+                      - generic [ref=f25e1495]: Establish outpost
+                      - generic [ref=f25e1496]: W 0 · B 0
+                  - listitem [ref=f25e1497]:
+                    - button "Occupy open file W 0 · B 0" [ref=f25e1498] [cursor=pointer]:
+                      - generic [ref=f25e1499]: Occupy open file
+                      - generic [ref=f25e1500]: W 0 · B 0
+                  - listitem [ref=f25e1501]:
+                    - button "Double rooks on file —" [ref=f25e1502] [cursor=pointer]:
+                      - generic [ref=f25e1503]: Double rooks on file
+                      - generic [ref=f25e1504]: —
+                  - listitem [ref=f25e1505]:
+                    - button "Penetrate seventh rank W 0 · B 0" [ref=f25e1506] [cursor=pointer]:
+                      - generic [ref=f25e1507]: Penetrate seventh rank
+                      - generic [ref=f25e1508]: W 0 · B 0
+                  - listitem [ref=f25e1509]:
+                    - button "Exchange bad piece —" [ref=f25e1510] [cursor=pointer]:
+                      - generic [ref=f25e1511]: Exchange bad piece
+                      - generic [ref=f25e1512]: —
+                  - listitem [ref=f25e1513]:
+                    - button "Preserve good piece —" [ref=f25e1514] [cursor=pointer]:
+                      - generic [ref=f25e1515]: Preserve good piece
+                      - generic [ref=f25e1516]: —
+                  - listitem [ref=f25e1517]:
+                    - button "Trade queens —" [ref=f25e1518] [cursor=pointer]:
+                      - generic [ref=f25e1519]: Trade queens
+                      - generic [ref=f25e1520]: —
+                  - listitem [ref=f25e1521]:
+                    - button "Avoid queen trade —" [ref=f25e1522] [cursor=pointer]:
+                      - generic [ref=f25e1523]: Avoid queen trade
+                      - generic [ref=f25e1524]: —
+                  - listitem [ref=f25e1525]:
+                    - button "Improve worst placed piece W 15 · B 15" [ref=f25e1526] [cursor=pointer]:
+                      - generic [ref=f25e1527]: Improve worst placed piece
+                      - generic [ref=f25e1528]:
+                        - generic "Highlights on the board when pinned" [ref=f25e1529]
+                        - text: W 15 · B 15
+                  - listitem [ref=f25e1533]:
+                    - button "Activate king —" [ref=f25e1534] [cursor=pointer]:
+                      - generic [ref=f25e1535]: Activate king
+                      - generic [ref=f25e1536]: —
+                  - listitem [ref=f25e1537]:
+                    - button "Create passed pawn W 0 · B 0" [ref=f25e1538] [cursor=pointer]:
+                      - generic [ref=f25e1539]: Create passed pawn
+                      - generic [ref=f25e1540]: W 0 · B 0
+                  - listitem [ref=f25e1541]:
+                    - button "Advance passed pawn W 0 · B 0" [ref=f25e1542] [cursor=pointer]:
+                      - generic [ref=f25e1543]: Advance passed pawn
+                      - generic [ref=f25e1544]: W 0 · B 0
+                  - listitem [ref=f25e1545]:
+                    - button "Blockade passed pawn W 0 · B 0" [ref=f25e1546] [cursor=pointer]:
+                      - generic [ref=f25e1547]: Blockade passed pawn
+                      - generic [ref=f25e1548]: W 0 · B 0
+                  - listitem [ref=f25e1549]:
+                    - button "Pawn break W 0 · B 0" [ref=f25e1550] [cursor=pointer]:
+                      - generic [ref=f25e1551]: Pawn break
+                      - generic [ref=f25e1552]: W 0 · B 0
+                  - listitem [ref=f25e1553]:
+                    - button "Pawn storm —" [ref=f25e1554] [cursor=pointer]:
+                      - generic [ref=f25e1555]: Pawn storm
+                      - generic [ref=f25e1556]: —
+                  - listitem [ref=f25e1557]:
+                    - button "Space gaining pawn advance W 0 · B 0" [ref=f25e1558] [cursor=pointer]:
+                      - generic [ref=f25e1559]: Space gaining pawn advance
+                      - generic [ref=f25e1560]: W 0 · B 0
+                  - listitem [ref=f25e1561]:
+                    - button "Transfer pieces to kingside —" [ref=f25e1562] [cursor=pointer]:
+                      - generic [ref=f25e1563]: Transfer pieces to kingside
+                      - generic [ref=f25e1564]: —
+                  - listitem [ref=f25e1565]:
+                    - button "Transfer pieces to queenside —" [ref=f25e1566] [cursor=pointer]:
+                      - generic [ref=f25e1567]: Transfer pieces to queenside
+                      - generic [ref=f25e1568]: —
+                  - listitem [ref=f25e1569]:
+                    - button "Rook lift W 0 · B 0" [ref=f25e1570] [cursor=pointer]:
+                      - generic [ref=f25e1571]: Rook lift
+                      - generic [ref=f25e1572]: W 0 · B 0
+                  - listitem [ref=f25e1573]:
+                    - button "Pressure along file W a1, d1, h1 · B a8, d8, h8" [ref=f25e1574] [cursor=pointer]:
+                      - generic [ref=f25e1575]: Pressure along file
+                      - generic [ref=f25e1576]:
+                        - generic "Highlights on the board when pinned" [ref=f25e1577]
+                        - text: W a1, d1, h1 · B a8, d8, h8
+                  - listitem [ref=f25e1581]:
+                    - button "Pressure along diagonal W 0 · B 0" [ref=f25e1582] [cursor=pointer]:
+                      - generic [ref=f25e1583]: Pressure along diagonal
+                      - generic [ref=f25e1584]: W 0 · B 0
+                  - listitem [ref=f25e1585]:
+                    - button "Exploit color complex weakness —" [ref=f25e1586] [cursor=pointer]:
+                      - generic [ref=f25e1587]: Exploit color complex weakness
+                      - generic [ref=f25e1588]: —
+              - generic [ref=f25e1589]:
+                - heading "Tension" [level=4] [ref=f25e1590]
+                - list [ref=f25e1591]:
+                  - listitem [ref=f25e1592]:
+                    - button "Pawn tension 0" [ref=f25e1593] [cursor=pointer]:
+                      - generic [ref=f25e1594]: Pawn tension
+                      - generic [ref=f25e1595]: "0"
+                  - listitem [ref=f25e1596]:
+                    - button "Central tension 0" [ref=f25e1597] [cursor=pointer]:
+                      - generic [ref=f25e1598]: Central tension
+                      - generic [ref=f25e1599]: "0"
+                  - listitem [ref=f25e1600]:
+                    - button "Kingside tension 0" [ref=f25e1601] [cursor=pointer]:
+                      - generic [ref=f25e1602]: Kingside tension
+                      - generic [ref=f25e1603]: "0"
+                  - listitem [ref=f25e1604]:
+                    - button "Queenside tension 0" [ref=f25e1605] [cursor=pointer]:
+                      - generic [ref=f25e1606]: Queenside tension
+                      - generic [ref=f25e1607]: "0"
+                  - listitem [ref=f25e1608]:
+                    - button "Unresolved captures 0" [ref=f25e1609] [cursor=pointer]:
+                      - generic [ref=f25e1610]: Unresolved captures
+                      - generic [ref=f25e1611]: "0"
+                  - listitem [ref=f25e1612]:
+                    - button "Mutually attacked pieces 0" [ref=f25e1613] [cursor=pointer]:
+                      - generic [ref=f25e1614]: Mutually attacked pieces
+                      - generic [ref=f25e1615]: "0"
+                  - listitem [ref=f25e1616]:
+                    - button "Opposed pawns 8" [ref=f25e1617] [cursor=pointer]:
+                      - generic [ref=f25e1618]: Opposed pawns
+                      - generic [ref=f25e1619]: "8"
+                  - listitem [ref=f25e1620]:
+                    - button "Possible pawn breaks W 0 · B 0" [ref=f25e1621] [cursor=pointer]:
+                      - generic [ref=f25e1622]: Possible pawn breaks
+                      - generic [ref=f25e1623]: W 0 · B 0
+                  - listitem [ref=f25e1624]:
+                    - button "Lever structure W 0 · B 0" [ref=f25e1625] [cursor=pointer]:
+                      - generic [ref=f25e1626]: Lever structure
+                      - generic [ref=f25e1627]: W 0 · B 0
+                  - listitem [ref=f25e1628]:
+                    - button "Static versus dynamic 1" [ref=f25e1629] [cursor=pointer]:
+                      - generic [ref=f25e1630]: Static versus dynamic
+                      - generic [ref=f25e1631]: "1"
+              - generic [ref=f25e1632]:
+                - heading "Quality" [level=4] [ref=f25e1633]
+                - list [ref=f25e1634]:
+                  - listitem [ref=f25e1635]:
+                    - button "Good bishop W 0 · B 0" [ref=f25e1636] [cursor=pointer]:
+                      - generic [ref=f25e1637]: Good bishop
+                      - generic [ref=f25e1638]: W 0 · B 0
+                  - listitem [ref=f25e1639]:
+                    - button "Bad bishop W 0 · B 0" [ref=f25e1640] [cursor=pointer]:
+                      - generic [ref=f25e1641]: Bad bishop
+                      - generic [ref=f25e1642]: W 0 · B 0
+                  - listitem [ref=f25e1643]:
+                    - button "Bishop pawn color conflict W 2 · B 2" [ref=f25e1644] [cursor=pointer]:
+                      - generic [ref=f25e1645]: Bishop pawn color conflict
+                      - generic [ref=f25e1646]: W 2 · B 2
+                  - listitem [ref=f25e1647]:
+                    - button "Bishop pair Both" [ref=f25e1648] [cursor=pointer]:
+                      - generic [ref=f25e1649]: Bishop pair
+                      - generic [ref=f25e1650]:
+                        - generic "Highlights on the board when pinned" [ref=f25e1651]
+                        - text: Both
+                  - listitem [ref=f25e1655]:
+                    - button "Opposite colored bishops No" [ref=f25e1656] [cursor=pointer]:
+                      - generic [ref=f25e1657]: Opposite colored bishops
+                      - generic [ref=f25e1658]: "No"
+                  - listitem [ref=f25e1659]:
+                    - button "Knight outpost W 0 · B 0" [ref=f25e1660] [cursor=pointer]:
+                      - generic [ref=f25e1661]: Knight outpost
+                      - generic [ref=f25e1662]: W 0 · B 0
+                  - listitem [ref=f25e1663]:
+                    - button "Strong knight vs bad bishop —" [ref=f25e1664] [cursor=pointer]:
+                      - generic [ref=f25e1665]: Strong knight vs bad bishop
+                      - generic [ref=f25e1666]: —
+                  - listitem [ref=f25e1667]:
+                    - button "Active rook W 0 · B 0" [ref=f25e1668] [cursor=pointer]:
+                      - generic [ref=f25e1669]: Active rook
+                      - generic [ref=f25e1670]: W 0 · B 0
+                  - listitem [ref=f25e1671]:
+                    - button "Passive rook W a1, h1 · B a8, h8" [ref=f25e1672] [cursor=pointer]:
+                      - generic [ref=f25e1673]: Passive rook
+                      - generic [ref=f25e1674]:
+                        - generic "Highlights on the board when pinned" [ref=f25e1675]
+                        - text: W a1, h1 · B a8, h8
+                  - listitem [ref=f25e1679]:
+                    - button "Queen activity W 0 · B 0" [ref=f25e1680] [cursor=pointer]:
+                      - generic [ref=f25e1681]: Queen activity
+                      - generic [ref=f25e1682]: W 0 · B 0
+                  - listitem [ref=f25e1683]:
+                    - button "Piece coordination W 14 · B 14" [ref=f25e1684] [cursor=pointer]:
+                      - generic [ref=f25e1685]: Piece coordination
+                      - generic [ref=f25e1686]: W 14 · B 14
+                  - listitem [ref=f25e1687]:
+                    - button "Batteries W 0 · B 0" [ref=f25e1688] [cursor=pointer]:
+                      - generic [ref=f25e1689]: Batteries
+                      - generic [ref=f25e1690]: W 0 · B 0
+                  - listitem [ref=f25e1691]:
+                    - button "Connected rooks —" [ref=f25e1692] [cursor=pointer]:
+                      - generic [ref=f25e1693]: Connected rooks
+                      - generic [ref=f25e1694]: —
+                  - listitem [ref=f25e1695]:
+                    - button "Rooks cut off Both" [ref=f25e1696] [cursor=pointer]:
+                      - generic [ref=f25e1697]: Rooks cut off
+                      - generic [ref=f25e1698]: Both
+                  - listitem [ref=f25e1699]:
+                    - button "Piece harmony W 20 · B 20" [ref=f25e1700] [cursor=pointer]:
+                      - generic [ref=f25e1701]: Piece harmony
+                      - generic [ref=f25e1702]: W 20 · B 20
+                  - listitem [ref=f25e1703]:
+                    - button "Poorly placed piece W 5 · B 5" [ref=f25e1704] [cursor=pointer]:
+                      - generic [ref=f25e1705]: Poorly placed piece
+                      - generic [ref=f25e1706]:
+                        - generic "Highlights on the board when pinned" [ref=f25e1707]
+                        - text: W 5 · B 5
+                  - listitem [ref=f25e1711]:
+                    - button "Best worst placed W b1, a1 · B a7, a8" [ref=f25e1712] [cursor=pointer]:
+                      - generic [ref=f25e1713]: Best worst placed
+                      - generic [ref=f25e1714]:
+                        - generic "Highlights on the board when pinned" [ref=f25e1715]
+                        - text: W b1, a1 · B a7, a8
+              - generic [ref=f25e1719]:
+                - heading "Initiative" [level=4] [ref=f25e1720]
+                - list [ref=f25e1721]:
+                  - listitem [ref=f25e1722]:
+                    - button "Initiative —" [ref=f25e1723] [cursor=pointer]:
+                      - generic [ref=f25e1724]: Initiative
+                      - generic [ref=f25e1725]: —
+                  - listitem [ref=f25e1726]:
+                    - button "Tempo advantage White" [ref=f25e1727] [cursor=pointer]:
+                      - generic [ref=f25e1728]: Tempo advantage
+                      - generic [ref=f25e1729]: White
+                  - listitem [ref=f25e1730]:
+                    - button "Development lead W 0 · B 0" [ref=f25e1731] [cursor=pointer]:
+                      - generic [ref=f25e1732]: Development lead
+                      - generic [ref=f25e1733]: W 0 · B 0
+                  - listitem [ref=f25e1734]:
+                    - button "Attacking momentum —" [ref=f25e1735] [cursor=pointer]:
+                      - generic [ref=f25e1736]: Attacking momentum
+                      - generic [ref=f25e1737]: —
+                  - listitem [ref=f25e1738]:
+                    - button "Forcing move density W 0.0 · B 0.0" [ref=f25e1739] [cursor=pointer]:
+                      - generic [ref=f25e1740]: Forcing move density
+                      - generic [ref=f25e1741]: W 0.0 · B 0.0
+                  - listitem [ref=f25e1742]:
+                    - button "Tactical potential W 0 · B 0" [ref=f25e1743] [cursor=pointer]:
+                      - generic [ref=f25e1744]: Tactical potential
+                      - generic [ref=f25e1745]: W 0 · B 0
+                  - listitem [ref=f25e1746]:
+                    - button "Attacking potential W 0 · B 0" [ref=f25e1747] [cursor=pointer]:
+                      - generic [ref=f25e1748]: Attacking potential
+                      - generic [ref=f25e1749]: W 0 · B 0
+                  - listitem [ref=f25e1750]:
+                    - button "Defending burden W 0 · B 0" [ref=f25e1751] [cursor=pointer]:
+                      - generic [ref=f25e1752]: Defending burden
+                      - generic [ref=f25e1753]: W 0 · B 0
+                  - listitem [ref=f25e1754]:
+                    - button "Ability to create threats W 0 · B 0" [ref=f25e1755] [cursor=pointer]:
+                      - generic [ref=f25e1756]: Ability to create threats
+                      - generic [ref=f25e1757]: W 0 · B 0
+                  - listitem [ref=f25e1758]:
+                    - button "Dynamic compensation —" [ref=f25e1759] [cursor=pointer]:
+                      - generic [ref=f25e1760]: Dynamic compensation
+                      - generic [ref=f25e1761]: —
+                  - listitem [ref=f25e1762]:
+                    - button "Positional compensation —" [ref=f25e1763] [cursor=pointer]:
+                      - generic [ref=f25e1764]: Positional compensation
+                      - generic [ref=f25e1765]: —
+                  - listitem [ref=f25e1766]:
+                    - button "Sacrifice compensation —" [ref=f25e1767] [cursor=pointer]:
+                      - generic [ref=f25e1768]: Sacrifice compensation
+                      - generic [ref=f25e1769]: —
+              - generic [ref=f25e1770]:
+                - heading "Position" [level=4] [ref=f25e1771]
+                - list [ref=f25e1772]:
+                  - listitem [ref=f25e1773]:
+                    - button "Open position No" [ref=f25e1774] [cursor=pointer]:
+                      - generic [ref=f25e1775]: Open position
+                      - generic [ref=f25e1776]: "No"
+                  - listitem [ref=f25e1777]:
+                    - button "Semi open position No" [ref=f25e1778] [cursor=pointer]:
+                      - generic [ref=f25e1779]: Semi open position
+                      - generic [ref=f25e1780]: "No"
+                  - listitem [ref=f25e1781]:
+                    - button "Closed position Yes" [ref=f25e1782] [cursor=pointer]:
+                      - generic [ref=f25e1783]: Closed position
+                      - generic [ref=f25e1784]: "Yes"
+                  - listitem [ref=f25e1785]:
+                    - button "Locked position No" [ref=f25e1786] [cursor=pointer]:
+                      - generic [ref=f25e1787]: Locked position
+                      - generic [ref=f25e1788]: "No"
+                  - listitem [ref=f25e1789]:
+                    - button "Tactical position No" [ref=f25e1790] [cursor=pointer]:
+                      - generic [ref=f25e1791]: Tactical position
+                      - generic [ref=f25e1792]: "No"
+                  - listitem [ref=f25e1793]:
+                    - button "Quiet position Yes" [ref=f25e1794] [cursor=pointer]:
+                      - generic [ref=f25e1795]: Quiet position
+                      - generic [ref=f25e1796]: "Yes"
+                  - listitem [ref=f25e1797]:
+                    - button "Sharp position No" [ref=f25e1798] [cursor=pointer]:
+                      - generic [ref=f25e1799]: Sharp position
+                      - generic [ref=f25e1800]: "No"
+                  - listitem [ref=f25e1801]:
+                    - button "Maneuvering position Yes" [ref=f25e1802] [cursor=pointer]:
+                      - generic [ref=f25e1803]: Maneuvering position
+                      - generic [ref=f25e1804]: "Yes"
+                  - listitem [ref=f25e1805]:
+                    - button "Symmetric position Yes" [ref=f25e1806] [cursor=pointer]:
+                      - generic [ref=f25e1807]: Symmetric position
+                      - generic [ref=f25e1808]: "Yes"
+                  - listitem [ref=f25e1809]:
+                    - button "Asymmetric position No" [ref=f25e1810] [cursor=pointer]:
+                      - generic [ref=f25e1811]: Asymmetric position
+                      - generic [ref=f25e1812]: "No"
+                  - listitem [ref=f25e1813]:
+                    - button "Opposite side castling position No" [ref=f25e1814] [cursor=pointer]:
+                      - generic [ref=f25e1815]: Opposite side castling position
+                      - generic [ref=f25e1816]: "No"
+                  - listitem [ref=f25e1817]:
+                    - button "Queenless middlegame No" [ref=f25e1818] [cursor=pointer]:
+                      - generic [ref=f25e1819]: Queenless middlegame
+                      - generic [ref=f25e1820]: "No"
+                  - listitem [ref=f25e1821]:
+                    - button "Endgame like position No" [ref=f25e1822] [cursor=pointer]:
+                      - generic [ref=f25e1823]: Endgame like position
+                      - generic [ref=f25e1824]: "No"
+                  - listitem [ref=f25e1825]:
+                    - button "Material imbalanced position No" [ref=f25e1826] [cursor=pointer]:
+                      - generic [ref=f25e1827]: Material imbalanced position
+                      - generic [ref=f25e1828]: "No"
+              - generic [ref=f25e1829]:
+                - heading "Evaluation" [level=4] [ref=f25e1830]
+                - list [ref=f25e1831]:
+                  - listitem [ref=f25e1832]:
+                    - button "Total evaluation 0.0" [ref=f25e1833] [cursor=pointer]:
+                      - generic [ref=f25e1834]: Total evaluation
+                      - generic [ref=f25e1835]: "0.0"
+                  - listitem [ref=f25e1836]:
+                    - button "Material advantage 0" [ref=f25e1837] [cursor=pointer]:
+                      - generic [ref=f25e1838]: Material advantage
+                      - generic [ref=f25e1839]: "0"
+                  - listitem [ref=f25e1840]:
+                    - button "Positional advantage 0.0" [ref=f25e1841] [cursor=pointer]:
+                      - generic [ref=f25e1842]: Positional advantage
+                      - generic [ref=f25e1843]: "0.0"
+                  - listitem [ref=f25e1844]:
+                    - button "Space advantage 0" [ref=f25e1845] [cursor=pointer]:
+                      - generic [ref=f25e1846]: Space advantage
+                      - generic [ref=f25e1847]: "0"
+                  - listitem [ref=f25e1848]:
+                    - button "Mobility advantage 0" [ref=f25e1849] [cursor=pointer]:
+                      - generic [ref=f25e1850]: Mobility advantage
+                      - generic [ref=f25e1851]: "0"
+                  - listitem [ref=f25e1852]:
+                    - button "King safety advantage 0" [ref=f25e1853] [cursor=pointer]:
+                      - generic [ref=f25e1854]: King safety advantage
+                      - generic [ref=f25e1855]: "0"
+                  - listitem [ref=f25e1856]:
+                    - button "Initiative advantage 0" [ref=f25e1857] [cursor=pointer]:
+                      - generic [ref=f25e1858]: Initiative advantage
+                      - generic [ref=f25e1859]: "0"
+                  - listitem [ref=f25e1860]:
+                    - button "Development advantage 0" [ref=f25e1861] [cursor=pointer]:
+                      - generic [ref=f25e1862]: Development advantage
+                      - generic [ref=f25e1863]: "0"
+                  - listitem [ref=f25e1864]:
+                    - button "Pawn structure advantage 0" [ref=f25e1865] [cursor=pointer]:
+                      - generic [ref=f25e1866]: Pawn structure advantage
+                      - generic [ref=f25e1867]: "0"
+                  - listitem [ref=f25e1868]:
+                    - button "Piece activity advantage 0" [ref=f25e1869] [cursor=pointer]:
+                      - generic [ref=f25e1870]: Piece activity advantage
+                      - generic [ref=f25e1871]: "0"
+                  - listitem [ref=f25e1872]:
+                    - button "Tactical advantage 0" [ref=f25e1873] [cursor=pointer]:
+                      - generic [ref=f25e1874]: Tactical advantage
+                      - generic [ref=f25e1875]: "0"
+                  - listitem [ref=f25e1876]:
+                    - button "Attack strength 0" [ref=f25e1877] [cursor=pointer]:
+                      - generic [ref=f25e1878]: Attack strength
+                      - generic [ref=f25e1879]: "0"
+                  - listitem [ref=f25e1880]:
+                    - button "Defensive strength 0" [ref=f25e1881] [cursor=pointer]:
+                      - generic [ref=f25e1882]: Defensive strength
+                      - generic [ref=f25e1883]: "0"
+                  - listitem [ref=f25e1884]:
+                    - button "Compensation 0.0" [ref=f25e1885] [cursor=pointer]:
+                      - generic [ref=f25e1886]: Compensation
+                      - generic [ref=f25e1887]: "0.0"
+                  - listitem [ref=f25e1888]:
+                    - button "Winning drawing losing W drawing · B drawing" [ref=f25e1889] [cursor=pointer]:
+                      - generic [ref=f25e1890]: Winning drawing losing
+                      - generic [ref=f25e1891]: W drawing · B drawing
+              - generic [ref=f25e1892]:
+                - heading "Similarity" [level=4] [ref=f25e1893]
+                - list [ref=f25e1894]:
+                  - listitem [ref=f25e1895]:
+                    - button "Exact same position Yes" [ref=f25e1896] [cursor=pointer]:
+                      - generic [ref=f25e1897]: Exact same position
+                      - generic [ref=f25e1898]: "Yes"
+                  - listitem [ref=f25e1899]:
+                    - button "Same position other side No" [ref=f25e1900] [cursor=pointer]:
+                      - generic [ref=f25e1901]: Same position other side
+                      - generic [ref=f25e1902]: "No"
+                  - listitem [ref=f25e1903]:
+                    - button "Color swapped position No" [ref=f25e1904] [cursor=pointer]:
+                      - generic [ref=f25e1905]: Color swapped position
+                      - generic [ref=f25e1906]: "No"
+                  - listitem [ref=f25e1907]:
+                    - button "Mirrored position No" [ref=f25e1908] [cursor=pointer]:
+                      - generic [ref=f25e1909]: Mirrored position
+                      - generic [ref=f25e1910]: "No"
+                  - listitem [ref=f25e1911]:
+                    - button "Same pawn structure Yes" [ref=f25e1912] [cursor=pointer]:
+                      - generic [ref=f25e1913]: Same pawn structure
+                      - generic [ref=f25e1914]: "Yes"
+                  - listitem [ref=f25e1915]:
+                    - button "Comparable pawn structure Yes" [ref=f25e1916] [cursor=pointer]:
+                      - generic [ref=f25e1917]: Comparable pawn structure
+                      - generic [ref=f25e1918]: "Yes"
+                  - listitem [ref=f25e1919]:
+                    - button "Same material distribution Yes" [ref=f25e1920] [cursor=pointer]:
+                      - generic [ref=f25e1921]: Same material distribution
+                      - generic [ref=f25e1922]: "Yes"
+                  - listitem [ref=f25e1923]:
+                    - button "Comparable material distribution Yes" [ref=f25e1924] [cursor=pointer]:
+                      - generic [ref=f25e1925]: Comparable material distribution
+                      - generic [ref=f25e1926]: "Yes"
+                  - listitem [ref=f25e1927]:
+                    - button "Same piece placement patterns Yes" [ref=f25e1928] [cursor=pointer]:
+                      - generic [ref=f25e1929]: Same piece placement patterns
+                      - generic [ref=f25e1930]: "Yes"
+                  - listitem [ref=f25e1931]:
+                    - button "Same strategic structure Yes" [ref=f25e1932] [cursor=pointer]:
+                      - generic [ref=f25e1933]: Same strategic structure
+                      - generic [ref=f25e1934]: "Yes"
+                  - listitem [ref=f25e1935]:
+                    - button "Same king safety structure Yes" [ref=f25e1936] [cursor=pointer]:
+                      - generic [ref=f25e1937]: Same king safety structure
+                      - generic [ref=f25e1938]: "Yes"
+                  - listitem [ref=f25e1939]:
+                    - button "Same tactical geometry Yes" [ref=f25e1940] [cursor=pointer]:
+                      - generic [ref=f25e1941]: Same tactical geometry
+                      - generic [ref=f25e1942]: "Yes"
+                  - listitem [ref=f25e1943]:
+                    - button "Comparable attack plan No" [ref=f25e1944] [cursor=pointer]:
+                      - generic [ref=f25e1945]: Comparable attack plan
+                      - generic [ref=f25e1946]: "No"
+                  - listitem [ref=f25e1947]:
+                    - button "Structural distance 0" [ref=f25e1948] [cursor=pointer]:
+                      - generic [ref=f25e1949]: Structural distance
+                      - generic [ref=f25e1950]: "0"
+                  - listitem [ref=f25e1951]:
+                    - button "Pawn edit distance 0" [ref=f25e1952] [cursor=pointer]:
+                      - generic [ref=f25e1953]: Pawn edit distance
+                      - generic [ref=f25e1954]: "0"
+                  - listitem [ref=f25e1955]:
+                    - button "One pawn shifted No" [ref=f25e1956] [cursor=pointer]:
+                      - generic [ref=f25e1957]: One pawn shifted
+                      - generic [ref=f25e1958]: "No"
+                  - listitem [ref=f25e1959]:
+                    - button "Bishop knight substitution No" [ref=f25e1960] [cursor=pointer]:
+                      - generic [ref=f25e1961]: Bishop knight substitution
+                      - generic [ref=f25e1962]: "No"
+                  - listitem [ref=f25e1963]:
+                    - button "Two rooks queen substitution No" [ref=f25e1964] [cursor=pointer]:
+                      - generic [ref=f25e1965]: Two rooks queen substitution
+                      - generic [ref=f25e1966]: "No"
+            - paragraph [ref=f25e1967]: Catalogue v0.1.0 — computed once per position and stored
+        - complementary "Analysis panel" [ref=f25e1968]:
+          - generic [ref=f25e1969]:
+            - heading "Moves" [level=2] [ref=f25e1970]
+            - generic [ref=f25e1971]:
+              - button "Comment" [ref=f25e1972] [cursor=pointer]
+              - group [ref=f25e1975]:
+                - generic "Share" [ref=f25e1976] [cursor=pointer]
+          - generic [ref=f25e1977]:
+            - switch "Turn the engine on or off" [ref=f25e1978] [cursor=pointer]
+            - generic [ref=f25e1980]: —
+            - generic [ref=f25e1981]: Stockfish 19 (local)
+            - generic "Stockfish 19 runs locally in your browser (WASM); finished evaluations are cached per position and shared." [ref=f25e1982]
+            - button "Engine settings" [ref=f25e1986] [cursor=pointer]
+          - generic [ref=f25e1990]:
+            - region "Moves" [ref=f25e1991]:
+              - listbox "Moves" [ref=f25e1992]:
+                - option "1. e4" [ref=f25e1994] [cursor=pointer]
+              - paragraph [ref=f25e1995]: ← parent · → first child · ↑ previous sibling · ↓ next sibling
+            - button "Review game" [ref=f25e1998] [cursor=pointer]
+            - region "Reference" [ref=f25e1999]:
+              - list [ref=f25e2002]:
+                - listitem [ref=f25e2003]:
+                  - generic [ref=f25e2004]:
+                    - button "e4" [ref=f25e2005] [cursor=pointer]
+                    - generic [ref=f25e2006]: "3364"
+                  - img "2981/333/2767" [ref=f25e2007]
+                  - paragraph [ref=f25e2011]: King's Pawn Game · B00
+                - listitem [ref=f25e2012]:
+                  - generic [ref=f25e2013]:
+                    - button "d4" [ref=f25e2014] [cursor=pointer]
+                    - generic [ref=f25e2015]: "1675"
+                  - img "1381/181/1313" [ref=f25e2016]
+                  - paragraph [ref=f25e2020]: Queen's Pawn Game · A40
+                - listitem [ref=f25e2021]:
+                  - generic [ref=f25e2022]:
+                    - button "Nf3" [ref=f25e2023] [cursor=pointer]
+                    - generic [ref=f25e2024]: "368"
+                  - img "346/33/242" [ref=f25e2025]
+                  - paragraph [ref=f25e2029]: Zukertort Opening · A04
+                - listitem [ref=f25e2030]:
+                  - generic [ref=f25e2031]:
+                    - button "c4" [ref=f25e2032] [cursor=pointer]
+                    - generic [ref=f25e2033]: "279"
+                  - img "220/28/214" [ref=f25e2034]
+                  - paragraph [ref=f25e2038]: English Opening · A10
+                - listitem [ref=f25e2039]:
+                  - generic [ref=f25e2040]:
+                    - button "b3" [ref=f25e2041] [cursor=pointer]
+                    - generic [ref=f25e2042]: "50"
+                  - img "27/4/48" [ref=f25e2043]
+                  - paragraph [ref=f25e2047]: Nimzo-Larsen Attack · A01
+                - listitem [ref=f25e2048]:
+                  - generic [ref=f25e2049]:
+                    - button "Nc3" [ref=f25e2050] [cursor=pointer]
+                    - generic [ref=f25e2051]: "49"
+                  - img "45/8/33" [ref=f25e2052]
+                  - paragraph [ref=f25e2056]: Van Geet Opening · A00
+                - listitem [ref=f25e2057]:
+                  - generic [ref=f25e2058]:
+                    - button "e3" [ref=f25e2059] [cursor=pointer]
+                    - generic [ref=f25e2060]: "46"
+                  - img "38/0/48" [ref=f25e2061]
+                  - paragraph [ref=f25e2064]: Van't Kruijs Opening · A00
+                - listitem [ref=f25e2065]:
+                  - generic [ref=f25e2066]:
+                    - button "f4" [ref=f25e2067] [cursor=pointer]
+                    - generic [ref=f25e2068]: "36"
+                  - img "25/4/27" [ref=f25e2069]
+                  - paragraph [ref=f25e2073]: Bird Opening · A02
+                - listitem [ref=f25e2074]:
+                  - generic [ref=f25e2075]:
+                    - button "g3" [ref=f25e2076] [cursor=pointer]
+                    - generic [ref=f25e2077]: "36"
+                  - img "25/0/34" [ref=f25e2078]
+                  - paragraph [ref=f25e2081]: Hungarian Opening · A00
+                - listitem [ref=f25e2082]:
+                  - generic [ref=f25e2083]:
+                    - button "d3" [ref=f25e2084] [cursor=pointer]
+                    - generic [ref=f25e2085]: "16"
+                  - img "8/1/12" [ref=f25e2086]
+                  - paragraph [ref=f25e2090]: Mieses Opening · A00
+                - listitem [ref=f25e2091]:
+                  - generic [ref=f25e2092]:
+                    - button "g4" [ref=f25e2093] [cursor=pointer]
+                    - generic [ref=f25e2094]: "11"
+                  - img "10/2/8" [ref=f25e2095]
+                  - paragraph [ref=f25e2099]: Grob Opening · A00
+                - listitem [ref=f25e2100]:
+                  - generic [ref=f25e2101]:
+                    - button "a3" [ref=f25e2102] [cursor=pointer]
+                    - generic [ref=f25e2103]: "5"
+                  - img "1/3/3" [ref=f25e2104]
+                  - paragraph [ref=f25e2108]: Anderssen's Opening · A00

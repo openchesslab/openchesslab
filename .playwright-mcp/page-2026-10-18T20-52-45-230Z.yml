@@ -1,0 +1,7 @@
+- generic [active] [ref=f12e1]:
+  - generic [ref=f12e2]:
+    - complementary
+    - banner [ref=f12e3]:
+      - heading "Compilation error" [level=5] [ref=f12e4]
+      - heading "Console output is shown below." [level=5] [ref=f12e5]
+  - generic [ref=f12e6]: "** (RuntimeError) could not compile application: . You must restart your server after changing configuration files or your dependencies. In particular, the following files changed and must be recomputed on a server restart: * mix.lock (phoenix 1.8.14) lib/phoenix/code_reloader/server.ex:368: Phoenix.CodeReloader.Server.raise_if_config_files_changed/1 (phoenix 1.8.14) lib/phoenix/code_reloader/server.ex:279: Phoenix.CodeReloader.Server.mix_compile/6 (phoenix 1.8.14) lib/phoenix/code_reloader/server.ex:140: anonymous fn/5 in Phoenix.CodeReloader.Server.handle_call/3 (phoenix 1.8.14) lib/phoenix/code_reloader/server.ex:451: Phoenix.CodeReloader.Server.proxy_io/1 (phoenix 1.8.14) lib/phoenix/code_reloader/server.ex:137: anonymous fn/5 in Phoenix.CodeReloader.Server.handle_call/3 (mix 1.20.4) lib/mix/sync/lock.ex:122: Mix.Sync.Lock.with_lock/3 (phoenix 1.8.14) lib/phoenix/code_reloader/server.ex:122: Phoenix.CodeReloader.Server.handle_call/3 (stdlib 8.1) gen_server.erl:2470: :gen_server.try_handle_call/4 (stdlib 8.1) gen_server.erl:2499: :gen_server.handle_msg/3 (stdlib 8.1) proc_lib.erl:333: :proc_lib.init_p_do_apply/3"

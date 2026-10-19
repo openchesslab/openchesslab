@@ -1,0 +1,33 @@
+[     999ms] [LOG] phx-GN-8Y5SIwDjXDmmh mount: received diff -  {0:  data-theme="system", 1:  data-room-code="VWLET3", 2: Skip to content, 3: Object, 4:  aria-label="Application settings", 5: Object, 6: Object, 7: Object, 8:  aria-label="Color scheme: Follow system theme. Switch to Light theme.", 9:  title="Color scheme: Follow system theme. Switch to Light theme.", 10:  phx-value-theme="light", 11: Object, 12:  aria-label="Switch language to Nederlands", 13:  title="Language", 14:  phx-value-locale="nl", 15: EN, 16: Object, 17: , 18: , 19: Object, 20: , 21: , 22: , 23: , p: Object, s: 57, r: 1, t: Room VWLET3} @ http://localhost:4000/assets/app.js:1789
+[    1071ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {19: Object, p: Object} @ http://localhost:4000/assets/app.js:1789
+[    1123ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {19: Object, p: Object} @ http://localhost:4000/assets/app.js:1789
+[    1161ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {19: Object, p: Object} @ http://localhost:4000/assets/app.js:1789
+[    1197ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {19: Object} @ http://localhost:4000/assets/app.js:1789
+[    1254ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {19: Object} @ http://localhost:4000/assets/app.js:1789
+[    4598ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {19: Object, 20: , 21: , 22: , 23: , p: Object} @ http://localhost:4000/assets/app.js:1789
+[    6447ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {19: Object, p: Object} @ http://localhost:4000/assets/app.js:1789
+[   11059ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[   21060ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[   31058ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[   41058ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[   50392ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {19: Object, p: Object} @ http://localhost:4000/assets/app.js:1789
+[   51059ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[   61058ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[   71058ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[   81059ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[   91058ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  101059ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  111058ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  121058ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  131058ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  141059ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  151059ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  161059ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  171059ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  181059ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  191058ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  201059ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  211059ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  221059ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  231058ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789
+[  241058ms] [LOG] phx-GN-8Y5SIwDjXDmmh update: received diff -  {r: Object} @ http://localhost:4000/assets/app.js:1789

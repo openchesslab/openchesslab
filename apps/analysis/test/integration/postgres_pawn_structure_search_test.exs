@@ -15,7 +15,6 @@ defmodule Analysis.PostgresPawnStructureSearchTest do
     Repo.query!(
       """
       TRUNCATE TABLE
-        position_features,
         positions
       RESTART IDENTITY
       CASCADE
@@ -201,19 +200,15 @@ defmodule Analysis.PostgresPawnStructureSearchTest do
     matching_id =
       PositionStore.append(matching)
 
-    _other_id =
+    other_id =
       PositionStore.append(same_pawns_different_material)
 
-    material =
-      Chess.PositionProperties.material(matching)
+    digest_positions([matching_id, other_id])
 
     query =
       Query.all([
         Query.pawn_structure(matching),
-        Query.property(
-          :material,
-          material
-        )
+        Query.digests([material_signature(matching)])
       ])
 
     assert {
@@ -241,5 +236,19 @@ defmodule Analysis.PostgresPawnStructureSearchTest do
       Square.from_algebraic("e5"),
       {:black, :pawn}
     )
+  end
+
+  defp material_signature(position) do
+    {:ok, result} = Analysis.PositionFeatures.extract(position)
+
+    result.features
+    |> Analysis.FeatureDigest.atoms()
+    |> Enum.find(&String.starts_with?(&1, "material.signature:w:"))
+  end
+
+  defp digest_positions(ids) do
+    Enum.each(ids, fn id ->
+      {:ok, _ids} = Analysis.PositionDigests.store_position_id(id)
+    end)
   end
 end

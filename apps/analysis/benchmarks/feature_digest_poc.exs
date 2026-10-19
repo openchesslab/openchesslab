@@ -196,7 +196,10 @@ started = System.monotonic_time(:millisecond)
 
     if rem(batch, 10) == 0 do
       elapsed = System.monotonic_time(:millisecond) - started
-      IO.puts("  #{count} posities, #{elapsed} ms (#{Float.round(count / max(elapsed / 1000, 1), 0)}/s)")
+
+      IO.puts(
+        "  #{count} posities, #{elapsed} ms (#{Float.round(count / max(elapsed / 1000, 1), 0)}/s)"
+      )
     end
 
     {nil, {count, atoms}}
@@ -213,12 +216,16 @@ IO.puts(
 IO.puts("Gemiddeld #{Float.round(atom_total / max(inserted, 1), 1)} atomen/positie")
 
 [[avg, min, max]] =
-  DigestPOC.report("SELECT avg(cardinality(atoms))::numeric(10,1), min(cardinality(atoms)), max(cardinality(atoms)) FROM position_features_poc")
+  DigestPOC.report(
+    "SELECT avg(cardinality(atoms))::numeric(10,1), min(cardinality(atoms)), max(cardinality(atoms)) FROM position_features_poc"
+  )
 
 IO.puts("Atomen/positie: avg #{avg}, min #{min}, max #{max}")
 
 [[distinct]] =
-  DigestPOC.report("SELECT count(DISTINCT atom) FROM (SELECT unnest(atoms) AS atom FROM position_features_poc) s")
+  DigestPOC.report(
+    "SELECT count(DISTINCT atom) FROM (SELECT unnest(atoms) AS atom FROM position_features_poc) s"
+  )
 
 IO.puts("Distincte atomen: #{distinct}")
 

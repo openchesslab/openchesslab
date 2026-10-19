@@ -4,7 +4,6 @@ defmodule Analysis.PositionQueryPostgresPageTest do
   alias Analysis.PositionQuery, as: Query
   alias Analysis.PositionQuery.PostgresPage
   alias Chess.Position
-  alias Chess.PositionProperties
   alias Chess.Square
 
   test "compiles first symmetry page as ordered UNION ALL equality scans" do
@@ -120,10 +119,7 @@ defmodule Analysis.PositionQueryPostgresPageTest do
     query =
       Query.all([
         Query.pawn_structure_symmetries(position),
-        Query.property(
-          :material,
-          PositionProperties.material(position)
-        )
+        Query.pawn_structure(Position.starting_position())
       ])
 
     assert {
@@ -149,15 +145,15 @@ defmodule Analysis.PositionQueryPostgresPageTest do
              sql,
              "FROM position_features AS f"
            ) ==
-             4
+             0
 
     assert String.contains?(
              sql,
-             "ORDER BY matches.id LIMIT $10::bigint"
+             "ORDER BY matches.id LIMIT $11::bigint"
            )
 
     assert length(parameters) ==
-             10
+             11
 
     assert List.last(parameters) ==
              101
@@ -170,10 +166,7 @@ defmodule Analysis.PositionQueryPostgresPageTest do
     query =
       Query.any([
         Query.pawn_structure_symmetries(position),
-        Query.property(
-          :material,
-          PositionProperties.material(position)
-        )
+        Query.pawn_structure(Position.starting_position())
       ])
 
     assert {
@@ -205,7 +198,7 @@ defmodule Analysis.PositionQueryPostgresPageTest do
            )
 
     assert length(parameters) ==
-             10
+             11
 
     assert List.last(parameters) ==
              101
@@ -375,10 +368,7 @@ defmodule Analysis.PositionQueryPostgresPageTest do
           position,
           2
         ),
-        Query.property(
-          :material,
-          PositionProperties.material(position)
-        )
+        Query.pawn_structure(Position.starting_position())
       ])
 
     assert {
@@ -403,15 +393,15 @@ defmodule Analysis.PositionQueryPostgresPageTest do
              sql,
              "FROM position_features AS f"
            ) ==
-             1
+             0
 
     assert String.contains?(
              sql,
-             "ORDER BY p.id LIMIT $4::bigint"
+             "ORDER BY p.id LIMIT $5::bigint"
            )
 
     assert length(parameters) ==
-             4
+             5
 
     assert List.last(parameters) ==
              101
@@ -427,10 +417,7 @@ defmodule Analysis.PositionQueryPostgresPageTest do
           position,
           2
         ),
-        Query.property(
-          :material,
-          PositionProperties.material(position)
-        )
+        Query.pawn_structure(Position.starting_position())
       ])
 
     assert {
@@ -467,7 +454,7 @@ defmodule Analysis.PositionQueryPostgresPageTest do
            )
 
     assert length(parameters) ==
-             4
+             5
 
     assert List.last(parameters) ==
              101

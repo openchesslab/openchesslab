@@ -16,7 +16,6 @@ OpenChessLab.Repo.query!(
     game_occurrences,
     games,
     position_feature_vectors,
-    position_features,
     positions
   RESTART IDENTITY
   CASCADE
