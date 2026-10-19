@@ -22,6 +22,34 @@ defmodule Web.Telemetry do
     Supervisor.init(children, strategy: :one_for_one)
   end
 
+  # Database stats we cannot get from Fly's managed Prometheus (the MPG
+  # exports no pg_ series), measured ourselves through the Repo.
+  @db_stats_sql """
+  SELECT
+    pg_database_size(current_database()),
+    (SELECT count(*) FROM pg_stat_activity),
+    blks_hit,
+    blks_read
+  FROM pg_stat_database
+  WHERE datname = current_database()
+  """
+
+  def db_stats do
+    %{rows: [[size_bytes, connections, blks_hit, blks_read]]} =
+      OpenChessLab.Repo.query!(@db_stats_sql, [], log: false)
+
+    :telemetry.execute(
+      [:openchesslab, :db, :stats],
+      %{
+        size_bytes: size_bytes,
+        connections: connections,
+        blks_hit: blks_hit,
+        blks_read: blks_read
+      },
+      %{}
+    )
+  end
+
   @latency_buckets [5, 10, 25, 50, 100, 250, 500, 1_000, 5_000]
 
   def metrics do
@@ -36,6 +64,10 @@ defmodule Web.Telemetry do
       last_value("vm.system_counts.process_count"),
       last_value("vm.system_counts.atom_count"),
       last_value("vm.system_counts.port_count"),
+      last_value("openchesslab.db.stats.size_bytes", unit: :byte),
+      last_value("openchesslab.db.stats.connections"),
+      sum("openchesslab.db.stats.blks_hit", description: "PG blocks read from cache"),
+      sum("openchesslab.db.stats.blks_read", description: "PG blocks read from disk"),
 
       # Phoenix
       distribution(
@@ -86,5 +118,5 @@ defmodule Web.Telemetry do
     ]
   end
 
-  defp periodic_measurements, do: []
+  defp periodic_measurements, do: [{__MODULE__, :db_stats, []}]
 end
