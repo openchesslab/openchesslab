@@ -22,8 +22,17 @@ defmodule Web.MixProject do
   def application do
     [
       mod: {Web.Application, []},
-      extra_applications: [:logger, :inets, :ssl]
+      extra_applications: [:logger, :inets, :ssl] ++ os_mon_app()
     ]
+  end
+
+  # os_mon feeds the dashboard's OS Data page where the OTP provides it
+  # (full builder images); split Erlang installs (e.g. Arch) skip it.
+  defp os_mon_app do
+    case :code.lib_dir(:os_mon) do
+      {:error, :bad_name} -> []
+      _dir -> [:os_mon]
+    end
   end
 
   defp deps do
@@ -31,6 +40,7 @@ defmodule Web.MixProject do
       {:phoenix, "~> 1.8"},
       {:phoenix_html, "~> 4.3"},
       {:phoenix_live_dashboard, "~> 0.8"},
+      {:ecto_psql_extras, "~> 0.8"},
       {:phoenix_live_reload, "~> 1.7", only: :dev},
       {:phoenix_live_view, "~> 1.2"},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},

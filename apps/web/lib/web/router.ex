@@ -66,6 +66,7 @@ defmodule Web.Router do
     live_dashboard("/dashboard",
       metrics: false,
       ecto_repos: [OpenChessLab.Repo],
+      request_logger: true,
       allow_destructive_actions: false
     )
   end
