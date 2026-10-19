@@ -63,11 +63,16 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   **`/ops/status.json`** (corpus-/digest-/kamer-tellingen, digest_coverage als
   backfill-voortgangsindicator) achter basic auth (`OPS_USER`/`OPS_PASSWORD`
   als Fly-secrets; prod weigert te booten zonder; destructieve acties uit).
-  Resterend: slice 3 domeinmetrics (zoek-latentie ✅ `2881304`; kamer-activiteit
-  ✅ `cb65bb4` — tellers created/stopped/pruned/materialized/analysis_added/
-  removed via `Rooms`, gauge `openchesslab_room_stats_active` uit de
-  Horde-registry; dashboard-rijen "Domein: zoeken/kamers"), daarna engine;
-  slice 4 `/ready` verdiepen. Externe uptime-monitor
+  Resterend: slice 4 `/ready` verdiepen. **Slice 3 ✅ compleet:** zoek-latentie
+  (`2881304`), kamer-activiteit (`cb65bb4`), engine (`f22d83a`: cache
+  hit/miss/store in `PositionEvals.get/put`, tablebase hit/miss, review
+  started/ply; dashboard-rij "Domein: engine" met hit-ratios; prod bevestigd
+  via rpc). **Watchlist-escalatie (2026-10-19):** `{:game_store,
+  :invalid_occurrences}` faalde weer ~1/5 suite-runs (analyses_test; eerder
+  library_branch) — nondeterministisch, zelfde seed wisselt, suite nu weer
+  2× groen. Verdient eigen onderzoek: dedup-pad van `GameStore.put` (occurrence-
+  validatie bij bestaande canonieke game) met diagnostische capture van de
+  falende occurrences; kandidaat: batch-vs-single create-race in de test-DB. Externe uptime-monitor
   bewust uitgesteld. **Slice 2 ✅ (`a0db5a3`):** `Web.Telemetry` + Prometheus
   op interne poort 9091 (niet publiek), Fly `[metrics]` scrape. Families: VM
   (memory/run-queues/processes), `phoenix.endpoint.stop` (status_int via
