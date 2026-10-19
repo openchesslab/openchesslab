@@ -502,6 +502,39 @@ defmodule Web.RoomLiveTest do
     cleanup_search_corpus(corpus)
   end
 
+  test "similar mode ranks games by shared position atoms", %{conn: conn, code: code} do
+    OpenChessLab.Repo.query!(
+      "TRUNCATE TABLE game_records, game_occurrences, games, positions RESTART IDENTITY CASCADE",
+      []
+    )
+
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    corpus = seed_search_corpus()
+
+    # The ranked rerank needs digest atoms for every corpus position.
+    assert %{computed: _n, failed: 0} = Analysis.DigestBackfill.run(workers: 2)
+
+    render_click(view, "open-search", %{})
+
+    # After 1.e4 e5: the structural neighborhood reaches the Sicilian-free
+    # games but not d4/d5 or c5 structures.
+    html =
+      render_submit(view, "search-games", %{
+        "fen" => "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+        "position_mode" => "similar"
+      })
+
+    assert html =~ ~s(id="corpus-#{corpus.carlsen_win}")
+    assert html =~ ~s(id="corpus-#{corpus.transpo}")
+    refute html =~ ~s(id="corpus-#{corpus.carlsen_loss}")
+    refute html =~ ~s(id="corpus-#{corpus.other_win}")
+
+    # Rows show the shared-atom score.
+    assert html =~ "shared atoms"
+
+    cleanup_search_corpus(corpus)
+  end
+
   test "game search filters by ECO, opening and event", %{conn: conn, code: code} do
     OpenChessLab.Repo.query!(
       "TRUNCATE TABLE game_records, game_occurrences, games, positions RESTART IDENTITY CASCADE",

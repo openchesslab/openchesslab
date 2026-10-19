@@ -1,6 +1,7 @@
 defmodule Analysis.GameSearch.PostgresQuery do
   @moduledoc false
 
+  alias Analysis.FeatureDigest
   alias Analysis.GameRecordQuery
   alias Analysis.GameRecordQuery.Postgres, as: GameRecordPostgres
   alias Analysis.PositionPawnStructureCodec
@@ -1078,9 +1079,223 @@ defmodule Analysis.GameSearch.PostgresQuery do
     end
   end
 
+  # The pawn skeleton within one structural edit, encoded for the
+  # positions-column unnest join.
+  defp encode_neighborhood(position) do
+    {:pawn_structure_edit_neighborhood, structures} =
+      PositionQuery.pawn_structure_edit_neighborhood(position, 1)
+
+    PositionPawnStructureCodec.encode_many(structures)
+  end
+
+  # Atoms register on first sight; the dictionary hands out stable ids.
+  defp resolve_atom_ids(atoms) do
+    {:ok, FeatureDigest.ids_for(atoms)}
+  end
+
+  defp similar_keyset(nil, atoms_parameter) do
+    maximum_parameters = %{
+      position: atoms_parameter + 1,
+      occurrence: atoms_parameter + 2,
+      record: atoms_parameter + 3
+    }
+
+    {maximum_parameters, [], []}
+  end
+
+  defp similar_keyset(%Analysis.GameSearch.Cursor{} = cursor, atoms_parameter) do
+    maximum_parameters = %{
+      position: atoms_parameter + 1,
+      occurrence: atoms_parameter + 2,
+      record: atoms_parameter + 3
+    }
+
+    last_shared_parameter = atoms_parameter + 4
+    last_position_parameter = atoms_parameter + 5
+    last_occurrence_parameter = atoms_parameter + 6
+    last_record_parameter = atoms_parameter + 7
+
+    conditions = [
+      "go.position_id <= $#{maximum_parameters.position}::bigint",
+      "go.id <= $#{maximum_parameters.occurrence}::bigint",
+      "gr.id <= $#{maximum_parameters.record}::bigint",
+      "(
+        cardinality(pd.atom_ids & $#{atoms_parameter}::integer[]),
+        p.id,
+        go.id,
+        gr.id
+      ) < (
+        $#{last_shared_parameter}::bigint,
+        $#{last_position_parameter}::bigint,
+        $#{last_occurrence_parameter}::bigint,
+        $#{last_record_parameter}::bigint
+      )"
+    ]
+
+    parameters = [
+      cursor.maximum_position_id,
+      cursor.maximum_occurrence_id,
+      cursor.maximum_record_row_id,
+      cursor.last_shared,
+      cursor.last_position_id,
+      cursor.last_occurrence_id,
+      cursor.last_record_row_id
+    ]
+
+    {maximum_parameters, conditions, parameters}
+  end
+
+  defp similar_sql(
+         record_predicate,
+         signature_parameter,
+         atoms_parameter,
+         maximum_parameters,
+         keyset_conditions,
+         limit_parameter
+       ) do
+    maximum_select =
+      if keyset_conditions == [] do
+        """
+          COALESCE(
+            (
+              SELECT max(id)
+              FROM positions
+            ),
+            0
+          )::bigint AS maximum_position_id,
+          COALESCE(
+            (
+              SELECT max(id)
+              FROM game_occurrences
+            ),
+            0
+          )::bigint AS maximum_occurrence_id,
+          COALESCE(
+            (
+              SELECT max(id)
+              FROM game_records
+            ),
+            0
+          )::bigint AS maximum_record_row_id
+        """
+      else
+        """
+          $#{maximum_parameters.position}::bigint AS maximum_position_id,
+          $#{maximum_parameters.occurrence}::bigint AS maximum_occurrence_id,
+          $#{maximum_parameters.record}::bigint AS maximum_record_row_id
+        """
+      end
+
+    keyset_where =
+      case keyset_conditions do
+        [] ->
+          ""
+
+        conditions ->
+          conditions
+          |> Enum.map_join("", fn condition -> "\n  AND #{condition}\n" end)
+      end
+
+    """
+    SELECT
+      #{maximum_select},
+      cardinality(pd.atom_ids & $#{atoms_parameter}::integer[]) AS shared,
+      p.id,
+      go.id,
+      go.game_id,
+      go.ply,
+      gr.id,
+      gr.record_id,
+      gr.game_id,
+      gr.fullmove_number,
+      gr.metadata
+    FROM unnest(
+      $1::bigint[],
+      $2::bigint[]
+    ) AS pawn_structure_keys(
+      white_pawns,
+      black_pawns
+    )
+    JOIN positions AS p
+      ON p.white_pawns = pawn_structure_keys.white_pawns
+      AND p.black_pawns = pawn_structure_keys.black_pawns
+    JOIN position_digests AS pd
+      ON pd.position_id = p.id
+    JOIN game_occurrences AS go
+      ON go.position_id = p.id
+    JOIN game_records AS gr
+      ON gr.game_id = go.game_id
+    WHERE
+      pd.atom_ids @> $#{signature_parameter}::integer[]
+      AND (#{record_predicate})#{keyset_where}
+    ORDER BY
+      shared DESC,
+      p.id,
+      go.id,
+      gr.id
+    LIMIT $#{limit_parameter}::bigint
+    """
+  end
+
   # The record-driven newest-first page for game-only searches: one row per
   # record, the first occurrence (lowest ply) joined for the preview. The
   # (coalesced date, id) keyset matches the game_records_date_id_index.
+  @spec compile_similar(
+          Chess.Position.t(),
+          [String.t()],
+          [String.t()],
+          GameRecordQuery.t(),
+          Analysis.GameSearch.Cursor.t() | nil,
+          pos_integer()
+        ) ::
+          compile_result()
+  def compile_similar(position, signatures, atoms, record_query, cursor, limit)
+      when is_integer(limit) and limit > 0 do
+    with {:ok, {white_pawns, black_pawns}} <-
+           encode_neighborhood(position),
+         {:ok, signature_ids} <- resolve_atom_ids(signatures),
+         {:ok, atom_ids} <- resolve_atom_ids(atoms),
+         {:ok, record_predicate, record_parameters, next_parameter} <-
+           GameRecordPostgres.compile_predicate(
+             record_query,
+             3
+           ) do
+      signature_parameter = next_parameter
+      atoms_parameter = signature_parameter + 1
+
+      {maximum_parameters, keyset_conditions, keyset_parameters} =
+        similar_keyset(cursor, atoms_parameter)
+
+      limit_parameter = atoms_parameter + 1 + length(keyset_parameters)
+
+      sql =
+        similar_sql(
+          record_predicate,
+          signature_parameter,
+          atoms_parameter,
+          maximum_parameters,
+          keyset_conditions,
+          limit_parameter
+        )
+
+      parameters =
+        [
+          white_pawns,
+          black_pawns
+        ] ++
+          record_parameters ++
+          [signature_ids, atom_ids] ++
+          keyset_parameters ++
+          [limit]
+
+      {
+        :ok,
+        sql,
+        parameters
+      }
+    end
+  end
+
   @spec compile_date_first(
           GameRecordQuery.t(),
           pos_integer()

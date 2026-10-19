@@ -857,6 +857,95 @@ defmodule Analysis.GameSearchTest do
     :telemetry.detach("search-probe")
   end
 
+  test "similar search ranks by shared atoms within the structural neighborhood" do
+    alias Chess.Square
+
+    query_position =
+      Position.new()
+      |> Position.put_piece(Square.from_algebraic("d4"), {:white, :pawn})
+      |> Position.put_piece(Square.from_algebraic("d5"), {:black, :pawn})
+      |> Position.put_piece(Square.from_algebraic("e1"), {:white, :king})
+      |> Position.put_piece(Square.from_algebraic("e8"), {:black, :king})
+
+    # Same pawn skeleton within one structural edit and the same material.
+    shifted_position =
+      Position.new()
+      |> Position.put_piece(Square.from_algebraic("d4"), {:white, :pawn})
+      |> Position.put_piece(Square.from_algebraic("d6"), {:black, :pawn})
+      |> Position.put_piece(Square.from_algebraic("e1"), {:white, :king})
+      |> Position.put_piece(Square.from_algebraic("e8"), {:black, :king})
+
+    # Different material: the white rook changes the material signature.
+    richer_position =
+      query_position
+      |> Position.put_piece(Square.from_algebraic("a1"), {:white, :rook})
+
+    # Outside the structural neighborhood (both pawns elsewhere).
+    distant_position =
+      Position.new()
+      |> Position.put_piece(Square.from_algebraic("a2"), {:white, :pawn})
+      |> Position.put_piece(Square.from_algebraic("h7"), {:black, :pawn})
+      |> Position.put_piece(Square.from_algebraic("e1"), {:white, :king})
+      |> Position.put_piece(Square.from_algebraic("e8"), {:black, :king})
+
+    games =
+      for {name, position} <- [
+            {"same", query_position},
+            {"shifted", shifted_position},
+            {"richer", richer_position},
+            {"distant", distant_position}
+          ] do
+        {position_id, game_id} = stored_game(position)
+        {:ok, _ids} = Analysis.PositionDigests.store_position_id(position_id)
+
+        assert :ok =
+                 GameRecordStore.insert(GameRecord.new(name, game_id, %{"white" => "Player"}))
+
+        name
+      end
+
+    assert games == ["same", "shifted", "richer", "distant"]
+
+    {:ok, page} =
+      GameSearch.similar(
+        query_position,
+        GameRecordQuery.match_all(),
+        limit: 10
+      )
+
+    assert Enum.map(page.entries, fn {record, _occurrence, _shared} -> record.id end) ==
+             ["same", "shifted"]
+
+    # Identical shares every atom; the shifted twin shares fewer.
+    assert [same_shared, shifted_shared] =
+             Enum.map(page.entries, fn {_record, _occurrence, shared} -> shared end)
+
+    assert same_shared > shifted_shared
+
+    # Keyset paging continues past the top hit.
+    {:ok, first_page} =
+      GameSearch.similar(
+        query_position,
+        GameRecordQuery.match_all(),
+        limit: 1
+      )
+
+    assert [{first_record, _occurrence, _shared}] = first_page.entries
+    assert first_record.id == "same"
+
+    {:ok, second_page} =
+      GameSearch.similar(
+        query_position,
+        GameRecordQuery.match_all(),
+        limit: 1,
+        cursor: first_page.next
+      )
+
+    assert [{second_record, _occurrence, _shared}] = second_page.entries
+    assert second_record.id == "shifted"
+    assert second_page.next == nil
+  end
+
   test "match-none queries return an empty page without querying PostgreSQL" do
     {
       position_result,

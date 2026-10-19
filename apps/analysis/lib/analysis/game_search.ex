@@ -16,6 +16,7 @@ defmodule Analysis.GameSearch do
   position-driven join per page.
   """
 
+  alias Analysis.FeatureDigest
   alias Analysis.GameOccurrence
   alias Analysis.GameRecord
   alias Analysis.GameRecordQuery
@@ -44,7 +45,8 @@ defmodule Analysis.GameSearch do
       :last_position_id,
       :last_occurrence_id,
       :last_record_row_id,
-      :last_date
+      :last_date,
+      :last_shared
     ]
 
     @type t :: %__MODULE__{
@@ -54,7 +56,8 @@ defmodule Analysis.GameSearch do
             last_position_id: pos_integer() | nil,
             last_occurrence_id: pos_integer() | nil,
             last_record_row_id: pos_integer(),
-            last_date: String.t() | nil
+            last_date: String.t() | nil,
+            last_shared: non_neg_integer() | nil
           }
   end
 
@@ -137,6 +140,78 @@ defmodule Analysis.GameSearch do
 
   def page(_position_query, _record_query, _options) do
     {:error, :invalid_page_options}
+  end
+
+  @doc """
+  Search games reaching positions similar to `position`: the same pawn
+  skeleton within one structural edit plus the same material (the
+  prefilter), ranked by how many of the position's digest atoms they share
+  (the rerank). Keyset-paged by (shared, position id, occurrence id,
+  record row id).
+  """
+  @spec similar(Chess.Position.t(), GameRecordQuery.t(), keyword()) :: page_result()
+  def similar(%Chess.Position{} = position, record_query, options) when is_list(options) do
+    with {:ok, limit} <- fetch_limit(options),
+         {:ok, cursor} <- fetch_cursor(options),
+         {:ok, query_atoms} <- similar_query_atoms(position) do
+      :telemetry.span(
+        [:openchesslab, :search, :page],
+        %{search_type: :similar},
+        fn ->
+          result = do_similar(position, query_atoms, record_query, limit, cursor)
+          {result, %{search_type: :similar}}
+        end
+      )
+    end
+  end
+
+  def similar(_position, _record_query, _options) do
+    {:error, :invalid_page_options}
+  end
+
+  # The full atom set ranks candidates; the material signatures prefilter.
+  defp similar_query_atoms(position) do
+    with {:ok, result} <- Analysis.PositionFeatures.extract(position) do
+      atoms = FeatureDigest.atoms(result.features)
+      signatures = Enum.filter(atoms, &String.starts_with?(&1, "material.signature:"))
+      {:ok, %{atoms: atoms, signatures: signatures}}
+    end
+  end
+
+  defp do_similar(_position, _query_atoms, _record_query, _limit, %Cursor{last_shared: nil}) do
+    {:error, :invalid_cursor}
+  end
+
+  defp do_similar(position, query_atoms, record_query, limit, cursor) do
+    requested_rows =
+      limit + 1
+
+    with {
+           :ok,
+           sql,
+           parameters
+         } <-
+           PostgresQuery.compile_similar(
+             position,
+             query_atoms.signatures,
+             query_atoms.atoms,
+             record_query,
+             cursor,
+             requested_rows
+           ),
+         {:ok, %{rows: rows}} <-
+           Repo.query(
+             sql,
+             parameters
+           ) do
+      {
+        :ok,
+        build_similar_page(
+          rows,
+          limit
+        )
+      }
+    end
   end
 
   @doc """
@@ -389,6 +464,103 @@ defmodule Analysis.GameSearch do
   # The date-sorted path pages game_records directly, one row per record with
   # the first occurrence joined for the preview (records without moves get an
   # honest nil). Undated records coalesce to "" and sort last.
+  defp build_similar_page(rows, limit) when length(rows) <= limit do
+    %Page{
+      entries:
+        Enum.map(
+          rows,
+          &similar_match_from_row/1
+        )
+    }
+  end
+
+  defp build_similar_page(rows, limit) do
+    {
+      page_rows,
+      _remaining_rows
+    } =
+      Enum.split(
+        rows,
+        limit
+      )
+
+    %Page{
+      entries:
+        Enum.map(
+          page_rows,
+          &similar_match_from_row/1
+        ),
+      next:
+        page_rows
+        |> List.last()
+        |> similar_cursor_from_row()
+    }
+  end
+
+  defp similar_cursor_from_row([
+         maximum_position_id,
+         maximum_occurrence_id,
+         maximum_record_row_id,
+         shared,
+         position_id,
+         occurrence_id,
+         _occurrence_game_id,
+         _ply,
+         record_row_id,
+         _record_id,
+         _record_game_id,
+         _fullmove_number,
+         _metadata
+       ]) do
+    %Cursor{
+      maximum_position_id: maximum_position_id,
+      maximum_occurrence_id: maximum_occurrence_id,
+      maximum_record_row_id: maximum_record_row_id,
+      last_position_id: position_id,
+      last_occurrence_id: occurrence_id,
+      last_record_row_id: record_row_id,
+      last_shared: shared
+    }
+  end
+
+  defp similar_match_from_row([
+         _maximum_position_id,
+         _maximum_occurrence_id,
+         _maximum_record_row_id,
+         shared,
+         position_id,
+         occurrence_id,
+         occurrence_game_id,
+         ply,
+         _record_row_id,
+         record_id,
+         record_game_id,
+         fullmove_number,
+         metadata
+       ]) do
+    record =
+      GameRecord.new(
+        record_id,
+        record_game_id,
+        GameStart.new(fullmove_number),
+        metadata
+      )
+
+    occurrence =
+      GameOccurrence.new(
+        occurrence_id,
+        occurrence_game_id,
+        ply,
+        position_id
+      )
+
+    {
+      record,
+      occurrence,
+      shared
+    }
+  end
+
   defp build_date_page(rows, limit) when length(rows) <= limit do
     %Page{
       entries:

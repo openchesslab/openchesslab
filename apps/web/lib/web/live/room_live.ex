@@ -4595,42 +4595,79 @@ defmodule Web.RoomLive do
   # (one row per position a game passes through) and the list shows one row
   # per game record, keeping the first occurrence it reached.
   defp corpus_search(filters, cursor) do
-    atoms = search_atoms(filters["features"])
+    if filters["position_mode"] == "similar" do
+      corpus_search_similar(filters, cursor)
+    else
+      atoms = search_atoms(filters["features"])
 
-    with {:ok, position_query} <-
-           search_position_query(filters["fen"], filters["position_mode"], atoms) do
-      record_query = search_record_query(filters)
+      with {:ok, position_query} <-
+             search_position_query(filters["fen"], filters["position_mode"], atoms) do
+        record_query = search_record_query(filters)
 
-      # With a position filter (FEN or feature atoms) the scan stays
-      # position-driven (insertion order); game-only searches page newest-first.
-      sort =
-        if blank_to_nil(filters["fen"]) || atoms != [],
-          do: :insertion,
-          else: :date_desc
+        # With a position filter (FEN or feature atoms) the scan stays
+        # position-driven (insertion order); game-only searches page newest-first.
+        sort =
+          if blank_to_nil(filters["fen"]) || atoms != [],
+            do: :insertion,
+            else: :date_desc
 
-      options =
-        if cursor,
-          do: [limit: @search_page_size, cursor: cursor, sort: sort],
-          else: [limit: @search_page_size, sort: sort]
+        options =
+          if cursor,
+            do: [limit: @search_page_size, cursor: cursor, sort: sort],
+            else: [limit: @search_page_size, sort: sort]
 
-      case GameSearch.page(position_query, record_query, options) do
-        {:ok, page} ->
-          {results, _seen} =
-            Enum.reduce(page.entries, {[], MapSet.new()}, fn {record, occurrence}, {acc, seen} ->
-              if MapSet.member?(seen, record.id) do
-                {acc, seen}
-              else
-                {[corpus_result(record, occurrence) | acc], MapSet.put(seen, record.id)}
-              end
-            end)
+        case GameSearch.page(position_query, record_query, options) do
+          {:ok, page} ->
+            build_corpus_results(page.entries, page.next)
 
-          {:ok, Enum.reverse(results) |> with_corpus_positions(), page.next}
-
-        {:error, _reason} ->
-          {:error, :search_failed}
+          {:error, _reason} ->
+            {:error, :search_failed}
+        end
       end
     end
   end
+
+  # Search-by-example: the FEN position's atoms drive the ranking.
+  defp corpus_search_similar(filters, cursor) do
+    case FEN.parse(String.trim(to_string(filters["fen"]))) do
+      {:ok, %{position: position}} ->
+        record_query = search_record_query(filters)
+
+        options =
+          if cursor,
+            do: [limit: @search_page_size, cursor: cursor],
+            else: [limit: @search_page_size]
+
+        case GameSearch.similar(position, record_query, options) do
+          {:ok, page} ->
+            build_corpus_results(page.entries, page.next)
+
+          {:error, _reason} ->
+            {:error, :search_failed}
+        end
+
+      _ ->
+        {:error, :invalid_fen}
+    end
+  end
+
+  defp build_corpus_results(entries, next_cursor) do
+    {results, _seen} =
+      Enum.reduce(entries, {[], MapSet.new()}, fn entry, {acc, seen} ->
+        {record, occurrence, shared} = corpus_entry(entry)
+
+        if MapSet.member?(seen, record.id) do
+          {acc, seen}
+        else
+          {[corpus_result(record, occurrence, shared) | acc], MapSet.put(seen, record.id)}
+        end
+      end)
+
+    {:ok, Enum.reverse(results) |> with_corpus_positions(), next_cursor}
+  end
+
+  defp corpus_entry({record, occurrence}), do: {record, occurrence, nil}
+  defp corpus_entry({record, occurrence, shared}), do: {record, occurrence, shared}
 
   defp search_position_query(fen, _mode, atoms) when fen in ["", nil] and atoms == [],
     do: {:ok, true}
@@ -4848,7 +4885,7 @@ defmodule Web.RoomLive do
     end
   end
 
-  defp corpus_result(record, occurrence) do
+  defp corpus_result(record, occurrence, shared) do
     metadata = record.metadata
 
     opening_label =
@@ -4867,7 +4904,8 @@ defmodule Web.RoomLive do
       result: metadata["result"] || "*",
       ply: if(occurrence, do: occurrence.ply, else: 0),
       position_id: if(occurrence, do: occurrence.position_id, else: nil),
-      position: nil
+      position: nil,
+      shared: shared
     }
   end
 

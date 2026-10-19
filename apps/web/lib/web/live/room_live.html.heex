@@ -2325,6 +2325,11 @@
         >
           {Web.I18n.t("room.searchModeMirrored", @locale)}
         </option><option
+          value="similar"
+          selected={@search_filters["position_mode"] == "similar"}
+        >
+          {Web.I18n.t("room.searchModeSimilar", @locale)}
+        </option><option
           value="structure"
           selected={@search_filters["position_mode"] == "structure"}
         >
@@ -2433,6 +2438,9 @@
                 {[game.opening, game.event, game.date, game.result]
                 |> Enum.reject(&is_nil/1)
                 |> Enum.join(" · ")}
+                <span :if={game.shared} class="font-medium text-foreground">
+                  · {Web.I18n.plural("room.searchSharedCount", game.shared, %{})}
+                </span>
                 <span :if={game.ply > 0}>
                   · {Web.I18n.t("room.searchPlyLabel", @locale, %{ply: game.ply})}
                 </span>
