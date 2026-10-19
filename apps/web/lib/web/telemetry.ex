@@ -50,6 +50,14 @@ defmodule Web.Telemetry do
     )
   end
 
+  def rooms_stats do
+    :telemetry.execute(
+      [:openchesslab, :room, :stats],
+      %{active: Horde.Registry.count(Analysis.RoomRegistry)},
+      %{}
+    )
+  end
+
   @latency_buckets [5, 10, 25, 50, 100, 250, 500, 1_000, 5_000]
 
   def metrics do
@@ -68,6 +76,15 @@ defmodule Web.Telemetry do
       last_value("openchesslab.db.stats.connections"),
       sum("openchesslab.db.stats.blks_hit", description: "PG blocks read from cache"),
       sum("openchesslab.db.stats.blks_read", description: "PG blocks read from disk"),
+
+      # Domain: room lifecycle and activity
+      last_value("openchesslab.room.stats.active", description: "Live rooms"),
+      sum("openchesslab.room.created.count", measurement: :count),
+      sum("openchesslab.room.stopped.count", measurement: :count),
+      sum("openchesslab.room.pruned.count", measurement: :count),
+      sum("openchesslab.room.materialized.count", measurement: :count),
+      sum("openchesslab.room.analysis_added.count", measurement: :count),
+      sum("openchesslab.room.analysis_removed.count", measurement: :count),
 
       # Domain: corpus search latency per search shape
       distribution(
@@ -132,5 +149,5 @@ defmodule Web.Telemetry do
     ]
   end
 
-  defp periodic_measurements, do: [{__MODULE__, :db_stats, []}]
+  defp periodic_measurements, do: [{__MODULE__, :db_stats, []}, {__MODULE__, :rooms_stats, []}]
 end

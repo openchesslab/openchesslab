@@ -192,6 +192,39 @@ defmodule Analysis.RoomsTest do
              ["analysis-2"]
   end
 
+  test "room lifecycle emits telemetry counters", %{
+    room_id: room_id,
+    rooms_options: rooms_options
+  } do
+    parent = self()
+
+    for event <- [:created, :analysis_added, :analysis_removed] do
+      :telemetry.attach(
+        "probe-#{event}",
+        [:openchesslab, :room, event],
+        fn _event, measurements, _metadata, _config ->
+          send(parent, {event, measurements.count})
+        end,
+        nil
+      )
+    end
+
+    assert {:ok, _room} = Rooms.create_room(room_id, rooms_options)
+    assert_received {:created, 1}
+
+    start_room_and_wait(room_id, rooms_options)
+
+    assert :ok = Rooms.add_analysis(room_id, "analysis-1", rooms_options)
+    assert_received {:analysis_added, 1}
+
+    assert :ok = Rooms.remove_analysis(room_id, "analysis-1", rooms_options)
+    assert_received {:analysis_removed, 1}
+
+    for event <- [:created, :analysis_added, :analysis_removed] do
+      :telemetry.detach("probe-#{event}")
+    end
+  end
+
   test "removing an analysis keeps it while another room references it", %{
     room_id: room_id,
     rooms_options: rooms_options

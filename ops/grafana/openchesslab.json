@@ -499,6 +499,107 @@
       ],
       "title": "Searches per shape",
       "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 50},
+      "id": 21,
+      "panels": [],
+      "title": "Domein: kamers",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "datasource", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 6, "w": 5, "x": 0, "y": 51},
+      "id": 22,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "datasource": {"type": "datasource", "uid": "${DS_PROMETHEUS}"},
+          "expr": "openchesslab_room_stats_active{app=\"openchesslab\"}",
+          "legendFormat": "actieve kamers",
+          "refId": "A"
+        }
+      ],
+      "title": "Actieve kamers",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "datasource", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 6, "w": 10, "x": 5, "y": 51},
+      "id": 23,
+      "options": {
+        "legend": {"calcs": ["lastNotNull"], "displayMode": "list", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "datasource": {"type": "datasource", "uid": "${DS_PROMETHEUS}"},
+          "expr": "sum(rate(openchesslab_room_created_count{app=\"openchesslab\"}[1h]))",
+          "legendFormat": "aangemaakt",
+          "refId": "A"
+        },
+        {
+          "datasource": {"type": "datasource", "uid": "${DS_PROMETHEUS}"},
+          "expr": "sum(rate(openchesslab_room_stopped_count{app=\"openchesslab\"}[1h]))",
+          "legendFormat": "gestopt",
+          "refId": "B"
+        },
+        {
+          "datasource": {"type": "datasource", "uid": "${DS_PROMETHEUS}"},
+          "expr": "sum(rate(openchesslab_room_pruned_count{app=\"openchesslab\"}[1h]))",
+          "legendFormat": "gepruind",
+          "refId": "C"
+        },
+        {
+          "datasource": {"type": "datasource", "uid": "${DS_PROMETHEUS}"},
+          "expr": "sum(rate(openchesslab_room_materialized_count{app=\"openchesslab\"}[1h]))",
+          "legendFormat": "gematerialiseerd",
+          "refId": "D"
+        }
+      ],
+      "title": "Kamer-lifecycle per uur",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "datasource", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 6, "w": 9, "x": 15, "y": 51},
+      "id": 24,
+      "options": {
+        "legend": {"calcs": ["lastNotNull"], "displayMode": "list", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "datasource": {"type": "datasource", "uid": "${DS_PROMETHEUS}"},
+          "expr": "sum(rate(openchesslab_room_analysis_added_count{app=\"openchesslab\"}[1h]))",
+          "legendFormat": "toegevoegd",
+          "refId": "A"
+        },
+        {
+          "datasource": {"type": "datasource", "uid": "${DS_PROMETHEUS}"},
+          "expr": "sum(rate(openchesslab_room_analysis_removed_count{app=\"openchesslab\"}[1h]))",
+          "legendFormat": "verwijderd",
+          "refId": "B"
+        }
+      ],
+      "title": "Analyses toegevoegd/verwijderd",
+      "type": "timeseries"
     }
   ],
   "refresh": "30s",

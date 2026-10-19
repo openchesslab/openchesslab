@@ -25,6 +25,7 @@ defmodule Web.TelemetryTest do
 
     # The event handler records synchronously; fire controlled events.
     Web.Telemetry.db_stats()
+    Web.Telemetry.rooms_stats()
     OpenChessLab.Repo.query!("SELECT 1")
 
     {:ok, _page} = Analysis.GameSearch.page(true, limit: 1)
@@ -40,6 +41,7 @@ defmodule Web.TelemetryTest do
     assert text =~ "open_chess_lab_repo_query_total_time"
     assert text =~ ~s(phoenix_endpoint_stop_duration_bucket{status_int="200")
     assert text =~ ~s(openchesslab_search_page_stop_duration_bucket{search_type="games")
+    assert text =~ "openchesslab_room_stats_active"
 
     size_line =
       Enum.find(

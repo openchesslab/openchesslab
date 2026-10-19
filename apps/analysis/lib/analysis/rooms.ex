@@ -46,6 +46,8 @@ defmodule Analysis.Rooms do
 
     case created do
       :ok ->
+        :telemetry.execute([:openchesslab, :room, :created], %{count: 1})
+
         case lookup(registry(opts), room_id, opts) do
           {:ok, pid} -> {:ok, RoomServer.get(pid)}
           :not_found -> {:error, :not_found}
@@ -186,10 +188,14 @@ defmodule Analysis.Rooms do
            opts
          ) do
       {:ok, pid} ->
-        RoomServer.add_analysis(
-          pid,
-          analysis_id
-        )
+        :ok =
+          RoomServer.add_analysis(
+            pid,
+            analysis_id
+          )
+
+        :telemetry.execute([:openchesslab, :room, :analysis_added], %{count: 1})
+        :ok
 
       :not_found ->
         {:error, :not_found}
@@ -214,6 +220,7 @@ defmodule Analysis.Rooms do
         # references it; otherwise removing it here deletes it.
         :ok = RoomServer.remove_analysis(pid, analysis_id)
         RoomStore.cleanup_orphaned_analysis(analysis_id)
+        :telemetry.execute([:openchesslab, :room, :analysis_removed], %{count: 1})
         :ok
 
       :not_found ->
@@ -292,6 +299,11 @@ defmodule Analysis.Rooms do
   def prune_old_empty_rooms(older_than_days \\ 30, limit \\ 100, opts \\ []) do
     deleted_ids = RoomStore.prune_old_empty_rooms(older_than_days, limit)
     Enum.each(deleted_ids, &terminate_room_worker(&1, opts))
+
+    if deleted_ids != [] do
+      :telemetry.execute([:openchesslab, :room, :pruned], %{count: length(deleted_ids)})
+    end
+
     deleted_ids
   end
 
@@ -309,8 +321,25 @@ defmodule Analysis.Rooms do
       :ok = RoomStore.delete_analyses(analysis_ids)
       :ok = RoomStore.delete(room_id)
       terminate_room_worker(room_id, opts)
-      room_id
+      {room_id, length(analysis_ids)}
     end)
+    |> case do
+      [] ->
+        []
+
+      pruned ->
+        :telemetry.execute(
+          [:openchesslab, :room, :pruned],
+          %{count: length(pruned)}
+        )
+
+        :telemetry.execute(
+          [:openchesslab, :room, :materialized],
+          %{count: Enum.sum(Enum.map(pruned, &elem(&1, 1)))}
+        )
+
+        Enum.map(pruned, &elem(&1, 0))
+    end
   end
 
   @doc "Stamp the room as active right now (a visit, a move, a comment, chat)."
@@ -323,6 +352,7 @@ defmodule Analysis.Rooms do
         ) :: :ok
   def stop_room(room_id, opts \\ []) do
     :ok = RoomStore.delete(room_id)
+    :telemetry.execute([:openchesslab, :room, :stopped], %{count: 1})
     terminate_room_worker(room_id, opts)
   end
 
