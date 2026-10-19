@@ -104,7 +104,10 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   GIN vooraf gedropt; ~65 posities/s → **~3,5 dag**; daarna REINDEX + ANALYZE.
   **Hervatting bewezen:** machine stopte onverklaard na ~13 uur bij 3,11M
   (oorzaak niet in geroteerde logs); herstart hervatte direct (NOT EXISTS-skip),
-  ~85 posities/s, 0 failures. Bij herhaling dieper graven (geheugen/reaping).
+  ~85 posities/s, 0 failures. Stop bleek zich te **herhalen** (~elke 12–16 u;
+  exit-reden onzichtbaar, logs geroteerd) → **`--restart on-failure`** op
+  `bulk-resume-3` gezet (2026-10-19): crashes herstarten vanzelf, succesvolle
+  afronding niet (geen restart-loop). Status toen: 3,93M (19,9%).
   **Query-transformaties (`72c001f`):** `Position.color_swapped/1` en
   `Position.file_reflected/1` op `Chess.Position` (zelfde conventie als
   PawnStructure/Similarity) + zoekmodes "kleuren omgedraaid"/"gespiegeld"
