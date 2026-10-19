@@ -14,6 +14,9 @@ defmodule Analysis.PositionFeaturesTest do
     Repo.query!(
       """
       TRUNCATE TABLE
+        game_records,
+        game_occurrences,
+        games,
         position_feature_vectors,
         positions
       RESTART IDENTITY

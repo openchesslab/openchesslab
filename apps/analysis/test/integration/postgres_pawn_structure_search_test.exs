@@ -15,6 +15,9 @@ defmodule Analysis.PostgresPawnStructureSearchTest do
     Repo.query!(
       """
       TRUNCATE TABLE
+        game_records,
+        game_occurrences,
+        games,
         positions
       RESTART IDENTITY
       CASCADE

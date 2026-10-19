@@ -7,7 +7,11 @@ defmodule Analysis.PositionTablebasesTest do
   alias OpenChessLab.Repo
 
   setup do
-    Repo.query!("TRUNCATE TABLE position_tablebases, positions RESTART IDENTITY CASCADE", [])
+    Repo.query!(
+      "TRUNCATE TABLE position_tablebases, game_records, game_occurrences, games, positions RESTART IDENTITY CASCADE",
+      []
+    )
+
     :ok
   end
 

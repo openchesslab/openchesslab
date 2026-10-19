@@ -13,6 +13,9 @@ defmodule Analysis.PostgresPositionStoreBatchTest do
     Repo.query!(
       """
       TRUNCATE TABLE
+        game_records,
+        game_occurrences,
+        games,
         positions
       RESTART IDENTITY
       CASCADE
