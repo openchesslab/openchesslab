@@ -65,6 +65,12 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   **Hervatting bewezen:** machine stopte onverklaard na ~13 uur bij 3,11M
   (oorzaak niet in geroteerde logs); herstart hervatte direct (NOT EXISTS-skip),
   ~85 posities/s, 0 failures. Bij herhaling dieper graven (geheugen/reaping).
+  **Query-transformaties (`72c001f`):** `Position.color_swapped/1` en
+  `Position.file_reflected/1` op `Chess.Position` (zelfde conventie als
+  PawnStructure/Similarity) + zoekmodes "kleuren omgedraaid"/"gespiegeld"
+  (OR van origineel + transformatie; gespiegelde met rochaderechten is geen
+  geldige FEN maar wél een geldige interne positie — de query kán er dus alleen
+  Chess960-achtige posities mee vinden, eerlijk).
   Ops-lessen: (1) `DigestBackfill.run/1` start zelf `:analysis`
   (`2feb582`, BulkImport-patroon); (2) **nieuwe** Fly-machines resolveerden de
   mpg `direct.`-hostname níet (nxdomain), de bestaande bulk-machine wel —
