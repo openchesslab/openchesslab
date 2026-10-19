@@ -70,7 +70,12 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   PawnStructure/Similarity) + zoekmodes "kleuren omgedraaid"/"gespiegeld"
   (OR van origineel + transformatie; gespiegelde met rochaderechten is geen
   geldige FEN maar wél een geldige interne positie — de query kán er dus alleen
-  Chess960-achtige posities mee vinden, eerlijk).
+  Chess960-achtige posities mee vinden, eerlijk). **Oude properties opgeruimd
+  (`e0b687b`, gedeployed + tabel gedropt in prod):** de pawn_structure-clause
+  liep al op de positions-kolommen; de overige property-keys (geen productie-
+  callers) zijn weg incl. `PositionPropertyKeyCodec`, de PositionStore-
+  propertywrites en de zes oude property-testbestanden; compose-tests gebruiken
+  nu de materiaal-digest (`material.signature`). Oude tabel vrijgegeven ~GB.
   Ops-lessen: (1) `DigestBackfill.run/1` start zelf `:analysis`
   (`2feb582`, BulkImport-patroon); (2) **nieuwe** Fly-machines resolveerden de
   mpg `direct.`-hostname níet (nxdomain), de bestaande bulk-machine wel —
