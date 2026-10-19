@@ -69,13 +69,15 @@ defmodule Analysis.GameSearch do
     ]
 
     defstruct entries: [],
-              next: nil
+              next: nil,
+              query_total: nil
 
     @type t :: %__MODULE__{
             entries: [Analysis.GameSearch.occurrence_match()],
             next:
               Analysis.GameSearch.cursor()
-              | nil
+              | nil,
+            query_total: pos_integer() | nil
           }
   end
 
@@ -208,7 +210,8 @@ defmodule Analysis.GameSearch do
         :ok,
         build_similar_page(
           rows,
-          limit
+          limit,
+          length(query_atoms.atoms)
         )
       }
     end
@@ -223,6 +226,63 @@ defmodule Analysis.GameSearch do
   def corpus_size do
     %{rows: [[count]]} = Repo.query!("SELECT count(*) FROM game_records")
     count
+  end
+
+  @doc """
+  Number of distinct game records matching a position+record query. Used by
+  the search dialog's interpretation tabs; cheap (no ordering, no paging).
+  """
+  @spec count_matches(PositionQuery.t(), GameRecordQuery.t()) ::
+          {:ok, non_neg_integer()}
+          | {:error, term()}
+  def count_matches(position_query, record_query) do
+    normalized_position_query =
+      PositionQueryNormalizer.normalize(position_query)
+
+    if normalized_position_query == false do
+      {:ok, 0}
+    else
+      with {
+             :ok,
+             sql,
+             parameters
+           } <-
+             PostgresQuery.compile_count(
+               normalized_position_query,
+               record_query
+             ),
+           {:ok, %{rows: [[count]]}} <-
+             Repo.query(
+               sql,
+               parameters
+             ) do
+        {:ok, count}
+      end
+    end
+  end
+
+  @doc """
+  Number of distinct game records matching the similar prefilter for a
+  position, for the interpretation tabs.
+  """
+  @spec similar_count(Chess.Position.t(), GameRecordQuery.t()) ::
+          {:ok, non_neg_integer()}
+          | {:error, term()}
+  def similar_count(%Chess.Position{} = position, record_query) do
+    with {:ok, query_atoms} <- similar_query_atoms(position),
+         {:ok, sql, parameters} <-
+           PostgresQuery.compile_similar_count(
+             position,
+             query_atoms.signatures,
+             record_query
+           ),
+         {:ok, %{rows: [[count]]}} <-
+           Repo.query(
+             sql,
+             parameters
+           ) do
+      {:ok, count}
+    end
   end
 
   defp do_page(false, _record_query, _limit, _cursor, _sort) do
@@ -464,17 +524,18 @@ defmodule Analysis.GameSearch do
   # The date-sorted path pages game_records directly, one row per record with
   # the first occurrence joined for the preview (records without moves get an
   # honest nil). Undated records coalesce to "" and sort last.
-  defp build_similar_page(rows, limit) when length(rows) <= limit do
+  defp build_similar_page(rows, limit, query_total) when length(rows) <= limit do
     %Page{
       entries:
         Enum.map(
           rows,
           &similar_match_from_row/1
-        )
+        ),
+      query_total: query_total
     }
   end
 
-  defp build_similar_page(rows, limit) do
+  defp build_similar_page(rows, limit, query_total) do
     {
       page_rows,
       _remaining_rows
@@ -493,7 +554,8 @@ defmodule Analysis.GameSearch do
       next:
         page_rows
         |> List.last()
-        |> similar_cursor_from_row()
+        |> similar_cursor_from_row(),
+      query_total: query_total
     }
   end
 

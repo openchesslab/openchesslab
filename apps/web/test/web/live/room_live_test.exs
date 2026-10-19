@@ -407,7 +407,8 @@ defmodule Web.RoomLiveTest do
         "player" => "",
         "color" => "either",
         "result" => "either",
-        "fen" => "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2"
+        "fen" => "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+        "position_mode" => "exact"
       })
 
     assert html =~ ~s(id="corpus-#{corpus.carlsen_win}")
@@ -529,8 +530,47 @@ defmodule Web.RoomLiveTest do
     refute html =~ ~s(id="corpus-#{corpus.carlsen_loss}")
     refute html =~ ~s(id="corpus-#{corpus.other_win}")
 
-    # Rows show the shared-atom score.
-    assert html =~ "shared atoms"
+    # Rows show the match score as a percentage.
+    assert html =~ "% match"
+
+    cleanup_search_corpus(corpus)
+  end
+
+  test "the interpretation tabs count each mode's games and switch modes", %{
+    conn: conn,
+    code: code
+  } do
+    OpenChessLab.Repo.query!(
+      "TRUNCATE TABLE game_records, game_occurrences, games, positions RESTART IDENTITY CASCADE",
+      []
+    )
+
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    corpus = seed_search_corpus()
+
+    assert %{failed: 0} = Analysis.DigestBackfill.run(workers: 2)
+
+    render_click(view, "open-search", %{})
+
+    fen = "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2"
+    html = render_submit(view, "search-games", %{"fen" => fen})
+
+    # Each interpretation counts its games: only the win reaches the exact
+    # position (1); win and transposition share its pawn structure (2) and
+    # qualify for the similar prefilter (2).
+    assert html =~ "search-interpretations"
+    assert html =~ "Exact position · 1"
+    assert html =~ "Similar positions · 2"
+    assert html =~ "Same pawn structure · 2"
+
+    # The default tab is similar; its rows carry the match percentage.
+    assert html =~ ~s(role="tab" aria-selected="true")
+    assert html =~ "% match"
+
+    # Switching to exact drops the percentage (exact rows have no score).
+    html = render_click(view, "set-position-mode", %{"mode" => "exact"})
+    assert html =~ ~s(id="corpus-#{corpus.carlsen_win}")
+    refute html =~ "% match"
 
     cleanup_search_corpus(corpus)
   end
@@ -773,7 +813,7 @@ defmodule Web.RoomLiveTest do
     fen = "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2"
     render_click(view, "open-search", %{})
 
-    html = render_submit(view, "search-games", %{"fen" => fen})
+    html = render_submit(view, "search-games", %{"fen" => fen, "position_mode" => "exact"})
     assert html =~ ~s(id="corpus-#{exact.id}")
     refute html =~ ~s(id="corpus-#{push.id}")
 

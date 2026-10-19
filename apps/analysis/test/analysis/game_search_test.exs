@@ -857,6 +857,63 @@ defmodule Analysis.GameSearchTest do
     :telemetry.detach("search-probe")
   end
 
+  test "interpretation counts agree across exact, structure and similar" do
+    first_position =
+      Position.starting_position()
+
+    {:ok, second_position} =
+      Position.apply_move(
+        first_position,
+        move("e2", "e3")
+      )
+
+    {
+      _first_position_id,
+      first_game_id
+    } =
+      stored_game(first_position)
+
+    {
+      _second_position_id,
+      second_game_id
+    } =
+      stored_game(second_position)
+
+    for {record_id, game_id} <- [
+          {"count-first", first_game_id},
+          {"count-second", second_game_id}
+        ] do
+      assert :ok =
+               GameRecordStore.insert(
+                 GameRecord.new(
+                   record_id,
+                   game_id,
+                   %{"white" => "Player"}
+                 )
+               )
+    end
+
+    {:ok, _ids} =
+      Analysis.PositionDigests.store_position_id(PositionStore.append(first_position))
+
+    {:ok, _ids} =
+      Analysis.PositionDigests.store_position_id(PositionStore.append(second_position))
+
+    # Exact sees only the position itself; similar widens to the one-edit
+    # structural neighborhood with the same material.
+    assert {:ok, 1} =
+             GameSearch.count_matches(
+               Query.equivalent(first_position),
+               GameRecordQuery.match_all()
+             )
+
+    assert {:ok, 2} =
+             GameSearch.similar_count(
+               first_position,
+               GameRecordQuery.match_all()
+             )
+  end
+
   test "similar search ranks by shared atoms within the structural neighborhood" do
     alias Chess.Square
 

@@ -165,12 +165,13 @@ defmodule Web.RoomLive do
         "rating_max" => "",
         "date_from" => "",
         "date_to" => "",
-        "position_mode" => "exact",
+        "position_mode" => "similar",
         "fen" => "",
         "substitutions" => ""
       },
       search_corpus_size: nil,
       search_results: [],
+      search_counts: nil,
       provider: nil,
       engine_on: false,
       engine_preview: nil,
@@ -540,6 +541,7 @@ defmodule Web.RoomLive do
      assign(socket,
        ui_modal: "search",
        search_results: [],
+       search_counts: nil,
        search_cursor: nil,
        search_error: nil,
        search_filters: %{
@@ -553,7 +555,7 @@ defmodule Web.RoomLive do
          "rating_max" => "",
          "date_from" => "",
          "date_to" => "",
-         "position_mode" => "exact",
+         "position_mode" => "similar",
          "fen" => ""
        },
        search_corpus_size: GameSearch.corpus_size()
@@ -1400,34 +1402,14 @@ defmodule Web.RoomLive do
       |> Map.merge(params)
       |> Map.put("features", Map.get(params, "features", []))
 
-    case corpus_search(filters, nil) do
-      {:ok, results, cursor} ->
-        {:noreply,
-         assign(socket,
-           search_filters: filters,
-           search_results: results,
-           search_cursor: cursor,
-           search_error: nil
-         )}
+    run_corpus_search(socket, filters)
+  end
 
-      {:error, :invalid_fen} ->
-        {:noreply,
-         assign(socket,
-           search_filters: filters,
-           search_results: [],
-           search_cursor: nil,
-           search_error: "room.searchInvalidFen"
-         )}
-
-      {:error, _reason} ->
-        {:noreply,
-         assign(socket,
-           search_filters: filters,
-           search_results: [],
-           search_cursor: nil,
-           search_error: "room.searchFailed"
-         )}
-    end
+  def handle_event("set-position-mode", %{"mode" => mode}, socket) do
+    run_corpus_search(
+      socket,
+      Map.put(socket.assigns.search_filters, "position_mode", mode)
+    )
   end
 
   def handle_event("search-more", _params, socket) do
@@ -1476,7 +1458,12 @@ defmodule Web.RoomLive do
 
   def handle_event("search-use-board-fen", _params, socket) do
     fen = if socket.assigns.position, do: to_fen(socket.assigns.position), else: ""
-    filters = Map.put(socket.assigns.search_filters, "fen", fen)
+
+    filters =
+      socket.assigns.search_filters
+      |> Map.put("fen", fen)
+      |> Map.put("position_mode", "similar")
+
     {:noreply, assign(socket, :search_filters, filters)}
   end
 
@@ -4594,8 +4581,78 @@ defmodule Web.RoomLive do
   # One bounded GameSearch page per request; entries arrive occurrence-level
   # (one row per position a game passes through) and the list shows one row
   # per game record, keeping the first occurrence it reached.
+  defp run_corpus_search(socket, filters) do
+    case corpus_search(filters, nil) do
+      {:ok, results, cursor} ->
+        {:noreply,
+         assign(socket,
+           search_filters: filters,
+           search_results: results,
+           search_cursor: cursor,
+           search_error: nil,
+           search_counts: search_interpretation_counts(filters)
+         )}
+
+      {:error, :invalid_fen} ->
+        {:noreply,
+         assign(socket,
+           search_filters: filters,
+           search_results: [],
+           search_cursor: nil,
+           search_error: "room.searchInvalidFen",
+           search_counts: nil
+         )}
+
+      {:error, _reason} ->
+        {:noreply,
+         assign(socket,
+           search_filters: filters,
+           search_results: [],
+           search_cursor: nil,
+           search_error: "room.searchFailed",
+           search_counts: nil
+         )}
+    end
+  end
+
+  # How many games each FEN interpretation reaches (the interpretation tabs).
+  # Only computed with a parseable position present.
+  defp search_interpretation_counts(filters) do
+    case FEN.parse(String.trim(to_string(filters["fen"]))) do
+      {:ok, %{position: position}} ->
+        record_query = search_record_query(filters)
+
+        exact =
+          GameSearch.count_matches(
+            Analysis.PositionQuery.equivalent(position),
+            record_query
+          )
+
+        similar = GameSearch.similar_count(position, record_query)
+
+        structure =
+          GameSearch.count_matches(
+            Analysis.PositionQuery.pawn_structure(position),
+            record_query
+          )
+
+        case {exact, similar, structure} do
+          {{:ok, exact}, {:ok, similar}, {:ok, structure}} ->
+            %{exact: exact, similar: similar, structure: structure}
+
+          _other ->
+            nil
+        end
+
+      _invalid_fen ->
+        nil
+    end
+  end
+
   defp corpus_search(filters, cursor) do
-    if filters["position_mode"] == "similar" do
+    # Similar mode only applies with a position; metadata-only searches page
+    # newest-first regardless of the selected mode.
+    if filters["position_mode"] == "similar" and not is_nil(blank_to_nil(filters["fen"])) do
       corpus_search_similar(filters, cursor)
     else
       atoms = search_atoms(filters["features"])
@@ -4640,7 +4697,7 @@ defmodule Web.RoomLive do
 
         case GameSearch.similar(position, record_query, options) do
           {:ok, page} ->
-            build_corpus_results(page.entries, page.next)
+            build_corpus_results(page.entries, page.next, page.query_total)
 
           {:error, _reason} ->
             {:error, :search_failed}
@@ -4651,7 +4708,7 @@ defmodule Web.RoomLive do
     end
   end
 
-  defp build_corpus_results(entries, next_cursor) do
+  defp build_corpus_results(entries, next_cursor, query_total \\ nil) do
     {results, _seen} =
       Enum.reduce(entries, {[], MapSet.new()}, fn entry, {acc, seen} ->
         {record, occurrence, shared} = corpus_entry(entry)
@@ -4659,7 +4716,8 @@ defmodule Web.RoomLive do
         if MapSet.member?(seen, record.id) do
           {acc, seen}
         else
-          {[corpus_result(record, occurrence, shared) | acc], MapSet.put(seen, record.id)}
+          {[corpus_result(record, occurrence, shared, query_total) | acc],
+           MapSet.put(seen, record.id)}
         end
       end)
 
@@ -4885,13 +4943,23 @@ defmodule Web.RoomLive do
     end
   end
 
-  defp corpus_result(record, occurrence, shared) do
+  defp corpus_result(record, occurrence, shared, query_total) do
     metadata = record.metadata
 
     opening_label =
       case Enum.filter([metadata["eco"], metadata["opening"]], & &1) do
         [] -> nil
         parts -> Enum.join(parts, " ")
+      end
+
+    match_pct =
+      case {shared, query_total} do
+        {shared, query_total}
+        when is_integer(shared) and is_integer(query_total) and query_total > 0 ->
+          round(shared / query_total * 100)
+
+        _ ->
+          nil
       end
 
     %{
@@ -4905,7 +4973,7 @@ defmodule Web.RoomLive do
       ply: if(occurrence, do: occurrence.ply, else: 0),
       position_id: if(occurrence, do: occurrence.position_id, else: nil),
       position: nil,
-      shared: shared
+      match_pct: match_pct
     }
   end
 

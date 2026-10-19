@@ -1079,6 +1079,101 @@ defmodule Analysis.GameSearch.PostgresQuery do
     end
   end
 
+  # Count of distinct records matching a position+record query, for the
+  # search dialog's interpretation tabs. Cheap shape: no ordering, no limit.
+  @spec compile_count(PositionQuery.t(), GameRecordQuery.t()) ::
+          compile_result()
+  def compile_count(position_query, record_query) do
+    normalized_position_query =
+      PositionQueryNormalizer.normalize(position_query)
+
+    with {
+           :ok,
+           position_predicate,
+           record_predicate,
+           parameters,
+           _next_parameter
+         } <-
+           compile_predicates(
+             normalized_position_query,
+             record_query,
+             1
+           ) do
+      sql = """
+      SELECT
+        count(DISTINCT gr.id)
+      FROM positions AS p
+      JOIN game_occurrences AS go
+        ON go.position_id = p.id
+      JOIN game_records AS gr
+        ON gr.game_id = go.game_id
+      WHERE
+        (#{position_predicate})
+        AND (#{record_predicate})
+      """
+
+      {
+        :ok,
+        sql,
+        parameters
+      }
+    end
+  end
+
+  # Count of distinct records matching the similar prefilter (pawn skeleton
+  # within one structural edit + material signatures), for the
+  # interpretation tabs.
+  @spec compile_similar_count(
+          Chess.Position.t(),
+          [String.t()],
+          GameRecordQuery.t()
+        ) ::
+          compile_result()
+  def compile_similar_count(position, signatures, record_query) do
+    with {:ok, {white_pawns, black_pawns}} <-
+           encode_neighborhood(position),
+         {:ok, signature_ids} <- resolve_atom_ids(signatures),
+         {:ok, record_predicate, record_parameters, next_parameter} <-
+           GameRecordPostgres.compile_predicate(
+             record_query,
+             3
+           ) do
+      signature_parameter = next_parameter
+
+      sql = """
+      SELECT
+        count(DISTINCT gr.id)
+      FROM unnest(
+        $1::bigint[],
+        $2::bigint[]
+      ) AS pawn_structure_keys(
+        white_pawns,
+        black_pawns
+      )
+      JOIN positions AS p
+        ON p.white_pawns = pawn_structure_keys.white_pawns
+        AND p.black_pawns = pawn_structure_keys.black_pawns
+      JOIN position_digests AS pd
+        ON pd.position_id = p.id
+      JOIN game_occurrences AS go
+        ON go.position_id = p.id
+      JOIN game_records AS gr
+        ON gr.game_id = go.game_id
+      WHERE
+        pd.atom_ids @> $#{signature_parameter}::integer[]
+        AND (#{record_predicate})
+      """
+
+      {
+        :ok,
+        sql,
+        [white_pawns, black_pawns] ++
+          record_parameters ++
+          [signature_ids]
+      }
+    end
+  end
+
   # The pawn skeleton within one structural edit, encoded for the
   # positions-column unnest join.
   defp encode_neighborhood(position) do

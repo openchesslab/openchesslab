@@ -2417,6 +2417,39 @@
       </p>
 
       <div class="mt-4">
+        <div
+          :if={@search_counts}
+          id="search-interpretations"
+          class="mb-2 flex flex-wrap items-center gap-1"
+          role="tablist"
+        >
+          <button
+            :for={
+              {mode, label, count} <- [
+                {"exact", Web.I18n.t("room.searchModeExact", @locale), @search_counts.exact},
+                {"similar", Web.I18n.t("room.searchModeSimilar", @locale),
+                 @search_counts.similar},
+                {"structure", Web.I18n.t("room.searchModeStructure", @locale),
+                 @search_counts.structure}
+              ]
+            }
+            type="button"
+            role="tab"
+            aria-selected={to_string(@search_filters["position_mode"] == mode)}
+            phx-click="set-position-mode"
+            phx-value-mode={mode}
+            class={[
+              "rounded-full border px-2.5 py-1 text-xs",
+              @search_filters["position_mode"] == mode &&
+                "border-accent-strong bg-accent/15 font-semibold text-foreground",
+              @search_filters["position_mode"] != mode &&
+                "border-border text-muted hover:bg-panel-hover"
+            ]}
+          >
+            {label} · {count}
+          </button>
+        </div>
+
         <p :if={@search_results == []} class="text-sm text-muted">
           {Web.I18n.t("room.searchNothingFound", @locale)}
         </p>
@@ -2438,8 +2471,8 @@
                 {[game.opening, game.event, game.date, game.result]
                 |> Enum.reject(&is_nil/1)
                 |> Enum.join(" · ")}
-                <span :if={game.shared} class="font-medium text-foreground">
-                  · {Web.I18n.plural("room.searchSharedCount", game.shared, %{})}
+                <span :if={game.match_pct} class="font-medium text-foreground">
+                  · {Web.I18n.t("room.searchMatchScore", @locale, %{pct: game.match_pct})}
                 </span>
                 <span :if={game.ply > 0}>
                   · {Web.I18n.t("room.searchPlyLabel", @locale, %{ply: game.ply})}
