@@ -63,10 +63,16 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   **`/ops/status.json`** (corpus-/digest-/kamer-tellingen, digest_coverage als
   backfill-voortgangsindicator) achter basic auth (`OPS_USER`/`OPS_PASSWORD`
   als Fly-secrets; prod weigert te booten zonder; destructieve acties uit).
-  Resterend: slice 2 `Web.Telemetry` + Prometheus-endpoint + Fly `[metrics]`
-  (VM/Phoenix/LiveView/Repo), slice 3 domeinmetrics (zoek-latentie → kamer-
+  Resterend: slice 3 domeinmetrics (zoek-latentie → kamer-
   activiteit → engine), slice 4 `/ready` verdiepen. Externe uptime-monitor
-  bewust uitgesteld. **Dashboard-aanvulling (`a6493bd`):** Ecto stats (catalogus:
+  bewust uitgesteld. **Slice 2 ✅ (`a0db5a3`):** `Web.Telemetry` + Prometheus
+  op interne poort 9091 (niet publiek), Fly `[metrics]` scrape. Families: VM
+  (memory/run-queues/processes), `phoenix.endpoint.stop` (status_int via
+  tag_values — metadata heeft alleen conn), `phoenix.router_dispatch` (route),
+  `phoenix.live_view.mount/handle_event` (event), repo query total/queue
+  (zonder source-tag: raw SQL heeft geen schema-source; hot paths krijgen in
+  slice 3 eigen labels). Testval: Core.start_link attacht async
+  (`start_async: false` in tests). **Dashboard-aanvulling (`a6493bd`):** Ecto stats (catalogus:
   groottes/indexen/locks/langdurige query's — **`pg_stat_statements` kan niet:**
   geen trusted extensie én MPG heeft geen superuser), Request Logger (vereiste
   `Phoenix.LiveDashboard.RequestLogger`-plug in de endpoint), OS Data **niet
