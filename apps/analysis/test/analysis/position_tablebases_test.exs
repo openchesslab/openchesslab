@@ -11,6 +11,31 @@ defmodule Analysis.PositionTablebasesTest do
     :ok
   end
 
+  test "tablebase lookups emit telemetry" do
+    parent = self()
+
+    :telemetry.attach(
+      "probe-tb",
+      [:openchesslab, :tablebase, :lookup],
+      fn _event, measurements, metadata, _config ->
+        send(parent, {:lookup, measurements.count, metadata.result})
+      end,
+      nil
+    )
+
+    position_id = PositionStore.append(Position.starting_position())
+
+    assert :not_found = PositionTablebases.get(position_id)
+    assert_received {:lookup, 1, :miss}
+
+    :ok = PositionTablebases.put(position_id, %{"category" => "win", "dtz" => 1})
+
+    assert {:ok, _result} = PositionTablebases.get(position_id)
+    assert_received {:lookup, 1, :hit}
+
+    :telemetry.detach("probe-tb")
+  end
+
   test "stores and reads back a tablebase result per position" do
     position_id = PositionStore.append(Position.starting_position())
 

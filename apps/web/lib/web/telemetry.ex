@@ -86,6 +86,23 @@ defmodule Web.Telemetry do
       sum("openchesslab.room.analysis_added.count", measurement: :count),
       sum("openchesslab.room.analysis_removed.count", measurement: :count),
 
+      # Domain: engine cache, tablebase and review activity
+      sum(
+        "openchesslab.engine.cache_lookup.count",
+        measurement: :count,
+        tags: [:result],
+        description: "Engine eval cache lookups by hit/miss"
+      ),
+      sum("openchesslab.engine.cache_store.count", measurement: :count),
+      sum(
+        "openchesslab.tablebase.lookup.count",
+        measurement: :count,
+        tags: [:result],
+        description: "Tablebase lookups by hit/miss"
+      ),
+      sum("openchesslab.engine.review_started.count", measurement: :count),
+      sum("openchesslab.engine.review_ply.count", measurement: :count),
+
       # Domain: corpus search latency per search shape
       distribution(
         "openchesslab.search.page.stop.duration",

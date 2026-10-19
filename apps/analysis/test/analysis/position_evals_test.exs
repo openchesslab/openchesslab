@@ -11,6 +11,45 @@ defmodule Analysis.PositionEvalsTest do
     :ok
   end
 
+  test "cache lookups and stores emit telemetry" do
+    parent = self()
+
+    for event <- [:cache_lookup, :cache_store] do
+      :telemetry.attach(
+        "probe-#{event}",
+        [:openchesslab, :engine, event],
+        fn _event, measurements, metadata, _config ->
+          send(parent, {event, measurements.count, Map.get(metadata, :result)})
+        end,
+        nil
+      )
+    end
+
+    position_id = PositionStore.append(Position.starting_position())
+
+    assert :not_found = PositionEvals.get(position_id, "stockfish-19-lite-single")
+    assert_received {:cache_lookup, 1, :miss}
+
+    :ok =
+      PositionEvals.put(position_id, "stockfish-19-lite-single", %{
+        depth: 20,
+        eval_cp: 34,
+        mate: nil,
+        best_move: "e2e4",
+        pv: "e2e4 e7e5 g1f3",
+        nodes: 612_345
+      })
+
+    assert_received {:cache_store, 1, nil}
+
+    assert {:ok, _eval} = PositionEvals.get(position_id, "stockfish-19-lite-single")
+    assert_received {:cache_lookup, 1, :hit}
+
+    for event <- [:cache_lookup, :cache_store] do
+      :telemetry.detach("probe-#{event}")
+    end
+  end
+
   test "stores and reads back an evaluation per position and engine" do
     position_id = PositionStore.append(Position.starting_position())
 

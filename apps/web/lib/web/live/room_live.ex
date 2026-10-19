@@ -1303,6 +1303,8 @@ defmodule Web.RoomLive do
         # A fresh run clears the previous review's marks from the move list.
         move_list = AnalysisView.move_list_data(socket.assigns.analysis, socket.assigns.locale)
 
+        :telemetry.execute([:openchesslab, :engine, :review_started], %{count: 1})
+
         {:noreply,
          assign(socket,
            engine_review: %{
@@ -1342,6 +1344,8 @@ defmodule Web.RoomLive do
       {cp, mate} = review_score_to_white(cp, mate, side)
 
       review = put_in(review.evals[ply], %{cp: cp, mate: mate})
+
+      :telemetry.execute([:openchesslab, :engine, :review_ply], %{count: 1})
 
       socket =
         case AnalysisModel.node_at(socket.assigns.analysis, List.duplicate(0, ply)) do

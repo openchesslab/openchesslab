@@ -63,6 +63,12 @@ defmodule Analysis.PositionEvals do
   def get(position_id, engine) when is_integer(position_id) and is_binary(engine) do
     case Repo.query!(@get_sql, [position_id, engine], log: false).rows do
       [[depth, eval_cp, mate, best_move, pv, nodes, multipv, lines]] ->
+        :telemetry.execute(
+          [:openchesslab, :engine, :cache_lookup],
+          %{count: 1},
+          %{result: :hit}
+        )
+
         {:ok,
          %{
            depth: depth,
@@ -76,6 +82,12 @@ defmodule Analysis.PositionEvals do
          }}
 
       [] ->
+        :telemetry.execute(
+          [:openchesslab, :engine, :cache_lookup],
+          %{count: 1},
+          %{result: :miss}
+        )
+
         :not_found
     end
   end
@@ -137,6 +149,7 @@ defmodule Analysis.PositionEvals do
       log: false
     )
 
+    :telemetry.execute([:openchesslab, :engine, :cache_store], %{count: 1})
     :ok
   end
 

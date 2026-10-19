@@ -30,6 +30,9 @@ defmodule Web.TelemetryTest do
 
     {:ok, _page} = Analysis.GameSearch.page(true, limit: 1)
 
+    :telemetry.execute([:openchesslab, :engine, :cache_lookup], %{count: 1}, %{result: :hit})
+    :telemetry.execute([:openchesslab, :engine, :cache_store], %{count: 1})
+
     :telemetry.execute(
       [:phoenix, :endpoint, :stop],
       %{duration: System.convert_time_unit(5, :millisecond, :native)},
@@ -42,6 +45,8 @@ defmodule Web.TelemetryTest do
     assert text =~ ~s(phoenix_endpoint_stop_duration_bucket{status_int="200")
     assert text =~ ~s(openchesslab_search_page_stop_duration_bucket{search_type="games")
     assert text =~ "openchesslab_room_stats_active"
+    assert text =~ ~s(openchesslab_engine_cache_lookup_count{result="hit")
+    assert text =~ "openchesslab_engine_cache_store_count"
 
     size_line =
       Enum.find(

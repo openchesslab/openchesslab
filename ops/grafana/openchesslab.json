@@ -600,6 +600,116 @@
       ],
       "title": "Analyses toegevoegd/verwijderd",
       "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 57},
+      "id": 25,
+      "panels": [],
+      "title": "Domein: engine",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "datasource", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "orange", "value": 0.5},
+              {"color": "green", "value": 0.8}
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 6, "w": 8, "x": 0, "y": 58},
+      "id": 26,
+      "options": {
+        "legend": {"calcs": ["lastNotNull"], "displayMode": "list", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "datasource": {"type": "datasource", "uid": "${DS_PROMETHEUS}"},
+          "expr": "sum(rate(openchesslab_engine_cache_lookup_count{app=\"openchesslab\",result=\"hit\"}[5m])) / sum(rate(openchesslab_engine_cache_lookup_count{app=\"openchesslab\"}[5m]))",
+          "legendFormat": "eval cache hit ratio",
+          "refId": "A"
+        },
+        {
+          "datasource": {"type": "datasource", "uid": "${DS_PROMETHEUS}"},
+          "expr": "sum(rate(openchesslab_tablebase_lookup_count{app=\"openchesslab\",result=\"hit\"}[5m])) / sum(rate(openchesslab_tablebase_lookup_count{app=\"openchesslab\"}[5m]))",
+          "legendFormat": "tablebase hit ratio",
+          "refId": "B"
+        }
+      ],
+      "title": "Cache hit ratios",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "datasource", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 6, "w": 8, "x": 8, "y": 58},
+      "id": 27,
+      "options": {
+        "legend": {"calcs": ["lastNotNull"], "displayMode": "list", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "datasource": {"type": "datasource", "uid": "${DS_PROMETHEUS}"},
+          "expr": "sum(rate(openchesslab_engine_cache_store_count{app=\"openchesslab\"}[5m]))",
+          "legendFormat": "eval stores/s",
+          "refId": "A"
+        },
+        {
+          "datasource": {"type": "datasource", "uid": "${DS_PROMETHEUS}"},
+          "expr": "sum(rate(openchesslab_engine_review_started_count{app=\"openchesslab\"}[1h]))",
+          "legendFormat": "reviews/u",
+          "refId": "B"
+        },
+        {
+          "datasource": {"type": "datasource", "uid": "${DS_PROMETHEUS}"},
+          "expr": "sum(rate(openchesslab_engine_review_ply_count{app=\"openchesslab\"}[5m]))",
+          "legendFormat": "review plies/s",
+          "refId": "C"
+        }
+      ],
+      "title": "Engine activity",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "datasource", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 6, "w": 8, "x": 16, "y": 58},
+      "id": 28,
+      "options": {
+        "legend": {"calcs": ["lastNotNull"], "displayMode": "list", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "datasource": {"type": "datasource", "uid": "${DS_PROMETHEUS}"},
+          "expr": "sum by (result) (rate(openchesslab_engine_cache_lookup_count{app=\"openchesslab\"}[5m]))",
+          "legendFormat": "lookup {{result}}",
+          "refId": "A"
+        },
+        {
+          "datasource": {"type": "datasource", "uid": "${DS_PROMETHEUS}"},
+          "expr": "sum by (result) (rate(openchesslab_tablebase_lookup_count{app=\"openchesslab\"}[5m]))",
+          "legendFormat": "tablebase {{result}}",
+          "refId": "B"
+        }
+      ],
+      "title": "Lookups by result",
+      "type": "timeseries"
     }
   ],
   "refresh": "30s",

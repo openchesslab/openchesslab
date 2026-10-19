@@ -28,8 +28,23 @@ defmodule Analysis.PositionTablebases do
   @spec get(pos_integer()) :: {:ok, map()} | :not_found
   def get(position_id) when is_integer(position_id) do
     case Repo.query!(@get_sql, [position_id], log: false).rows do
-      [[result]] -> {:ok, decode(result)}
-      [] -> :not_found
+      [[result]] ->
+        :telemetry.execute(
+          [:openchesslab, :tablebase, :lookup],
+          %{count: 1},
+          %{result: :hit}
+        )
+
+        {:ok, decode(result)}
+
+      [] ->
+        :telemetry.execute(
+          [:openchesslab, :tablebase, :lookup],
+          %{count: 1},
+          %{result: :miss}
+        )
+
+        :not_found
     end
   end
 
