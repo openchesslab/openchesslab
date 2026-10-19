@@ -62,6 +62,9 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   met het import-patroon (`machine run … /app/bin/openchesslab eval
   'IO.inspect(Analysis.DigestBackfill.run(workers: 8), limit: :infinity)'`),
   GIN vooraf gedropt; ~65 posities/s → **~3,5 dag**; daarna REINDEX + ANALYZE.
+  **Hervatting bewezen:** machine stopte onverklaard na ~13 uur bij 3,11M
+  (oorzaak niet in geroteerde logs); herstart hervatte direct (NOT EXISTS-skip),
+  ~85 posities/s, 0 failures. Bij herhaling dieper graven (geheugen/reaping).
   Ops-lessen: (1) `DigestBackfill.run/1` start zelf `:analysis`
   (`2feb582`, BulkImport-patroon); (2) **nieuwe** Fly-machines resolveerden de
   mpg `direct.`-hostname níet (nxdomain), de bestaande bulk-machine wel —
