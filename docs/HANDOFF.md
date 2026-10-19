@@ -63,8 +63,10 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   **`/ops/status.json`** (corpus-/digest-/kamer-tellingen, digest_coverage als
   backfill-voortgangsindicator) achter basic auth (`OPS_USER`/`OPS_PASSWORD`
   als Fly-secrets; prod weigert te booten zonder; destructieve acties uit).
-  Resterend: slice 3 domeinmetrics (zoek-latentie → kamer-
-  activiteit → engine), slice 4 `/ready` verdiepen. Externe uptime-monitor
+  Resterend: slice 3 domeinmetrics (zoek-latentie ✅ `2881304` — span in
+  `GameSearch.page` met geclassificeerde shape games/exact/structure/digest/
+  combined; dashboard-rij "Domein: zoeken" met p50/p95 + rate per shape),
+  daarna kamer-activiteit, engine; slice 4 `/ready` verdiepen. Externe uptime-monitor
   bewust uitgesteld. **Slice 2 ✅ (`a0db5a3`):** `Web.Telemetry` + Prometheus
   op interne poort 9091 (niet publiek), Fly `[metrics]` scrape. Families: VM
   (memory/run-queues/processes), `phoenix.endpoint.stop` (status_int via
