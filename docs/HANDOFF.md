@@ -66,7 +66,13 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   Resterend: slice 2 `Web.Telemetry` + Prometheus-endpoint + Fly `[metrics]`
   (VM/Phoenix/LiveView/Repo), slice 3 domeinmetrics (zoek-latentie → kamer-
   activiteit → engine), slice 4 `/ready` verdiepen. Externe uptime-monitor
-  bewust uitgesteld.
+  bewust uitgesteld. **Dashboard-aanvulling (`a6493bd`):** Ecto stats (catalogus:
+  groottes/indexen/locks/langdurige query's — **`pg_stat_statements` kan niet:**
+  geen trusted extensie én MPG heeft geen superuser), Request Logger (vereiste
+  `Phoenix.LiveDashboard.RequestLogger`-plug in de endpoint), OS Data **niet
+  beschikbaar** (builder-image mist os_mon; conditionele `os_mon_app()` in
+  mix.exs activeert het automatisch zodra het image het heeft; machine-metrics
+  zitten al in Fly's eigen dashboard).
   **Backfill prod LOOPT (2026-10-19):** op `bulk-resume-3` (performance-2x, AMS)
   met het import-patroon (`machine run … /app/bin/openchesslab eval
   'IO.inspect(Analysis.DigestBackfill.run(workers: 8), limit: :infinity)'`),
