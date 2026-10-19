@@ -58,6 +58,15 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   (`b1119fa`: ~46 gecureerde atoom-chips per sectie, AND-semantiek, sort-fix
   (atoms ⇒ insertion-order), eerlijke generieke zoekfout-tak; end-to-end
   bewezen op dev: 2002/5000 posities met `material.bishop_pair:w`).
+  **Observability (besloten 2026-10-19):** zwarte-doos-probleem aangepakt in
+  lagen — slice 1 ✅ `3c97bb4`: **LiveDashboard op `/ops/dashboard`** +
+  **`/ops/status.json`** (corpus-/digest-/kamer-tellingen, digest_coverage als
+  backfill-voortgangsindicator) achter basic auth (`OPS_USER`/`OPS_PASSWORD`
+  als Fly-secrets; prod weigert te booten zonder; destructieve acties uit).
+  Resterend: slice 2 `Web.Telemetry` + Prometheus-endpoint + Fly `[metrics]`
+  (VM/Phoenix/LiveView/Repo), slice 3 domeinmetrics (zoek-latentie → kamer-
+  activiteit → engine), slice 4 `/ready` verdiepen. Externe uptime-monitor
+  bewust uitgesteld.
   **Backfill prod LOOPT (2026-10-19):** op `bulk-resume-3` (performance-2x, AMS)
   met het import-patroon (`machine run … /app/bin/openchesslab eval
   'IO.inspect(Analysis.DigestBackfill.run(workers: 8), limit: :infinity)'`),
