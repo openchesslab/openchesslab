@@ -72,7 +72,11 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   `phoenix.live_view.mount/handle_event` (event), repo query total/queue
   (zonder source-tag: raw SQL heeft geen schema-source; hot paths krijgen in
   slice 3 eigen labels). Testval: Core.start_link attacht async
-  (`start_async: false` in tests). **Dashboard-aanvulling (`a6493bd`):** Ecto stats (catalogus:
+  (`start_async: false` in tests). **Grafana-dashboard (`65c0caa`):**
+  `ops/grafana/openchesslab.json` (importeerbaar op fly-metrics.net, 17
+  panelen: gezondheid/verkeer+LV/database) + `ops/README.md` met importstappen
+  en de kanttekening dat de pg_-panelen afhangen van MPG-export (docs baseren
+  die series op unmanaged postgres). **Dashboard-aanvulling (`a6493bd`):** Ecto stats (catalogus:
   groottes/indexen/locks/langdurige query's — **`pg_stat_statements` kan niet:**
   geen trusted extensie én MPG heeft geen superuser), Request Logger (vereiste
   `Phoenix.LiveDashboard.RequestLogger`-plug in de endpoint), OS Data **niet
