@@ -72,23 +72,13 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   `a6493bd` incl. Ecto stats/request logger), Prometheus op 9091 (`a0db5a3`),
   Grafana-dashboard (`65c0caa` + eigen DB-stats `141f16d`), domeinmetrics
   zoek/kamer/engine (`2881304`, `cb65bb4`, `f22d83a`).
-  (`2881304`), kamer-activiteit (`cb65bb4`), engine (`f22d83a`: cache
-  hit/miss/store in `PositionEvals.get/put`, tablebase hit/miss, review
-  started/ply; dashboard-rij "Domein: engine" met hit-ratios; prod bevestigd
-  via rpc). **Watchlist-escalatie (2026-10-19):** `{:game_store,
+  **Watchlist-escalatie (2026-10-19):** `{:game_store,
   :invalid_occurrences}` faalde weer ~1/5 suite-runs (analyses_test; eerder
   library_branch) — nondeterministisch, zelfde seed wisselt, suite nu weer
   2× groen. Verdient eigen onderzoek: dedup-pad van `GameStore.put` (occurrence-
   validatie bij bestaande canonieke game) met diagnostische capture van de
-  falende occurrences; kandidaat: batch-vs-single create-race in de test-DB. Externe uptime-monitor
-  bewust uitgesteld. **Slice 2 ✅ (`a0db5a3`):** `Web.Telemetry` + Prometheus
-  op interne poort 9091 (niet publiek), Fly `[metrics]` scrape. Families: VM
-  (memory/run-queues/processes), `phoenix.endpoint.stop` (status_int via
-  tag_values — metadata heeft alleen conn), `phoenix.router_dispatch` (route),
-  `phoenix.live_view.mount/handle_event` (event), repo query total/queue
-  (zonder source-tag: raw SQL heeft geen schema-source; hot paths krijgen in
-  slice 3 eigen labels). Testval: Core.start_link attacht async
-  (`start_async: false` in tests). **Grafana-dashboard (`65c0caa`):**
+  falende occurrences; kandidaat: batch-vs-single create-race in de test-DB.
+  **Grafana-dashboard (`65c0caa`):**
   `ops/grafana/openchesslab.json` (importeerbaar op fly-metrics.net, 17
   panelen: gezondheid/verkeer+LV/database) + `ops/README.md` met importstappen
   en de kanttekening dat de pg_-panelen afhangen van MPG-export (docs baseren
