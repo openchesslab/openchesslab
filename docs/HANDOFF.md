@@ -72,12 +72,17 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   `a6493bd` incl. Ecto stats/request logger), Prometheus op 9091 (`a0db5a3`),
   Grafana-dashboard (`65c0caa` + eigen DB-stats `141f16d`), domeinmetrics
   zoek/kamer/engine (`2881304`, `cb65bb4`, `f22d83a`).
-  **Watchlist-escalatie (2026-10-19):** `{:game_store,
-  :invalid_occurrences}` faalde weer ~1/5 suite-runs (analyses_test; eerder
-  library_branch) — nondeterministisch, zelfde seed wisselt, suite nu weer
-  2× groen. Verdient eigen onderzoek: dedup-pad van `GameStore.put` (occurrence-
-  validatie bij bestaande canonieke game) met diagnostische capture van de
-  falende occurrences; kandidaat: batch-vs-single create-race in de test-DB.
+  **Watchlist AFGESLOTEN (2026-10-19, `621c2d4`):** de `{:game_store,
+  :invalid_occurrences}`-race is opgelost. Oorzaak: **17 testbestanden
+  truncaten `positions CASCADE` zonder `games/game_occurrences/game_records`**
+  — de positions-FK verwijderde dan álle occurrences in de gedeelde test-DB,
+  terwijl games+records bleven; latere loads faalden de occurrence-validatie.
+  Bewijs via tijdelijke diagnostische capture (occurrences+content bij falen)
+  en twee nieuwe stress-tests (`game_store_race_test`: 24-weg concurrent
+  create + create/load-race, bevestigt dat de dedup zelf race-veilig is).
+  Fix: alle positions-truncates bevatten nu de volledige spelset. 10/10
+  suite-runs groen (was ~1/5 fails). Productie was nooit geraakt — dit was
+  een test-isolatiefout, geen schrijfrace.
   **Grafana-dashboard (`65c0caa`):**
   `ops/grafana/openchesslab.json` (importeerbaar op fly-metrics.net, 17
   panelen: gezondheid/verkeer+LV/database) + `ops/README.md` met importstappen
