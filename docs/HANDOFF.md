@@ -77,7 +77,7 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   Suites: web 320, analysis 657, dialyzer 0. **Numeriek-bucket-atomen** (mobility/
   total_value-bereiken) blijven een aparte toekomstige keuze (vocabulaire-uitbreiding
   → re-encode vanuit `position_feature_vectors`, geen re-extract nodig).
-- **Room-permissies, slice 1/3 (`PCR`):** gebruikersbeslissing rollenmodel (owner/editor/
+- **Room-permissies, slice 1/3 (`fe0b32f`):** gebruikersbeslissing rollenmodel (owner/editor/
   viewer) ipv owner-or-adder; publieke kamers blijven bearer. Migratie
   `room_members.role` (CHECK; bestaande leden → editor, eigenaar → owner),
   `Rooms.role_of/2`, owner-only `Rooms.set_member_role/3` (eigen rol immuun,
