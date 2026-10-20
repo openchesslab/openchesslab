@@ -264,53 +264,56 @@ defmodule Analysis.RoomStore do
     end
   end
 
-  @revoke_invites_sql """
+  @revoke_role_invites_sql """
   UPDATE room_invites
   SET revoked_at = now()
-  WHERE room_id = $1 AND revoked_at IS NULL
+  WHERE room_id = $1 AND role = $2 AND revoked_at IS NULL
   """
 
   @insert_invite_sql """
-  INSERT INTO room_invites (token_hash, room_id)
-  VALUES ($1, $2)
+  INSERT INTO room_invites (token_hash, room_id, role)
+  VALUES ($1, $2, $3)
   """
 
   @doc """
-  Rotate the room's invite: revoke every active link, then store one fresh
-  token hash. The raw token never enters PostgreSQL; only its SHA-256 hash
-  is durable, so it is shown to the owner once at generation.
+  Rotate the room's invite for one role: revoke its active link, then store
+  one fresh token hash. The other role's link is untouched. The raw token
+  never enters PostgreSQL; only its SHA-256 hash is durable, so it is shown
+  to the owner once at generation.
   """
-  @spec create_invite(String.t(), binary()) :: :ok
-  def create_invite(room_id, token_hash) when byte_size(token_hash) == 32 do
+  @spec create_invite(String.t(), binary(), String.t()) :: :ok
+  def create_invite(room_id, token_hash, role)
+      when byte_size(token_hash) == 32 and role in ["editor", "viewer"] do
     Repo.transaction(fn ->
-      Repo.query!(@revoke_invites_sql, [room_id])
-      Repo.query!(@insert_invite_sql, [token_hash, room_id])
+      Repo.query!(@revoke_role_invites_sql, [room_id, role])
+      Repo.query!(@insert_invite_sql, [token_hash, room_id, role])
       :ok
     end)
     |> elem(1)
   end
 
-  @doc "Revoke every active invite link of the room; new joins stop immediately."
-  @spec revoke_invites(String.t()) :: non_neg_integer()
-  def revoke_invites(room_id) do
-    Repo.query!(@revoke_invites_sql, [room_id]).num_rows
+  @doc "Revoke the room's active invite link for one role; new joins for it stop."
+  @spec revoke_invites(String.t(), String.t()) :: non_neg_integer()
+  def revoke_invites(room_id, role) when role in ["editor", "viewer"] do
+    Repo.query!(@revoke_role_invites_sql, [room_id, role]).num_rows
   end
 
   @active_invite_sql """
   SELECT EXISTS (
-    SELECT 1 FROM room_invites WHERE room_id = $1 AND revoked_at IS NULL
+    SELECT 1 FROM room_invites
+    WHERE room_id = $1 AND role = $2 AND revoked_at IS NULL
   )
   """
 
-  @doc "Does the room have an active (non-revoked) invite link?"
-  @spec invite_active?(String.t()) :: boolean()
-  def invite_active?(room_id) when is_binary(room_id) do
-    [[active]] = Repo.query!(@active_invite_sql, [room_id], log: false).rows
+  @doc "Does the room have an active (non-revoked) invite link for the role?"
+  @spec invite_active?(String.t(), String.t()) :: boolean()
+  def invite_active?(room_id, role) when is_binary(room_id) and role in ["editor", "viewer"] do
+    [[active]] = Repo.query!(@active_invite_sql, [room_id, role], log: false).rows
     active
   end
 
   @consume_invite_sql """
-  SELECT token_hash
+  SELECT role
   FROM room_invites
   WHERE room_id = $1 AND token_hash = $2 AND revoked_at IS NULL
   FOR UPDATE
@@ -331,10 +334,9 @@ defmodule Analysis.RoomStore do
       {:ok, db_user} ->
         Repo.transaction(fn ->
           case Repo.query!(@consume_invite_sql, [room_id, token_hash], log: false).rows do
-            [[_token_hash]] ->
-              # Slice 1: every invite link grants the editor role; per-role
-              # links follow with the viewer role.
-              Repo.query!(@add_member_sql, [room_id, db_user, display_name, "editor"], log: false)
+            [[role]] ->
+              # The link carries the role it grants.
+              Repo.query!(@add_member_sql, [room_id, db_user, display_name, role], log: false)
 
               :joined
 

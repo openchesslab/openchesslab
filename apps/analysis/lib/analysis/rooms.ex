@@ -169,28 +169,32 @@ defmodule Analysis.Rooms do
   def consume_invite(_, _, _, _), do: {:error, :invalid_invite}
 
   @doc """
-  Generate a fresh multi-use invite link for the room, rotating any older one.
+  Generate a fresh multi-use invite link granting the given role, rotating
+  the room's older link for that role only.
 
   Only the owner may call this (checked by the caller against the room's
   owner); the raw token is returned once and only its SHA-256 hash is stored.
   """
-  @spec create_invite(Room.id()) :: {:ok, String.t()}
-  def create_invite(room_id) do
+  @spec create_invite(Room.id(), :editor | :viewer) :: {:ok, String.t()}
+  def create_invite(room_id, role) when role in [:editor, :viewer] do
     token = Base.url_encode64(:crypto.strong_rand_bytes(32), padding: false)
-    :ok = RoomStore.create_invite(room_id, :crypto.hash(:sha256, token))
+    :ok = RoomStore.create_invite(room_id, :crypto.hash(:sha256, token), Atom.to_string(role))
     {:ok, token}
   end
 
-  @doc "Revoke every active invite link; the owner-only cutoff is checked by the caller."
-  @spec revoke_invites(Room.id()) :: non_neg_integer()
-  def revoke_invites(room_id) do
-    RoomStore.revoke_invites(room_id)
+  @doc """
+  Revoke the active invite link for one role; the owner-only cutoff is
+  checked by the caller.
+  """
+  @spec revoke_invites(Room.id(), :editor | :viewer) :: non_neg_integer()
+  def revoke_invites(room_id, role) when role in [:editor, :viewer] do
+    RoomStore.revoke_invites(room_id, Atom.to_string(role))
   end
 
-  @doc "Does the room have an active (non-revoked) invite link?"
-  @spec invite_active?(Room.id()) :: boolean()
-  def invite_active?(room_id) do
-    RoomStore.invite_active?(room_id)
+  @doc "Does the room have an active (non-revoked) invite link for the role?"
+  @spec invite_active?(Room.id(), :editor | :viewer) :: boolean()
+  def invite_active?(room_id, role) when role in [:editor, :viewer] do
+    RoomStore.invite_active?(room_id, Atom.to_string(role))
   end
 
   @spec start_room(

@@ -81,9 +81,11 @@ defmodule Web.RoomLive do
       account_delete_armed: false,
       tracked_ids: [],
       private_gate: nil,
-      invite_active: false,
+      invite_editor_active: false,
+      invite_viewer_active: false,
       invite_token: nil,
       invite_url: nil,
+      invite_token_role: nil,
       members: [],
       room: nil,
       analyses: [],
@@ -366,9 +368,11 @@ defmodule Web.RoomLive do
        assign(socket,
          ui_modal: "members",
          members: Rooms.members(code),
-         invite_active: Rooms.invite_active?(code),
+         invite_editor_active: Rooms.invite_active?(code, :editor),
+         invite_viewer_active: Rooms.invite_active?(code, :viewer),
          invite_token: nil,
-         invite_url: nil
+         invite_url: nil,
+         invite_token_role: nil
        )}
     else
       {:noreply, socket}
@@ -428,16 +432,19 @@ defmodule Web.RoomLive do
   def handle_event("generate-invite", _params, %{assigns: %{current_user: nil}} = socket),
     do: {:noreply, socket}
 
-  def handle_event("generate-invite", _params, socket) do
-    if room_owner?(socket) do
-      # Rotation: creating a link invalidates every earlier one.
-      {:ok, token} = Rooms.create_invite(socket.assigns.room_code)
+  def handle_event("generate-invite", %{"role" => role}, socket) do
+    if room_owner?(socket) and role in ["editor", "viewer"] do
+      code = socket.assigns.room_code
+      # Rotation: creating a link invalidates the earlier one of that role.
+      {:ok, token} = Rooms.create_invite(code, String.to_existing_atom(role))
 
       {:noreply,
        assign(socket,
          invite_token: token,
          invite_url: invite_url(socket, token),
-         invite_active: true
+         invite_token_role: role,
+         invite_editor_active: Rooms.invite_active?(code, :editor),
+         invite_viewer_active: Rooms.invite_active?(code, :viewer)
        )}
     else
       {:noreply, socket}
@@ -447,13 +454,20 @@ defmodule Web.RoomLive do
   def handle_event("revoke-invite", _params, %{assigns: %{current_user: nil}} = socket),
     do: {:noreply, socket}
 
-  def handle_event("revoke-invite", _params, socket) do
-    if room_owner?(socket) do
-      _ = Rooms.revoke_invites(socket.assigns.room_code)
+  def handle_event("revoke-invite", %{"role" => role}, socket) do
+    if room_owner?(socket) and role in ["editor", "viewer"] do
+      code = socket.assigns.room_code
+      _ = Rooms.revoke_invites(code, String.to_existing_atom(role))
 
       {:noreply,
        socket
-       |> assign(invite_active: false, invite_token: nil, invite_url: nil)
+       |> assign(
+         invite_editor_active: Rooms.invite_active?(code, :editor),
+         invite_viewer_active: Rooms.invite_active?(code, :viewer),
+         invite_token: nil,
+         invite_url: nil,
+         invite_token_role: nil
+       )
        |> notify(Web.I18n.t("room.inviteRevoked", socket.assigns.locale))}
     else
       {:noreply, socket}

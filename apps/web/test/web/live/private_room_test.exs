@@ -89,19 +89,19 @@ defmodule Web.PrivateRoomTest do
     assert has_element?(view, "button[phx-click='generate-invite']")
 
     # Generating shows the full URL exactly once and activates the link.
-    html = render_click(view, "generate-invite")
+    html = render_click(view, "generate-invite", %{"role" => "editor"})
     [invite] = Regex.run(~r|/rooms/#{ctx.code}/join/[A-Za-z0-9_-]{43}|, html)
-    assert has_element?(view, "#invite-link")
-    assert Rooms.invite_active?(ctx.code)
+    assert has_element?(view, "#invite-link-editor")
+    assert Rooms.invite_active?(ctx.code, :editor)
 
     # Regenerating rotates: the old URL dies, the new one works.
-    html = render_click(view, "generate-invite")
+    html = render_click(view, "generate-invite", %{"role" => "editor"})
     [new_invite] = Regex.run(~r|/rooms/#{ctx.code}/join/[A-Za-z0-9_-]{43}|, html)
     refute new_invite == invite
 
     # Revoking kills the active link.
-    render_click(view, "revoke-invite")
-    refute Rooms.invite_active?(ctx.code)
+    render_click(view, "revoke-invite", %{"role" => "editor"})
+    refute Rooms.invite_active?(ctx.code, :editor)
   end
 
   test "invite links admit signed-in members through the join route", ctx do
@@ -110,7 +110,7 @@ defmodule Web.PrivateRoomTest do
 
     assert {:ok, _a, 1} = Analyses.create(ctx.analysis_id)
     :ok = Rooms.add_analysis(ctx.code, ctx.analysis_id)
-    {:ok, token} = Rooms.create_invite(ctx.code)
+    {:ok, token} = Rooms.create_invite(ctx.code, :editor)
 
     # The member-to-be opens the join URL and lands in the room.
     conn =
@@ -138,7 +138,7 @@ defmodule Web.PrivateRoomTest do
     assert redirected_to(conn) == "/rooms/#{ctx.code}"
 
     # Revoke: the link is dead for anyone new.
-    Rooms.revoke_invites(ctx.code)
+    Rooms.revoke_invites(ctx.code, :editor)
     {:ok, fourth} = Users.create()
     {:ok, fourth_session} = UserSessions.create(fourth.id)
 
@@ -155,7 +155,7 @@ defmodule Web.PrivateRoomTest do
     assert {:ok, _room} =
              Rooms.create_room(ctx.code, owner: ctx.owner.id, owner_display_name: "Wise Otter 42")
 
-    {:ok, token} = Rooms.create_invite(ctx.code)
+    {:ok, token} = Rooms.create_invite(ctx.code, :editor)
 
     conn = build_conn() |> get("/rooms/#{ctx.code}/join/#{token}")
     assert redirected_to(conn) == "/rooms/#{ctx.code}"
@@ -171,14 +171,14 @@ defmodule Web.PrivateRoomTest do
     # The non-member never even gets the room page; use the owner to be sure
     # the events exist, then a signed-in member-forger cannot touch invites.
     render_click(view, "generate-invite", %{"user_id" => ctx.owner.id})
-    refute Rooms.invite_active?(ctx.code)
+    refute Rooms.invite_active?(ctx.code, :editor)
   end
 
   test "the members list shows names; removal kicks the member immediately", ctx do
     assert {:ok, _room} =
              Rooms.create_room(ctx.code, owner: ctx.owner.id, owner_display_name: "Wise Otter 42")
 
-    {:ok, token} = Rooms.create_invite(ctx.code)
+    {:ok, token} = Rooms.create_invite(ctx.code, :editor)
 
     assert {:ok, :joined} =
              Rooms.consume_invite(ctx.code, ctx.other.id, token, "Keen Rhino 44")
@@ -217,7 +217,7 @@ defmodule Web.PrivateRoomTest do
     assert {:ok, _room} =
              Rooms.create_room(ctx.code, owner: ctx.owner.id, owner_display_name: "Wise Otter 42")
 
-    {:ok, token} = Rooms.create_invite(ctx.code)
+    {:ok, token} = Rooms.create_invite(ctx.code, :editor)
 
     assert {:ok, :joined} =
              Rooms.consume_invite(ctx.code, ctx.other.id, token, "Keen Rhino 44")
@@ -254,11 +254,45 @@ defmodule Web.PrivateRoomTest do
     assert has_element?(view, "#member-#{joined_member.user_id}", "Editor")
   end
 
+  test "the owner manages editor and viewer links independently", ctx do
+    assert {:ok, _room} =
+             Rooms.create_room(ctx.code, owner: ctx.owner.id, owner_display_name: "Wise Otter 42")
+
+    {:ok, view, _} = live(authenticated(ctx.owner_session.token), "/rooms/#{ctx.code}")
+    render_click(view, "open-members")
+
+    # Both link sections render with their own generate control.
+    assert has_element?(view, "h3", "Editor link")
+    assert has_element?(view, "h3", "Viewer link")
+
+    # A viewer link joins as a viewer; the editor side stays without a link.
+    html = render_click(view, "generate-invite", %{"role" => "viewer"})
+    [viewer_invite] = Regex.run(~r|/rooms/#{ctx.code}/join/[A-Za-z0-9_-]{43}|, html)
+    assert has_element?(view, "#invite-link-viewer")
+    assert Rooms.invite_active?(ctx.code, :viewer)
+    refute Rooms.invite_active?(ctx.code, :editor)
+
+    conn = authenticated(ctx.other_session.token) |> get(viewer_invite)
+
+    assert redirected_to(conn) == "/rooms/#{ctx.code}"
+    assert Rooms.role_of(ctx.code, ctx.other.id) == :viewer
+
+    # Rotating the editor link leaves the viewer link active.
+    render_click(view, "generate-invite", %{"role" => "editor"})
+    assert Rooms.invite_active?(ctx.code, :editor)
+    assert Rooms.invite_active?(ctx.code, :viewer)
+
+    # Revoking the viewer link stops only viewer joins.
+    render_click(view, "revoke-invite", %{"role" => "viewer"})
+    refute Rooms.invite_active?(ctx.code, :viewer)
+    assert Rooms.invite_active?(ctx.code, :editor)
+  end
+
   test "non-owner members cannot forge member management", ctx do
     assert {:ok, _room} =
              Rooms.create_room(ctx.code, owner: ctx.owner.id, owner_display_name: "Wise Otter 42")
 
-    {:ok, token} = Rooms.create_invite(ctx.code)
+    {:ok, token} = Rooms.create_invite(ctx.code, :editor)
     assert {:ok, :joined} = Rooms.consume_invite(ctx.code, ctx.other.id, token, "Keen Rhino 44")
 
     {:ok, view, _} = live(authenticated(ctx.other_session.token), "/rooms/#{ctx.code}")
@@ -278,7 +312,7 @@ defmodule Web.PrivateRoomTest do
     assert Rooms.role_of(ctx.code, ctx.other.id) == :editor
 
     # The forged revoke left the active invite untouched.
-    assert Rooms.invite_active?(ctx.code)
+    assert Rooms.invite_active?(ctx.code, :editor)
   end
 
   defp authenticated(token),

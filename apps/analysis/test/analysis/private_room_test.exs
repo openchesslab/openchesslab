@@ -26,7 +26,7 @@ defmodule Analysis.PrivateRoomTest do
                owner_display_name: "Wise Otter 42"
              )
 
-    {:ok, token} = Rooms.create_invite(ctx.code)
+    {:ok, token} = Rooms.create_invite(ctx.code, :editor)
     assert {:ok, :joined} = Rooms.consume_invite(ctx.code, ctx.other.id, token, "Keen Rhino 44")
 
     # The list is oldest-join first with the owner at the top.
@@ -56,7 +56,7 @@ defmodule Analysis.PrivateRoomTest do
                owner_display_name: "Wise Otter 42"
              )
 
-    {:ok, token} = Rooms.create_invite(ctx.code)
+    {:ok, token} = Rooms.create_invite(ctx.code, :editor)
     assert {:ok, :joined} = Rooms.consume_invite(ctx.code, ctx.other.id, token, "Keen Rhino 44")
 
     # Creation and joining assign honest roles.
@@ -112,8 +112,8 @@ defmodule Analysis.PrivateRoomTest do
 
     refute Rooms.member?(ctx.code, ctx.other.id)
 
-    assert {:ok, token} = Rooms.create_invite(ctx.code)
-    assert Rooms.invite_active?(ctx.code)
+    assert {:ok, token} = Rooms.create_invite(ctx.code, :editor)
+    assert Rooms.invite_active?(ctx.code, :editor)
 
     # Multi-use: the same link admits a member, and rejoining is idempotent.
     assert {:ok, :joined} = Rooms.consume_invite(ctx.code, ctx.other.id, token, "Keen Rhino 44")
@@ -128,7 +128,7 @@ defmodule Analysis.PrivateRoomTest do
     refute hash == token
 
     # Revoke: new joins stop immediately; existing members keep access.
-    assert Rooms.revoke_invites(ctx.code) == 1
+    assert Rooms.revoke_invites(ctx.code, :editor) == 1
 
     assert {:error, :invalid_invite} =
              Rooms.consume_invite(ctx.code, ctx.owner.id, token, "Wise Otter 43")
@@ -136,7 +136,7 @@ defmodule Analysis.PrivateRoomTest do
     assert Rooms.member?(ctx.code, ctx.other.id)
 
     # Rotation: generating a new link invalidates the old one.
-    assert {:ok, token2} = Rooms.create_invite(ctx.code)
+    assert {:ok, token2} = Rooms.create_invite(ctx.code, :editor)
 
     assert {:error, :invalid_invite} =
              Rooms.consume_invite(ctx.code, ctx.owner.id, token, "Wise Otter 43")
@@ -146,11 +146,50 @@ defmodule Analysis.PrivateRoomTest do
     assert room.owner_user_id == ctx.owner.id
   end
 
+  test "invite links are per role: independent rotation and honest role grants", ctx do
+    assert {:ok, _room} =
+             Rooms.create_room(ctx.code, owner: ctx.owner.id, owner_display_name: "Wise Otter 42")
+
+    {:ok, editor_token} = Rooms.create_invite(ctx.code, :editor)
+    {:ok, viewer_token} = Rooms.create_invite(ctx.code, :viewer)
+
+    # Each role has its own active link.
+    assert Rooms.invite_active?(ctx.code, :editor)
+    assert Rooms.invite_active?(ctx.code, :viewer)
+
+    # A viewer link grants the viewer role; an editor link the editor role.
+    assert {:ok, :joined} =
+             Rooms.consume_invite(ctx.code, ctx.other.id, viewer_token, "Keen Rhino 44")
+
+    assert Rooms.role_of(ctx.code, ctx.other.id) == :viewer
+
+    {:ok, third} = Users.create()
+
+    assert {:ok, :joined} = Rooms.consume_invite(ctx.code, third.id, editor_token, "Calm Fox 45")
+    assert Rooms.role_of(ctx.code, third.id) == :editor
+
+    # Rotating one role's link leaves the other's untouched.
+    {:ok, new_viewer_token} = Rooms.create_invite(ctx.code, :viewer)
+
+    assert {:error, :invalid_invite} =
+             Rooms.consume_invite(ctx.code, ctx.owner.id, viewer_token, "Wise Otter 43")
+
+    assert {:ok, :joined} =
+             Rooms.consume_invite(ctx.code, ctx.owner.id, new_viewer_token, "Wise Otter 43")
+
+    assert Rooms.invite_active?(ctx.code, :editor)
+
+    # Revoking one role stops only its own joins.
+    assert Rooms.revoke_invites(ctx.code, :viewer) == 1
+    refute Rooms.invite_active?(ctx.code, :viewer)
+    assert Rooms.invite_active?(ctx.code, :editor)
+  end
+
   test "concurrent consumption and revocation: cutoff wins", ctx do
     assert {:ok, _room} =
              Rooms.create_room(ctx.code, owner: ctx.owner.id, owner_display_name: "Wise Otter 42")
 
-    assert {:ok, token} = Rooms.create_invite(ctx.code)
+    assert {:ok, token} = Rooms.create_invite(ctx.code, :editor)
 
     consumers =
       for _ <- 1..8,
@@ -159,7 +198,7 @@ defmodule Analysis.PrivateRoomTest do
               Rooms.consume_invite(ctx.code, ctx.other.id, token, "Keen Rhino 44")
             end)
 
-    revoker = Task.async(fn -> Rooms.revoke_invites(ctx.code) end)
+    revoker = Task.async(fn -> Rooms.revoke_invites(ctx.code, :editor) end)
     Enum.map(consumers, &Task.await/1)
     Task.await(revoker)
 
@@ -167,7 +206,7 @@ defmodule Analysis.PrivateRoomTest do
     assert {:error, :invalid_invite} =
              Rooms.consume_invite(ctx.code, ctx.owner.id, token, "Wise Otter 43")
 
-    refute Rooms.invite_active?(ctx.code)
+    refute Rooms.invite_active?(ctx.code, :editor)
   end
 
   test "public rooms expose analyses without membership", ctx do

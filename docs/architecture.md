@@ -309,13 +309,16 @@ subscribing to room events, joining presence, streaming chat or loading analyses
 about the room leaks to guests or non-members. Owners become the first row of
 `room_members` at creation; joining requires an invite link.
 
-Invite links (user decision, 2026-10-14) are multi-use and revocable: `GET /rooms/:code/join/:token`
-(`Web.RoomInviteController`) admits the signed-in opener as a member; guests are pointed at the
+Invite links (user decision, 2026-10-14; **per-role since 2026-10-20**) are multi-use and
+revocable: `GET /rooms/:code/join/:token`
+(`Web.RoomInviteController`) admits the signed-in opener as a member **with the role the link
+carries** (`room_invites.role`: editor or viewer); guests are pointed at the
 gate with a login hint and reopen the link after logging in. Only the SHA-256 hash of the token
-is durable (`room_invites`, at most one active link per room); the raw token is shown to the owner
-once, generating a new link rotates (revokes) the old one, and revocation stops new joins immediately
+is durable (`room_invites`, at most one active link **per room per role**, enforced by a partial
+unique index); the raw token is shown to the owner
+once, generating a new link rotates (revokes) the old one **of that role**, and revocation stops new joins immediately
 while existing members keep access. The invite row is locked `FOR UPDATE` before the membership
-insert, so a concurrent revoke cannot admit anyone after cutoff. Owners manage links through the
+insert, so a concurrent revoke cannot admit anyone after cutoff. Owners manage both links through the
 owner-only Invite control (replacing Copy code in private rooms); forged invite events from
 non-owners change nothing.
 

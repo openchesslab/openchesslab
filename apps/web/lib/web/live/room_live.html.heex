@@ -1689,44 +1689,66 @@
 
       <p class="mb-4 text-sm text-muted">{Web.I18n.t("room.inviteHelp", @locale)}</p>
 
-      <div :if={@invite_token} class="mb-4 rounded-lg border border-border bg-canvas p-3">
-        <p class="mb-2 text-xs text-warning">{Web.I18n.t("room.inviteOnce", @locale)}</p>
-        <div class="flex flex-wrap items-center gap-2">
-          <input
-            id="invite-link"
-            type="text"
-            readonly
-            value={@invite_url}
-            class="min-w-0 flex-1 rounded-md border border-border bg-panel px-2 py-1.5 font-mono text-xs"
-            aria-label={Web.I18n.t("room.inviteLink", @locale)}
-          />
+      <div
+        :for={role <- ["editor", "viewer"]}
+        class="mb-4 rounded-lg border border-border bg-canvas p-3"
+      >
+        <h3 class="m-0 text-xs font-semibold uppercase tracking-wide text-faint">
+          {Web.I18n.t("room.inviteRole.#{role}", @locale)}
+        </h3>
+        <p class="mt-1 mb-2 text-xs text-muted">
+          {Web.I18n.t("room.inviteRoleHelp.#{role}", @locale)}
+        </p>
+
+        <div :if={@invite_token && @invite_token_role == role} class="mb-3">
+          <p class="mb-2 text-xs text-warning">{Web.I18n.t("room.inviteOnce", @locale)}</p>
+          <div class="flex flex-wrap items-center gap-2">
+            <input
+              id={"invite-link-#{role}"}
+              type="text"
+              readonly
+              value={@invite_url}
+              class="min-w-0 flex-1 rounded-md border border-border bg-panel px-2 py-1.5 font-mono text-xs"
+              aria-label={Web.I18n.t("room.inviteLink", @locale)}
+            />
+            <button
+              type="button"
+              class="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-panel-hover"
+              phx-click="copy-invite-link"
+            >{Web.I18n.t("common.copyCode", @locale)}</button>
+          </div>
+        </div>
+
+        <p class="mb-2 text-sm text-muted">
+          {Web.I18n.t(
+            if(
+              (role == "editor" && @invite_editor_active) ||
+                (role == "viewer" && @invite_viewer_active),
+              do: "room.inviteActive",
+              else: "room.inviteNone"
+            ),
+            @locale
+          )}
+        </p>
+
+        <div class="flex flex-wrap gap-2">
           <button
             type="button"
+            class="rounded-md border border-accent-strong bg-accent px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent-strong"
+            phx-click="generate-invite"
+            phx-value-role={role}
+          >{Web.I18n.t("room.generateInvite", @locale)}</button>
+          <button
+            :if={
+              (role == "editor" && @invite_editor_active) ||
+                (role == "viewer" && @invite_viewer_active)
+            }
+            type="button"
             class="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-panel-hover"
-            phx-click="copy-invite-link"
-          >{Web.I18n.t("common.copyCode", @locale)}</button>
+            phx-click="revoke-invite"
+            phx-value-role={role}
+          >{Web.I18n.t("room.revokeInvite", @locale)}</button>
         </div>
-      </div>
-
-      <p class="mb-3 text-sm text-muted">
-        {Web.I18n.t(
-          if(@invite_active, do: "room.inviteActive", else: "room.inviteNone"),
-          @locale
-        )}
-      </p>
-
-      <div class="mb-6 flex flex-wrap gap-2">
-        <button
-          type="button"
-          class="rounded-md border border-accent-strong bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-strong"
-          phx-click="generate-invite"
-        >{Web.I18n.t("room.generateInvite", @locale)}</button>
-        <button
-          :if={@invite_active}
-          type="button"
-          class="rounded-md border border-border px-4 py-2 text-sm hover:bg-panel-hover"
-          phx-click="revoke-invite"
-        >{Web.I18n.t("room.revokeInvite", @locale)}</button>
       </div>
 
       <h3 class="mb-3 text-sm font-semibold">{Web.I18n.t("room.memberList", @locale)}</h3>

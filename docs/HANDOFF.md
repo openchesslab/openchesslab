@@ -85,7 +85,13 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   rol-badges + owner-only promoveer/degradeer-knoppen; gefabuleerde events van
   niet-eigenaren veranderen niets. Rollen zijn nu **informatief**; slice 2 =
   invite-links per rol, slice 3 = viewer read-only handhaving. Suites: web 321,
-  analysis 658, dialyzer 0. **Fase 2** featurezoeken:
+  analysis 658, dialyzer 0.
+- **Room-permissies, slice 2/3:** `room_invites.role` + partieel-unique index (één
+  actieve link per kamer per rol), rotatie en revoke per rol, join verleent de rol
+  van de link; modal toont twee secties (Editor-link / Kijker-link) met eigen
+  generate/revoke en eenmalige token-weergave per rol. Suites: web 322, analysis
+  659, dialyzer 0. **Let op:** viewer-links verlenen de rol maar slice 3 (read-only
+  handhaving) moet nog — daartussen is een "viewer" inhoudelijk editor. **Fase 2** featurezoeken:
   digest-atomen (intrinsieke catalogue-feiten: `motifs.greek_gift`, `pawns.iqp`, …) in de
   vorm van de oude `position_features.properties` (bytea[] + GIN, hercodering i.p.v. nieuwe
   tabel), POC op ~100K posities met EXPLAIN-bewijs vóór de volledige 19,7M-backfill;
