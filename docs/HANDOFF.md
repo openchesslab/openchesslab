@@ -92,6 +92,15 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   generate/revoke en eenmalige token-weergave per rol. Suites: web 322, analysis
   659, dialyzer 0. **Let op:** viewer-links verlenen de rol maar slice 3 (read-only
   handhaving) moet nog — daartussen is een "viewer" inhoudelijk editor.
+- **Lettergrootte (`6d320ca`) + visualisatie slice 3 (`68f7eb7`):** leespanelen
+  (features, zetten, chat, zoekresultaten, engine-PV) van 12px naar 14px; alle
+  sub-12px-maten (10–11px) weg uit de kamer-template. Wing-hints (`:wing_pawns`,
+  `:wing_pieces`): vleugelsplitsing getekend (queenside in kantkleur, kingside
+  amber, locaties uit de stelling); `:pawn_islands` tekent het grootste eiland in
+  kantkleur + fragmenten amber; `mobility.coordinated` (nieuwe compagnon-feature,
+  spiegel van `uncoordinated`) tekent verdedigde stukken. Dev-server-reload-les:
+  de Phoenix-reloader herlaadt alleen de web-app — sibling-umbrella-apps
+  (features/chess/analysis) vereisen een herstart.
 - **Visualisatie-ronde (`4527c32`, `afa71c7`):** gebruiker vond de diagonaal-label-bug
   (`lines.*_diagonals` toonden alleen de eerste twee velden: "a5b6" was eigenlijk a5–d8) —
   gefixt naar echte eindpunten ("a5d8", formaat van `king.open_diagonal`). Nieuwe feature
