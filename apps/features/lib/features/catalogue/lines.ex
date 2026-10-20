@@ -369,11 +369,11 @@ defmodule Features.Catalogue.Lines do
     |> Enum.filter(fn {_family, _key, squares} -> length(squares) >= 2 end)
   end
 
+  # A diagonal is named by its two endpoint squares ("a5d8" is the a5–d8
+  # diagonal), matching king.open_diagonal's format.
   defp label({_family, _key, squares}) do
-    squares
-    |> Enum.sort()
-    |> Enum.map(&Square.to_string/1)
-    |> then(fn [first, last | _rest] -> first <> last end)
+    sorted = Enum.sort(squares)
+    Square.to_string(List.first(sorted)) <> Square.to_string(List.last(sorted))
   end
 
   defp is_empty(board, square) do

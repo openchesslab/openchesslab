@@ -21,6 +21,28 @@ defmodule Features.Catalogue.LinesTest do
     assert features["lines.xray"]["white"]
   end
 
+  test "diagonal features name full diagonals by their true endpoints" do
+    features = extract(@start)
+
+    # Startpos: diagonals avoiding rank 2 are free of white pawns; each of
+    # them also crosses a black pawn on rank 7 (semi-open too). Labels name
+    # the whole diagonal ("a3f8" is a3–f8), not just its first two squares.
+    assert "a3f8" in features["lines.open_diagonals"]["white"]
+    assert "a5d8" in features["lines.open_diagonals"]["white"]
+    assert "a7b8" in features["lines.open_diagonals"]["white"]
+    refute "a3b4" in features["lines.open_diagonals"]["white"]
+    refute "a5b6" in features["lines.open_diagonals"]["white"]
+
+    assert features["lines.open_diagonals"] == features["lines.semi_open_diagonals"]
+
+    # Long diagonals have at least five squares.
+    assert features["lines.long_diagonals"]["white"] |> Enum.sort() ==
+             ~w(a3f8 a4e8 h3c8 h4d8)
+
+    # A diagonal blocked by an own pawn is neither open nor semi-open.
+    refute "c1h6" in features["lines.open_diagonals"]["white"]
+  end
+
   test "open files and rook batteries" do
     features = extract("4k3/8/8/8/8/8/8/R3K3 w - - 0 1")
     assert features["lines.open_files"] == ~w(a b c d e f g h)
