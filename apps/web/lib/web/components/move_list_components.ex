@@ -45,7 +45,7 @@ defmodule Web.MoveListComponents do
                 />
                 <div
                   :if={move.entry.comment}
-                  class="basis-full border-l-2 border-border-strong pl-2 text-xs italic text-muted"
+                  class="basis-full border-l-2 border-border-strong pl-2 text-sm italic text-muted"
                 >
                   {move.entry.comment}
                 </div>
@@ -92,7 +92,7 @@ defmodule Web.MoveListComponents do
           show_number={item.show_number}
           live_evals={@live_evals}
         />
-        <span :if={item.entry.comment} class="text-xs italic text-muted">
+        <span :if={item.entry.comment} class="text-sm italic text-muted">
           {item.entry.comment}
         </span>
 
@@ -131,7 +131,7 @@ defmodule Web.MoveListComponents do
         "px-1.5 py-0.5 font-mono transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus",
         @line == "main" && "text-sm font-semibold text-foreground hover:bg-panel-hover",
         @line == "variation" &&
-          "text-xs font-normal text-muted hover:bg-panel-hover hover:text-foreground",
+          "text-sm font-normal text-muted hover:bg-panel-hover hover:text-foreground",
         @selected && "bg-highlight/15 text-highlight ring-1 ring-highlight/50 hover:bg-highlight/25"
       ]}
       phx-click="select-path"
