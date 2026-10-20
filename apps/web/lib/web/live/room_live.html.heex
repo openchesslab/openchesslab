@@ -65,6 +65,12 @@
             <.icon name="person" class="h-3.5 w-3.5" />
             {Web.I18n.t("room.members", @locale)}
           </button>
+          <span
+            :if={@member_role == :viewer}
+            id="viewer-badge"
+            class="inline-flex items-center rounded-full bg-panel-hover px-2 py-1 text-xs font-semibold text-muted"
+            title={Web.I18n.t("room.viewerReadOnly", @locale)}
+          >{Web.I18n.t("room.roleViewer", @locale)}</span>
         </div>
 
         <div class="flex flex-nowrap items-center gap-x-2" role="status" aria-live="polite">
@@ -201,7 +207,7 @@
                 }
               /></button>
               <button
-                :if={active}
+                :if={active and @member_role != :viewer}
                 type="button"
                 id={"remove-" <> analysis.id}
                 class="inline-flex self-stretch items-center border-l border-border px-1.5 text-muted hover:text-error"
@@ -238,6 +244,7 @@
                   <span class="truncate">{analysis.label}</span>
                 </button>
                 <button
+                  :if={@member_role != :viewer}
                   type="button"
                   class="shrink-0 rounded px-1.5 py-1 text-muted hover:text-error"
                   aria-label={Web.I18n.t("room.removeAnalysis", @locale)}
@@ -250,6 +257,7 @@
           </details>
 
           <button
+            :if={@member_role != :viewer}
             type="button"
             class="inline-flex shrink-0 items-center gap-1 rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:bg-panel-hover hover:text-foreground"
             title={Web.I18n.t("room.newAnalysis", @locale)}
@@ -257,6 +265,7 @@
             phx-click="create-analysis"
           ><.icon name="add" class="h-3.5 w-3.5" /></button>
           <button
+            :if={@member_role != :viewer}
             type="button"
             class="inline-flex shrink-0 items-center gap-1 rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:bg-panel-hover hover:text-foreground"
             title={Web.I18n.t("room.importTitle", @locale)}
@@ -265,6 +274,7 @@
             phx-click="open-import"
           ><.icon name="import" class="h-3.5 w-3.5" /></button>
           <button
+            :if={@member_role != :viewer}
             type="button"
             class="shrink-0 rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:bg-panel-hover hover:text-foreground"
             phx-click="open-setup"
@@ -434,6 +444,7 @@
                     locale={@locale}
                     orientation={@orientation}
                     center={not @engine_on}
+                    read_only={@member_role == :viewer}
                     selected_square={@selected_square}
                     cursor_square={@cursor_square}
                     legal_targets={if @draft_position, do: [], else: @legal_targets}
@@ -679,6 +690,7 @@
                 <% end %>
 
                 <button
+                  :if={@member_role != :viewer}
                   type="button"
                   class="rounded border border-border px-2 py-1 text-xs text-muted hover:bg-panel-hover"
                   title={Web.I18n.t("room.clearDrawings", @locale)}
@@ -686,6 +698,7 @@
                   phx-click="clear-annotations"
                 ><.icon name="eraser" class="h-4 w-4" /></button>
                 <button
+                  :if={@member_role != :viewer}
                   type="button"
                   class={[
                     "rounded border px-2 py-1 text-xs",
@@ -823,6 +836,7 @@
 
             <div class="flex items-center gap-1">
               <button
+                :if={@member_role != :viewer}
                 type="button"
                 id="comment-open"
                 class="relative inline-flex min-h-9 min-w-9 items-center justify-center rounded-md border border-border bg-transparent text-foreground hover:bg-panel-hover"
@@ -951,6 +965,7 @@
               <strong class="mr-1 font-mono text-foreground">{line.score}</strong>
               <span :for={{move, index} <- Enum.with_index(Enum.take(line.moves, 8))}>
                 <span :if={move.label} class="text-faint">{move.label}</span><button
+                  :if={@member_role != :viewer}
                   type="button"
                   class="rounded px-0.5 hover:bg-panel-hover hover:text-foreground"
                   title={Web.I18n.t("room.enginePlayToHere", @locale)}
@@ -1275,6 +1290,7 @@
                               class="flex items-center justify-between gap-2 rounded bg-canvas p-2"
                             >
                               <button
+                                :if={@member_role != :viewer}
                                 type="button"
                                 class="rounded px-1 font-mono text-sm font-semibold text-foreground hover:bg-panel-hover"
                                 title={Web.I18n.t("room.bookPlay", @locale)}
@@ -1329,6 +1345,7 @@
                       <li :for={move <- ref.moves} class="rounded bg-canvas p-2">
                         <div class="flex items-center justify-between gap-2">
                           <button
+                            :if={@member_role != :viewer}
                             type="button"
                             class="rounded px-1 font-mono text-sm font-semibold text-foreground hover:bg-panel-hover"
                             title={Web.I18n.t("room.bookPlay", @locale)}
@@ -1373,11 +1390,13 @@
 
             <div class="mt-5 flex flex-wrap justify-center gap-2">
               <button
+                :if={@member_role != :viewer}
                 type="button"
                 class="rounded-lg border border-accent-strong bg-accent px-4 py-2 font-semibold text-white hover:bg-accent-strong"
                 phx-click="create-analysis"
               >{Web.I18n.t("room.startFirst", @locale)}</button>
               <button
+                :if={@member_role != :viewer}
                 type="button"
                 class="rounded-lg border border-border px-4 py-2 hover:bg-panel-hover"
                 phx-click="open-import"
@@ -1558,7 +1577,7 @@
               nag in current_nags(@current_node) && "border-accent-strong bg-accent/20",
               nag not in current_nags(@current_node) && "border-border"
             ]}
-            disabled={@current_path == []}
+            disabled={@current_path == [] or @member_role == :viewer}
             title={Web.I18n.t(nag_label_key(nag), @locale)}
             phx-click="toggle-nag"
             phx-value-nag={nag}
@@ -2563,6 +2582,7 @@
             </div>
 
             <button
+              :if={@member_role != :viewer}
               type="button"
               class="rounded-md border border-border px-3 py-2 text-xs hover:bg-panel-hover"
               phx-click="open-corpus-game"

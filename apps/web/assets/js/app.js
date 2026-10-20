@@ -41,6 +41,8 @@ const Board = {
     }
 
     this.pointerDown = (event) => {
+      // Read-only boards (viewers): no drags, no annotation drawing.
+      if (this.el.dataset.readonly === "true") return;
       const square = this.squareAt(event.target);
       if (square === null) return;
 
@@ -251,6 +253,7 @@ const Board = {
     // Click-to-move: hold the piece on the target as soon as a legal target is
     // clicked, so a slow (cross-region) round trip doesn't show it jump back.
     this.clickToMove = (event) => {
+      if (this.el.dataset.readonly === "true") return;
       if (this.pendingMove) return;
       const squareEl = event.target.closest("[data-square]");
       if (!squareEl) return;

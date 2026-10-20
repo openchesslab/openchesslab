@@ -335,15 +335,25 @@ deletion cascades ownership and memberships (`on_delete: :delete_all`). Room ret
 unchanged: private rooms are equally temporary, and pruning criteria still consider only
 analysis membership.
 
-**Member roles (2026-10-20, slice 1 of 3):** every membership carries a role
+**Member roles (2026-10-20):** every membership carries a role
 (`room_members.role`: `owner`, `editor` or `viewer`; a `CHECK` constraint enforces the set).
-The owner's row gets `owner` at creation; invite links still grant `editor` (per-role links
-are slice 2); `Rooms.role_of/2` answers `:owner | :editor | :viewer | nil`. Only the owner may
+The owner's row gets `owner` at creation; invite links carry the role they grant.
+`Rooms.role_of/2` answers `:owner | :editor | :viewer | nil`. Only the owner may
 change roles (`Rooms.set_member_role/3`, editor ↔ viewer; the owner's own role is immutable),
 and the change publishes `membership_changed` so connected views update immediately. The
 Members modal shows role badges with owner-only promote/demote controls; forged role events
-from non-owners change nothing. Enforcement of viewer read-only content access is slice 3 —
-roles are currently informational.
+from non-owners change nothing.
+
+**Viewer enforcement (2026-10-20):** a viewer follows everything but mutates nothing.
+`Web.RoomLive` caches the role in `member_role` (refreshed on every `membership_changed`) and
+a single guard clause ahead of every event handler refuses content events
+(`@viewer_blocked_events`: moves, comments, NAGs, annotations, the position editor, analysis
+add/remove, corpus opens, imports and library-into-room actions) with an explanatory notice —
+forged events change nothing. Navigation, search, engine reads, feature reads, chat and the
+user's own library actions (track/untrack) stay open. The board gets `data-readonly` (the
+Board hook suppresses drags and annotation drawing client-side), mutating affordances are
+hidden, and a "Viewer" badge shows next to the room code. Public rooms keep bearer semantics:
+no memberships, no limits.
 
 ### Room retention — implemented **current rule**
 

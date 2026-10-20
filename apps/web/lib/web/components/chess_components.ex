@@ -19,6 +19,7 @@ defmodule Web.ChessComponents do
   attr :last_from, :integer, default: nil
   attr :last_to, :integer, default: nil
   attr :highlights, :map, default: %{}
+  attr :read_only, :boolean, default: false
 
   def chess_board(assigns) do
     squares =
@@ -40,6 +41,7 @@ defmodule Web.ChessComponents do
       data-orientation={@orientation}
       data-annotation-color={@annotation_color}
       data-piece-set={@piece_set}
+      data-readonly={if(@read_only, do: "true")}
       role="group"
       aria-label={Web.I18n.t("room.boardHeading")}
       class={[

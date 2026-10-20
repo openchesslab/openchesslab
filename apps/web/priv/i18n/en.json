@@ -116,6 +116,7 @@
   "room.inviteRole.viewer": "Viewer link",
   "room.inviteRoleHelp.editor": "Editors can add and change analyses.",
   "room.inviteRoleHelp.viewer": "Viewers can follow along but cannot change anything.",
+  "room.viewerReadOnly": "You follow this room as a viewer; editing is not allowed.",
   "room.memberRemoved": "Member removed.",
   "room.memberRemovedKick": "You were removed from this room.",
   "room.inviteRevoked": "The invite link was revoked. No new joins are possible.",

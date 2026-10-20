@@ -1,7 +1,7 @@
 defmodule Web.PrivateRoomTest do
   use Web.ConnCase, async: false
 
-  alias Analysis.{Analyses, Rooms, Users, UserSessions}
+  alias Analysis.{Analyses, AnalysisStore, Rooms, Users, UserSessions}
   alias OpenChessLab.Repo
 
   setup do
@@ -286,6 +286,63 @@ defmodule Web.PrivateRoomTest do
     render_click(view, "revoke-invite", %{"role" => "viewer"})
     refute Rooms.invite_active?(ctx.code, :viewer)
     assert Rooms.invite_active?(ctx.code, :editor)
+  end
+
+  test "viewers follow everything but mutate nothing, until promoted", ctx do
+    assert {:ok, _room} =
+             Rooms.create_room(ctx.code, owner: ctx.owner.id, owner_display_name: "Wise Otter 42")
+
+    assert {:ok, _a, 1} = Analyses.create(ctx.analysis_id)
+    :ok = Rooms.add_analysis(ctx.code, ctx.analysis_id)
+
+    {:ok, token} = Rooms.create_invite(ctx.code, :viewer)
+    conn = authenticated(ctx.other_session.token) |> get("/rooms/#{ctx.code}/join/#{token}")
+    assert redirected_to(conn) == "/rooms/#{ctx.code}"
+    assert Rooms.role_of(ctx.code, ctx.other.id) == :viewer
+
+    {:ok, view, html} =
+      live(authenticated(ctx.other_session.token), "/rooms/#{ctx.code}?a=#{ctx.analysis_id}")
+
+    # The badge shows, the board is read-only, mutating affordances are hidden.
+    assert has_element?(view, "#viewer-badge")
+    assert html =~ ~s(data-readonly="true")
+    refute has_element?(view, "button[phx-click='create-analysis']")
+    refute has_element?(view, "button[phx-click='open-import']")
+    refute has_element?(view, "button[phx-click='open-setup']")
+    refute has_element?(view, "button[phx-click='request-remove-analysis']")
+    refute has_element?(view, "#comment-open")
+    refute has_element?(view, "button[phx-click='toggle-position-editor']")
+
+    # Forged content events change nothing and explain themselves.
+    view |> element("#chess-board") |> render_hook("board-move", %{"from" => 12, "to" => 28})
+    render_click(view, "create-analysis")
+    render_click(view, "request-remove-analysis", %{"id" => ctx.analysis_id})
+    render_click(view, "remove-analysis")
+    render_click(view, "save-comment", %{"comment" => "forged"})
+    render_click(view, "toggle-nag", %{"nag" => "1"})
+
+    assert render(view) =~ "editing is not allowed"
+
+    {:ok, room} = Analysis.RoomStore.get(ctx.code)
+    assert room.analysis_ids == [ctx.analysis_id]
+
+    {:ok, analysis, _revision} = AnalysisStore.get(ctx.analysis_id)
+    assert analysis.root.children == []
+
+    # Chat stays open for viewers.
+    render_click(view, "open-chat")
+    render_click(view, "send-chat", %{"message" => "gezellig meekijken"})
+    assert render(view) =~ "gezellig meekijken"
+
+    # Promotion to editor lifts the limits in the connected view at once.
+    assert :ok = Rooms.set_member_role(ctx.code, ctx.owner.id, ctx.other.id, :editor)
+    refute has_element?(view, "#viewer-badge")
+    assert has_element?(view, "button[phx-click='create-analysis']")
+
+    view |> element("#chess-board") |> render_hook("board-move", %{"from" => 12, "to" => 28})
+
+    {:ok, analysis, _revision} = AnalysisStore.get(ctx.analysis_id)
+    assert [_move] = analysis.root.children
   end
 
   test "non-owner members cannot forge member management", ctx do

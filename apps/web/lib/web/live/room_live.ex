@@ -81,6 +81,7 @@ defmodule Web.RoomLive do
       account_delete_armed: false,
       tracked_ids: [],
       private_gate: nil,
+      member_role: nil,
       invite_editor_active: false,
       invite_viewer_active: false,
       invite_token: nil,
@@ -204,7 +205,11 @@ defmodule Web.RoomLive do
           socket =
             socket
             |> assign(base_assigns)
-            |> assign(room: room, analyses: AnalysisView.room_analyses(room, locale))
+            |> assign(
+              room: room,
+              analyses: AnalysisView.room_analyses(room, locale),
+              member_role: current_member_role(room, socket)
+            )
             |> assign_tracked()
             |> assign(chat_messages: chat_messages)
             |> stream(:chat_messages, chat_messages)
@@ -243,6 +248,16 @@ defmodule Web.RoomLive do
         private_gate: code
       })
     )
+  end
+
+  # The role of the connected user in a private room; public rooms have no
+  # memberships (bearer semantics), so nil means "no role-based limits".
+  defp current_member_role(room, _socket) when not is_map(room), do: nil
+  defp current_member_role(%{owner_user_id: nil}, _socket), do: nil
+
+  defp current_member_role(room, socket) do
+    user_id = socket.assigns.current_user && socket.assigns.current_user.id
+    Rooms.role_of(room.id, user_id)
   end
 
   @impl true
@@ -289,6 +304,27 @@ defmodule Web.RoomLive do
   end
 
   @impl true
+  # Viewers follow everything but mutate nothing. This clause sits before
+  # every other event handler, so a forged content event from a viewer never
+  # reaches a mutation; navigation, search, engine reads and chat stay open.
+  # Their own library (track/untrack) is personal and stays open as well.
+  @viewer_blocked_events ~w(
+    board-square board-move promote-pawn book-play-move endgame-play-move
+    promote-variation remove-subtree save-comment clear-comment toggle-nag
+    toggle-position-editor arm-piece arm-remove palette-drop
+    set-castling-right set-en-passant flip-side-to-move apply-pending-edit
+    board-annotation clear-annotations engine-play-pv create-analysis
+    request-remove-analysis remove-analysis open-corpus-game open-setup
+    open-import open-comment-editor import-selected-games
+    library-add-game library-add-copy library-share library-share-confirm
+    library-share-copy library-share-game
+  )
+
+  def handle_event(event, _params, %{assigns: %{member_role: :viewer}} = socket)
+      when event in @viewer_blocked_events do
+    {:noreply, notify(socket, Web.I18n.t("room.viewerReadOnly", socket.assigns.locale))}
+  end
+
   def handle_event("restore-preferences", preferences, socket) do
     socket = restore_locale(socket, preferences["locale"])
     theme = valid_theme(preferences["theme"], socket.assigns.theme)
@@ -1941,7 +1977,8 @@ defmodule Web.RoomLive do
        |> put_flash(:error, Web.I18n.t("room.memberRemovedKick", socket.assigns.locale))
        |> redirect(to: ~p"/rooms/#{room.id}")}
     else
-      {:noreply, socket}
+      # A role change lands here too: refresh so viewer limits apply at once.
+      {:noreply, assign(socket, :member_role, current_member_role(room, socket))}
     end
   end
 

@@ -116,6 +116,7 @@
   "room.inviteRole.viewer": "Kijker-link",
   "room.inviteRoleHelp.editor": "Editors kunnen analyses toevoegen en wijzigen.",
   "room.inviteRoleHelp.viewer": "Kijkers kijken mee maar kunnen niets wijzigen.",
+  "room.viewerReadOnly": "Je kijkt mee in deze kamer; bewerken kan niet.",
   "room.memberRemoved": "Lid verwijderd.",
   "room.memberRemovedKick": "Je bent uit deze kamer verwijderd.",
   "room.inviteRevoked": "De uitnodigingslink is ingetrokken. Nieuwe deelnemers kunnen niet meer meedoen.",

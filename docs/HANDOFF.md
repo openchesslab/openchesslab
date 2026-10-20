@@ -91,7 +91,16 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   van de link; modal toont twee secties (Editor-link / Kijker-link) met eigen
   generate/revoke en eenmalige token-weergave per rol. Suites: web 322, analysis
   659, dialyzer 0. **Let op:** viewer-links verlenen de rol maar slice 3 (read-only
-  handhaving) moet nog — daartussen is een "viewer" inhoudelijk editor. **Fase 2** featurezoeken:
+  handhaving) moet nog — daartussen is een "viewer" inhoudelijk editor.
+- **Room-permissies, slice 3/3 (viewer-handhaving):** één guard-clause vóór alle
+  event-handlers weigert content-events van viewers (`@viewer_blocked_events`:
+  zetten, commentaar, NAGs, annotaties, position-editor, analyse add/remove,
+  corpus-open, import, library-naar-kamer) met uitleg-notice; `member_role`-assign
+  ververst op `membership_changed` (promotie werkt direct in open views). Bord
+  `data-readonly` (hook onderdrukt drag/tekenen), affordances verborgen,
+  "Kijker"-badge naast de kamercode. Chat/navigatie/zoeken/engine-lezing en de
+  eigen bibliotheek-acties (track/untrack) blijven open. Suites: web 323,
+  analysis 659, dialyzer 0. **Rollenmodel compleet.** **Fase 2** featurezoeken:
   digest-atomen (intrinsieke catalogue-feiten: `motifs.greek_gift`, `pawns.iqp`, …) in de
   vorm van de oude `position_features.properties` (bytea[] + GIN, hercodering i.p.v. nieuwe
   tabel), POC op ~100K posities met EXPLAIN-bewijs vóór de volledige 19,7M-backfill;
