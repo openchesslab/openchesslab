@@ -178,8 +178,10 @@ defmodule Features.Catalogue.BoardHintsTest do
   @piece_types ~w(rook bishop knight queen pawn)a
 
   # Structural hints derive their drawing from the position, not from a
-  # piece type: wing splits and pawn islands.
-  @structural_hints ~w(wing_pawns wing_pieces pawn_islands)a
+  # piece type: wing splits, pawn islands, the 16-square centre and the
+  # f2/f7 target square.
+  @structural_hints ~w(wing_pawns wing_pieces pawn_islands center_pieces center_pawns
+                       f2_f7_target)a
 
   test "aggregate piece features carry a board hint for the UI" do
     assert Catalogue.fetch!("material.count.rook").board == :rook

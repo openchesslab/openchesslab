@@ -38,13 +38,17 @@ defmodule Features.Catalogue.Placement do
         end,
         board: :wing_pieces
       ),
-      Feature.new("placement.center", 4, [{4, "stukken in het centrum"}], fn board ->
-        center = Support.center_bb()
+      Feature.new(
+        "placement.center",
+        4,
+        [{4, "stukken in het centrum"}],
+        fn board ->
+          center = Support.center_bb()
 
-        per_color(board, fn board, color ->
-          (Board.color_occupancy(board, color) &&& center) |> Support.popcount()
-        end)
-      end),
+          per_color(board, fn board, color ->
+            (Board.color_occupancy(board, color) &&& center) |> Support.popcount()
+          end)
+        end, board: :center_pieces),
       Feature.new(
         "placement.enemy_territory",
         4,

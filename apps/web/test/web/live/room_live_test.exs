@@ -3267,6 +3267,29 @@ defmodule Web.RoomLiveTest do
     render_click(view, "feature-detail", %{"id" => "mobility.coordinated"})
   end
 
+  test "the control companion and full diagonals draw their squares", %{
+    conn: conn,
+    code: code
+  } do
+    with_features_autoload()
+    {:ok, analysis, _revision} = Analyses.create("sweep")
+    :ok = Rooms.add_analysis(code, analysis.id)
+    {:ok, view, _html} = live(conn, "/rooms/#{code}?a=sweep")
+
+    # The control companion draws the attacked centre squares.
+    render_click(view, "feature-detail", %{"id" => "center.controlled"})
+    assert has_element?(view, "#chess-board-square-c3 span[data-highlight='white']")
+    assert has_element?(view, "#chess-board-square-f6 span[data-highlight='black']")
+    render_click(view, "feature-detail", %{"id" => "center.controlled"})
+
+    # Diagonal labels draw the whole diagonal, not just endpoints: the a3–f8
+    # diagonal includes c5.
+    render_click(view, "feature-detail", %{"id" => "lines.open_diagonals"})
+    assert has_element?(view, "#chess-board-square-a3 span[data-highlight='white']")
+    assert has_element?(view, "#chess-board-square-c5 span[data-highlight='white']")
+    render_click(view, "feature-detail", %{"id" => "lines.open_diagonals"})
+  end
+
   test "pinning attacks and defended squares marks both sides", %{conn: conn, code: code} do
     with_features_autoload()
     {:ok, analysis, _revision} = Analyses.create("layers")

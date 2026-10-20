@@ -24,8 +24,29 @@ defmodule Features.Catalogue.Threats do
       Feature.new("threats.aantal_checks", 13, [{13, "aantal checks"}], fn board ->
         per_color(board, fn board, color -> length(TacticMap.checks(board, color)) end)
       end),
+      # Drawable companions of the counts: the threatening pieces themselves.
+      Feature.new("threats.checks", 13, [{13, "aantal checks"}], fn board ->
+        per_color(board, fn board, color ->
+          board
+          |> TacticMap.checks(color)
+          |> Enum.map(& &1.from)
+          |> Enum.uniq()
+          |> Enum.sort()
+          |> to_alg()
+        end)
+      end),
       Feature.new("threats.capture_threats", 13, [{13, "capture threats"}], fn board ->
         per_color(board, fn board, color -> length(TacticMap.captures(board, color)) end)
+      end),
+      Feature.new("threats.captures", 13, [{13, "capture threats"}], fn board ->
+        per_color(board, fn board, color ->
+          board
+          |> TacticMap.captures(color)
+          |> Enum.map(& &1.from)
+          |> Enum.uniq()
+          |> Enum.sort()
+          |> to_alg()
+        end)
       end),
       Feature.new("threats.mate_threat", 13, [{13, "mate threat"}], fn board ->
         per_color(board, fn board, color ->

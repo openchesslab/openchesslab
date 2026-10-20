@@ -44,6 +44,29 @@ defmodule Features.Catalogue.Space do
           |> Support.popcount()
         end)
       end),
+      # Drawable companions of the control counts: the controlled squares.
+      Feature.new(
+        "space.enemy_half_squares",
+        7,
+        [{7, "aantal gecontroleerde velden in vijandelijke helft"}],
+        fn board ->
+          per_color(board, fn board, color ->
+            (AttackMap.attacked_bb(board, color) &&& Support.enemy_half_bb(color))
+            |> Bitboard.squares()
+            |> to_alg()
+          end)
+        end
+      ),
+      Feature.new("space.territory_squares", 7, [{7, "territory advantage"}], fn board ->
+        per_color(board, fn board, color ->
+          half = Support.enemy_half_bb(color)
+          enemy_attacks = AttackMap.attacked_bb(board, Board.opposite(color))
+
+          (AttackMap.attacked_bb(board, color) &&& half &&& bnot(enemy_attacks))
+          |> Bitboard.squares()
+          |> to_alg()
+        end)
+      end),
       Feature.new("space.cramping", 7, [{7, "cramping van de tegenstander"}], fn board ->
         white = MobilityMap.total(board, :white)
         black = MobilityMap.total(board, :black)
@@ -94,6 +117,8 @@ defmodule Features.Catalogue.Space do
       end)
     ]
   end
+
+  defp to_alg(squares), do: Enum.map(squares, &Square.to_string/1)
 
   defp space(board, color, mask) do
     (AttackMap.attacked_bb(board, color) &&& Support.enemy_half_bb(color) &&& mask)

@@ -4192,6 +4192,53 @@ defmodule Web.RoomLive do
   defp highlights_for(_value, hint, _position) when hint in [:wing_pawns, :wing_pieces],
     do: nil
 
+  # The side's pieces or pawns inside the 16-square centre (files c–f,
+  # ranks 3–6), when the count affirms them.
+  defp highlights_for(_value, hint, position)
+       when hint in [:center_pieces, :center_pawns] and is_nil(position),
+       do: nil
+
+  defp highlights_for(%{"white" => white_count, "black" => black_count}, hint, position)
+       when hint in [:center_pieces, :center_pawns] do
+    types =
+      if(hint == :center_pawns,
+        do: [:pawn],
+        else: [:king, :queen, :rook, :bishop, :knight, :pawn]
+      )
+
+    highlights = %{
+      white: center_squares(position, :white, types, white_count),
+      black: center_squares(position, :black, types, black_count),
+      neutral: MapSet.new(),
+      files: MapSet.new()
+    }
+
+    if MapSet.size(highlights.white) + MapSet.size(highlights.black) > 0,
+      do: highlights,
+      else: nil
+  end
+
+  defp highlights_for(_value, hint, _position) when hint in [:center_pieces, :center_pawns],
+    do: nil
+
+  # The f7 (white attacks) or f2 (black attacks) square under fire.
+  defp highlights_for(_value, :f2_f7_target, position) when is_nil(position), do: nil
+
+  defp highlights_for(%{"white" => white_count, "black" => black_count}, :f2_f7_target, _position) do
+    highlights = %{
+      white: if(white_count > 0, do: MapSet.new([53]), else: MapSet.new()),
+      black: if(black_count > 0, do: MapSet.new([13]), else: MapSet.new()),
+      neutral: MapSet.new(),
+      files: MapSet.new()
+    }
+
+    if MapSet.size(highlights.white) + MapSet.size(highlights.black) > 0,
+      do: highlights,
+      else: nil
+  end
+
+  defp highlights_for(_value, :f2_f7_target, _position), do: nil
+
   # Pawn islands: the largest island draws in the side's colour, the
   # remaining fragments amber; a side without pawns draws nothing.
   defp highlights_for(_value, :pawn_islands, position) when is_nil(position), do: nil
@@ -4359,6 +4406,16 @@ defmodule Web.RoomLive do
 
   defp wing_squares(_position, _color, _types, _count, _files), do: MapSet.new()
 
+  # The side's pieces inside the 16-square centre (files c–f, ranks 3–6),
+  # drawn only when the count affirms them.
+  defp center_squares(position, color, types, count) when is_integer(count) and count > 0 do
+    position
+    |> piece_squares(color, types)
+    |> MapSet.filter(&(rem(&1, 8) in 2..5 and div(&1, 8) in 2..5))
+  end
+
+  defp center_squares(_position, _color, _types, _count), do: MapSet.new()
+
   # Pawn islands are maximal runs of contiguous files holding own pawns; the
   # largest island (by pawn count) is the main structure, the rest fragments.
   defp largest_island(position, color) do
@@ -4411,12 +4468,46 @@ defmodule Web.RoomLive do
   defp square_set(list) when is_list(list) do
     list
     |> List.flatten()
-    |> Enum.reduce(MapSet.new(), fn value, acc ->
-      case Square.from_algebraic(value) do
-        square when is_integer(square) -> MapSet.put(acc, square)
-        _ -> acc
+    |> Enum.flat_map(&squares_of_token/1)
+    |> MapSet.new()
+  end
+
+  # A 4-character token naming two squares on one diagonal denotes the whole
+  # diagonal (the catalogue's diagonal labels, "a5d8"); any other token is a
+  # square or a pair of endpoints.
+  defp squares_of_token(<<one::binary-size(2), two::binary-size(2)>>) do
+    with square when is_integer(square) <- Square.from_algebraic(one),
+         target when is_integer(target) <- Square.from_algebraic(two) do
+      case diagonal_between(square, target) do
+        nil -> [square, target]
+        squares -> squares
       end
-    end)
+    else
+      _ -> []
+    end
+  end
+
+  defp squares_of_token(value) do
+    case Square.from_algebraic(value) do
+      square when is_integer(square) -> [square]
+      _ -> []
+    end
+  end
+
+  # All squares on the diagonal between two diagonal squares, endpoints
+  # included; nil when the squares do not share a diagonal.
+  defp diagonal_between(square, target) do
+    file_delta = rem(target, 8) - rem(square, 8)
+    rank_delta = div(target, 8) - div(square, 8)
+
+    if file_delta != 0 and abs(file_delta) == abs(rank_delta) do
+      file_step = div(file_delta, abs(file_delta))
+      rank_step = div(rank_delta, abs(rank_delta))
+
+      for step <- 0..abs(file_delta) do
+        square + step * (rank_step * 8 + file_step)
+      end
+    end
   end
 
   defp file_letters?(list) do

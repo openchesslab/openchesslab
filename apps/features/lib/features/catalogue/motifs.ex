@@ -50,12 +50,16 @@ defmodule Features.Catalogue.Motifs do
       Feature.new("motifs.mating_battery", 14, [{14, "mating battery"}], fn board ->
         per_color(board, fn board, color -> mating_battery?(board, color) end)
       end),
-      Feature.new("motifs.f2_f7_attack", 14, [{14, "f2/f7 attack"}], fn board ->
-        per_color(board, fn board, color ->
-          target = if color == :white, do: 53, else: 13
-          Map.get(AttackMap.attack_counts(board, color), target, 0)
-        end)
-      end)
+      Feature.new(
+        "motifs.f2_f7_attack",
+        14,
+        [{14, "f2/f7 attack"}],
+        fn board ->
+          per_color(board, fn board, color ->
+            target = if color == :white, do: 53, else: 13
+            Map.get(AttackMap.attack_counts(board, color), target, 0)
+          end)
+        end, board: :f2_f7_target)
     ]
   end
 

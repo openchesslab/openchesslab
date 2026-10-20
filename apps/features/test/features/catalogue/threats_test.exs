@@ -5,6 +5,21 @@ defmodule Features.Catalogue.ThreatsTest do
 
   defp extract(fen), do: Features.extract(fen).features
 
+  test "checking and capturing piece companions list the threatening pieces" do
+    # The rook checks along the a-file (Ra8+) and can take the b1 knight.
+    features = extract("7k/8/8/8/8/8/8/Rn2K3 w - - 0 1")
+
+    assert features["threats.checks"]["white"] == ["a1"]
+    assert features["threats.captures"]["white"] == ["a1"]
+    assert features["threats.aantal_checks"]["white"] > 0
+    assert features["threats.capture_threats"]["white"] > 0
+
+    # Startpos: nobody threatens anything.
+    features = extract(@start)
+    assert features["threats.checks"] == %{"white" => [], "black" => []}
+    assert features["threats.captures"] == %{"white" => [], "black" => []}
+  end
+
   test "start position" do
     features = extract(@start)
 

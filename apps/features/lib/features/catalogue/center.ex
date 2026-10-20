@@ -35,13 +35,36 @@ defmodule Features.Catalogue.Center do
           (AttackMap.attacked_bb(board, color) &&& key) |> Support.popcount()
         end)
       end),
-      Feature.new("center.extended", 6, [{6, "uitgebreid centrum"}], fn board ->
+      # Drawable companions of the control counts: the controlled squares.
+      Feature.new("center.controlled", 6, [{6, "controle over het centrum"}], fn board ->
         center = Support.center_bb()
 
         per_color(board, fn board, color ->
-          (Board.piece_bb(board, color, :pawns) &&& center) |> Support.popcount()
+          (AttackMap.attacked_bb(board, color) &&& center)
+          |> Bitboard.squares()
+          |> to_alg()
         end)
       end),
+      Feature.new("center.key_controlled", 6, [{6, "controle over d4/e4/d5/e5"}], fn board ->
+        key = Support.key_center_bb()
+
+        per_color(board, fn board, color ->
+          (AttackMap.attacked_bb(board, color) &&& key)
+          |> Bitboard.squares()
+          |> to_alg()
+        end)
+      end),
+      Feature.new(
+        "center.extended",
+        6,
+        [{6, "uitgebreid centrum"}],
+        fn board ->
+          center = Support.center_bb()
+
+          per_color(board, fn board, color ->
+            (Board.piece_bb(board, color, :pawns) &&& center) |> Support.popcount()
+          end)
+        end, board: :center_pawns),
       Feature.new("center.pawn_center", 6, [{6, "pawn center"}], fn board ->
         key = Support.key_center_bb()
 

@@ -12,8 +12,10 @@ defmodule Features.Feature do
 
   Structural hints go further: `:wing_pawns` / `:wing_pieces` split the
   side's pawns or pieces by wing (queenside a–d in the side's colour,
-  kingside e–h in amber), and `:pawn_islands` draws the largest pawn island
-  in the side's colour with the fragments amber.
+  kingside e–h in amber), `:pawn_islands` draws the largest pawn island
+  in the side's colour with the fragments amber, `:center_pieces` /
+  `:center_pawns` draw the side's pieces or pawns inside the 16-square
+  centre, and `:f2_f7_target` marks the f7 or f2 square the side attacks.
   """
 
   @type claim :: {pos_integer(), String.t()}
@@ -26,6 +28,9 @@ defmodule Features.Feature do
           | :wing_pawns
           | :wing_pieces
           | :pawn_islands
+          | :center_pieces
+          | :center_pawns
+          | :f2_f7_target
           | [atom()]
 
   @type t :: %__MODULE__{

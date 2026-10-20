@@ -5,6 +5,22 @@ defmodule Features.Catalogue.CenterTest do
 
   defp extract(fen), do: Features.extract(fen).features
 
+  test "controlled-square companions list exactly the counted squares" do
+    features = extract(@start)
+
+    # Startpos: both sides attack the four centre squares on their third
+    # rank with pawns; the key squares stay untouched.
+    assert features["center.controlled"]["white"] |> Enum.sort() ==
+             features["center.controlled"]["white"]
+
+    assert length(features["center.controlled"]["white"]) ==
+             features["center.control"]["white"]
+
+    assert features["center.controlled"]["white"] == ~w(c3 d3 e3 f3)
+    assert features["center.controlled"]["black"] == ~w(c6 d6 e6 f6)
+    assert features["center.key_controlled"] == %{"white" => [], "black" => []}
+  end
+
   test "start position" do
     features = extract(@start)
 

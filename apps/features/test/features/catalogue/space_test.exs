@@ -23,6 +23,12 @@ defmodule Features.Catalogue.SpaceTest do
 
     assert features["space.total"] == 2
     assert features["space.enemy_half_control"]["white"] == 2
+
+    # The companions list exactly those counted squares, and the enemy's
+    # uncontested territory matches while the king stays away.
+    assert features["space.enemy_half_squares"]["white"] == ~w(d5 f5)
+    assert features["space.territory_squares"]["white"] == ~w(d5 f5)
+    assert features["space.enemy_half_squares"]["black"] == []
     assert features["space.kingside"] != 0
   end
 end
