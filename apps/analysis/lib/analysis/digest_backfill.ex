@@ -9,6 +9,13 @@ defmodule Analysis.DigestBackfill do
 
       DATABASE_URL=... mix run -e 'IO.inspect(Analysis.DigestBackfill.run())'
 
+  Within one run a high-water mark (`p.id > $3`) bounds every chunk query:
+  without it each `NOT EXISTS` scan re-traverses the whole filled prefix,
+  which made chunk queries exceed the connection timeout once most of the
+  table was done. A fresh run still rescans from id 0 once (to pick up
+  positions created or failed earlier), so the chunk query gets a generous
+  timeout.
+
   Options: `:chunk_size` (1.000), `:workers` (schedulers), `:limit` (a
   bounded run, for verification).
   """
@@ -21,7 +28,8 @@ defmodule Analysis.DigestBackfill do
   @chunk_sql """
   SELECT p.id
   FROM positions AS p
-  WHERE NOT EXISTS (
+  WHERE p.id > $3::bigint
+  AND NOT EXISTS (
     SELECT 1
     FROM position_digests AS d
     WHERE d.position_id = p.id
@@ -41,10 +49,10 @@ defmodule Analysis.DigestBackfill do
     limit = Keyword.get(opts, :limit)
     workers = Keyword.get(opts, :workers, System.schedulers_online())
 
-    do_run(%{computed: 0, failed: 0}, [], chunk_size, limit, workers)
+    do_run(%{computed: 0, failed: 0}, [], chunk_size, limit, workers, 0)
   end
 
-  defp do_run(stats, failed_ids, chunk_size, limit, workers) do
+  defp do_run(stats, failed_ids, chunk_size, limit, workers, last_id) do
     size =
       case limit do
         nil -> chunk_size
@@ -61,7 +69,7 @@ defmodule Analysis.DigestBackfill do
 
       true ->
         ids =
-          Repo.query!(@chunk_sql, [size, failed_ids]).rows
+          Repo.query!(@chunk_sql, [size, failed_ids, last_id], timeout: 120_000).rows
           |> List.flatten()
 
         case ids do
@@ -105,7 +113,7 @@ defmodule Analysis.DigestBackfill do
             stats = Map.merge(stats, chunk_stats, fn _key, left, right -> left + right end)
             Logger.info("digest backfill: #{stats.computed} computed, #{stats.failed} failed")
 
-            do_run(stats, chunk_failed ++ failed_ids, chunk_size, limit, workers)
+            do_run(stats, chunk_failed ++ failed_ids, chunk_size, limit, workers, Enum.max(ids))
         end
     end
   end
