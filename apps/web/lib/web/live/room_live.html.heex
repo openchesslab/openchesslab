@@ -2376,14 +2376,22 @@
               ({length(search_atoms(@search_filters["features"]))})
             </span>
           </summary>
-          <div class="mt-2 space-y-2">
-            <div :for={{section, atoms} <- search_feature_groups(@locale)}>
+          <div class="mt-2 space-y-2" id="feature-picker" phx-hook="FeatureFilter">
+            <input
+              type="text"
+              id="feature-picker-filter"
+              placeholder={Web.I18n.t("room.searchFeaturesFilter", @locale)}
+              spellcheck="false"
+              class="mb-1 w-full rounded-md border border-border px-2 py-1.5 text-xs text-foreground"
+            />
+            <div :for={{section, atoms} <- search_feature_groups(@locale)} data-feature-section>
               <p class="m-0 text-[.68rem] font-semibold uppercase tracking-wide text-faint">
                 {Web.I18n.t("room.featuresSection.#{section}", @locale)}
               </p>
               <div class="mt-1 flex flex-wrap gap-1">
                 <label
                   :for={{atom, label} <- atoms}
+                  data-filter-text={String.downcase(label <> " " <> atom)}
                   class={[
                     "inline-flex cursor-pointer items-center rounded-full border px-2 py-0.5 text-xs",
                     atom in search_atoms(@search_filters["features"]) &&

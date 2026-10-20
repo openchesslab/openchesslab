@@ -856,6 +856,33 @@ const ImportMasterCheckbox = {
   },
 };
 
+const FeatureFilter = {
+  // The search dialog's feature picker lists the full searchable
+  // vocabulary; the filter input hides non-matching pills client-side.
+  mounted() {
+    this.input = this.el.querySelector("#feature-picker-filter");
+    if (!this.input) return;
+    this.input.addEventListener("input", () => this.applyFilter());
+    this.applyFilter();
+  },
+  updated() {
+    this.applyFilter();
+  },
+  applyFilter() {
+    if (!this.input) return;
+    const query = this.input.value.trim().toLowerCase();
+    this.el.querySelectorAll("[data-filter-text]").forEach((el) => {
+      el.style.display = query === "" || el.dataset.filterText.includes(query) ? "" : "none";
+    });
+    this.el.querySelectorAll("[data-feature-section]").forEach((section) => {
+      const anyVisible = [...section.querySelectorAll("[data-filter-text]")].some(
+        (el) => el.style.display !== "none"
+      );
+      section.style.display = anyVisible ? "" : "none";
+    });
+  },
+};
+
 const GuidedTour = {
   mounted() {
     this.reposition = () => this.position();
@@ -1637,7 +1664,7 @@ const EngineAnalysis = {
 
 const csrfToken = document.querySelector("meta[name='csrf-token']")?.content;
 const liveSocket = new LiveSocket("/live", Socket, {
-  hooks: { AppUI, AnalysisTabs, Board, EngineAnalysis, EvalBar, GuidedTour, ImportMasterCheckbox, MoveList, PaletteDrag, ScrollLog },
+  hooks: { AppUI, AnalysisTabs, Board, EngineAnalysis, EvalBar, FeatureFilter, GuidedTour, ImportMasterCheckbox, MoveList, PaletteDrag, ScrollLog },
   params: { _csrf_token: csrfToken },
 });
 

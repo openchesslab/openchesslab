@@ -193,6 +193,7 @@
   "room.searchModeSimilar": "Similar positions",
   "room.searchMatchScore": "{pct}% match",
   "room.searchMaterialSubstitution": "Material",
+  "room.searchFeaturesFilter": "Filter features…",
   "room.searchMoveLineLabel": "Move line",
   "room.searchMoveLinePlaceholder": "1. e4 c5 2. Nf3 d6",
   "room.searchInvalidMoveLine": "That move line could not be parsed. Give SAN moves like \"1. e4 c5 2. Nf3\".",

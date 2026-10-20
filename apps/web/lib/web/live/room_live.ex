@@ -4913,72 +4913,13 @@ defmodule Web.RoomLive do
   defp search_atoms(atoms) when is_list(atoms), do: Enum.uniq(atoms)
   defp search_atoms(atom) when is_binary(atom), do: [atom]
 
-  # The picker's curated atoms per catalogue section: intrinsically
-  # meaningful, selective facts (see Analysis.FeatureDigest). Labels resolve
-  # through the same feature_label used by the features panel.
-  @search_feature_groups [
-    {11, ["king.opposite_side_castling"]},
-    {2, ["material.bishop_pair:w", "material.bishop_pair:b"]},
-    {3,
-     [
-       "pawns.iqp:w",
-       "pawns.iqp:b",
-       "pawns.isolated:w",
-       "pawns.isolated:b",
-       "pawns.backward:w",
-       "pawns.backward:b",
-       "pawns.doubled:w",
-       "pawns.doubled:b",
-       "pawns.passed:w",
-       "pawns.passed:b",
-       "pawns.minority_attack:w",
-       "pawns.minority_attack:b"
-     ]},
-    {19,
-     [
-       "position.endgame_like_position",
-       "position.queenless_middlegame",
-       "position.opposite_side_castling_position",
-       "position.closed_position",
-       "position.open_position"
-     ]},
-    {17,
-     [
-       "quality.knight_outpost:w",
-       "quality.knight_outpost:b",
-       "quality.opposite_colored_bishops"
-     ]},
-    {8, ["squares.enemy_on_outpost:w", "squares.enemy_on_outpost:b"]},
-    {12,
-     [
-       "tactics.pin:w",
-       "tactics.pin:b",
-       "tactics.hanging_piece:w",
-       "tactics.hanging_piece:b"
-     ]},
-    {13, ["threats.mating_net:w", "threats.mating_net:b"]},
-    {14,
-     [
-       "motifs.greek_gift:w",
-       "motifs.greek_gift:b",
-       "motifs.back_rank_motifs:w",
-       "motifs.back_rank_motifs:b",
-       "motifs.exchange_sacrifice:w",
-       "motifs.exchange_sacrifice:b"
-     ]},
-    {15,
-     [
-       "goals.attack_isolated_pawn:w",
-       "goals.attack_isolated_pawn:b",
-       "goals.blockade_isolated_pawn:w",
-       "goals.blockade_isolated_pawn:b",
-       "goals.pawn_storm:w",
-       "goals.pawn_storm:b"
-     ]}
-  ]
+  # The picker's atoms per catalogue section: the full searchable
+  # vocabulary of the feature catalogue (see
+  # Analysis.FeatureDigest.picker_atoms/1), not a curated subset. Labels
+  # resolve through the same feature_label used by the features panel.
 
   defp search_feature_groups(locale) do
-    for {section, atoms} <- @search_feature_groups do
+    for {section, atoms} <- PositionFeatures.search_picker_groups() do
       {section,
        Enum.map(atoms, fn atom ->
          {atom, search_atom_label(atom, locale)}

@@ -15,6 +15,7 @@ defmodule Analysis.PositionFeatures do
   import Bitwise
 
   alias Analysis.Analyses
+  alias Analysis.FeatureDigest
   alias Analysis.Node
   alias Analysis.PositionDigests
   alias Analysis.PositionStore
@@ -109,6 +110,60 @@ defmodule Analysis.PositionFeatures do
   @spec extract(Position.t()) :: {:ok, feature_result()}
   def extract(%Position{} = position) do
     {:ok, Features.extract(from_position(position))}
+  end
+
+  @picker_groups_key {__MODULE__, :search_picker_groups}
+
+  # Representative positions whose feature shapes cover the catalogue: the
+  # picker vocabulary is derived from shapes, not values, so a handful of
+  # diverse positions suffices and the result is deterministic.
+  @picker_fens [
+    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    "r1bq1rk1/pp1pppbn/2n2np1/4p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 0 7",
+    "8/5pk1/6p1/3P4/8/2K5/8/4R3 w - - 0 1"
+  ]
+
+  @doc """
+  The search dialog's feature picker vocabulary: every atom the catalogue
+  can produce (see `Analysis.FeatureDigest.picker_atoms/1`), grouped by
+  catalogue section and sorted. Deterministic and cached in
+  `:persistent_term`.
+  """
+  @spec search_picker_groups() :: [{pos_integer(), [String.t()]}]
+  def search_picker_groups do
+    case :persistent_term.get(@picker_groups_key, nil) do
+      nil ->
+        groups =
+          @picker_fens
+          |> Enum.flat_map(fn fen ->
+            fen
+            |> Features.extract()
+            |> Map.get(:features)
+            |> FeatureDigest.picker_atoms()
+          end)
+          |> Enum.uniq()
+          |> Enum.group_by(&picker_section/1)
+          |> Map.delete(nil)
+          |> Enum.map(fn {section, atoms} -> {section, Enum.sort(atoms)} end)
+          |> Enum.sort_by(&elem(&1, 0))
+
+        :persistent_term.put(@picker_groups_key, groups)
+        groups
+
+      groups ->
+        groups
+    end
+  end
+
+  # The catalogue section of an atom's feature: the digest encoding's
+  # side/square suffixes are not part of the feature id.
+  defp picker_section(atom) do
+    base = atom |> String.split(":") |> hd()
+
+    case Enum.find(Features.Catalogue.all(), &(&1.id == base)) do
+      nil -> nil
+      feature -> feature.section
+    end
   end
 
   @doc """

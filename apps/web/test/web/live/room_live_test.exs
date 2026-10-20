@@ -752,6 +752,29 @@ defmodule Web.RoomLiveTest do
     cleanup_search_corpus(corpus)
   end
 
+  test "the search feature picker lists the full searchable vocabulary", %{
+    conn: conn,
+    code: code
+  } do
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    render_click(view, "open-search", %{})
+
+    html = render(view)
+
+    # The filter input and previously unlisted atoms are present.
+    assert html =~ ~s(id="feature-picker-filter")
+    assert html =~ ~s(value="tactics.absolute_pin:w")
+    assert html =~ ~s(value="pawns.protected_passed:w")
+    assert html =~ ~s(value="king.weak_shield_pawns:b")
+
+    # A previously curated atom is still there.
+    assert html =~ ~s(value="material.bishop_pair:w")
+
+    # Square-scalar and composition-specific atoms stay out of the picker.
+    refute html =~ ~s(value="state.king_squares:w")
+    refute html =~ "material.signature:w:Q1R2B2N2P8"
+  end
+
   test "game search filters by feature atoms", %{conn: conn, code: code} do
     OpenChessLab.Repo.query!(
       "TRUNCATE TABLE game_records, game_occurrences, games, positions RESTART IDENTITY CASCADE",

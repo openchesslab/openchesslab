@@ -120,6 +120,66 @@ defmodule Analysis.FeatureDigest do
   @spec reload_cache() :: %{String.t() => integer()}
   def reload_cache, do: load_cache()
 
+  @doc """
+  Every atom the given feature map could produce, regardless of the actual
+  values: booleans count as true and lists as non-empty, so the answer is
+  the searchable vocabulary of the map's feature shapes. Per-square atoms
+  are omitted (a picker offers the presence atom, not 64 variants) and
+  square-valued scalars have no presence atom at all, so they are omitted
+  entirely. Material signature atoms are composition-specific and left out
+  as well. Used by the search dialog's feature picker (see
+  `Analysis.PositionFeatures.search_picker_groups/0`).
+  """
+  @spec picker_atoms(%{String.t() => term()}) :: [String.t()]
+  def picker_atoms(features) when is_map(features) do
+    features
+    |> Enum.flat_map(fn {id, value} -> picker_feature_atoms(id, value) end)
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+
+  # The same exclusions as feature_atoms/2: what never becomes an atom is
+  # never in the picker.
+  defp picker_feature_atoms("similarity." <> _, _value), do: []
+  defp picker_feature_atoms("evaluation." <> _, _value), do: []
+  defp picker_feature_atoms("state.side_to_move", _value), do: []
+  defp picker_feature_atoms("state.en_passant", _value), do: []
+  defp picker_feature_atoms("state.castling_rights", _value), do: []
+  defp picker_feature_atoms("pawns.structure", _value), do: []
+  defp picker_feature_atoms(id, _value) when id in @pruned_ids, do: []
+
+  defp picker_feature_atoms(id, %{"white" => white, "black" => black}) do
+    picker_side_atoms(id, "w", white) ++ picker_side_atoms(id, "b", black)
+  end
+
+  defp picker_feature_atoms(id, value) when is_boolean(value), do: [id]
+
+  defp picker_feature_atoms(_id, value) when is_binary(value) do
+    # Square-valued scalars only have per-square atoms: no presence atom.
+    []
+  end
+
+  defp picker_feature_atoms(id, value) when is_list(value) do
+    if id in @square_atom_ids or id in @presence_list_ids, do: [id], else: []
+  end
+
+  defp picker_feature_atoms(_id, _value), do: []
+
+  defp picker_side_atoms(id, side, value) when is_boolean(value), do: [id <> ":" <> side]
+
+  defp picker_side_atoms(_id, _side, value) when is_binary(value) do
+    # See picker_feature_atoms/2 for square-valued scalars.
+    []
+  end
+
+  defp picker_side_atoms(id, side, value) when is_list(value) do
+    if id in @square_atom_ids or id in @presence_list_ids,
+      do: [id <> ":" <> side],
+      else: []
+  end
+
+  defp picker_side_atoms(_id, _side, _value), do: []
+
   # ── encoding ──────────────────────────────────────────────────────────────
 
   defp feature_atoms("similarity." <> _, _value), do: []
