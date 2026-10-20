@@ -47,7 +47,14 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   `FeatureDigest.material_signature_variants/3` (basis + beide richtingen,
   negatieve tellingen overgeslagen), prefilter `atom_ids && varianten` per kant
   (overlap = OR, één query), ranking ongemoeid (gesubstitueerde scoort een
-  signatuuratoom lager). **Fase 3 ✅ compleet.** **Fase 4** zettenpad/eindspel. **Fase 2** featurezoeken:
+  signatuuratoom lager). **Zettenpad (`39bbc58`):** "Zettenlijn"-veld (Engelse
+  SAN, "1. e4 c5 2. Nf3 d6") — replay naar posities, SQL-anker op de laatste
+  positie + EXISTS-probe per eerdere ply (unique-index), keyset op occurrence-id,
+  deeplink op de eind-ply; max 30 plies; kapotte lijn = eerlijke fout.
+  **Eindspel:** via materiaalsignatuur-atomen (bestaande digest-machinerie);
+  **tablebase**-filter is uitgesteld — `position_tablebases` is een luie cache
+  van de externe lichess-API, een corpus-vulling daarvoor is een eigen project.
+  **Fase 4 ✅ (voor nu).** **Fase 2** featurezoeken:
   digest-atomen (intrinsieke catalogue-feiten: `motifs.greek_gift`, `pawns.iqp`, …) in de
   vorm van de oude `position_features.properties` (bytea[] + GIN, hercodering i.p.v. nieuwe
   tabel), POC op ~100K posities met EXPLAIN-bewijs vóór de volledige 19,7M-backfill;
