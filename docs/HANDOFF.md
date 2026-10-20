@@ -92,6 +92,18 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   generate/revoke en eenmalige token-weergave per rol. Suites: web 322, analysis
   659, dialyzer 0. **Let op:** viewer-links verlenen de rol maar slice 3 (read-only
   handhaving) moet nog — daartussen is een "viewer" inhoudelijk editor.
+- **Visualisatie slice 4, de sweep (`f830b77`):** "alles met een subject tekent".
+  Compagnon-square-lijsten: `center.controlled`/`key_controlled` (bestreken
+  centrumvelden), `threats.checks`/`captures` (schakgevende/slaande stukken),
+  `space.enemy_half_squares`/`territory_squares`. Nieuwe structurele hints:
+  `:center_pieces` (`placement.center`), `:center_pawns` (`center.extended`),
+  `:f2_f7_target` (`motifs.f2_f7_attack` tekent het bedreigde veld). Diagonaal-
+  labels tekenen nu de **hele** diagonaal (`square_set` expandeert "a5d8" →
+  a5,b6,c7,d8). Eind-audit: alles met een eerlijk ruimtelijk subject tekent
+  direct of via een compagnon; bewust getalsgewijs blijven: quality-scores,
+  forcing-densities, weakness-duration (temporeel), structure (abstract),
+  piece_occupancy (= het bord), similarity/evaluation-scalaren. Suites:
+  features 222, analysis 659, web 325, dialyzer 0.
 - **Lettergrootte (`6d320ca`) + visualisatie slice 3 (`68f7eb7`):** leespanelen
   (features, zetten, chat, zoekresultaten, engine-PV) van 12px naar 14px; alle
   sub-12px-maten (10–11px) weg uit de kamer-template. Wing-hints (`:wing_pawns`,
