@@ -43,6 +43,19 @@ defmodule Features.Catalogue.LinesTest do
     refute "c1h6" in features["lines.open_diagonals"]["white"]
   end
 
+  test "bishop open diagonals are the usable rays until the first piece" do
+    # Startpos: both bishops are hemmed in by their own pawns.
+    features = extract(@start)
+    assert features["lines.bishop_open_diagonals"] == %{"white" => [], "black" => []}
+
+    # Fianchettoed bishop: the open ray stops before the first piece (the
+    # d5 pawn), so the capture square itself is not listed; the f1 rook and
+    # g3 pawn bound the other rays.
+    features = extract("rnbqkb1r/pp1ppppp/5n2/3p4/8/6P1/PPPP1PBP/RNBQ1RK1 w - - 0 4")
+    assert features["lines.bishop_open_diagonals"]["white"] == ~w(h1 f3 h3 e4)
+    assert features["lines.bishop_open_diagonals"]["black"] == []
+  end
+
   test "open files and rook batteries" do
     features = extract("4k3/8/8/8/8/8/8/R3K3 w - - 0 1")
     assert features["lines.open_files"] == ~w(a b c d e f g h)

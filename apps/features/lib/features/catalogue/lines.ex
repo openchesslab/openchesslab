@@ -73,6 +73,20 @@ defmodule Features.Catalogue.Lines do
           |> Enum.map(&label/1)
         end)
       end),
+      Feature.new("lines.bishop_open_diagonals", 9, [{9, "open diagonal"}], fn board ->
+        # The usable open diagonals: every empty diagonal square each bishop
+        # can move to before the first piece blocks it. Empty in the start
+        # position; a fianchettoed bishop lists its whole open ray.
+        per_color(board, fn board, color ->
+          board
+          |> Board.piece_bb(color, :bishops)
+          |> Bitboard.squares()
+          |> Enum.flat_map(&open_diagonal_squares(board, &1))
+          |> Enum.uniq()
+          |> Enum.sort()
+          |> Enum.map(&Square.to_string/1)
+        end)
+      end),
       Feature.new("lines.long_diagonals", 9, [{9, "lange diagonalen"}], fn board ->
         per_color(board, fn board, color ->
           own = Board.piece_bb(board, color, :pawns)
@@ -378,6 +392,31 @@ defmodule Features.Catalogue.Lines do
 
   defp is_empty(board, square) do
     (Board.occupancy(board) &&& 1 <<< square) == 0
+  end
+
+  # The empty diagonal squares reachable from `from` before the first piece
+  # blocks the ray, per diagonal direction.
+  defp open_diagonal_squares(board, from) do
+    occupancy = Board.occupancy(board)
+
+    for {df, dr} <- [{1, 1}, {1, -1}, {-1, 1}, {-1, -1}], reduce: [] do
+      acc -> acc ++ open_ray(occupancy, from, df, dr)
+    end
+  end
+
+  defp open_ray(occupancy, from, df, dr) do
+    Stream.iterate(1, &(&1 + 1))
+    |> Enum.reduce_while([], fn step, acc ->
+      file = Square.file(from) + df * step
+      rank = Square.rank(from) + dr * step
+      square = rank * 8 + file
+
+      cond do
+        file not in 0..7 or rank not in 0..7 -> {:halt, acc}
+        (occupancy &&& 1 <<< square) != 0 -> {:halt, acc}
+        true -> {:cont, [square | acc]}
+      end
+    end)
   end
 
   defp per_color(board, fun) do
