@@ -92,6 +92,17 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   generate/revoke en eenmalige token-weergave per rol. Suites: web 322, analysis
   659, dialyzer 0. **Let op:** viewer-links verlenen de rol maar slice 3 (read-only
   handhaving) moet nog — daartussen is een "viewer" inhoudelijk editor.
+- **Visualisatie-ronde (`4527c32`, `afa71c7`):** gebruiker vond de diagonaal-label-bug
+  (`lines.*_diagonals` toonden alleen de eerste twee velden: "a5b6" was eigenlijk a5–d8) —
+  gefixt naar echte eindpunten ("a5d8", formaat van `king.open_diagonal`). Nieuwe feature
+  **`lines.bishop_open_diagonals`**: per kant de lege diagonaalvelden die elke loper kan
+  bespelen tot het eerste stuk (gebruikersdefinitie "bruikbare open diagonaal"; beginstelling
+  = [] ✓). Per-side square-lijst → tekent direct via het bestaande highlight-pad.
+  Browser-geverifieerd (1.g3 e5 2.Lg2: W 6 / B 5 velden, bord kleurt exact die velden).
+  **Bijvangst:** stored `position_feature_vectors` krijgen nieuwe catalogus-features niet
+  automatisch (versie wordt niet vergeleken) — vers berekend bij eerste nieuwe extractie,
+  anders `PositionFeatures.backfill/0`. Volgt nog: wing/islands/coordination-visualisatie
+  (slice 3 van deze ronde), daarna terug naar geplande Lichess-refresh.
 - **Room-permissies, slice 3/3 (`82e35f3`, viewer-handhaving):** één guard-clause vóór alle
   event-handlers weigert content-events van viewers (`@viewer_blocked_events`:
   zetten, commentaar, NAGs, annotaties, position-editor, analyse add/remove,
