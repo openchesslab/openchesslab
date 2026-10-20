@@ -54,7 +54,16 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   **Eindspel:** via materiaalsignatuur-atomen (bestaande digest-machinerie);
   **tablebase**-filter is uitgesteld — `position_tablebases` is een luie cache
   van de externe lichess-API, een corpus-vulling daarvoor is een eigen project.
-  **Fase 4 ✅ (voor nu).** **Fase 2** featurezoeken:
+  **Fase 4 ✅ (voor nu).**
+- **Backfill-crashloop gerepareerd (`4390ec5`):** `DigestBackfill` herscannde per
+  chunk de hele gevulde prefix (`NOT EXISTS` zonder high-water mark) → chunk-queries
+  >15s (de default Ecto-timeout) → exit 1 → restart-loop. Fix: `p.id > $3` high-water
+  mark binnen een run (O(n²) → O(n)) + `timeout: 120_000` op de chunk-query (de
+  eenmalige herscan vanaf id 0 per run overleeft zo). Geverifieerd in prod: geen
+  crashes meer, stabiel ~50–100 pos/s. **Feit: de GIN op `atom_ids` is in prod
+  GEDROPT** (alleen de pkey bestaat) — na afronding dus `CREATE INDEX CONCURRENTLY`
+  (geen REINDEX) + `ANALYZE`, daarna pas `bulk-resume-3` destroyen. Similar search
+  draait tot dan zonder GIN. Stand: ~5,33M/19,75M = **27%**, resterend ~3 dagen. **Fase 2** featurezoeken:
   digest-atomen (intrinsieke catalogue-feiten: `motifs.greek_gift`, `pawns.iqp`, …) in de
   vorm van de oude `position_features.properties` (bytea[] + GIN, hercodering i.p.v. nieuwe
   tabel), POC op ~100K posities met EXPLAIN-bewijs vóór de volledige 19,7M-backfill;
