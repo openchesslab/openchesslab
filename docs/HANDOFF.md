@@ -92,7 +92,7 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   generate/revoke en eenmalige token-weergave per rol. Suites: web 322, analysis
   659, dialyzer 0. **Let op:** viewer-links verlenen de rol maar slice 3 (read-only
   handhaving) moet nog — daartussen is een "viewer" inhoudelijk editor.
-- **Room-permissies, slice 3/3 (viewer-handhaving):** één guard-clause vóór alle
+- **Room-permissies, slice 3/3 (`82e35f3`, viewer-handhaving):** één guard-clause vóór alle
   event-handlers weigert content-events van viewers (`@viewer_blocked_events`:
   zetten, commentaar, NAGs, annotaties, position-editor, analyse add/remove,
   corpus-open, import, library-naar-kamer) met uitleg-notice; `member_role`-assign
