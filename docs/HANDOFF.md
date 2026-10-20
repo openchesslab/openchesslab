@@ -63,7 +63,20 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   crashes meer, stabiel ~50–100 pos/s. **Feit: de GIN op `atom_ids` is in prod
   GEDROPT** (alleen de pkey bestaat) — na afronding dus `CREATE INDEX CONCURRENTLY`
   (geen REINDEX) + `ANALYZE`, daarna pas `bulk-resume-3` destroyen. Similar search
-  draait tot dan zonder GIN. Stand: ~5,33M/19,75M = **27%**, resterend ~3 dagen. **Fase 2** featurezoeken:
+  draait tot dan zonder GIN. Stand: ~5,33M/19,75M = **27%**, resterend ~3 dagen.
+- **Feature-catalogus-integratie (`e7ebe69`):** de zoek-picker toonde ~30 hardcoded
+  atomen van de 2.760 doorzoekbare (133 bases; catalogus heeft 372 features waarvan
+  34 numeriek bewust niet ge-atomiseerd). Nu: `FeatureDigest.picker_atoms/1`
+  (vorm-gedreven vocabulaire: booleans tellen als true, curated lijsten als
+  presence-atomen; square-scalaren en `material.signature:*` bewust uitgesloten) +
+  `PositionFeatures.search_picker_groups/0` (3 vaste FENs → deterministisch,
+  persistent_term-gecachet, gegroepeerd per catalogus-sectie). De picker toont nu
+  **228 pills in 16 secties** met een client-side filterveld (`FeatureFilter`-hook).
+  Geen re-backfill nodig: alle picker-atomen bestaan al in de digests. Browser-
+  geverifieerd op dev: "greek" filtert live; `motifs.greek_gift:w` gaf 4 echte hits.
+  Suites: web 320, analysis 657, dialyzer 0. **Numeriek-bucket-atomen** (mobility/
+  total_value-bereiken) blijven een aparte toekomstige keuze (vocabulaire-uitbreiding
+  → re-encode vanuit `position_feature_vectors`, geen re-extract nodig). **Fase 2** featurezoeken:
   digest-atomen (intrinsieke catalogue-feiten: `motifs.greek_gift`, `pawns.iqp`, …) in de
   vorm van de oude `position_features.properties` (bytea[] + GIN, hercodering i.p.v. nieuwe
   tabel), POC op ~100K posities met EXPLAIN-bewijs vóór de volledige 19,7M-backfill;
