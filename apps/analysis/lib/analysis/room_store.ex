@@ -87,8 +87,8 @@ defmodule Analysis.RoomStore do
   """
 
   @insert_owner_sql """
-  INSERT INTO room_members (room_id, user_id, display_name)
-  VALUES ($1, $2, $3)
+  INSERT INTO room_members (room_id, user_id, display_name, role)
+  VALUES ($1, $2, $3, 'owner')
   ON CONFLICT (room_id, user_id) DO NOTHING
   """
 
@@ -146,20 +146,24 @@ defmodule Analysis.RoomStore do
   end
 
   @add_member_sql """
-  INSERT INTO room_members (room_id, user_id, display_name)
-  SELECT id, $2, $3 FROM rooms WHERE id = $1
+  INSERT INTO room_members (room_id, user_id, display_name, role)
+  SELECT id, $2, $3, $4 FROM rooms WHERE id = $1
   ON CONFLICT (room_id, user_id) DO NOTHING
   RETURNING room_id
   """
 
-  @doc "Idempotently add a member to a durable room with a server-generated label."
-  @spec add_member(String.t(), String.t(), String.t()) ::
+  @doc """
+  Idempotently add a member to a durable room with a server-generated label
+  and a role (`"editor"` or `"viewer"`; the owner role only ever comes from
+  room creation).
+  """
+  @spec add_member(String.t(), String.t(), String.t(), String.t()) ::
           :ok | {:error, :room_not_found}
-  def add_member(room_id, user_id, display_name)
-      when is_binary(room_id) and is_binary(display_name) do
+  def add_member(room_id, user_id, display_name, role \\ "editor")
+      when is_binary(room_id) and is_binary(display_name) and role in ["editor", "viewer"] do
     case Ecto.UUID.dump(user_id) do
       {:ok, db_user} ->
-        case Repo.query!(@add_member_sql, [room_id, db_user, display_name]).rows do
+        case Repo.query!(@add_member_sql, [room_id, db_user, display_name, role]).rows do
           [[_room_id]] -> :ok
           [] -> {:error, :room_not_found}
         end
@@ -169,8 +173,50 @@ defmodule Analysis.RoomStore do
     end
   end
 
+  @role_of_sql """
+  SELECT role FROM room_members WHERE room_id = $1 AND user_id = $2
+  """
+
+  @doc "The role of one member (`owner`, `editor` or `viewer`), or nil when not a member."
+  @spec role_of(String.t(), String.t() | nil) :: String.t() | nil
+  def role_of(room_id, user_id) when is_binary(room_id) do
+    case Ecto.UUID.dump(user_id) do
+      {:ok, db_user} ->
+        case Repo.query!(@role_of_sql, [room_id, db_user], log: false).rows do
+          [[role]] -> role
+          [] -> nil
+        end
+
+      :error ->
+        nil
+    end
+  end
+
+  @set_member_role_sql """
+  UPDATE room_members
+  SET role = $3
+  WHERE room_id = $1 AND user_id = $2
+  RETURNING user_id
+  """
+
+  @doc "Set one membership's role; the caller owns the owner/authority checks."
+  @spec set_member_role(String.t(), String.t(), String.t()) :: :ok | :not_found
+  def set_member_role(room_id, user_id, role)
+      when is_binary(room_id) and role in ["editor", "viewer"] do
+    case Ecto.UUID.dump(user_id) do
+      {:ok, db_user} ->
+        case Repo.query!(@set_member_role_sql, [room_id, db_user, role], log: false).rows do
+          [[_user_id]] -> :ok
+          [] -> :not_found
+        end
+
+      _ ->
+        :not_found
+    end
+  end
+
   @members_sql """
-  SELECT user_id::text, display_name, created_at
+  SELECT user_id::text, display_name, role, created_at
   FROM room_members
   WHERE room_id = $1
   ORDER BY created_at, user_id
@@ -183,12 +229,17 @@ defmodule Analysis.RoomStore do
   never unique identifiers or proof of authentication.
   """
   @spec members(String.t()) :: [
-          %{user_id: String.t(), display_name: String.t(), joined_at: NaiveDateTime.t()}
+          %{
+            user_id: String.t(),
+            display_name: String.t(),
+            role: String.t(),
+            joined_at: NaiveDateTime.t()
+          }
         ]
   def members(room_id) when is_binary(room_id) do
     Repo.query!(@members_sql, [room_id], log: false).rows
-    |> Enum.map(fn [user_id, display_name, joined_at] ->
-      %{user_id: user_id, display_name: display_name, joined_at: joined_at}
+    |> Enum.map(fn [user_id, display_name, role, joined_at] ->
+      %{user_id: user_id, display_name: display_name, role: role, joined_at: joined_at}
     end)
   end
 
@@ -281,7 +332,10 @@ defmodule Analysis.RoomStore do
         Repo.transaction(fn ->
           case Repo.query!(@consume_invite_sql, [room_id, token_hash], log: false).rows do
             [[_token_hash]] ->
-              Repo.query!(@add_member_sql, [room_id, db_user, display_name], log: false)
+              # Slice 1: every invite link grants the editor role; per-role
+              # links follow with the viewer role.
+              Repo.query!(@add_member_sql, [room_id, db_user, display_name, "editor"], log: false)
+
               :joined
 
             [] ->

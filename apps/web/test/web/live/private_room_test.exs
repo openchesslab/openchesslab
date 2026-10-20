@@ -213,6 +213,47 @@ defmodule Web.PrivateRoomTest do
     assert has_element?(gated, "#private-room-gate")
   end
 
+  test "the owner manages member roles in the members modal", ctx do
+    assert {:ok, _room} =
+             Rooms.create_room(ctx.code, owner: ctx.owner.id, owner_display_name: "Wise Otter 42")
+
+    {:ok, token} = Rooms.create_invite(ctx.code)
+
+    assert {:ok, :joined} =
+             Rooms.consume_invite(ctx.code, ctx.other.id, token, "Keen Rhino 44")
+
+    [_owner_member, joined_member] = Rooms.members(ctx.code)
+    {:ok, view, _} = live(authenticated(ctx.owner_session.token), "/rooms/#{ctx.code}")
+    render_click(view, "open-members")
+
+    # Invitees join as editors; the owner's own row offers no role button.
+    assert has_element?(view, "#member-#{joined_member.user_id}", "Editor")
+
+    assert has_element?(
+             view,
+             "#member-#{joined_member.user_id} button[phx-click='set-member-role']"
+           )
+
+    refute has_element?(view, "#member-#{ctx.owner.id} button[phx-click='set-member-role']")
+
+    # Demote to viewer and promote back; the badge follows the durable role.
+    render_click(view, "set-member-role", %{
+      "user_id" => joined_member.user_id,
+      "role" => "viewer"
+    })
+
+    assert Rooms.role_of(ctx.code, joined_member.user_id) == :viewer
+    assert has_element?(view, "#member-#{joined_member.user_id}", "Viewer")
+
+    render_click(view, "set-member-role", %{
+      "user_id" => joined_member.user_id,
+      "role" => "editor"
+    })
+
+    assert Rooms.role_of(ctx.code, joined_member.user_id) == :editor
+    assert has_element?(view, "#member-#{joined_member.user_id}", "Editor")
+  end
+
   test "non-owner members cannot forge member management", ctx do
     assert {:ok, _room} =
              Rooms.create_room(ctx.code, owner: ctx.owner.id, owner_display_name: "Wise Otter 42")
@@ -228,7 +269,13 @@ defmodule Web.PrivateRoomTest do
     render_click(view, "generate-invite", %{"user_id" => ctx.owner.id})
     render_click(view, "revoke-invite", %{"user_id" => ctx.owner.id})
 
+    render_click(view, "set-member-role", %{
+      "user_id" => ctx.other.id,
+      "role" => "viewer"
+    })
+
     assert Rooms.members(ctx.code) |> length() == 2
+    assert Rooms.role_of(ctx.code, ctx.other.id) == :editor
 
     # The forged revoke left the active invite untouched.
     assert Rooms.invite_active?(ctx.code)

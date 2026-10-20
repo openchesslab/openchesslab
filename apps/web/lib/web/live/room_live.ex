@@ -398,6 +398,33 @@ defmodule Web.RoomLive do
     end
   end
 
+  # Only the room's owner may change member roles; forged events from
+  # non-owners change nothing, and the owner's own role is immutable.
+  def handle_event("set-member-role", _params, %{assigns: %{current_user: nil}} = socket),
+    do: {:noreply, socket}
+
+  def handle_event("set-member-role", %{"user_id" => target, "role" => role}, socket) do
+    if room_owner?(socket) and role in ["editor", "viewer"] do
+      case Rooms.set_member_role(
+             socket.assigns.room_code,
+             socket.assigns.current_user.id,
+             target,
+             String.to_existing_atom(role)
+           ) do
+        :ok ->
+          {:noreply,
+           socket
+           |> assign(members: Rooms.members(socket.assigns.room_code))
+           |> notify(Web.I18n.t("room.memberRoleChanged", socket.assigns.locale))}
+
+        _ ->
+          {:noreply, socket}
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
   def handle_event("generate-invite", _params, %{assigns: %{current_user: nil}} = socket),
     do: {:noreply, socket}
 

@@ -1743,6 +1743,13 @@
                 :if={@room.owner_user_id == member.user_id}
                 class="ml-1.5 rounded-full bg-panel-hover px-2 py-0.5 text-[.65rem] font-semibold text-muted"
               >{Web.I18n.t("room.owner", @locale)}</span>
+              <span
+                :if={@room.owner_user_id != member.user_id}
+                class="ml-1.5 rounded-full bg-panel-hover px-2 py-0.5 text-[.65rem] font-semibold text-muted"
+              >{Web.I18n.t(
+                if(member.role == "viewer", do: "room.roleViewer", else: "room.roleEditor"),
+                @locale
+              )}</span>
             </p>
             <p class="mt-1 text-xs text-muted">
               {Web.I18n.t("room.memberJoined", @locale)}
@@ -1752,13 +1759,27 @@
               )}</time>
             </p>
           </div>
-          <button
+          <div
             :if={@room.owner_user_id != member.user_id}
-            type="button"
-            class="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-panel-hover"
-            phx-click="remove-member"
-            phx-value-user_id={member.user_id}
-          >{Web.I18n.t("room.removeMember", @locale)}</button>
+            class="flex items-center gap-2"
+          >
+            <button
+              type="button"
+              class="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-panel-hover"
+              phx-click="set-member-role"
+              phx-value-user_id={member.user_id}
+              phx-value-role={if(member.role == "editor", do: "viewer", else: "editor")}
+            >{Web.I18n.t(
+              if(member.role == "editor", do: "room.makeViewer", else: "room.makeEditor"),
+              @locale
+            )}</button>
+            <button
+              type="button"
+              class="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-panel-hover"
+              phx-click="remove-member"
+              phx-value-user_id={member.user_id}
+            >{Web.I18n.t("room.removeMember", @locale)}</button>
+          </div>
         </li>
       </ul>
     </section>

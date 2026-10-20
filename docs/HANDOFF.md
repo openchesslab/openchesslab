@@ -76,7 +76,16 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   geverifieerd op dev: "greek" filtert live; `motifs.greek_gift:w` gaf 4 echte hits.
   Suites: web 320, analysis 657, dialyzer 0. **Numeriek-bucket-atomen** (mobility/
   total_value-bereiken) blijven een aparte toekomstige keuze (vocabulaire-uitbreiding
-  → re-encode vanuit `position_feature_vectors`, geen re-extract nodig). **Fase 2** featurezoeken:
+  → re-encode vanuit `position_feature_vectors`, geen re-extract nodig).
+- **Room-permissies, slice 1/3 (`PCR`):** gebruikersbeslissing rollenmodel (owner/editor/
+  viewer) ipv owner-or-adder; publieke kamers blijven bearer. Migratie
+  `room_members.role` (CHECK; bestaande leden → editor, eigenaar → owner),
+  `Rooms.role_of/2`, owner-only `Rooms.set_member_role/3` (eigen rol immuun,
+  publiceert `membership_changed`), invites verlenen nog editor. Members-modal:
+  rol-badges + owner-only promoveer/degradeer-knoppen; gefabuleerde events van
+  niet-eigenaren veranderen niets. Rollen zijn nu **informatief**; slice 2 =
+  invite-links per rol, slice 3 = viewer read-only handhaving. Suites: web 321,
+  analysis 658, dialyzer 0. **Fase 2** featurezoeken:
   digest-atomen (intrinsieke catalogue-feiten: `motifs.greek_gift`, `pawns.iqp`, …) in de
   vorm van de oude `position_features.properties` (bytea[] + GIN, hercodering i.p.v. nieuwe
   tabel), POC op ~100K posities met EXPLAIN-bewijs vóór de volledige 19,7M-backfill;

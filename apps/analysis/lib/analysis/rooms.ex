@@ -68,13 +68,64 @@ defmodule Analysis.Rooms do
   end
 
   @doc """
+  The role of one member: `:owner` (exactly one per private room), `:editor`
+  or `:viewer`; nil when the user is not a member. Public rooms have no
+  memberships, so every answer there is nil — bearer semantics apply.
+  """
+  @spec role_of(Room.id(), String.t() | nil) :: :owner | :editor | :viewer | nil
+  def role_of(room_id, user_id) do
+    case RoomStore.role_of(room_id, user_id) do
+      "owner" -> :owner
+      "editor" -> :editor
+      "viewer" -> :viewer
+      nil -> nil
+    end
+  end
+
+  @doc """
   The durable member list, oldest join first. Display names are server
   generated labels without personal data.
   """
   @spec members(Room.id()) :: [
-          %{user_id: String.t(), display_name: String.t(), joined_at: NaiveDateTime.t()}
+          %{
+            user_id: String.t(),
+            display_name: String.t(),
+            role: String.t(),
+            joined_at: NaiveDateTime.t()
+          }
         ]
   def members(room_id), do: RoomStore.members(room_id)
+
+  @doc """
+  Change one member's role between `:editor` and `:viewer`; only the owner
+  may change roles, and the owner's own role is immutable (ownership itself
+  is never transferable here). Every connected member view is notified, so
+  role-dependent UI updates immediately. The caller authenticates the owner.
+  """
+  @spec set_member_role(Room.id(), String.t(), String.t(), :editor | :viewer) ::
+          :ok | {:error, :not_owner | :member_not_found | :owner_immutable}
+  def set_member_role(room_id, owner_user_id, target_user_id, role)
+      when is_binary(room_id) and is_binary(owner_user_id) and is_binary(target_user_id) and
+             role in [:editor, :viewer] do
+    case RoomStore.get(room_id) do
+      {:ok, %Room{owner_user_id: ^owner_user_id} = room} when not is_nil(owner_user_id) ->
+        if target_user_id == room.owner_user_id do
+          {:error, :owner_immutable}
+        else
+          case RoomStore.set_member_role(room_id, target_user_id, Atom.to_string(role)) do
+            :ok ->
+              RoomEvents.publish_membership_changed(room_id)
+              :ok
+
+            :not_found ->
+              {:error, :member_not_found}
+          end
+        end
+
+      _ ->
+        {:error, :not_owner}
+    end
+  end
 
   @doc """
   Remove one member of a private room; only the owner may remove, and the

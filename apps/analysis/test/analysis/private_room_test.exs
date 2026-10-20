@@ -49,6 +49,42 @@ defmodule Analysis.PrivateRoomTest do
     assert room.owner_user_id == ctx.owner.id
   end
 
+  test "roles: invites grant editor, and only the owner changes roles", ctx do
+    assert {:ok, _room} =
+             Rooms.create_room(ctx.code,
+               owner: ctx.owner.id,
+               owner_display_name: "Wise Otter 42"
+             )
+
+    {:ok, token} = Rooms.create_invite(ctx.code)
+    assert {:ok, :joined} = Rooms.consume_invite(ctx.code, ctx.other.id, token, "Keen Rhino 44")
+
+    # Creation and joining assign honest roles.
+    assert Rooms.role_of(ctx.code, ctx.owner.id) == :owner
+    assert Rooms.role_of(ctx.code, ctx.other.id) == :editor
+    assert Rooms.role_of(ctx.code, nil) == nil
+
+    [owner_member, joined_member] = Rooms.members(ctx.code)
+    assert owner_member.role == "owner"
+    assert joined_member.role == "editor"
+
+    # Only the owner may change roles; the owner's own role is immutable.
+    assert {:error, :not_owner} =
+             Rooms.set_member_role(ctx.code, ctx.other.id, ctx.other.id, :viewer)
+
+    assert {:error, :owner_immutable} =
+             Rooms.set_member_role(ctx.code, ctx.owner.id, ctx.owner.id, :viewer)
+
+    # Demote and promote take effect; an unknown member fails honestly.
+    assert :ok = Rooms.set_member_role(ctx.code, ctx.owner.id, ctx.other.id, :viewer)
+    assert Rooms.role_of(ctx.code, ctx.other.id) == :viewer
+    assert :ok = Rooms.set_member_role(ctx.code, ctx.owner.id, ctx.other.id, :editor)
+    assert Rooms.role_of(ctx.code, ctx.other.id) == :editor
+
+    assert {:error, :member_not_found} =
+             Rooms.set_member_role(ctx.code, ctx.owner.id, Ecto.UUID.generate(), :viewer)
+  end
+
   test "creating a private room makes the owner its first and only member", ctx do
     assert {:ok, room} =
              Rooms.create_room(ctx.code, owner: ctx.owner.id, owner_display_name: "Wise Otter 42")
