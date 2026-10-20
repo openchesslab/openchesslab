@@ -1082,6 +1082,76 @@ defmodule Analysis.GameSearchTest do
     assert same_shared > substituted_shared
   end
 
+  test "move line search finds games starting with the given line" do
+    alias Chess.Notation.FEN
+
+    start_id = PositionStore.append(Position.starting_position())
+
+    {:ok, _sicilian_record} =
+      GameRecords.create(
+        "sicilian",
+        GameContent.new(
+          start_id,
+          [move("e2", "e4"), move("c7", "c5"), move("g1", "f3")]
+        ),
+        GameStart.standard(),
+        %{"white" => "Player"}
+      )
+
+    {:ok, _queens_record} =
+      GameRecords.create(
+        "queens",
+        GameContent.new(
+          start_id,
+          [move("d2", "d4"), move("d7", "d5")]
+        ),
+        GameStart.standard(),
+        %{"white" => "Player"}
+      )
+
+    positions =
+      for fen <- [
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+            "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1",
+            "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2",
+            "rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2"
+          ] do
+        {:ok, %{position: position}} = FEN.parse(fen)
+        position
+      end
+
+    # The full line "e4 c5 Nf3" matches only the Sicilian game.
+    {:ok, page} =
+      GameSearch.move_line(
+        positions,
+        GameRecordQuery.match_all(),
+        limit: 10
+      )
+
+    assert [{record, _occurrence}] = page.entries
+    assert record.id == "sicilian"
+
+    # A shorter prefix still matches; a wrong move does not.
+    {:ok, prefix_page} =
+      GameSearch.move_line(
+        Enum.take(positions, 3),
+        GameRecordQuery.match_all(),
+        limit: 10
+      )
+
+    assert [{prefix_record, _occurrence}] = prefix_page.entries
+    assert prefix_record.id == "sicilian"
+
+    {:ok, wrong_page} =
+      GameSearch.move_line(
+        [hd(positions), Enum.at(positions, 3)],
+        GameRecordQuery.match_all(),
+        limit: 10
+      )
+
+    assert wrong_page.entries == []
+  end
+
   test "match-none queries return an empty page without querying PostgreSQL" do
     {
       position_result,

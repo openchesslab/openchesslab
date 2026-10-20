@@ -648,6 +648,39 @@ defmodule Web.RoomLiveTest do
     assert html =~ ~s(id="corpus-#{rooks.id}")
   end
 
+  test "the move line search finds games by their opening moves", %{conn: conn, code: code} do
+    OpenChessLab.Repo.query!(
+      "TRUNCATE TABLE game_records, game_occurrences, games, positions RESTART IDENTITY CASCADE",
+      []
+    )
+
+    {:ok, view, _html} = live(conn, "/rooms/#{code}")
+    corpus = seed_search_corpus()
+
+    render_click(view, "open-search", %{})
+
+    # "e4 e5" reaches only the Carlsen win (the transposition starts 1.Nf3).
+    html = render_submit(view, "search-games", %{"move_line" => "1. e4 e5"})
+
+    assert html =~ ~s(id="corpus-#{corpus.carlsen_win}")
+    refute html =~ ~s(id="corpus-#{corpus.carlsen_loss}")
+    refute html =~ ~s(id="corpus-#{corpus.transpo}")
+    refute html =~ ~s(id="corpus-#{corpus.other_win}")
+
+    # The transposition's own line finds it back.
+    html = render_submit(view, "search-games", %{"move_line" => "Nf3 e5 e4"})
+
+    assert html =~ ~s(id="corpus-#{corpus.transpo}")
+    refute html =~ ~s(id="corpus-#{corpus.carlsen_win}")
+
+    # A broken line is an honest error.
+    html = render_submit(view, "search-games", %{"move_line" => "e4 e9"})
+
+    assert html =~ "id=\"search-error\""
+
+    cleanup_search_corpus(corpus)
+  end
+
   test "game search filters by ECO, opening and event", %{conn: conn, code: code} do
     OpenChessLab.Repo.query!(
       "TRUNCATE TABLE game_records, game_occurrences, games, positions RESTART IDENTITY CASCADE",

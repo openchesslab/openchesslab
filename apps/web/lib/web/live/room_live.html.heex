@@ -2406,6 +2406,17 @@
           </div>
         </details>
 
+        <label class="flex flex-col gap-1 text-xs text-muted">{Web.I18n.t(
+          "room.searchMoveLineLabel",
+          @locale
+        )}<input
+          name="move_line"
+          value={@search_filters["move_line"]}
+          placeholder={Web.I18n.t("room.searchMoveLinePlaceholder", @locale)}
+          spellcheck="false"
+          class="rounded-md border border-border px-2 py-2 font-mono text-sm text-foreground"
+        /></label>
+
         <label
           :if={@search_filters["position_mode"] == "similar"}
           class="flex flex-col gap-1 text-xs text-muted"

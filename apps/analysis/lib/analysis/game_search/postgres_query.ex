@@ -1079,6 +1079,157 @@ defmodule Analysis.GameSearch.PostgresQuery do
     end
   end
 
+  # Games that start with the given position line: the anchor is the line's
+  # final position at the final ply; each earlier ply is an EXISTS probe on
+  # the (game_id, ply) unique index.
+  @spec compile_move_line(
+          [pos_integer()],
+          GameRecordQuery.t(),
+          Analysis.GameSearch.Cursor.t() | nil,
+          pos_integer()
+        ) ::
+          compile_result()
+  def compile_move_line([_first | _rest] = position_ids, record_query, cursor, limit)
+      when is_integer(limit) and limit > 0 do
+    with {:ok, record_predicate, record_parameters, next_parameter} <-
+           GameRecordPostgres.compile_predicate(
+             record_query,
+             1
+           ) do
+      last_ply = length(position_ids) - 1
+      anchor_parameter = next_parameter
+
+      {exists_clauses, exists_parameters, after_exists_parameter} =
+        position_ids
+        |> Enum.with_index()
+        |> Enum.drop(-1)
+        |> Enum.reduce(
+          {[], [], anchor_parameter + 1},
+          fn {position_id, ply}, {clauses, parameters, next} ->
+            clause =
+              "EXISTS (
+                SELECT 1
+                FROM game_occurrences AS g#{ply}
+                WHERE
+                  g#{ply}.game_id = go.game_id
+                  AND g#{ply}.ply = #{ply}
+                  AND g#{ply}.position_id = $#{next}::bigint
+              )"
+
+            {[clause | clauses], parameters ++ [position_id], next + 1}
+          end
+        )
+
+      {maximum_select, keyset_conditions, keyset_parameters} =
+        move_line_keyset(cursor, after_exists_parameter)
+
+      keyset_where =
+        Enum.map_join(keyset_conditions, "", fn condition ->
+          "\n        AND #{condition}\n"
+        end)
+
+      sql = """
+      SELECT
+        #{maximum_select},
+        go.position_id,
+        go.id,
+        go.game_id,
+        go.ply,
+        gr.id,
+        gr.record_id,
+        gr.game_id,
+        gr.fullmove_number,
+        gr.metadata
+      FROM game_occurrences AS go
+      JOIN game_records AS gr
+        ON gr.game_id = go.game_id
+      WHERE
+        go.ply = #{last_ply}
+        AND go.position_id = $#{anchor_parameter}::bigint
+        AND #{Enum.join(Enum.reverse(exists_clauses), "\n        AND ")}
+        AND (#{record_predicate})#{keyset_where}
+      ORDER BY
+        go.id,
+        gr.id
+      LIMIT $#{after_exists_parameter + length(keyset_parameters)}::bigint
+      """
+
+      {
+        :ok,
+        sql,
+        record_parameters ++
+          [List.last(position_ids)] ++
+          exists_parameters ++
+          keyset_parameters ++
+          [limit]
+      }
+    end
+  end
+
+  defp move_line_keyset(nil, _after_exists_parameter) do
+    maximum_select = """
+      COALESCE(
+        (
+          SELECT max(id)
+          FROM positions
+        ),
+        0
+      )::bigint AS maximum_position_id,
+      COALESCE(
+        (
+          SELECT max(id)
+          FROM game_occurrences
+        ),
+        0
+      )::bigint AS maximum_occurrence_id,
+      COALESCE(
+        (
+          SELECT max(id)
+          FROM game_records
+        ),
+        0
+      )::bigint AS maximum_record_row_id
+    """
+
+    {maximum_select, [], []}
+  end
+
+  defp move_line_keyset(%Analysis.GameSearch.Cursor{} = cursor, after_exists_parameter) do
+    maximum_position_parameter = after_exists_parameter
+    maximum_occurrence_parameter = after_exists_parameter + 1
+    maximum_record_parameter = after_exists_parameter + 2
+    last_occurrence_parameter = after_exists_parameter + 3
+    last_record_parameter = after_exists_parameter + 4
+
+    maximum_select = """
+      $#{maximum_position_parameter}::bigint AS maximum_position_id,
+      $#{maximum_occurrence_parameter}::bigint AS maximum_occurrence_id,
+      $#{maximum_record_parameter}::bigint AS maximum_record_row_id
+    """
+
+    conditions = [
+      "go.id <= $#{maximum_occurrence_parameter}::bigint",
+      "gr.id <= $#{maximum_record_parameter}::bigint",
+      "(
+        go.id,
+        gr.id
+      ) > (
+        $#{last_occurrence_parameter}::bigint,
+        $#{last_record_parameter}::bigint
+      )"
+    ]
+
+    parameters = [
+      cursor.maximum_position_id,
+      cursor.maximum_occurrence_id,
+      cursor.maximum_record_row_id,
+      cursor.last_occurrence_id,
+      cursor.last_record_row_id
+    ]
+
+    {maximum_select, conditions, parameters}
+  end
+
   # Count of distinct records matching a position+record query, for the
   # search dialog's interpretation tabs. Cheap shape: no ordering, no limit.
   @spec compile_count(PositionQuery.t(), GameRecordQuery.t()) ::

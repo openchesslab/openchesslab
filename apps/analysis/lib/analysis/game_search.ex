@@ -24,6 +24,7 @@ defmodule Analysis.GameSearch do
   alias Analysis.GameStart
   alias Analysis.PositionQuery
   alias Analysis.PositionQueryNormalizer
+  alias Analysis.PositionStore
   alias OpenChessLab.Repo
 
   defmodule Cursor do
@@ -170,6 +171,64 @@ defmodule Analysis.GameSearch do
 
   def similar(_position, _record_query, _options) do
     {:error, :invalid_page_options}
+  end
+
+  @doc """
+  Search games that start with the given move line: every position of the
+  line at its own ply, from the game's start. The anchor is the line's
+  final position; every earlier ply is verified with a unique-index probe.
+  Keyset-paged by occurrence id.
+  """
+  @spec move_line([Chess.Position.t()], GameRecordQuery.t(), keyword()) :: page_result()
+  def move_line([_first | _rest] = positions, record_query, options) when is_list(options) do
+    with {:ok, limit} <- fetch_limit(options),
+         {:ok, cursor} <- fetch_cursor(options) do
+      :telemetry.span(
+        [:openchesslab, :search, :page],
+        %{search_type: :move_line},
+        fn ->
+          result = do_move_line(positions, record_query, limit, cursor)
+          {result, %{search_type: :move_line}}
+        end
+      )
+    end
+  end
+
+  def move_line(_positions, _record_query, _options) do
+    {:error, :invalid_page_options}
+  end
+
+  defp do_move_line(positions, record_query, limit, cursor) do
+    position_ids =
+      Enum.map(positions, fn position -> PositionStore.append(position) end)
+
+    requested_rows =
+      limit + 1
+
+    with {
+           :ok,
+           sql,
+           parameters
+         } <-
+           PostgresQuery.compile_move_line(
+             position_ids,
+             record_query,
+             cursor,
+             requested_rows
+           ),
+         {:ok, %{rows: rows}} <-
+           Repo.query(
+             sql,
+             parameters
+           ) do
+      {
+        :ok,
+        build_page(
+          rows,
+          limit
+        )
+      }
+    end
   end
 
   # The full atom set ranks candidates; the material signatures (and any

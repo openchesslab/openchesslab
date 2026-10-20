@@ -167,6 +167,7 @@ defmodule Web.RoomLive do
         "date_to" => "",
         "position_mode" => "similar",
         "fen" => "",
+        "move_line" => "",
         "material_substitution" => "",
         "substitutions" => ""
       },
@@ -558,6 +559,7 @@ defmodule Web.RoomLive do
          "date_to" => "",
          "position_mode" => "similar",
          "fen" => "",
+         "move_line" => "",
          "material_substitution" => ""
        },
        search_corpus_size: GameSearch.corpus_size()
@@ -4605,6 +4607,16 @@ defmodule Web.RoomLive do
            search_counts: nil
          )}
 
+      {:error, :invalid_move_line} ->
+        {:noreply,
+         assign(socket,
+           search_filters: filters,
+           search_results: [],
+           search_cursor: nil,
+           search_error: "room.searchInvalidMoveLine",
+           search_counts: nil
+         )}
+
       {:error, _reason} ->
         {:noreply,
          assign(socket,
@@ -4657,37 +4669,120 @@ defmodule Web.RoomLive do
   end
 
   defp corpus_search(filters, cursor) do
-    # Similar mode only applies with a position; metadata-only searches page
-    # newest-first regardless of the selected mode.
-    if filters["position_mode"] == "similar" and not is_nil(blank_to_nil(filters["fen"])) do
-      corpus_search_similar(filters, cursor)
+    if blank_to_nil(filters["move_line"]) do
+      corpus_search_move_line(filters, cursor)
     else
-      atoms = search_atoms(filters["features"])
+      # Similar mode only applies with a position; metadata-only searches
+      # page newest-first regardless of the selected mode.
+      if filters["position_mode"] == "similar" and not is_nil(blank_to_nil(filters["fen"])) do
+        corpus_search_similar(filters, cursor)
+      else
+        atoms = search_atoms(filters["features"])
 
-      with {:ok, position_query} <-
-             search_position_query(filters["fen"], filters["position_mode"], atoms) do
+        with {:ok, position_query} <-
+               search_position_query(filters["fen"], filters["position_mode"], atoms) do
+          record_query = search_record_query(filters)
+
+          # With a position filter (FEN or feature atoms) the scan stays
+          # position-driven (insertion order); game-only searches page newest-first.
+          sort =
+            if blank_to_nil(filters["fen"]) || atoms != [],
+              do: :insertion,
+              else: :date_desc
+
+          options =
+            if cursor,
+              do: [limit: @search_page_size, cursor: cursor, sort: sort],
+              else: [limit: @search_page_size, sort: sort]
+
+          case GameSearch.page(position_query, record_query, options) do
+            {:ok, page} ->
+              build_corpus_results(page.entries, page.next)
+
+            {:error, _reason} ->
+              {:error, :search_failed}
+          end
+        end
+      end
+    end
+  end
+
+  # Move line search ("1. e4 c5 2. Nf3 d6"): every position of the line at
+  # its own ply, starting from the FEN position when given, else the start.
+  defp corpus_search_move_line(filters, cursor) do
+    case parse_move_line(filters["fen"], filters["move_line"]) do
+      {:ok, positions} ->
         record_query = search_record_query(filters)
-
-        # With a position filter (FEN or feature atoms) the scan stays
-        # position-driven (insertion order); game-only searches page newest-first.
-        sort =
-          if blank_to_nil(filters["fen"]) || atoms != [],
-            do: :insertion,
-            else: :date_desc
 
         options =
           if cursor,
-            do: [limit: @search_page_size, cursor: cursor, sort: sort],
-            else: [limit: @search_page_size, sort: sort]
+            do: [limit: @search_page_size, cursor: cursor],
+            else: [limit: @search_page_size]
 
-        case GameSearch.page(position_query, record_query, options) do
+        case GameSearch.move_line(positions, record_query, options) do
           {:ok, page} ->
             build_corpus_results(page.entries, page.next)
 
           {:error, _reason} ->
             {:error, :search_failed}
         end
-      end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @move_line_max_plies 30
+
+  defp parse_move_line(fen, line) do
+    with {:ok, start_position} <- start_position_for_line(fen),
+         {:ok, sans} <- move_line_tokens(line) do
+      replay_move_line(start_position, sans, [start_position])
+    end
+  end
+
+  defp start_position_for_line(fen) do
+    case blank_to_nil(fen) do
+      nil ->
+        {:ok, Position.starting_position()}
+
+      _ ->
+        case FEN.parse(String.trim(fen)) do
+          {:ok, %{position: position}} -> {:ok, position}
+          _invalid -> {:error, :invalid_fen}
+        end
+    end
+  end
+
+  defp move_line_tokens(line) do
+    tokens =
+      line
+      |> String.split(~r/\s+/, trim: true)
+      |> Enum.reject(&(&1 =~ ~r/^\d+\.*$/))
+      |> Enum.reject(&(&1 in ["1-0", "0-1", "1/2-1/2", "*"]))
+
+    if tokens == [] or length(tokens) > @move_line_max_plies do
+      {:error, :invalid_move_line}
+    else
+      {:ok, tokens}
+    end
+  end
+
+  defp replay_move_line(_position, [], positions), do: {:ok, Enum.reverse(positions)}
+
+  defp replay_move_line(position, [san | rest], positions) do
+    case Chess.Notation.SAN.parse(position, san) do
+      {:ok, move} ->
+        case Position.apply_move(position, move) do
+          {:ok, next_position} ->
+            replay_move_line(next_position, rest, [next_position | positions])
+
+          {:error, _reason} ->
+            {:error, :invalid_move_line}
+        end
+
+      {:error, _reason} ->
+        {:error, :invalid_move_line}
     end
   end
 
