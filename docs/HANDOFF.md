@@ -117,9 +117,11 @@ Adviseer geen onnodige wissels en claim niet dat een modelwissel al is uitgevoer
   **Hervatting bewezen:** machine stopte onverklaard na ~13 uur bij 3,11M
   (oorzaak niet in geroteerde logs); herstart hervatte direct (NOT EXISTS-skip),
   ~85 posities/s, 0 failures. Stop bleek zich te **herhalen** (~elke 12–16 u;
-  exit-reden onzichtbaar, logs geroteerd) → **`--restart on-failure`** op
-  `bulk-resume-3` gezet (2026-10-19): crashes herstarten vanzelf, succesvolle
-  afronding niet (geen restart-loop). Status toen: 3,93M (19,9%).
+  stille stops, `fly_instance_exit_oom` = 0 → géén OOM → host-events).
+  **Zelfrijdend (2026-10-20):** `--restart always` + command met
+  `Stream.repeatedly(run → sleep 1 uur)` — elke stop herstart vanzelf; na
+  afronding hercheckt hij uurlijks i.p.v. in een restart-loop te vallen.
+  Status toen: 4,30M (21,8%).
   **Query-transformaties (`72c001f`):** `Position.color_swapped/1` en
   `Position.file_reflected/1` op `Chess.Position` (zelfde conventie als
   PawnStructure/Similarity) + zoekmodes "kleuren omgedraaid"/"gespiegeld"
