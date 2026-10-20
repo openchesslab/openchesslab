@@ -127,6 +127,22 @@ defmodule Features.Catalogue.Mobility do
           |> Enum.count(&Map.has_key?(defenders, &1))
         end)
       end),
+      # The drawable companion of the coordination count: the defended
+      # pieces themselves, mirroring mobility.uncoordinated's list.
+      Feature.new(
+        "mobility.coordinated",
+        5,
+        [{5, "piece coordination"}],
+        fn board ->
+          per_color(board, fn board, color ->
+            defenders = AttackMap.defender_counts(board, color)
+
+            active_piece_squares(board, color)
+            |> Enum.filter(&Map.has_key?(defenders, &1))
+            |> to_alg()
+          end)
+        end
+      ),
       Feature.new(
         "mobility.uncoordinated",
         5,

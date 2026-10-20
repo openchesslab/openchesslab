@@ -5,6 +5,28 @@ defmodule Features.Catalogue.MobilityTest do
 
   defp extract(fen), do: Features.extract(fen).features
 
+  test "coordinated mirrors uncoordinated and the count" do
+    features = extract(@start)
+
+    coordinated = features["mobility.coordinated"]
+    uncoordinated = features["mobility.uncoordinated"]
+    count = features["mobility.coordination"]
+
+    # The two lists partition the active pieces; the count matches the list.
+    for side <- ["white", "black"] do
+      assert length(coordinated[side]) == count[side]
+      assert coordinated[side] -- uncoordinated[side] == coordinated[side]
+      assert uncoordinated[side] -- coordinated[side] == uncoordinated[side]
+    end
+
+    # Startpos facts: the rooks are the only undefended pieces (the king is
+    # not an "active piece" here), and the queen is defended by her king.
+    assert uncoordinated["white"] == ["a1", "h1"]
+    assert uncoordinated["black"] == ["a8", "h8"]
+    assert "f1" in coordinated["white"]
+    assert "d1" in coordinated["white"]
+  end
+
   test "start position" do
     features = extract(@start)
 

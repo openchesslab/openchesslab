@@ -177,6 +177,10 @@ defmodule Features.Catalogue.BoardHintsTest do
 
   @piece_types ~w(rook bishop knight queen pawn)a
 
+  # Structural hints derive their drawing from the position, not from a
+  # piece type: wing splits and pawn islands.
+  @structural_hints ~w(wing_pawns wing_pieces pawn_islands)a
+
   test "aggregate piece features carry a board hint for the UI" do
     assert Catalogue.fetch!("material.count.rook").board == :rook
     assert Catalogue.fetch!("material.count.bishop").board == :bishop
@@ -191,9 +195,11 @@ defmodule Features.Catalogue.BoardHintsTest do
     assert Catalogue.fetch!("material.exchange_advantage").board == [:rook, :knight, :bishop]
   end
 
-  test "board hints name known piece types and stay off square-level features" do
+  test "board hints name known piece types or structural hints and stay off square-level features" do
+    known = @piece_types ++ @structural_hints
+
     for feature <- Catalogue.all(), hint = feature.board do
-      assert List.wrap(hint) -- @piece_types == [],
+      assert List.wrap(hint) -- known == [],
              "#{feature.id} has an unknown board hint: #{inspect(hint)}"
     end
 

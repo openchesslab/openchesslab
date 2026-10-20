@@ -21,22 +21,30 @@ defmodule Features.Catalogue.Pawns do
           "black" => structure(board, :black)
         }
       end),
-      Feature.new("pawns.count.per_wing", 3, [{3, "aantal pionnen per vleugel"}], fn board ->
-        per_color(board, fn board, color ->
-          %{
-            "queenside" => count(board, color, 0..3),
-            "kingside" => count(board, color, 4..7)
-          }
-        end)
-      end),
-      Feature.new("pawns.islands", 3, [{3, "pawn islands"}], fn board ->
-        per_color(board, fn board, color ->
-          groups(board, color)
-          |> Map.keys()
-          |> Enum.sort()
-          |> count_islands()
-        end)
-      end),
+      Feature.new(
+        "pawns.count.per_wing",
+        3,
+        [{3, "aantal pionnen per vleugel"}],
+        fn board ->
+          per_color(board, fn board, color ->
+            %{
+              "queenside" => count(board, color, 0..3),
+              "kingside" => count(board, color, 4..7)
+            }
+          end)
+        end, board: :wing_pawns),
+      Feature.new(
+        "pawns.islands",
+        3,
+        [{3, "pawn islands"}],
+        fn board ->
+          per_color(board, fn board, color ->
+            groups(board, color)
+            |> Map.keys()
+            |> Enum.sort()
+            |> count_islands()
+          end)
+        end, board: :pawn_islands),
       Feature.new("pawns.isolated", 3, [{3, "geïsoleerde pion"}], fn board ->
         per_color(board, fn board, color ->
           groups = groups(board, color)

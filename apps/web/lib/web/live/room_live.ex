@@ -4155,6 +4155,63 @@ defmodule Web.RoomLive do
   # A board hint draws the catalogue's named piece type(s) from the position
   # for every side the value affirms (counts > 0, flags that are true).
   @spec highlights_for(term(), term(), Position.t() | nil) :: square_highlights() | nil
+  # Structural hints derive their squares from the position: wing splits in
+  # the side's colour for the queenside, amber for the kingside.
+  defp highlights_for(_value, hint, position)
+       when hint in [:wing_pawns, :wing_pieces] and is_nil(position),
+       do: nil
+
+  # Same OTP 29 MapSet opacity false positive as compute_highlights/4 (the
+  # union below merges genuine MapSets).
+  @dialyzer {:no_opaque, highlights_for: 3}
+  defp highlights_for(%{"white" => white_wings, "black" => black_wings}, hint, position)
+       when hint in [:wing_pawns, :wing_pieces] do
+    types =
+      if(hint == :wing_pawns,
+        do: [:pawn],
+        else: [:king, :queen, :rook, :bishop, :knight]
+      )
+
+    highlights = %{
+      white: wing_squares(position, :white, types, white_wings["queenside"], 0..3),
+      black: wing_squares(position, :black, types, black_wings["queenside"], 0..3),
+      neutral:
+        MapSet.union(
+          wing_squares(position, :white, types, white_wings["kingside"], 4..7),
+          wing_squares(position, :black, types, black_wings["kingside"], 4..7)
+        ),
+      files: MapSet.new()
+    }
+
+    if MapSet.size(highlights.white) + MapSet.size(highlights.black) +
+         MapSet.size(highlights.neutral) > 0,
+       do: highlights,
+       else: nil
+  end
+
+  defp highlights_for(_value, hint, _position) when hint in [:wing_pawns, :wing_pieces],
+    do: nil
+
+  # Pawn islands: the largest island draws in the side's colour, the
+  # remaining fragments amber; a side without pawns draws nothing.
+  defp highlights_for(_value, :pawn_islands, position) when is_nil(position), do: nil
+
+  defp highlights_for(%{"white" => white_count, "black" => black_count}, :pawn_islands, position) do
+    highlights = %{
+      white: if(white_count > 0, do: largest_island(position, :white), else: MapSet.new()),
+      black: if(black_count > 0, do: largest_island(position, :black), else: MapSet.new()),
+      neutral: island_fragments(position),
+      files: MapSet.new()
+    }
+
+    if MapSet.size(highlights.white) + MapSet.size(highlights.black) +
+         MapSet.size(highlights.neutral) > 0,
+       do: highlights,
+       else: nil
+  end
+
+  defp highlights_for(_value, :pawn_islands, _position), do: nil
+
   defp highlights_for(value, hint, position) when not is_nil(hint) do
     piece_highlights(value, List.wrap(hint), position)
   end
@@ -4289,6 +4346,63 @@ defmodule Web.RoomLive do
       piece_color == color and type in types
     end)
     |> MapSet.new(fn {square, _piece} -> square end)
+  end
+
+  # The side's pawns/pieces on the given files, drawn only when the wing's
+  # count affirms them (the value is the signal, the position the location).
+  defp wing_squares(position, color, types, count, files)
+       when is_integer(count) and count > 0 do
+    position
+    |> piece_squares(color, types)
+    |> MapSet.filter(&(rem(&1, 8) in files))
+  end
+
+  defp wing_squares(_position, _color, _types, _count, _files), do: MapSet.new()
+
+  # Pawn islands are maximal runs of contiguous files holding own pawns; the
+  # largest island (by pawn count) is the main structure, the rest fragments.
+  defp largest_island(position, color) do
+    position
+    |> island_groups(color)
+    |> Enum.max_by(&MapSet.size/1, fn -> MapSet.new() end)
+  end
+
+  defp island_fragments(position) do
+    for color <- [:white, :black], reduce: MapSet.new() do
+      acc ->
+        case island_groups(position, color) do
+          [] ->
+            acc
+
+          groups ->
+            groups
+            |> Enum.sort_by(&MapSet.size/1, :desc)
+            |> tl()
+            |> Enum.reduce(acc, &MapSet.union(&2, &1))
+        end
+    end
+  end
+
+  defp island_groups(position, color) do
+    pawns = piece_squares(position, color, [:pawn])
+
+    pawns
+    |> Enum.map(&rem(&1, 8))
+    |> Enum.uniq()
+    |> Enum.sort()
+    |> Enum.reduce([], fn
+      file, [] ->
+        [[file]]
+
+      file, [[previous | _] = group | rest] when file == previous + 1 ->
+        [[file | group] | rest]
+
+      file, groups ->
+        [[file] | groups]
+    end)
+    |> Enum.map(fn files ->
+      MapSet.filter(pawns, &(rem(&1, 8) in files))
+    end)
   end
 
   @spec square_set(binary() | [term()]) :: MapSet.t(Square.t())

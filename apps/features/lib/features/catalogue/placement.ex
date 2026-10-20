@@ -35,7 +35,8 @@ defmodule Features.Catalogue.Placement do
               "kingside" => non_pawn_count(board, color, 4..7)
             }
           end)
-        end
+        end,
+        board: :wing_pieces
       ),
       Feature.new("placement.center", 4, [{4, "stukken in het centrum"}], fn board ->
         center = Support.center_bb()

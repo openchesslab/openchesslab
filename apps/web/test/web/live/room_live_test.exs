@@ -3231,6 +3231,42 @@ defmodule Web.RoomLiveTest do
     refute html =~ "data-highlight=\"file\""
   end
 
+  test "wing counts, islands and coordination draw their structures", %{
+    conn: conn,
+    code: code
+  } do
+    with_features_autoload()
+    {:ok, analysis, _revision} = Analyses.create("wings")
+    :ok = Rooms.add_analysis(code, analysis.id)
+    {:ok, view, _html} = live(conn, "/rooms/#{code}?a=wings")
+
+    # Wing pawn counts: queenside in the side's colour, kingside amber.
+    render_click(view, "feature-detail", %{"id" => "pawns.count.per_wing"})
+    assert has_element?(view, "#chess-board-square-a2 span[data-highlight='white']")
+    assert has_element?(view, "#chess-board-square-a7 span[data-highlight='black']")
+    assert has_element?(view, "#chess-board-square-e2 span[data-highlight='neutral']")
+    render_click(view, "feature-detail", %{"id" => "pawns.count.per_wing"})
+
+    # Wing piece concentration: same split for the pieces.
+    render_click(view, "feature-detail", %{"id" => "placement.concentration.per_wing"})
+    assert has_element?(view, "#chess-board-square-b1 span[data-highlight='white']")
+    assert has_element?(view, "#chess-board-square-e8 span[data-highlight='neutral']")
+    render_click(view, "feature-detail", %{"id" => "placement.concentration.per_wing"})
+
+    # Islands: one connected island per side in the start position, no amber.
+    render_click(view, "feature-detail", %{"id" => "pawns.islands"})
+    assert has_element?(view, "#chess-board-square-d2 span[data-highlight='white']")
+    assert has_element?(view, "#chess-board-square-d7 span[data-highlight='black']")
+    refute has_element?(view, "#chess-board span[data-highlight='neutral']")
+    render_click(view, "feature-detail", %{"id" => "pawns.islands"})
+
+    # Coordination: the defended pieces (the rooks are the lone undefended).
+    render_click(view, "feature-detail", %{"id" => "mobility.coordinated"})
+    assert has_element?(view, "#chess-board-square-d1 span[data-highlight='white']")
+    assert has_element?(view, "#chess-board-square-d8 span[data-highlight='black']")
+    render_click(view, "feature-detail", %{"id" => "mobility.coordinated"})
+  end
+
   test "pinning attacks and defended squares marks both sides", %{conn: conn, code: code} do
     with_features_autoload()
     {:ok, analysis, _revision} = Analyses.create("layers")

@@ -587,6 +587,7 @@
   "features.lines.closed_files": "Files with pawns of both colours",
   "features.lines.open_diagonals": "Diagonals without own pawns, per side",
   "features.lines.bishop_open_diagonals": "Empty diagonal squares each bishop can move to before the first piece blocks it, per side",
+  "features.mobility.coordinated": "Own pieces defended by another own piece, per side",
   "features.lines.semi_open_diagonals": "Diagonals with enemy pawns only, per side",
   "features.lines.long_diagonals": "Long diagonals without own pawns, per side",
   "features.lines.open_ranks": "Ranks without any pawn",

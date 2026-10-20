@@ -32,7 +32,7 @@ defmodule Analysis.PositionFeaturesTest do
     assert {:ok, result} = PositionFeatures.extract(Position.starting_position())
 
     assert result.version == "0.1.0"
-    assert map_size(result.features) == 373
+    assert map_size(result.features) == 374
     assert result.features == Features.extract(FEN.start_fen()).features
   end
 
@@ -50,7 +50,7 @@ defmodule Analysis.PositionFeaturesTest do
 
     assert {:ok, _analysis, 1} = Analyses.create(analysis_id)
     assert {:ok, result} = PositionFeatures.extract_at(analysis_id, [])
-    assert map_size(result.features) == 373
+    assert map_size(result.features) == 374
 
     assert {:error, :analysis_not_found} = PositionFeatures.extract_at("missing", [])
   end

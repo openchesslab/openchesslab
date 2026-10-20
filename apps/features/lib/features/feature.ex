@@ -9,10 +9,24 @@ defmodule Features.Feature do
   holds no squares of its own (counts, booleans, imbalances). The UI draws
   those pieces straight from the position whenever the value affirms a side;
   the value stays the signal, the position supplies the locations.
+
+  Structural hints go further: `:wing_pawns` / `:wing_pieces` split the
+  side's pawns or pieces by wing (queenside a–d in the side's colour,
+  kingside e–h in amber), and `:pawn_islands` draws the largest pawn island
+  in the side's colour with the fragments amber.
   """
 
   @type claim :: {pos_integer(), String.t()}
-  @type board_hint :: :rook | :bishop | :knight | :queen | :pawn | [atom()]
+  @type board_hint ::
+          :rook
+          | :bishop
+          | :knight
+          | :queen
+          | :pawn
+          | :wing_pawns
+          | :wing_pieces
+          | :pawn_islands
+          | [atom()]
 
   @type t :: %__MODULE__{
           id: String.t(),
